@@ -12,6 +12,7 @@ from backend.app.regras import classificar
 from backend.app.cancelamentos import aplicar_cancelamentos
 from backend.app.modelos import Ato
 from backend.app.seguranca import destruir_variaveis
+from backend.app.proprietarios import calcular_cadeia_dominial
 
 app = FastAPI()
 
