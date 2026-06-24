@@ -5,7 +5,7 @@ def limpar_nome(nome):
     # Remove acentos, transforma em maiúsculas e tira espaços extras
     nome = ''.join(c for c in unicodedata.normalize('NFD', nome) if unicodedata.category(c) != 'Mn')
     nome = nome.upper().strip()
-    # Remove prefixos que podem confundir a matemática (ex: "Espólio de Osvaldo" vira só "OSVALDO")
+    # Remove prefixos que podem confundir a matemática
     nome = re.sub(r'^(O\s+)?ESPOLIO DE\s+', '', nome)
     nome = re.sub(r'^SUCESSORES DE\s+', '', nome)
     return nome
@@ -14,8 +14,8 @@ def padronizar_chave(cpf, nome):
     # Tenta usar os números do CPF/CIC como Chave Mestra
     cpf_limpo = re.sub(r'\D', '', cpf)
     if len(cpf_limpo) >= 11:
-        return cpf_limpo[:11] # Garante que pegue os 11 primeiros caso haja sujeira
-    elif len(cpf_limpo) >= 9: # Para CICs muitos antigos
+        return cpf_limpo[:11] 
+    elif len(cpf_limpo) >= 9: 
         return cpf_limpo
         
     # Se falhou em achar o CPF na leitura do texto, usa o NOME como chave!
@@ -47,10 +47,12 @@ def extrair_bloco(texto, tipo):
         m = re.search(r'adquirido por\s+(.*?)(?:;\s*por compra|;\s*pelo preço|em pagamento)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip()
 
-        m = re.search(r'coube\s+a[os]?\s+(.*?)(?:;\s*em pagamento|,\s*em pagamento|;\s*a totalidade)', texto, re.I | re.DOTALL)
+        # TRAVA DE SEGURANÇA ADICIONADA: Para o motor antes das explicações de aquisição
+        m = re.search(r'coube\s+a[os]?\s+(.*?)(?:;\s*em pagamento|,\s*em pagamento|;\s*a totalidade|;\s*por aquisi[çc][ãa]o|,\s*por aquisi[çc][ãa]o|;\s*conforme|,\s*conforme)', texto, re.I | re.DOTALL)
         if m:
             t = m.group(1).strip()
-            t = re.sub(r'^(?:o\s+|a\s+|os\s+|as\s+)?(?:único\s+)?(?:herdeiro[s]?|cessionário[s]?|filho[s]?|viúva)\s*(?:e\s+cessionári[oa]s?)?\s+', '', t, flags=re.I).strip()
+            # LIMPEZA REFORÇADA: Remove o texto lixo e os dois pontos ":"
+            t = re.sub(r'^(?:o\s+|a\s+|os\s+|as\s+)?(?:único\s+)?(?:herdeiro[s]?|cessionário[s]?|filho[s]?|viúva)?\s*(?:e\s+cessionári[oa]s?)?\s*[:\-]?\s*', '', t, flags=re.I).strip()
             return t
 
     elif tipo == "TRANSMITENTE":
@@ -74,7 +76,6 @@ def extrair_pessoas(texto_bloco):
     if not texto_bloco: return pessoas
 
     # Prioridade 1: casal explícito via "e seu cônjuge / e sua mulher / e seu marido"
-    # Cada metade vira uma entrada separada com seu próprio CPF → divisão 50/50 automática
     partes_conjuge = re.split(r'\s+e\s+(?:seu\s+c[oô]njuge|sua\s+mulher|seu\s+marido)\s+', texto_bloco, flags=re.I)
     if len(partes_conjuge) == 2:
         for parte in partes_conjuge:
@@ -89,8 +90,7 @@ def extrair_pessoas(texto_bloco):
             pessoas.append({"nome": nome, "cpf": cpf})
         return pessoas
 
-    # Prioridade 2: lista numerada — limita a 1-3 dígitos e exige espaço após o separador
-    # \s+ (obrigatório) evita falso positivo em endereços como "n.º 543-A"
+    # Prioridade 2: lista numerada
     partes = re.split(r'(?:^|\s+|;)(?:\d{1,3}|[IVX]+)[\)\-]\s+', texto_bloco)
     partes = [p.strip() for p in partes if p.strip()]
     if not partes:
@@ -106,7 +106,6 @@ def extrair_pessoas(texto_bloco):
         pessoas.append({"nome": nome, "cpf": cpf})
 
         # Cônjuge implícito: "comunhão universal ... com [nome] ... [cpf]"
-        # Aciona aquisição implícita de 50% para o cônjuge não listado como adquirente
         conj_match = re.search(
             r'comunh[ãa]o\s+universal[^,]*,\s+com\s+([A-ZÀ-Úa-zà-ú][^,]+),.*?(?:CPF|CIC)[^\d]*([\d\.\-]{9,18})',
             parte, re.I | re.DOTALL
