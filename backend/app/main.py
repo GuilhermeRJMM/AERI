@@ -6,12 +6,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.parser import separar_atos
-from app.regras import classificar
-from app.cancelamentos import aplicar_cancelamentos
-from app.modelos import Ato
-from app.seguranca import destruir_variaveis
-from app.proprietarios import calcular_cadeia_dominial
+from parser import separar_atos
+from regras import classificar
+from cancelamentos import aplicar_cancelamentos
+from modelos import Ato
+from seguranca import destruir_variaveis
 
 app = FastAPI()
 
