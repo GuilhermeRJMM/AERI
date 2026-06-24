@@ -6,11 +6,12 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from parser import separar_atos
-from regras import classificar
-from cancelamentos import aplicar_cancelamentos
-from modelos import Ato
-from seguranca import destruir_variaveis
+# --- IMPORTAÇÕES COM O CAMINHO COMPLETO PARA O VERCEL ---
+from backend.app.parser import separar_atos
+from backend.app.regras import classificar
+from backend.app.cancelamentos import aplicar_cancelamentos
+from backend.app.modelos import Ato
+from backend.app.seguranca import destruir_variaveis
 
 app = FastAPI()
 
