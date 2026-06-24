@@ -1,17 +1,21 @@
+import sys
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi import Request
+# --- GPS PARA O VERCEL ---
+# Adiciona a raiz do projeto ao sistema para o Vercel achar as pastas
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-# --- IMPORTAÇÕES COM O CAMINHO COMPLETO PARA O VERCEL ---
+# --- IMPORTAÇÕES COM O CAMINHO CORRETO ---
 from backend.app.parser import separar_atos
 from backend.app.regras import classificar
 from backend.app.cancelamentos import aplicar_cancelamentos
 from backend.app.modelos import Ato
-from backend.app.seguranca import destruir_variaveis
 from backend.app.proprietarios import calcular_cadeia_dominial
 
 app = FastAPI()
@@ -37,7 +41,7 @@ def home(request: Request):
 
 @app.post("/analisar-cadeia")
 def analisar_cadeia(dados: dict):
-    texto = dados["texto"]
+    texto = dados.get("texto", "")
     separados = separar_atos(texto)
     atos = []
 
@@ -55,17 +59,14 @@ def analisar_cadeia(dados: dict):
     atos = aplicar_cancelamentos(atos)
     proprietarios = calcular_cadeia_dominial(atos)
 
-    destruir_variaveis(texto, separados)
     return {"proprietarios": proprietarios}
-
 
 @app.post("/analisar")
 def analisar(dados: dict):
-    texto = dados["texto"]
+    texto = dados.get("texto", "")
     separados = separar_atos(texto)
     atos = []
 
-    # 1. Separação e Classificação
     for item in separados:
         categoria, impacta = classificar(item["texto"])
         atos.append(
@@ -77,10 +78,8 @@ def analisar(dados: dict):
             )
         )
 
-    # 2. Aplica a regra de cancelar os atos antigos
     atos = aplicar_cancelamentos(atos)
 
-    # 3. Lógica de Ônus, Restrições e Publicidade
     tem_onus = any(
         a.categoria in ["ÔNUS", "RESTRIÇÃO"] and a.status == "ATIVO" 
         for a in atos
@@ -98,14 +97,16 @@ def analisar(dados: dict):
     else:
         resultado_final = "NEGATIVA PARA ÔNUS"
 
-    # 4. Filtro de Exibição
     categorias_permitidas = ["ÔNUS", "RESTRIÇÃO", "PUBLICIDADE", "CANCELAMENTO"]
-    atos_filtrados = [a.model_dump() for a in atos if a.categoria in categorias_permitidas]
+    
+    # Compatibilidade garantida para Pydantic V1 e V2 no Vercel
+    atos_filtrados = [
+        a.model_dump() if hasattr(a, 'model_dump') else a.dict()
+        for a in atos if a.categoria in categorias_permitidas
+    ]
 
-    # --- 5. LÓGICA DE EXTRAÇÃO DE PROPRIETÁRIOS (Cadeia Dominial) ---
     lista_proprietarios = calcular_cadeia_dominial(atos)
 
-    # 6. Prepara a Resposta
     resposta = {
         "resultado": resultado_final,
         "publicidade": "COM PUBLICIDADE" if tem_publicidade else "SEM PUBLICIDADE",
@@ -113,5 +114,4 @@ def analisar(dados: dict):
         "proprietarios_atuais": lista_proprietarios
     }
 
-    destruir_variaveis(texto, separados)
     return resposta
