@@ -100,9 +100,7 @@ def extrair_pessoas(texto_bloco):
 
     return pessoas
 
-# --- NOVA FUNÇÃO: O "Ato 0" da Matrícula ---
 def extrair_proprietario_inicial(texto_cabecalho):
-    # Procura a tag PROPRIETÁRIO(A) até esbarrar em ORIGEM, NOTA, etc.
     m = re.search(r'PROPRIET[AÁ]RI[OA]S?\s*:\s*(.*?)(?=\bORIGEM\b|\bT[IÍ]TULO AQUISITIVO\b|\bREGISTRO ANTERIOR\b|\bO referido [ée] verdade\b|\*NOTA\b|\bProtocolo\b|\bMATR[IÍ]CULA\b)', texto_cabecalho, re.I | re.DOTALL)
     if m:
         return extrair_pessoas(m.group(1).strip())
@@ -111,7 +109,7 @@ def extrair_proprietario_inicial(texto_cabecalho):
 def calcular_cadeia_dominial(atos, texto_integral=""):
     estado = {}
     
-    # 1. CARREGA O SALDO INICIAL (Lê o cabeçalho antes do R.01 ou AV.01)
+    # 1. CARREGA O SALDO INICIAL (Ato 0)
     if texto_integral:
         partes = re.split(r'(?:R|AV)[\.\-]\s*0*1\b', texto_integral, maxsplit=1, flags=re.I)
         cabecalho = partes[0]
@@ -143,27 +141,47 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
             
         percent_por_adq = percentual_ato / len(adquirentes)
         
-        # Debita de quem vendeu
+        # --- SAÍDA DOS TRANSMITENTES (Subtração Matemática com Mega Brain 🧠) ---
         if transmitentes:
             percent_por_transm = percentual_ato / len(transmitentes)
             for t in transmitentes:
                 chave_t = padronizar_chave(t["cpf"], t["nome"])
                 
+                debitou = False
+                
+                # TENTATIVA 1: Match Exato (CPFs ou Nomes Idênticos)
                 for chave_estado in list(estado.keys()):
                     if chave_t == chave_estado:
                         estado[chave_estado]["proporcao"] -= percent_por_transm
                         if estado[chave_estado]["proporcao"] < 0.01:
                             del estado[chave_estado]
+                        debitou = True
                         break
+                        
+                # TENTATIVA 2: Match Parcial Fuzzy (Ex: "José" contido em "José e Francisca")
+                if not debitou:
+                    for chave_estado in list(estado.keys()):
+                        if chave_estado in chave_t or chave_t in chave_estado:
+                            estado[chave_estado]["proporcao"] -= percent_por_transm
+                            if estado[chave_estado]["proporcao"] < 0.01:
+                                del estado[chave_estado]
+                            debitou = True
+                            break
+                
+                # TENTATIVA 3: Wipe-out de Segurança (Limpa a conta se for venda 100% com termos genéricos)
+                if not debitou and percentual_ato >= 99.0 and len(transmitentes) == 1:
+                    termos_genericos = ["MESMOS", "PROPRIETARIOS", "CASAL", "HERDEIROS", "FALECIMENTO", "OUTROS", " E "]
+                    if any(termo in chave_t for termo in termos_genericos):
+                        estado.clear() # Zera a conta de todo mundo para o novo dono assumir
         
-        # Credita para quem comprou
+        # --- ENTRADA DOS ADQUIRENTES (Crédito) ---
         for a in adquirentes:
             chave_a = padronizar_chave(a["cpf"], a["nome"])
             if chave_a not in estado:
                 estado[chave_a] = {"nome": a["nome"], "cpf_original": a["cpf"], "proporcao": 0.0}
             estado[chave_a]["proporcao"] += percent_por_adq
             
-    # Formata a saída
+    # 3. FORMATA A SAÍDA
     resultado = []
     for chave, dados in estado.items():
         if dados["proporcao"] > 0.01:
