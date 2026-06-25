@@ -57,7 +57,7 @@ def analisar_cadeia(dados: dict):
         )
 
     atos = aplicar_cancelamentos(atos)
-    proprietarios = calcular_cadeia_dominial(atos)
+    proprietarios = calcular_cadeia_dominial(atos, texto)
 
     return {"proprietarios": proprietarios}
 
@@ -99,13 +99,12 @@ def analisar(dados: dict):
 
     categorias_permitidas = ["ÔNUS", "RESTRIÇÃO", "PUBLICIDADE", "CANCELAMENTO"]
     
-    # Compatibilidade garantida para Pydantic V1 e V2 no Vercel
     atos_filtrados = [
         a.model_dump() if hasattr(a, 'model_dump') else a.dict()
         for a in atos if a.categoria in categorias_permitidas
     ]
 
-    lista_proprietarios = calcular_cadeia_dominial(atos)
+    lista_proprietarios = calcular_cadeia_dominial(atos, texto) # <-- E adicione o ', texto' aqui também
 
     resposta = {
         "resultado": resultado_final,

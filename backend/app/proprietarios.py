@@ -2,33 +2,26 @@ import re
 import unicodedata
 
 def limpar_nome(nome):
-    # Remove acentos, transforma em maiúsculas e tira espaços extras
     nome = ''.join(c for c in unicodedata.normalize('NFD', nome) if unicodedata.category(c) != 'Mn')
     nome = nome.upper().strip()
-    # Remove prefixos que podem confundir a matemática
     nome = re.sub(r'^(O\s+)?ESPOLIO DE\s+', '', nome)
     nome = re.sub(r'^SUCESSORES DE\s+', '', nome)
     return nome
 
 def padronizar_chave(cpf, nome):
-    # Tenta usar os números do CPF/CIC como Chave Mestra
     cpf_limpo = re.sub(r'\D', '', cpf)
     if len(cpf_limpo) >= 11:
         return cpf_limpo[:11] 
     elif len(cpf_limpo) >= 9: 
         return cpf_limpo
-        
-    # Se falhou em achar o CPF na leitura do texto, usa o NOME como chave!
     return limpar_nome(nome)
 
 def parse_percent(texto):
     m1 = re.search(r'IMÓVEL\s*:\s*(\d+(?:,\d+)?)%', texto, re.IGNORECASE)
-    if m1:
-        return float(m1.group(1).replace(',', '.'))
+    if m1: return float(m1.group(1).replace(',', '.'))
     
     m2 = re.search(r'proporção de\s*(\d+(?:,\d+)?)%', texto, re.IGNORECASE)
-    if m2:
-        return float(m2.group(1).replace(',', '.'))
+    if m2: return float(m2.group(1).replace(',', '.'))
         
     if re.search(r'(totalidade|integralidade|100%|o imóvel constante|o imóvel objeto)', texto, re.IGNORECASE):
         return 100.0
@@ -40,18 +33,15 @@ def extrair_bloco(texto, tipo):
         m = re.search(r'ADQUIRENTE[S]?\s*:(.*?)(?:IMÓVEL\s*:|ORIGEM\s*:|FORMA DO TÍTULO)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip()
 
-        # Doação: DONATÁRIO = quem recebe = ADQUIRENTE
         m = re.search(r'DONAT[AÁ]RIO[S]?\s*:(.*?)(?=\bOBJETO\s*:|\bORIGEM\s*:|\bFORMA DO TÍTULO)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip()
 
         m = re.search(r'adquirido por\s+(.*?)(?:;\s*por compra|;\s*pelo preço|em pagamento)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip()
 
-        # TRAVA DE SEGURANÇA ADICIONADA: Para o motor antes das explicações de aquisição
         m = re.search(r'coube\s+a[os]?\s+(.*?)(?:;\s*em pagamento|,\s*em pagamento|;\s*a totalidade|;\s*por aquisi[çc][ãa]o|,\s*por aquisi[çc][ãa]o|;\s*conforme|,\s*conforme)', texto, re.I | re.DOTALL)
         if m:
             t = m.group(1).strip()
-            # LIMPEZA REFORÇADA: Remove o texto lixo e os dois pontos ":"
             t = re.sub(r'^(?:o\s+|a\s+|os\s+|as\s+)?(?:único\s+)?(?:herdeiro[s]?|cessionário[s]?|filho[s]?|viúva)?\s*(?:e\s+cessionári[oa]s?)?\s*[:\-]?\s*', '', t, flags=re.I).strip()
             return t
 
@@ -59,7 +49,6 @@ def extrair_bloco(texto, tipo):
         m = re.search(r'TRANSMITENTE[S]?\s*:(.*?)(?:ADQUIRENTE[S]?\s*:|IMÓVEL\s*:)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip()
 
-        # Doação: DOADOR = quem doa = TRANSMITENTE
         m = re.search(r'DOADOR[ES]?\s*:(.*?)(?=\bINTERVENIENTE\s*:|\bDONAT[AÁ]RIO\s*:|\bOBJETO\s*:)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip()
 
@@ -75,13 +64,11 @@ def extrair_pessoas(texto_bloco):
     pessoas = []
     if not texto_bloco: return pessoas
 
-    # Prioridade 1: casal explícito via "e seu cônjuge / e sua mulher / e seu marido"
     partes_conjuge = re.split(r'\s+e\s+(?:seu\s+c[oô]njuge|sua\s+mulher|seu\s+marido)\s+', texto_bloco, flags=re.I)
     if len(partes_conjuge) == 2:
         for parte in partes_conjuge:
             parte = parte.strip()
             nome_match = re.match(r'^([^,]+)', parte)
-            # Tenta CPF formatado primeiro (mais preciso), depois fallback genérico
             cpf_match = re.search(r'(?:CPF|CIC)[^\d]*([\d]{3}\.[\d]{3}\.[\d]{3}-[\d]{2})', parte, re.I)
             if not cpf_match:
                 cpf_match = re.search(r'(?:CPF|CIC|MF)[^\d]*([\d\.\-]{9,18})', parte, re.I)
@@ -90,7 +77,6 @@ def extrair_pessoas(texto_bloco):
             pessoas.append({"nome": nome, "cpf": cpf})
         return pessoas
 
-    # Prioridade 2: lista numerada
     partes = re.split(r'(?:^|\s+|;)(?:\d{1,3}|[IVX]+)[\)\-]\s+', texto_bloco)
     partes = [p.strip() for p in partes if p.strip()]
     if not partes:
@@ -105,7 +91,6 @@ def extrair_pessoas(texto_bloco):
 
         pessoas.append({"nome": nome, "cpf": cpf})
 
-        # Cônjuge implícito: "comunhão universal ... com [nome] ... [cpf]"
         conj_match = re.search(
             r'comunh[ãa]o\s+universal[^,]*,\s+com\s+([A-ZÀ-Úa-zà-ú][^,]+),.*?(?:CPF|CIC)[^\d]*([\d\.\-]{9,18})',
             parte, re.I | re.DOTALL
@@ -115,8 +100,30 @@ def extrair_pessoas(texto_bloco):
 
     return pessoas
 
-def calcular_cadeia_dominial(atos):
+# --- NOVA FUNÇÃO: O "Ato 0" da Matrícula ---
+def extrair_proprietario_inicial(texto_cabecalho):
+    # Procura a tag PROPRIETÁRIO(A) até esbarrar em ORIGEM, NOTA, etc.
+    m = re.search(r'PROPRIET[AÁ]RI[OA]S?\s*:\s*(.*?)(?=\bORIGEM\b|\bT[IÍ]TULO AQUISITIVO\b|\bREGISTRO ANTERIOR\b|\bO referido [ée] verdade\b|\*NOTA\b|\bProtocolo\b|\bMATR[IÍ]CULA\b)', texto_cabecalho, re.I | re.DOTALL)
+    if m:
+        return extrair_pessoas(m.group(1).strip())
+    return []
+
+def calcular_cadeia_dominial(atos, texto_integral=""):
     estado = {}
+    
+    # 1. CARREGA O SALDO INICIAL (Lê o cabeçalho antes do R.01 ou AV.01)
+    if texto_integral:
+        partes = re.split(r'(?:R|AV)[\.\-]\s*0*1\b', texto_integral, maxsplit=1, flags=re.I)
+        cabecalho = partes[0]
+        
+        iniciais = extrair_proprietario_inicial(cabecalho)
+        if iniciais:
+            fração = 100.0 / len(iniciais)
+            for p in iniciais:
+                chave = padronizar_chave(p["cpf"], p["nome"])
+                estado[chave] = {"nome": p["nome"], "cpf_original": p["cpf"], "proporcao": fração}
+
+    # 2. PROCESSA OS ATOS DE TRANSFERÊNCIA
     atos_transmissao = ["VENDA E COMPRA", "COMPRA E VENDA", "INVENTÁRIO", "PARTILHA", "SOBREPARTILHA", "DOAÇÃO"]
     
     for ato in atos:
@@ -136,7 +143,7 @@ def calcular_cadeia_dominial(atos):
             
         percent_por_adq = percentual_ato / len(adquirentes)
         
-        # --- SAÍDA DOS TRANSMITENTES (Subtração Matemática) ---
+        # Debita de quem vendeu
         if transmitentes:
             percent_por_transm = percentual_ato / len(transmitentes)
             for t in transmitentes:
@@ -145,19 +152,18 @@ def calcular_cadeia_dominial(atos):
                 for chave_estado in list(estado.keys()):
                     if chave_t == chave_estado:
                         estado[chave_estado]["proporcao"] -= percent_por_transm
-                        # Se zerou a conta, EXCLUI DA LISTA
                         if estado[chave_estado]["proporcao"] < 0.01:
                             del estado[chave_estado]
                         break
         
-        # --- ENTRADA DOS ADQUIRENTES (Adição Matemática) ---
+        # Credita para quem comprou
         for a in adquirentes:
             chave_a = padronizar_chave(a["cpf"], a["nome"])
             if chave_a not in estado:
                 estado[chave_a] = {"nome": a["nome"], "cpf_original": a["cpf"], "proporcao": 0.0}
             estado[chave_a]["proporcao"] += percent_por_adq
             
-    # Formata para devolver ao FrontEnd
+    # Formata a saída
     resultado = []
     for chave, dados in estado.items():
         if dados["proporcao"] > 0.01:
