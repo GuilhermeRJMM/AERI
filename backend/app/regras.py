@@ -50,6 +50,7 @@ REGRAS = {
     "TRASLADO DE HIPOTECA": {"categoria": "ÔNUS", "impacta": True},
     "VÍNCULO": {"categoria": "RESTRIÇÃO", "impacta": True},
     "PACTO COMISSÓRIO": {"categoria": "RESTRIÇÃO", "impacta": True},
+
     # --- ATOS COMUNS (Para o sistema achar primeiro e ignorar o resto do texto) ---
     "VENDA E COMPRA": {"categoria": "IGNORAR", "impacta": False},
     "COMPRA E VENDA": {"categoria": "IGNORAR", "impacta": False},
@@ -62,8 +63,9 @@ REGRAS = {
 }
 
 PALAVRAS_CANCELAMENTO = [
-    "CANCELAMENTO DE", "CANCELAMENTO DO", "CANCELAMENTO DA", "CANCELAMENTO:",
-    "FICA CANCELADA", "FICA CANCELADO", "BAIXA"
+    "CANCELAMENTO", "FICA CANCELADA", "FICA CANCELADO", 
+    "FIQUE CANCELADA", "FIQUE CANCELADO", "BAIXA",
+    "CANCELADA POR", "CANCELADO POR"
 ]
 
 PALAVRAS_IGNORAR_FORTE = [
@@ -78,18 +80,15 @@ PALAVRAS_PUBLICIDADE_FORTE = [
 
 def classificar(texto):
     texto = texto.upper()
-
-    # 1º Escudo Absoluto: Atos administrativos irrelevantes (CAR, CCIR, CEP, Atualizações cadastrais)
+    
     for p in PALAVRAS_IGNORAR_FORTE:
         if p in texto:
             return ("IGNORAR", False)
 
-    # 2º Motor Inteligente: A palavra que aparecer PRIMEIRO no texto ganha!
     melhor_categoria = "DESCONHECIDO"
     melhor_impacta = False
     menor_indice = len(texto)
 
-    # Procura por palavras de Cancelamento
     for p in PALAVRAS_CANCELAMENTO:
         idx = texto.find(p)
         if idx != -1 and idx < menor_indice:
@@ -97,7 +96,6 @@ def classificar(texto):
             melhor_categoria = "CANCELAMENTO"
             melhor_impacta = False
 
-    # Procura por palavras de Publicidade Forte
     for p in PALAVRAS_PUBLICIDADE_FORTE:
         idx = texto.find(p)
         if idx != -1 and idx < menor_indice:
@@ -105,7 +103,6 @@ def classificar(texto):
             melhor_categoria = "PUBLICIDADE"
             melhor_impacta = False
 
-    # Procura pelas Regras do PDF (Ônus e Restrições)
     for chave, dados in REGRAS.items():
         idx = texto.find(chave)
         if idx != -1 and idx < menor_indice:

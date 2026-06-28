@@ -10,7 +10,10 @@ def limpar_nome(nome):
 
 def padronizar_chave(cpf, nome):
     cpf_limpo = re.sub(r'\D', '', cpf)
-    if len(cpf_limpo) >= 11:
+    # MEGA BRAIN: Mantém os 14 dígitos do CNPJ intactos, mas corta o CPF para 11
+    if len(cpf_limpo) == 14:
+        return cpf_limpo 
+    elif len(cpf_limpo) >= 11:
         return cpf_limpo[:11] 
     elif len(cpf_limpo) >= 9: 
         return cpf_limpo
@@ -22,6 +25,9 @@ def parse_percent(texto):
     
     m2 = re.search(r'proporção de\s*(\d+(?:,\d+)?)%', texto, re.IGNORECASE)
     if m2: return float(m2.group(1).replace(',', '.'))
+
+    m3 = re.search(r'parte\s+correspondente\s+a\s*(\d+(?:,\d+)?)%', texto, re.IGNORECASE)
+    if m3: return float(m3.group(1).replace(',', '.'))
         
     if re.search(r'(totalidade|integralidade|100%|o imóvel constante|o imóvel objeto)', texto, re.IGNORECASE):
         return 100.0
@@ -30,33 +36,43 @@ def parse_percent(texto):
 
 def extrair_bloco(texto, tipo):
     if tipo == "ADQUIRENTE":
-        m = re.search(r'ADQUIRENTE[S]?\s*:(.*?)(?:IMÓVEL\s*:|ORIGEM\s*:|FORMA DO TÍTULO)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip()
+        m = re.search(r'ADQUIRENTE[S]?\s*:(.*?)(?=\bIMÓVEL\s*:|\bORIGEM\s*:|\bFORMA DO TÍTULO\b)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'DONAT[AÁ]RIO[S]?\s*:(.*?)(?=\bOBJETO\s*:|\bORIGEM\s*:|\bFORMA DO TÍTULO)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip()
+        m = re.search(r'DONAT[AÁ]RIO[S]?\s*:(.*?)(?=\bOBJETO\s*:|\bORIGEM\s*:|\bFORMA DO TÍTULO\b)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'adquirido por\s+(.*?)(?:;\s*por compra|;\s*pelo preço|em pagamento)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip()
+        m = re.search(r'adquirido por\s*:?\s*(.*?)(?=\bpor compra\b|\bpelo preço\b|\bem pagamento\b|\bpor doação\b)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'coube\s+a[os]?\s+(.*?)(?:;\s*em pagamento|,\s*em pagamento|;\s*a totalidade|;\s*por aquisi[çc][ãa]o|,\s*por aquisi[çc][ãa]o|;\s*conforme|,\s*conforme)', texto, re.I | re.DOTALL)
+        m = re.search(r'coube\s+(?:a|ao|aos|à|às)\s+(.*?)(?=\bem pagamento\b|\ba totalidade\b|\bpor aquisi[çc][ãa]o\b|\bconforme\b)', texto, re.I | re.DOTALL)
         if m:
-            t = m.group(1).strip()
-            t = re.sub(r'^(?:o\s+|a\s+|os\s+|as\s+)?(?:único\s+)?(?:herdeiro[s]?|cessionário[s]?|filho[s]?|viúva)?\s*(?:e\s+cessionári[oa]s?)?\s*[:\-]?\s*', '', t, flags=re.I).strip()
+            t = m.group(1).strip().rstrip(';, ')
+            t = re.sub(
+                r'^(?:o\s+|a\s+|os\s+|as\s+)?'
+                r'(?:(?:únic[oa]s?|herdeir[oa]s?|cessionári[oa]s?|filh[oa]s?|viúv[oa]s?)\s+)*'
+                r'(?:e\s+cessionári[oa]s?\s+)?[:\-]?\s*',
+                '',
+                t,
+                flags=re.I
+            ).strip()
             return t
 
     elif tipo == "TRANSMITENTE":
-        m = re.search(r'TRANSMITENTE[S]?\s*:(.*?)(?:ADQUIRENTE[S]?\s*:|IMÓVEL\s*:)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip()
+        m = re.search(r'TRANSMITENTE[S]?\s*:(.*?)(?=\bADQUIRENTE[S]?\s*:|\bIMÓVEL\s*:)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(r'DOADOR[ES]?\s*:(.*?)(?=\bINTERVENIENTE\s*:|\bDONAT[AÁ]RIO\s*:|\bOBJETO\s*:)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip()
+        if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'por compra feita a[os]?\s+(.*?)(?:;|pelo preço)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip()
+        m = re.search(r'por compra feita a[os]?\s+(.*?)(?=\bpelo preço\b|\bpelo valor\b|;|\.\s*O referido)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
+        
+        m = re.search(r'por doação que lhes fizeram\s+(.*?)(?=\bno valor\b|\bpelo valor\b|\bsem condições\b|;|\.\s*O referido)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'deixados por falecimento\s+(?:de\s+)?(.*?)(?:,|\s+julgado)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip()
+        m = re.search(r'deixados por falecimento\s+(?:de\s+)?(.*?)(?=,|\s+julgado|;)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
 
     return ""
 
@@ -64,39 +80,43 @@ def extrair_pessoas(texto_bloco):
     pessoas = []
     if not texto_bloco: return pessoas
 
-    partes_conjuge = re.split(r'\s+e\s+(?:seu\s+c[oô]njuge|sua\s+mulher|seu\s+marido)\s+', texto_bloco, flags=re.I)
-    if len(partes_conjuge) == 2:
-        for parte in partes_conjuge:
-            parte = parte.strip()
-            nome_match = re.match(r'^([^,]+)', parte)
-            cpf_match = re.search(r'(?:CPF|CIC)[^\d]*([\d]{3}\.[\d]{3}\.[\d]{3}-[\d]{2})', parte, re.I)
-            if not cpf_match:
-                cpf_match = re.search(r'(?:CPF|CIC|MF)[^\d]*([\d\.\-]{9,18})', parte, re.I)
-            nome = nome_match.group(1).strip() if nome_match else "DESCONHECIDO"
-            cpf = cpf_match.group(1).strip() if cpf_match else "CPF NÃO INFORMADO"
-            pessoas.append({"nome": nome, "cpf": cpf})
-        return pessoas
+    # Em atos com casal, cada cônjuge pode ter nome e CPF próprios no mesmo bloco.
+    # Se não separarmos aqui, a limpeza abaixo remove o segundo cônjuge inteiro.
+    partes_conjuges = re.split(
+        r'\s+e\s+(?:seu|sua)\s+c[oô]njuge\s+',
+        texto_bloco,
+        flags=re.I
+    )
 
-    partes = re.split(r'(?:^|\s+|;)(?:\d{1,3}|[IVX]+)[\)\-]\s+', texto_bloco)
-    partes = [p.strip() for p in partes if p.strip()]
+    if len(partes_conjuges) > 1:
+        partes = [p.strip() for p in partes_conjuges if p.strip()]
+    else:
+        partes = re.split(r'(?:^|\s+|;)(?:\d{1,3}|[IVX]+)[\)\-]\s+', texto_bloco)
+        partes = [p.strip() for p in partes if p.strip()]
+    
     if not partes:
-        partes = [texto_bloco]
+        sub_partes = re.split(r';\s*', texto_bloco)
+        if len(sub_partes) > 1:
+            partes = [p.strip() for p in sub_partes if len(p.strip()) > 10]
+        else:
+            partes = [texto_bloco]
 
     for parte in partes:
         nome_match = re.match(r'^([^,]+)', parte)
-        cpf_match = re.search(r'(?:CPF|CIC|MF)[^\d]*([\d\.\-]{9,18})', parte, re.I)
+        
+        # MEGA BRAIN: Agora aceita CNPJ, CGC e a barra "/" na leitura!
+        cpf_match = re.search(r'(?:CPF|CIC|CNPJ|CGC|MF)[^\d]*([\d\.\-\/]{9,20})', parte, re.I)
 
         nome = nome_match.group(1).strip() if nome_match else "DESCONHECIDO"
-        cpf = cpf_match.group(1).strip() if cpf_match else "CPF NÃO INFORMADO"
+        cpf = cpf_match.group(1).strip() if cpf_match else "CPF/CNPJ NÃO INFORMADO"
 
+        # Limpeza visual (remove estado civil e termo "pessoa jurídica")
+        nome = re.sub(r'\s+e\s+(?:seu\s+c[oô]njuge|sua\s+mulher|seu\s+marido|sua\s+esposa).*', '', nome, flags=re.I)
+        nome = re.sub(r'\s*,?\s*casad[oa].*', '', nome, flags=re.I)
+        nome = re.sub(r'\s*,?\s*pessoa jur[íi]dica.*', '', nome, flags=re.I)
+        nome = nome.strip(' ,.')
+        
         pessoas.append({"nome": nome, "cpf": cpf})
-
-        conj_match = re.search(
-            r'comunh[ãa]o\s+universal[^,]*,\s+com\s+([A-ZÀ-Úa-zà-ú][^,]+),.*?(?:CPF|CIC)[^\d]*([\d\.\-]{9,18})',
-            parte, re.I | re.DOTALL
-        )
-        if conj_match:
-            pessoas.append({"nome": conj_match.group(1).strip(), "cpf": conj_match.group(2).strip()})
 
     return pessoas
 
@@ -106,10 +126,27 @@ def extrair_proprietario_inicial(texto_cabecalho):
         return extrair_pessoas(m.group(1).strip())
     return []
 
+def extrair_retificacoes_cpf(texto):
+    if not re.search(r'RETIFICA[ÇC][ÃA]O', texto, re.I):
+        return []
+
+    padrao = re.compile(
+        r'([A-ZÀ-Ú][A-ZÀ-Úa-zà-ú\s]+?)\s*,?\s*'
+        r'(?:permanece|est[áa])\s+inscrit[oa]\s+no\s+CPF(?:/MF)?\s+sob\s+o\s+n[.º°o]*\s*'
+        r'([\d.\-]{9,18})',
+        re.I
+    )
+
+    pessoas = []
+    for nome, cpf in padrao.findall(texto):
+        nome = re.sub(r'^.*?\ba\s+saber\s*:\s*', '', nome, flags=re.I).strip(' ,.;:')
+        nome = re.sub(r'^e\s+(?:seu|sua)\s+c[oô]njuge\s+', '', nome, flags=re.I).strip()
+        pessoas.append({"nome": nome, "cpf": cpf.strip()})
+    return pessoas
+
 def calcular_cadeia_dominial(atos, texto_integral=""):
     estado = {}
     
-    # 1. CARREGA O SALDO INICIAL (Ato 0)
     if texto_integral:
         partes = re.split(r'(?:R|AV)[\.\-]\s*0*1\b', texto_integral, maxsplit=1, flags=re.I)
         cabecalho = partes[0]
@@ -121,10 +158,35 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                 chave = padronizar_chave(p["cpf"], p["nome"])
                 estado[chave] = {"nome": p["nome"], "cpf_original": p["cpf"], "proporcao": fração}
 
-    # 2. PROCESSA OS ATOS DE TRANSFERÊNCIA
     atos_transmissao = ["VENDA E COMPRA", "COMPRA E VENDA", "INVENTÁRIO", "PARTILHA", "SOBREPARTILHA", "DOAÇÃO"]
     
     for ato in atos:
+        retificados = extrair_retificacoes_cpf(ato.descricao)
+        if retificados:
+            chaves_encontradas = []
+            for pessoa in retificados:
+                nome_retificado = limpar_nome(pessoa["nome"])
+                for chave, dados in estado.items():
+                    nome_atual = limpar_nome(dados["nome"])
+                    if nome_retificado == nome_atual or nome_retificado in nome_atual or nome_atual in nome_retificado:
+                        chaves_encontradas.append(chave)
+                        break
+
+            chaves_encontradas = list(dict.fromkeys(chaves_encontradas))
+            if chaves_encontradas:
+                proporcao_total = sum(estado[chave]["proporcao"] for chave in chaves_encontradas)
+                for chave in chaves_encontradas:
+                    del estado[chave]
+
+                proporcao_individual = proporcao_total / len(retificados)
+                for pessoa in retificados:
+                    chave = padronizar_chave(pessoa["cpf"], pessoa["nome"])
+                    estado[chave] = {
+                        "nome": pessoa["nome"],
+                        "cpf_original": pessoa["cpf"],
+                        "proporcao": proporcao_individual
+                    }
+
         if not any(x in ato.descricao.upper() for x in atos_transmissao):
             continue
         
@@ -141,47 +203,49 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
             
         percent_por_adq = percentual_ato / len(adquirentes)
         
-        # --- SAÍDA DOS TRANSMITENTES (Subtração Matemática com Mega Brain 🧠) ---
-        if transmitentes:
-            percent_por_transm = percentual_ato / len(transmitentes)
-            for t in transmitentes:
-                chave_t = padronizar_chave(t["cpf"], t["nome"])
-                
-                debitou = False
-                
-                # TENTATIVA 1: Match Exato (CPFs ou Nomes Idênticos)
-                for chave_estado in list(estado.keys()):
-                    if chave_t == chave_estado:
-                        estado[chave_estado]["proporcao"] -= percent_por_transm
-                        if estado[chave_estado]["proporcao"] < 0.01:
-                            del estado[chave_estado]
-                        debitou = True
-                        break
-                        
-                # TENTATIVA 2: Match Parcial Fuzzy (Ex: "José" contido em "José e Francisca")
-                if not debitou:
+        if percentual_ato >= 99.0:
+            estado.clear()
+        else:
+            if transmitentes:
+                percent_por_transm = percentual_ato / len(transmitentes)
+                for t in transmitentes:
+                    chave_t = padronizar_chave(t["cpf"], t["nome"])
+                    nome_t_limpo = limpar_nome(t["nome"])
+                    
+                    debitou = False
+                    
                     for chave_estado in list(estado.keys()):
-                        if chave_estado in chave_t or chave_t in chave_estado:
+                        if chave_t == chave_estado:
                             estado[chave_estado]["proporcao"] -= percent_por_transm
                             if estado[chave_estado]["proporcao"] < 0.01:
                                 del estado[chave_estado]
                             debitou = True
                             break
-                
-                # TENTATIVA 3: Wipe-out de Segurança (Limpa a conta se for venda 100% com termos genéricos)
-                if not debitou and percentual_ato >= 99.0 and len(transmitentes) == 1:
-                    termos_genericos = ["MESMOS", "PROPRIETARIOS", "CASAL", "HERDEIROS", "FALECIMENTO", "OUTROS", " E "]
-                    if any(termo in chave_t for termo in termos_genericos):
-                        estado.clear() # Zera a conta de todo mundo para o novo dono assumir
+                            
+                    if not debitou:
+                        for chave_estado, dados_estado in list(estado.items()):
+                            nome_estado_limpo = limpar_nome(dados_estado["nome"])
+                            
+                            match = False
+                            if chave_estado in chave_t or chave_t in chave_estado:
+                                match = True
+                            elif len(nome_estado_limpo) > 5 and len(nome_t_limpo) > 5:
+                                if nome_estado_limpo in nome_t_limpo or nome_t_limpo in nome_estado_limpo:
+                                    match = True
+                                    
+                            if match:
+                                estado[chave_estado]["proporcao"] -= percent_por_transm
+                                if estado[chave_estado]["proporcao"] < 0.01:
+                                    del estado[chave_estado]
+                                debitou = True
+                                break
         
-        # --- ENTRADA DOS ADQUIRENTES (Crédito) ---
         for a in adquirentes:
             chave_a = padronizar_chave(a["cpf"], a["nome"])
             if chave_a not in estado:
                 estado[chave_a] = {"nome": a["nome"], "cpf_original": a["cpf"], "proporcao": 0.0}
             estado[chave_a]["proporcao"] += percent_por_adq
             
-    # 3. FORMATA A SAÍDA
     resultado = []
     for chave, dados in estado.items():
         if dados["proporcao"] > 0.01:

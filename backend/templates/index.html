@@ -7,7 +7,14 @@
     <link rel="stylesheet" href="/static/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-<body>
+<body class="splash-active">
+
+    <div id="splash-aeri" class="splash-aeri" role="status" aria-label="Carregando AERI">
+        <div class="splash-glow"></div>
+        <img src="/static/aeri-original-transparent.png" alt="AERI — Analisador Eletrônico do Registro de Imóveis" class="splash-logo">
+        <div class="splash-progress"><span></span></div>
+        <button class="splash-skip" type="button" onclick="fecharSplash()">Entrar</button>
+    </div>
 
     <header class="navbar">
         <div class="navbar-content">
@@ -28,7 +35,7 @@
                         <line x1="12" y1="9" x2="12" y2="13"/>
                         <line x1="12" y1="17" x2="12.01" y2="17"/>
                     </svg>
-                    <span>Ônus</span>
+                    <span>Ônus & Matrícula</span>
                 </div>
 
                 <div class="nav-item" data-page="incra" onclick="showPage('incra')">
@@ -53,19 +60,18 @@
             </nav>
 
             <div class="sidebar-logo">
-                <img src="/static/11.png" alt="Logo AERI" class="sidebar-logo-img">
+                <img src="/static/aeri-sidebar-transparent.png" alt="AERI" class="sidebar-logo-img">
             </div>
         </aside>
 
         <div class="page-content">
 
-            <!-- PÁGINA: ÔNUS -->
             <div id="page-onus" class="page active">
                 <main class="layout">
 
                     <div class="hero">
                         <h1>Analisador Eletrônico do Registro de Imóveis</h1>
-                        <p>Cole o texto integral da matrícula e escolha a análise desejada.</p>
+                        <p>Cole o texto integral da matrícula para qualificar os atos e extrair a cadeia dominial simultaneamente.</p>
                     </div>
 
                     <div class="section-input-row">
@@ -77,16 +83,11 @@
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                     Limpar
                                 </button>
-                                <div style="display:flex; gap:10px;">
-                                    <button class="btn btn-onus" onclick="analisar()" id="btn-analisar">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                                        Ônus
-                                    </button>
-                                    <button class="btn btn-primary" onclick="analisarCadeia()" id="btn-cadeia">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                                        Cadeia Dominial
-                                    </button>
-                                </div>
+
+                                <button class="btn btn-primary" onclick="analisar()" id="btn-analisar">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                                    Processar Matrícula
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -94,24 +95,30 @@
                 </main>
             </div>
 
-            <!-- PÁGINA: INCRA -->
             <div id="page-incra" class="page">
-                <main class="layout">
-                    <div class="page-placeholder">
-                        <div class="placeholder-icon">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
-                                <line x1="9" y1="3" x2="9" y2="18"/>
-                                <line x1="15" y1="6" x2="15" y2="21"/>
-                            </svg>
-                        </div>
-                        <h2>INCRA</h2>
-                        <p>Módulo em desenvolvimento. Aqui serão realizadas as análises e consultas relacionadas ao INCRA.</p>
+                <main class="layout incra-layout">
+                    <div class="hero hero-incra">
+                        <span class="eyebrow">COMUNICAÇÃO MENSAL</span>
+                        <h1>Protocolos para o INCRA</h1>
+                        <p>Envie o Relatório Rural em PDF. O AERI separa os protocolos por número e tipo de ato conforme as hipóteses legais.</p>
                     </div>
+
+                    <div class="incra-upload-card">
+                        <input id="incra-pdf" type="file" accept="application/pdf,.pdf" hidden onchange="selecionarPdfIncra(this)">
+                        <label for="incra-pdf" class="incra-dropzone" id="incra-dropzone">
+                            <span class="incra-upload-icon">
+                                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>
+                            </span>
+                            <strong id="incra-file-name">Selecionar Relatório Rural</strong>
+                            <small>PDF mensal emitido pelo sistema do cartório</small>
+                        </label>
+                        <button class="btn btn-primary incra-processar" id="btn-incra" onclick="analisarIncra()" disabled>Gerar lista de protocolos</button>
+                    </div>
+
+                    <section id="incra-resultado" class="incra-resultado" aria-live="polite"></section>
                 </main>
             </div>
 
-            <!-- PÁGINA: ROTINA -->
             <div id="page-rotina" class="page">
                 <main class="layout">
                     <div class="page-placeholder">
@@ -132,7 +139,6 @@
         </div>
     </div>
 
-    <!-- MODAL DE RESULTADO -->
     <div id="modal-resultado" class="modal-overlay" onclick="fecharModal(event)">
         <div class="modal-box" onclick="event.stopPropagation()">
             <button class="modal-fechar" onclick="fecharModal()">&times;</button>
@@ -141,11 +147,124 @@
     </div>
 
     <script>
+        let splashEncerrada = false;
+
+        function fecharSplash() {
+            if (splashEncerrada) return;
+            splashEncerrada = true;
+            const splash = document.getElementById('splash-aeri');
+            splash.classList.add('splash-saindo');
+            document.body.classList.remove('splash-active');
+            window.setTimeout(() => splash.remove(), 650);
+        }
+
+        window.setTimeout(fecharSplash, 2600);
+
         function showPage(pageId) {
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             document.querySelector(`[data-page="${pageId}"]`).classList.add('active');
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
             document.getElementById(`page-${pageId}`).classList.add('active');
+        }
+
+        let arquivoIncra = null;
+        let resultadoIncra = null;
+
+        function selecionarPdfIncra(input) {
+            const arquivo = input.files && input.files[0];
+            if (!arquivo) return;
+            arquivoIncra = arquivo;
+            document.getElementById('incra-file-name').textContent = arquivo.name;
+            document.getElementById('btn-incra').disabled = false;
+            document.getElementById('incra-dropzone').classList.add('com-arquivo');
+        }
+
+        async function analisarIncra() {
+            if (!arquivoIncra) return;
+            const btn = document.getElementById('btn-incra');
+            const resultado = document.getElementById('incra-resultado');
+            btn.disabled = true;
+            btn.textContent = 'Lendo relatório...';
+            resultado.innerHTML = '<div class="incra-loading">Extraindo e classificando os protocolos...</div>';
+
+            try {
+                const req = await fetch('/analisar-incra', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/pdf'},
+                    body: arquivoIncra
+                });
+                resultadoIncra = await req.json();
+                if (resultadoIncra.erro) throw new Error(resultadoIncra.erro);
+                renderizarIncra('COMUNICAR');
+            } catch (erro) {
+                resultado.innerHTML = `<div class="incra-erro">${escaparHtml(erro.message || 'Não foi possível processar o PDF.')}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Gerar lista de protocolos';
+            }
+        }
+
+        function renderizarIncra(filtro) {
+            if (!resultadoIncra) return;
+            const rotulos = {
+                COMUNICAR: 'Comunicar', REVISAR: 'Revisar',
+                FORA_DAS_HIPOTESES: 'Fora das hipóteses'
+            };
+            const itens = resultadoIncra.itens.filter(item => item.status === filtro);
+            const linhas = itens.map(item => `
+                <tr>
+                    <td><strong>${escaparHtml(item.protocolo)}</strong></td>
+                    <td>${escaparHtml(item.ato)}</td>
+                    <td>${escaparHtml(item.motivo)}</td>
+                    <td class="incra-ocorrencias">${item.ocorrencias}</td>
+                </tr>`).join('');
+
+            document.getElementById('incra-resultado').innerHTML = `
+                <div class="incra-resumo">
+                    <div><strong>${resultadoIncra.protocolos_unicos}</strong><span>Protocolos únicos</span></div>
+                    <div><strong>${resultadoIncra.lancamentos}</strong><span>Lançamentos lidos</span></div>
+                    <div><strong>${resultadoIncra.paginas}</strong><span>Páginas</span></div>
+                </div>
+                <div class="incra-toolbar">
+                    <div class="incra-filtros">
+                        ${Object.keys(rotulos).map(status => `<button class="incra-filtro ${status === filtro ? 'active' : ''}" onclick="renderizarIncra('${status}')">${rotulos[status]} <b>${resultadoIncra.contagens[status]}</b></button>`).join('')}
+                    </div>
+                    <div class="incra-acoes">
+                        <button onclick="copiarListaIncra('${filtro}')">Copiar lista</button>
+                        <button onclick="baixarCsvIncra('${filtro}')">Baixar CSV</button>
+                    </div>
+                </div>
+                <div class="incra-table-wrap">
+                    <table class="incra-table">
+                        <thead><tr><th>Protocolo</th><th>Tipo do ato</th><th>Enquadramento</th><th>Ocorrências</th></tr></thead>
+                        <tbody>${linhas || '<tr><td colspan="4" class="incra-vazio">Nenhum protocolo nesta categoria.</td></tr>'}</tbody>
+                    </table>
+                </div>`;
+        }
+
+        function itensIncra(filtro) {
+            return (resultadoIncra?.itens || []).filter(item => item.status === filtro);
+        }
+
+        function copiarListaIncra(filtro) {
+            const texto = itensIncra(filtro).map(item => `${item.protocolo} - ${item.ato}`).join('\n');
+            navigator.clipboard.writeText(texto);
+        }
+
+        function baixarCsvIncra(filtro) {
+            const cabecalho = 'Protocolo;Tipo do ato;Enquadramento;Ocorrências';
+            const linhas = itensIncra(filtro).map(item => [item.protocolo, item.ato, item.motivo, item.ocorrencias]
+                .map(valor => `"${String(valor).replace(/"/g, '""')}"`).join(';'));
+            const blob = new Blob(['\uFEFF' + [cabecalho, ...linhas].join('\n')], {type: 'text/csv;charset=utf-8'});
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `protocolos-incra-${filtro.toLowerCase()}.csv`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        function escaparHtml(valor) {
+            return String(valor).replace(/[&<>'"]/g, caractere => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[caractere]));
         }
 
         function switchTab(tabId) {
@@ -266,7 +385,7 @@
                 } else {
                     propHtml += `<div class="cards">`;
                     props.forEach((p, i) => {
-                        propHtml += `<div class="card"><div class="card-header"><div class="codigo">${i + 1})- ${p.nome}</div><div class="badge badge-blue">PROPRIETÁRIO</div></div><div class="texto">${genero(p.nome) === 'inscrita' ? 'Inscrita' : 'Inscrito'} no CPF/MF sob o n.º <strong>${p.cpf}</strong></div><div class="status-ato">Proporção: <strong>${p.proporcao}</strong></div></div>`;
+                        propHtml += `<div class="card"><div class="card-header"><div class="codigo">${i + 1})- ${p.nome}</div><div class="badge badge-blue">PROPRIETÁRIO</div></div><div class="texto">${genero(p.nome) === 'inscrita' ? 'Inscrita' : 'Inscrito'} no ${tipoDocumento(p.cpf)} sob o n.º <strong>${p.cpf}</strong></div><div class="status-ato">Proporção: <strong>${p.proporcao}</strong></div></div>`;
                     });
                     propHtml += `</div>`;
                     const textoFormatado = props.map((p, i) => formatarProprietario(p, i)).join('\n');
@@ -282,7 +401,7 @@
             } catch (e) {
                 alert("Erro ao processar a matrícula.");
             } finally {
-                btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Ônus`;
+                btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>Processar Matrícula`;
                 btn.style.opacity = "1";
             }
         }
@@ -311,51 +430,13 @@
 
         function formatarProprietario(p, idx) {
             const inscricao = genero(p.nome);
-            return `${idx + 1})- ${p.nome}, ${inscricao} no CPF/MF sob o n.º ${p.cpf}, a proporção de ${p.proporcao};`;
+            const docLabel = tipoDocumento(p.cpf);
+            return `${idx + 1})- ${p.nome}, ${inscricao} no ${docLabel} sob o n.º ${p.cpf}, a proporção de ${p.proporcao};`;
         }
 
-        async function analisarCadeia() {
-            let texto = document.getElementById("texto").value;
-            if (!texto.trim()) return;
-
-            let btn = document.getElementById("btn-cadeia");
-            btn.innerHTML = "Processando...";
-            btn.style.opacity = "0.7";
-
-            try {
-                let req = await fetch("/analisar-cadeia", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ texto })
-                });
-
-                let d = await req.json();
-                const props = d.proprietarios;
-
-                let html = `<div class="resultado fade-in"><div class="topo" style="border-left: 5px solid #2563eb; background-color: #eff6ff;"><h2>Proprietário(s) Atual(is)</h2><div class="sub-status">${props.length} proprietário(s) identificado(s)</div></div>`;
-
-                if (props.length === 0) {
-                    html += `<div style="padding: 32px; text-align: center; color: var(--text-muted); font-size: 0.95rem;">Nenhum proprietário identificado. Verifique se a matrícula contém atos de transmissão (compra e venda, doação, inventário etc.).</div>`;
-                } else {
-                    html += `<div style="padding: 16px;"><div class="cards">`;
-                    props.forEach((p, i) => {
-                        html += `<div class="card"><div class="card-header"><div class="codigo">${i + 1})- ${p.nome}</div><div class="badge badge-blue">PROPRIETÁRIO</div></div><div class="texto">${genero(p.nome) === 'inscrita' ? 'Inscrita' : 'Inscrito'} no CPF/MF sob o n.º <strong>${p.cpf}</strong></div><div class="status-ato">Proporção: <strong>${p.proporcao}</strong></div></div>`;
-                    });
-                    html += `</div>`;
-                    const textoFormatado = props.map((p, i) => formatarProprietario(p, i)).join('\n');
-                    html += `<div class="cadeia-texto-bloco" style="margin-top:16px;"><div class="cadeia-texto-header"><span>Texto gerado</span><button class="btn-copiar" onclick="copiarCadeia(this)" data-texto="${encodeURIComponent(textoFormatado)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>Copiar</button></div><pre class="cadeia-texto-pre">${textoFormatado}</pre></div></div>`;
-                }
-
-                html += `</div>`;
-                document.getElementById("modal-conteudo").innerHTML = html;
-                abrirModal();
-
-            } catch (e) {
-                alert("Erro ao processar a matrícula.");
-            } finally {
-                btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Cadeia Dominial`;
-                btn.style.opacity = "1";
-            }
+        function tipoDocumento(documento) {
+            const quantidadeDigitos = String(documento || '').replace(/\D/g, '').length;
+            return quantidadeDigitos === 14 ? 'CNPJ/MF' : 'CPF/MF';
         }
 
         function copiarCadeia(btn) {

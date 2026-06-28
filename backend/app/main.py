@@ -2,7 +2,6 @@ import sys
 from pathlib import Path
 
 # --- GPS PARA O VERCEL ---
-# Adiciona a raiz do projeto ao sistema para o Vercel achar as pastas
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -17,6 +16,7 @@ from backend.app.regras import classificar
 from backend.app.cancelamentos import aplicar_cancelamentos
 from backend.app.modelos import Ato
 from backend.app.proprietarios import calcular_cadeia_dominial
+from backend.app.incra import extrair_protocolos
 
 app = FastAPI()
 
@@ -32,34 +32,22 @@ templates = Jinja2Templates(
     directory=str(BASE_DIR / "templates")
 )
 
+@app.post("/analisar-incra")
+async def analisar_incra(request: Request):
+    try:
+        pdf_bytes = await request.body()
+        if not pdf_bytes.startswith(b"%PDF"):
+            return {"erro": "Envie um arquivo PDF válido."}
+        return extrair_protocolos(pdf_bytes)
+    except Exception as exc:
+        return {"erro": str(exc)}
+
 @app.get("/")
 def home(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="index.html"
     )
-
-@app.post("/analisar-cadeia")
-def analisar_cadeia(dados: dict):
-    texto = dados.get("texto", "")
-    separados = separar_atos(texto)
-    atos = []
-
-    for item in separados:
-        categoria, impacta = classificar(item["texto"])
-        atos.append(
-            Ato(
-                codigo=item["codigo"],
-                descricao=item["texto"],
-                categoria=categoria,
-                impacta_resultado=impacta
-            )
-        )
-
-    atos = aplicar_cancelamentos(atos)
-    proprietarios = calcular_cadeia_dominial(atos, texto)
-
-    return {"proprietarios": proprietarios}
 
 @app.post("/analisar")
 def analisar(dados: dict):
@@ -104,7 +92,8 @@ def analisar(dados: dict):
         for a in atos if a.categoria in categorias_permitidas
     ]
 
-    lista_proprietarios = calcular_cadeia_dominial(atos, texto) # <-- E adicione o ', texto' aqui também
+    # Processamento simultâneo da Cadeia Dominial
+    lista_proprietarios = calcular_cadeia_dominial(atos, texto)
 
     resposta = {
         "resultado": resultado_final,
