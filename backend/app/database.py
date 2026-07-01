@@ -1,8 +1,13 @@
 import os
 from contextlib import contextmanager
+from threading import Lock
 
 import psycopg
 from psycopg.rows import dict_row
+
+
+_banco_preparado = False
+_bloqueio_preparacao = Lock()
 
 
 def database_url() -> str:
@@ -19,12 +24,21 @@ def conectar():
 
 
 def preparar_banco() -> None:
+    global _banco_preparado
+
+    if _banco_preparado:
+        return
+
     from backend.app.autenticacao import hash_senha
 
-    with conectar() as conexao:
-        with conexao.cursor() as cursor:
-            cursor.execute(
-                """
+    with _bloqueio_preparacao:
+        if _banco_preparado:
+            return
+
+        with conectar() as conexao:
+            with conexao.cursor() as cursor:
+                cursor.execute(
+                    """
                 CREATE TABLE IF NOT EXISTS usuarios_aeri (
                     usuario VARCHAR(80) PRIMARY KEY,
                     senha_hash TEXT NOT NULL,
@@ -45,18 +59,21 @@ def preparar_banco() -> None:
 
                 ALTER TABLE intimacoes_aeri
                     ALTER COLUMN protocolo TYPE VARCHAR(11);
-                """
-            )
-
-            usuario = os.getenv("AERI_ADMIN_USER")
-            senha = os.getenv("AERI_ADMIN_PASSWORD")
-            if usuario and senha:
-                cursor.execute(
                     """
-                    INSERT INTO usuarios_aeri (usuario, senha_hash)
-                    VALUES (%s, %s)
-                    ON CONFLICT (usuario) DO NOTHING
-                    """,
-                    (usuario, hash_senha(senha)),
                 )
-        conexao.commit()
+
+                usuario = os.getenv("AERI_ADMIN_USER")
+                senha = os.getenv("AERI_ADMIN_PASSWORD")
+                if usuario and senha:
+                    cursor.execute("SELECT 1 FROM usuarios_aeri WHERE usuario = %s", (usuario,))
+                    if not cursor.fetchone():
+                        cursor.execute(
+                            """
+                            INSERT INTO usuarios_aeri (usuario, senha_hash)
+                            VALUES (%s, %s)
+                            ON CONFLICT (usuario) DO NOTHING
+                            """,
+                            (usuario, hash_senha(senha)),
+                        )
+            conexao.commit()
+        _banco_preparado = True

@@ -375,6 +375,7 @@
         }
 
         let intimacoes = [];
+        const intimacoesPendentes = new Set();
 
         function hojeLocal() {
             const agora = new Date();
@@ -438,7 +439,7 @@
                     <td>${formatarDataRotina(item.ultimoAndamento)}</td>
                     <td>${item.ultimaConferencia ? formatarDataRotina(item.ultimaConferencia) : '—'}</td>
                     <td><div class="rotina-row-actions">
-                        <button class="rotina-check" onclick="conferirIntimacao('${item.id}')" title="Registrar conferência de hoje">✓ Check</button>
+                        <button class="rotina-check" onclick="conferirIntimacao('${item.id}')" title="Registrar conferência de hoje" ${intimacoesPendentes.has(item.id) ? 'disabled' : ''}>${intimacoesPendentes.has(item.id) ? 'Salvando...' : '✓ Check'}</button>
                         <button onclick="editarIntimacao('${item.id}')" title="Editar">Editar</button>
                         <button class="perigo" onclick="excluirIntimacao('${item.id}')" title="Excluir">Excluir</button>
                     </div></td>
@@ -470,6 +471,7 @@
 
         async function salvarIntimacao(evento) {
             evento.preventDefault();
+            const botaoSalvar = evento.submitter;
             const id = document.getElementById('intimacao-id').value;
             const protocolo = document.getElementById('intimacao-protocolo').value.trim().toUpperCase();
             const existenteProtocolo = intimacoes.find(item => item.protocolo === protocolo && item.id !== id);
@@ -481,12 +483,19 @@
                 ultimoAndamento: document.getElementById('intimacao-andamento').value
             };
             try {
-                await requisicaoAeri(id ? `/api/intimacoes/${id}` : '/api/intimacoes', {
+                if (botaoSalvar) { botaoSalvar.disabled = true; botaoSalvar.textContent = 'Salvando...'; }
+                const salvo = await requisicaoAeri(id ? `/api/intimacoes/${id}` : '/api/intimacoes', {
                     method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(item)
                 });
+                const indice = intimacoes.findIndex(atual => atual.id === salvo.id);
+                if (indice >= 0) intimacoes[indice] = salvo;
+                else intimacoes.push(salvo);
                 fecharFormularioIntimacao();
-                await carregarIntimacoes();
+                renderizarIntimacoes();
             } catch (falha) { alert(falha.message); }
+            finally {
+                if (botaoSalvar) { botaoSalvar.disabled = false; botaoSalvar.textContent = 'Salvar intimação'; }
+            }
         }
 
         function editarIntimacao(id) {
@@ -502,17 +511,36 @@
         }
 
         async function conferirIntimacao(id) {
+            const indice = intimacoes.findIndex(item => item.id === id);
+            if (indice < 0 || intimacoesPendentes.has(id)) return;
+            const anterior = {...intimacoes[indice], historico:[...(intimacoes[indice].historico || [])]};
+            const hoje = hojeLocal();
+            intimacoesPendentes.add(id);
+            intimacoes[indice] = {...anterior,
+                ultimaConferencia: hoje,
+                historico: [...new Set([...(anterior.historico || []), hoje])]
+            };
+            renderizarIntimacoes();
             try {
-                await requisicaoAeri(`/api/intimacoes/${id}/conferir`, {method:'POST'});
-                await carregarIntimacoes();
-            } catch (falha) { alert(falha.message); }
+                const salvo = await requisicaoAeri(`/api/intimacoes/${id}/conferir`, {method:'POST'});
+                const indiceAtual = intimacoes.findIndex(item => item.id === id);
+                if (indiceAtual >= 0) intimacoes[indiceAtual] = salvo;
+            } catch (falha) {
+                const indiceAtual = intimacoes.findIndex(item => item.id === id);
+                if (indiceAtual >= 0) intimacoes[indiceAtual] = anterior;
+                alert(falha.message);
+            } finally {
+                intimacoesPendentes.delete(id);
+                renderizarIntimacoes();
+            }
         }
 
         async function excluirIntimacao(id) {
             if (!confirm('Deseja excluir esta intimação?')) return;
             try {
                 await requisicaoAeri(`/api/intimacoes/${id}`, {method:'DELETE'});
-                await carregarIntimacoes();
+                intimacoes = intimacoes.filter(item => item.id !== id);
+                renderizarIntimacoes();
             } catch (falha) { alert(falha.message); }
         }
 
@@ -568,10 +596,15 @@
                 });
                 const pendentes = intimacoes.filter(item => !item.id);
                 for (const item of pendentes) {
-                    try { await requisicaoAeri('/api/intimacoes', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(item)}); importados++; }
+                    try {
+                        const salvo = await requisicaoAeri('/api/intimacoes', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(item)});
+                        const indice = intimacoes.indexOf(item);
+                        if (indice >= 0) intimacoes[indice] = salvo;
+                        importados++;
+                    }
                     catch (falha) { console.warn(item.protocolo, falha.message); }
                 }
-                await carregarIntimacoes(); input.value = '';
+                renderizarIntimacoes(); input.value = '';
                 alert(`${importados} intimações importadas.`);
             };
             leitor.readAsText(arquivo, 'UTF-8');

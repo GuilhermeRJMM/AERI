@@ -179,7 +179,6 @@ def validar_intimacao(dados: dict) -> tuple[str, str, str, date]:
 
 @app.get("/api/intimacoes")
 def listar_intimacoes(_usuario: str = Depends(usuario_atual)):
-    preparar_banco()
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute("SELECT * FROM intimacoes_aeri ORDER BY protocolo")
@@ -188,7 +187,6 @@ def listar_intimacoes(_usuario: str = Depends(usuario_atual)):
 
 @app.post("/api/intimacoes", status_code=201)
 def criar_intimacao(dados: dict, _usuario: str = Depends(usuario_atual)):
-    preparar_banco()
     protocolo, credor, devedor, andamento = validar_intimacao(dados)
     identificador = uuid4()
     try:
