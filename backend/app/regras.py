@@ -66,6 +66,8 @@ PALAVRAS_CANCELAMENTO = [
     "CANCELAMENTO", "FICA CANCELADA", "FICA CANCELADO", 
     "FIQUE CANCELADA", "FIQUE CANCELADO", "BAIXA",
     "CANCELADA POR", "CANCELADO POR",
+    "LIBERADO DO GRAVAME", "LIBERADA DO GRAVAME",
+    "LIBERAÇÃO DO GRAVAME",
     "EXTINÇÃO DE DÍVIDA ORIGINÁRIA", "DÍVIDA ORIGINÁRIA FOI CONSIDERADA EXTINTA"
 ]
 
@@ -81,6 +83,19 @@ PALAVRAS_PUBLICIDADE_FORTE = [
 
 def classificar(texto):
     texto = texto.upper()
+
+    # A liberação parcial com substituição de garantia não cria novo ônus
+    # e também não extingue a hipoteca anterior, que permanece ativa sobre
+    # o remanescente até um cancelamento posterior expresso.
+    if (
+        "LIBERAÇÃO E SUBSTITUIÇÃO DA ÁREA HIPOTECADA" in texto
+        or (
+            "LIBERADA DA GARANTIA HIPOTECÁRIA" in texto
+            and "PERMANECENDO HIPOTECADO" in texto
+            and ("DERAM EM GARANTIA" in texto or "SUBSTITUIÇÃO" in texto)
+        )
+    ):
+        return ("IGNORAR", False)
     
     for p in PALAVRAS_IGNORAR_FORTE:
         if p in texto:
