@@ -18,6 +18,7 @@ REGRAS_COMUNICAR = (
     (("INCORPORACAO DE PATRIMONIO",), "Mudança de titularidade"),
     (("DIVISAO AMIGAVEL", "DIVISAO DE IMOVEL"), "Divisão ou parcelamento"),
     (("DESMEMBRAMENTO", "PARCELAMENTO", "LOTEAMENTO"), "Parcelamento ou desmembramento"),
+    (("GEORREFERENCIAMENTO",), "Alteração territorial ou desmembramento"),
     (("FUSAO", "UNIFICACAO", "REMEMBRAMENTO"), "Fusão ou remembramento"),
     (("RETIFICACAO DE AREA",), "Retificação de área"),
     (("RESERVA LEGAL", "PATRIMONIO NATURAL", "RPPN"), "Limitação ambiental"),
@@ -26,7 +27,6 @@ REGRAS_COMUNICAR = (
 )
 
 REGRAS_REVISAR = (
-    (("GEORREFERENCIAMENTO",), "Confirmar se houve alteração de área ou perímetro"),
     (("RETIFICACAO ADMINISTRATIVA", "RETIFICACAO EX-OFFICIO"), "Confirmar o objeto da retificação"),
     (("AVERBACAO",), "Tipo genérico: conferir o conteúdo do ato"),
 )

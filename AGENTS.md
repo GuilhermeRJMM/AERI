@@ -24,6 +24,7 @@
 - Extrair do Relatório Rural em PDF o número do protocolo e o tipo do ato.
 - Agrupar ocorrências repetidas da mesma combinação de protocolo e tipo de ato.
 - Classificar os resultados em Comunicar, Revisar e Fora das hipóteses.
+- Classificar georreferenciamento como hipótese de comunicação por alteração territorial ou desmembramento.
 - Manter a possibilidade de copiar a lista e exportar CSV.
 - Deixar o módulo Rotina sem implementação até nova orientação do usuário.
 
