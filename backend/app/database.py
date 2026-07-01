@@ -1,11 +1,13 @@
 import os
 from contextlib import contextmanager
+from pathlib import Path
 from threading import Lock
 
 import psycopg
 from psycopg.rows import dict_row
 
 
+MIGRACOES_DIR = Path(__file__).resolve().parent / "migrations"
 _banco_preparado = False
 _bloqueio_preparacao = Lock()
 
@@ -23,13 +25,52 @@ def conectar():
         yield conexao
 
 
+def _executar_migracoes(cursor) -> None:
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS migracoes_aeri (
+            versao VARCHAR(120) PRIMARY KEY,
+            aplicada_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """
+    )
+    cursor.execute("SELECT versao FROM migracoes_aeri")
+    aplicadas = {item["versao"] for item in cursor.fetchall()}
+
+    for arquivo in sorted(MIGRACOES_DIR.glob("*.sql")):
+        if arquivo.name in aplicadas:
+            continue
+        cursor.execute(arquivo.read_text(encoding="utf-8"))
+        cursor.execute("INSERT INTO migracoes_aeri (versao) VALUES (%s)", (arquivo.name,))
+
+
+def _garantir_usuario_administrador(cursor) -> None:
+    usuario = os.getenv("AERI_ADMIN_USER")
+    senha = os.getenv("AERI_ADMIN_PASSWORD")
+    if not usuario or not senha:
+        return
+
+    cursor.execute("SELECT 1 FROM usuarios_aeri WHERE usuario = %s", (usuario,))
+    if cursor.fetchone():
+        return
+
+    from backend.app.autenticacao import hash_senha
+
+    cursor.execute(
+        """
+        INSERT INTO usuarios_aeri (usuario, senha_hash)
+        VALUES (%s, %s)
+        ON CONFLICT (usuario) DO NOTHING
+        """,
+        (usuario, hash_senha(senha)),
+    )
+
+
 def preparar_banco() -> None:
     global _banco_preparado
 
     if _banco_preparado:
         return
-
-    from backend.app.autenticacao import hash_senha
 
     with _bloqueio_preparacao:
         if _banco_preparado:
@@ -37,43 +78,7 @@ def preparar_banco() -> None:
 
         with conectar() as conexao:
             with conexao.cursor() as cursor:
-                cursor.execute(
-                    """
-                CREATE TABLE IF NOT EXISTS usuarios_aeri (
-                    usuario VARCHAR(80) PRIMARY KEY,
-                    senha_hash TEXT NOT NULL,
-                    criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                );
-
-                CREATE TABLE IF NOT EXISTS intimacoes_aeri (
-                    id UUID PRIMARY KEY,
-                    protocolo VARCHAR(11) NOT NULL UNIQUE,
-                    credor VARCHAR(160) NOT NULL,
-                    devedor VARCHAR(160) NOT NULL,
-                    ultimo_andamento DATE NOT NULL,
-                    ultima_conferencia DATE,
-                    historico JSONB NOT NULL DEFAULT '[]'::jsonb,
-                    criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                );
-
-                ALTER TABLE intimacoes_aeri
-                    ALTER COLUMN protocolo TYPE VARCHAR(11);
-                    """
-                )
-
-                usuario = os.getenv("AERI_ADMIN_USER")
-                senha = os.getenv("AERI_ADMIN_PASSWORD")
-                if usuario and senha:
-                    cursor.execute("SELECT 1 FROM usuarios_aeri WHERE usuario = %s", (usuario,))
-                    if not cursor.fetchone():
-                        cursor.execute(
-                            """
-                            INSERT INTO usuarios_aeri (usuario, senha_hash)
-                            VALUES (%s, %s)
-                            ON CONFLICT (usuario) DO NOTHING
-                            """,
-                            (usuario, hash_senha(senha)),
-                        )
+                _executar_migracoes(cursor)
+                _garantir_usuario_administrador(cursor)
             conexao.commit()
         _banco_preparado = True
