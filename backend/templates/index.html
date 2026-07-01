@@ -7,19 +7,36 @@
     <link rel="stylesheet" href="/static/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-<body class="splash-active">
+<body class="splash-active auth-pending">
 
     <div id="splash-aeri" class="splash-aeri" role="status" aria-label="Carregando AERI">
         <div class="splash-glow"></div>
-        <img src="/static/aeri-original-transparent.png" alt="AERI — Analisador Eletrônico do Registro de Imóveis" class="splash-logo">
-        <div class="splash-progress"><span></span></div>
+        <div class="splash-brand">
+            <img src="/static/aeri-original-transparent.png" alt="AERI — Analisador Eletrônico do Registro de Imóveis" class="splash-logo">
+            <div class="splash-progress"><span></span></div>
+        </div>
         <button class="splash-skip" type="button" onclick="fecharSplash()">Entrar</button>
     </div>
+
+    <section id="login-aeri" class="login-aeri" aria-labelledby="login-titulo">
+        <div class="login-card">
+            <img src="/static/aeri-sidebar-transparent.png" alt="AERI" class="login-logo">
+            <span class="eyebrow">ACESSO RESTRITO</span>
+            <h1 id="login-titulo">Bem-vindo ao AERI</h1>
+            <p>Entre com suas credenciais para acessar o sistema.</p>
+            <form id="form-login" onsubmit="fazerLogin(event)">
+                <label><span>Usuário</span><input id="login-usuario" autocomplete="username" required autofocus></label>
+                <label><span>Senha</span><input id="login-senha" type="password" autocomplete="current-password" required></label>
+                <div id="login-erro" class="login-erro" role="alert"></div>
+                <button id="btn-login" class="btn btn-primary" type="submit">Entrar no AERI</button>
+            </form>
+        </div>
+    </section>
 
     <header class="navbar">
         <div class="navbar-content">
             <div class="logo-text">AERI</div>
-            <div class="cartorio-info">Setor de Certidões</div>
+            <div class="navbar-user"><span id="usuario-logado"></span><button type="button" onclick="sairAeri()">Sair</button></div>
         </div>
     </header>
 
@@ -54,7 +71,7 @@
                         <line x1="8" y1="2" x2="8" y2="6"/>
                         <line x1="3" y1="10" x2="21" y2="10"/>
                     </svg>
-                    <span>Rotina</span>
+                    <span>Rotina - Intimação</span>
                 </div>
 
             </nav>
@@ -120,19 +137,38 @@
             </div>
 
             <div id="page-rotina" class="page">
-                <main class="layout">
-                    <div class="page-placeholder">
-                        <div class="placeholder-icon">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                                <line x1="16" y1="2" x2="16" y2="6"/>
-                                <line x1="8" y1="2" x2="8" y2="6"/>
-                                <line x1="3" y1="10" x2="21" y2="10"/>
-                            </svg>
+                <main class="layout rotina-layout">
+                    <div class="rotina-header">
+                        <div>
+                            <span class="eyebrow">CONTROLE DIÁRIO</span>
+                            <h1>Rotina - Intimação</h1>
+                            <p>Acompanhe as intimações do Ofício Eletrônico e registre cada conferência diária.</p>
                         </div>
-                        <h2>Rotina</h2>
-                        <p>Módulo em desenvolvimento. Gerencie e automatize as rotinas do setor de certidões.</p>
+                        <div class="rotina-header-actions">
+                            <input id="importar-intimacoes" type="file" accept=".csv,text/csv" hidden onchange="importarIntimacoesCsv(this)">
+                            <label for="importar-intimacoes" class="rotina-btn-secondary">Importar CSV</label>
+                            <button class="rotina-btn-secondary" onclick="exportarIntimacoesCsv()">Exportar CSV</button>
+                            <button class="btn btn-primary" onclick="abrirFormularioIntimacao()">Nova intimação</button>
+                        </div>
                     </div>
+
+                    <section class="rotina-resumo" id="rotina-resumo"></section>
+
+                    <section class="rotina-painel">
+                        <div class="rotina-toolbar">
+                            <div class="rotina-busca">
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                                <input id="busca-intimacao" type="search" placeholder="Buscar protocolo, credor ou devedor" oninput="renderizarIntimacoes()">
+                            </div>
+                            <span id="rotina-total" class="rotina-total"></span>
+                        </div>
+                        <div class="rotina-table-wrap">
+                            <table class="rotina-table">
+                                <thead><tr><th>Situação</th><th>Protocolo</th><th>Credor</th><th>Devedor</th><th>Último andamento</th><th>Última conferência</th><th>Ações</th></tr></thead>
+                                <tbody id="rotina-tbody"></tbody>
+                            </table>
+                        </div>
+                    </section>
                 </main>
             </div>
 
@@ -146,8 +182,31 @@
         </div>
     </div>
 
+    <div id="modal-intimacao" class="modal-overlay" onclick="fecharFormularioIntimacao(event)">
+        <div class="modal-box rotina-modal" onclick="event.stopPropagation()">
+            <button class="modal-fechar" onclick="fecharFormularioIntimacao()">&times;</button>
+            <div class="rotina-form-header">
+                <span class="eyebrow">CADASTRO</span>
+                <h2 id="titulo-form-intimacao">Nova intimação</h2>
+                <p>Preencha os dados apresentados no Ofício Eletrônico.</p>
+            </div>
+            <form id="form-intimacao" class="rotina-form" onsubmit="salvarIntimacao(event)">
+                <input id="intimacao-id" type="hidden">
+                <label><span>Protocolo</span><input id="intimacao-protocolo" required maxlength="10" placeholder="IN1234567C" pattern="IN[0-9]{7}C" oninput="this.value=this.value.toUpperCase()"></label>
+                <label><span>Nome do credor</span><input id="intimacao-credor" required maxlength="160"></label>
+                <label><span>Nome do devedor</span><input id="intimacao-devedor" required maxlength="160"></label>
+                <label><span>Data do último andamento</span><input id="intimacao-andamento" type="date" required></label>
+                <div class="rotina-form-actions">
+                    <button type="button" class="rotina-btn-secondary" onclick="fecharFormularioIntimacao()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar intimação</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         let splashEncerrada = false;
+        let autenticado = false;
 
         function fecharSplash() {
             if (splashEncerrada) return;
@@ -156,9 +215,57 @@
             splash.classList.add('splash-saindo');
             document.body.classList.remove('splash-active');
             window.setTimeout(() => splash.remove(), 650);
+            verificarSessao();
         }
 
         window.setTimeout(fecharSplash, 2600);
+
+        function abrirAplicacao(usuario) {
+            autenticado = true;
+            document.getElementById('usuario-logado').textContent = usuario;
+            document.getElementById('login-aeri').classList.remove('aberto');
+            document.body.classList.remove('auth-pending');
+            carregarIntimacoes();
+        }
+
+        function abrirLogin() {
+            document.getElementById('login-aeri').classList.add('aberto');
+            window.setTimeout(() => document.getElementById('login-usuario').focus(), 80);
+        }
+
+        async function verificarSessao() {
+            try {
+                const resposta = await fetch('/api/sessao');
+                if (!resposta.ok) return abrirLogin();
+                const dados = await resposta.json();
+                abrirAplicacao(dados.usuario);
+            } catch { abrirLogin(); }
+        }
+
+        async function fazerLogin(evento) {
+            evento.preventDefault();
+            const botao = document.getElementById('btn-login');
+            const erro = document.getElementById('login-erro');
+            botao.disabled = true; erro.textContent = '';
+            try {
+                const resposta = await fetch('/api/login', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({usuario: document.getElementById('login-usuario').value.trim(), senha: document.getElementById('login-senha').value})
+                });
+                const dados = await resposta.json();
+                if (!resposta.ok) throw new Error(dados.detail || 'Não foi possível entrar.');
+                document.getElementById('form-login').reset();
+                abrirAplicacao(dados.usuario);
+            } catch (falha) { erro.textContent = falha.message; }
+            finally { botao.disabled = false; }
+        }
+
+        async function sairAeri() {
+            await fetch('/api/logout', {method:'POST'});
+            autenticado = false; intimacoes = [];
+            document.body.classList.add('auth-pending');
+            abrirLogin();
+        }
 
         function showPage(pageId) {
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -265,6 +372,218 @@
 
         function escaparHtml(valor) {
             return String(valor).replace(/[&<>'"]/g, caractere => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[caractere]));
+        }
+
+        let intimacoes = [];
+
+        function hojeLocal() {
+            const agora = new Date();
+            const ano = agora.getFullYear();
+            const mes = String(agora.getMonth() + 1).padStart(2, '0');
+            const dia = String(agora.getDate()).padStart(2, '0');
+            return `${ano}-${mes}-${dia}`;
+        }
+
+        async function requisicaoAeri(url, opcoes = {}) {
+            const resposta = await fetch(url, opcoes);
+            if (resposta.status === 401) {
+                document.body.classList.add('auth-pending');
+                abrirLogin();
+                throw new Error('Sua sessão expirou. Entre novamente.');
+            }
+            if (resposta.status === 204) return null;
+            const dados = await resposta.json();
+            if (!resposta.ok) throw new Error(dados.detail || dados.erro || 'Não foi possível concluir a operação.');
+            return dados;
+        }
+
+        async function carregarIntimacoes() {
+            if (!autenticado) return;
+            try { intimacoes = await requisicaoAeri('/api/intimacoes'); }
+            catch (falha) { console.error(falha); intimacoes = []; }
+            renderizarIntimacoes();
+        }
+
+        function diasDesde(data) {
+            if (!data) return null;
+            const hoje = new Date(`${hojeLocal()}T00:00:00`);
+            const referencia = new Date(`${data}T00:00:00`);
+            return Math.max(0, Math.floor((hoje - referencia) / 86400000));
+        }
+
+        function situacaoIntimacao(item) {
+            if (!item.ultimaConferencia) return {classe:'vermelho', rotulo:'Pendente', detalhe:'Nunca conferida', ordem:0};
+            const dias = diasDesde(item.ultimaConferencia);
+            if (dias === 0) return {classe:'verde', rotulo:'Conferida', detalhe:'Conferida hoje', ordem:3};
+            if (dias === 1) return {classe:'amarelo', rotulo:'Vence hoje', detalhe:'Último check ontem', ordem:1};
+            if (dias <= 4) return {classe:'vermelho', rotulo:'Atrasada', detalhe:`Sem check há ${dias} dias`, ordem:0};
+            return {classe:'cinza', rotulo:'Sem atividade', detalhe:`Sem check há ${dias} dias`, ordem:2};
+        }
+
+        function renderizarIntimacoes() {
+            const tbody = document.getElementById('rotina-tbody');
+            if (!tbody) return;
+            const termo = (document.getElementById('busca-intimacao')?.value || '').toLowerCase().trim();
+            const filtradas = intimacoes.filter(item => [item.protocolo, item.credor, item.devedor]
+                .some(valor => String(valor || '').toLowerCase().includes(termo)))
+                .sort((a, b) => situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo));
+
+            tbody.innerHTML = filtradas.map(item => {
+                const situacao = situacaoIntimacao(item);
+                return `<tr class="rotina-row rotina-row-${situacao.classe}">
+                    <td><span class="rotina-status ${situacao.classe}"><i></i>${situacao.rotulo}</span><small>${situacao.detalhe}</small></td>
+                    <td><strong class="rotina-protocolo">${escaparHtml(item.protocolo)}</strong></td>
+                    <td>${escaparHtml(item.credor)}</td>
+                    <td>${escaparHtml(item.devedor)}</td>
+                    <td>${formatarDataRotina(item.ultimoAndamento)}</td>
+                    <td>${item.ultimaConferencia ? formatarDataRotina(item.ultimaConferencia) : '—'}</td>
+                    <td><div class="rotina-row-actions">
+                        <button class="rotina-check" onclick="conferirIntimacao('${item.id}')" title="Registrar conferência de hoje">✓ Check</button>
+                        <button onclick="editarIntimacao('${item.id}')" title="Editar">Editar</button>
+                        <button class="perigo" onclick="excluirIntimacao('${item.id}')" title="Excluir">Excluir</button>
+                    </div></td>
+                </tr>`;
+            }).join('') || `<tr><td colspan="7" class="rotina-vazio">Nenhuma intimação cadastrada. Use “Nova intimação” ou importe sua planilha em CSV.</td></tr>`;
+
+            const contagens = {verde:0, amarelo:0, vermelho:0, cinza:0};
+            intimacoes.forEach(item => contagens[situacaoIntimacao(item).classe]++);
+            document.getElementById('rotina-resumo').innerHTML = [
+                ['verde','Conferidas hoje',contagens.verde], ['amarelo','Vencem hoje',contagens.amarelo],
+                ['vermelho','Atrasadas',contagens.vermelho], ['cinza','Sem atividade',contagens.cinza]
+            ].map(([classe, rotulo, valor]) => `<div class="rotina-resumo-card ${classe}"><span>${rotulo}</span><strong>${valor}</strong></div>`).join('');
+            document.getElementById('rotina-total').textContent = `${filtradas.length} de ${intimacoes.length} intimações`;
+        }
+
+        function abrirFormularioIntimacao() {
+            document.getElementById('form-intimacao').reset();
+            document.getElementById('intimacao-id').value = '';
+            document.getElementById('titulo-form-intimacao').textContent = 'Nova intimação';
+            document.getElementById('intimacao-andamento').value = hojeLocal();
+            document.getElementById('modal-intimacao').classList.add('aberta');
+            document.getElementById('intimacao-protocolo').focus();
+        }
+
+        function fecharFormularioIntimacao(evento) {
+            const modal = document.getElementById('modal-intimacao');
+            if (!evento || evento.currentTarget === modal) modal.classList.remove('aberta');
+        }
+
+        async function salvarIntimacao(evento) {
+            evento.preventDefault();
+            const id = document.getElementById('intimacao-id').value;
+            const protocolo = document.getElementById('intimacao-protocolo').value.trim().toUpperCase();
+            const existenteProtocolo = intimacoes.find(item => item.protocolo === protocolo && item.id !== id);
+            if (existenteProtocolo) return alert('Este protocolo já está cadastrado.');
+            const item = {
+                protocolo,
+                credor: document.getElementById('intimacao-credor').value.trim(),
+                devedor: document.getElementById('intimacao-devedor').value.trim(),
+                ultimoAndamento: document.getElementById('intimacao-andamento').value
+            };
+            try {
+                await requisicaoAeri(id ? `/api/intimacoes/${id}` : '/api/intimacoes', {
+                    method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(item)
+                });
+                fecharFormularioIntimacao();
+                await carregarIntimacoes();
+            } catch (falha) { alert(falha.message); }
+        }
+
+        function editarIntimacao(id) {
+            const item = intimacoes.find(atual => atual.id === id);
+            if (!item) return;
+            document.getElementById('intimacao-id').value = item.id;
+            document.getElementById('intimacao-protocolo').value = item.protocolo;
+            document.getElementById('intimacao-credor').value = item.credor;
+            document.getElementById('intimacao-devedor').value = item.devedor;
+            document.getElementById('intimacao-andamento').value = item.ultimoAndamento;
+            document.getElementById('titulo-form-intimacao').textContent = 'Editar intimação';
+            document.getElementById('modal-intimacao').classList.add('aberta');
+        }
+
+        async function conferirIntimacao(id) {
+            try {
+                await requisicaoAeri(`/api/intimacoes/${id}/conferir`, {method:'POST'});
+                await carregarIntimacoes();
+            } catch (falha) { alert(falha.message); }
+        }
+
+        async function excluirIntimacao(id) {
+            if (!confirm('Deseja excluir esta intimação?')) return;
+            try {
+                await requisicaoAeri(`/api/intimacoes/${id}`, {method:'DELETE'});
+                await carregarIntimacoes();
+            } catch (falha) { alert(falha.message); }
+        }
+
+        function formatarDataRotina(data) {
+            if (!data) return '—';
+            return new Intl.DateTimeFormat('pt-BR').format(new Date(`${data}T12:00:00`));
+        }
+
+        function normalizarCabecalho(valor) {
+            return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        }
+
+        function lerLinhaCsv(linha, separador) {
+            const valores = []; let atual = ''; let aspas = false;
+            for (let i = 0; i < linha.length; i++) {
+                const c = linha[i];
+                if (c === '"' && linha[i + 1] === '"') { atual += '"'; i++; }
+                else if (c === '"') aspas = !aspas;
+                else if (c === separador && !aspas) { valores.push(atual.trim()); atual = ''; }
+                else atual += c;
+            }
+            valores.push(atual.trim()); return valores;
+        }
+
+        function converterDataImportada(valor) {
+            const texto = String(valor || '').trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto;
+            const m = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            return m ? `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}` : '';
+        }
+
+        function importarIntimacoesCsv(input) {
+            const arquivo = input.files?.[0]; if (!arquivo) return;
+            const leitor = new FileReader();
+            leitor.onload = async () => {
+                const texto = String(leitor.result || '').replace(/^\uFEFF/, '');
+                const linhas = texto.split(/\r?\n/).filter(linha => linha.trim());
+                if (linhas.length < 2) return alert('O CSV não possui registros.');
+                const separador = (linhas[0].match(/;/g) || []).length >= (linhas[0].match(/,/g) || []).length ? ';' : ',';
+                const cabecalhos = lerLinhaCsv(linhas[0], separador).map(normalizarCabecalho);
+                const indice = nome => cabecalhos.findIndex(c => c.includes(nome));
+                const ip = indice('protocolo'), ic = indice('credor'), id = indice('devedor'), ia = indice('ultimo andamento');
+                if ([ip,ic,id,ia].some(i => i < 0)) return alert('Use as colunas: Protocolo, Credor, Devedor e Data do Último Andamento.');
+                let importados = 0;
+                linhas.slice(1).forEach(linha => {
+                    const colunas = lerLinhaCsv(linha, separador); const protocolo = (colunas[ip] || '').trim().toUpperCase();
+                    if (!/^IN\d{7}C$/.test(protocolo) || intimacoes.some(item => item.protocolo === protocolo)) return;
+                    const item = {protocolo,
+                        credor:(colunas[ic] || '').trim(), devedor:(colunas[id] || '').trim(),
+                        ultimoAndamento:converterDataImportada(colunas[ia])};
+                    if (!item.ultimoAndamento) return;
+                    intimacoes.push(item);
+                });
+                const pendentes = intimacoes.filter(item => !item.id);
+                for (const item of pendentes) {
+                    try { await requisicaoAeri('/api/intimacoes', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(item)}); importados++; }
+                    catch (falha) { console.warn(item.protocolo, falha.message); }
+                }
+                await carregarIntimacoes(); input.value = '';
+                alert(`${importados} intimações importadas.`);
+            };
+            leitor.readAsText(arquivo, 'UTF-8');
+        }
+
+        function exportarIntimacoesCsv() {
+            const cabecalho = 'Protocolo;Credor;Devedor;Data do Último Andamento;Última Conferência';
+            const linhas = intimacoes.map(item => [item.protocolo,item.credor,item.devedor,item.ultimoAndamento,item.ultimaConferencia || '']
+                .map(valor => `"${String(valor).replace(/"/g,'""')}"`).join(';'));
+            const blob = new Blob(['\uFEFF' + [cabecalho,...linhas].join('\n')], {type:'text/csv;charset=utf-8'});
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
+            link.download = `intimacoes-aeri-${hojeLocal()}.csv`; link.click(); URL.revokeObjectURL(link.href);
         }
 
         function switchTab(tabId) {

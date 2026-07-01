@@ -26,7 +26,10 @@
 - Classificar os resultados em Comunicar, Revisar e Fora das hipóteses.
 - Classificar georreferenciamento como hipótese de comunicação por alteração territorial ou desmembramento.
 - Manter a possibilidade de copiar a lista e exportar CSV.
-- Deixar o módulo Rotina sem implementação até nova orientação do usuário.
+- O módulo Rotina - Intimação controla protocolo, credor, devedor, último andamento e conferências diárias.
+- Preservar os estados visuais verde, amarelo, vermelho e cinza e a importação/exportação CSV.
+- Persistir usuários, intimações e conferências no Postgres configurado no Vercel; não usar `localStorage` para dados operacionais.
+- Manter o acesso protegido por sessão e nunca armazenar senhas em texto puro.
 
 ## Verificação
 

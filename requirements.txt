@@ -3,3 +3,4 @@ uvicorn
 pydantic
 jinja2
 pypdf
+psycopg[binary]
