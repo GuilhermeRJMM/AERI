@@ -192,7 +192,7 @@
             </div>
             <form id="form-intimacao" class="rotina-form" onsubmit="salvarIntimacao(event)">
                 <input id="intimacao-id" type="hidden">
-                <label><span>Protocolo</span><input id="intimacao-protocolo" required maxlength="10" placeholder="IN1234567C" pattern="IN[0-9]{7}C" oninput="this.value=this.value.toUpperCase()"></label>
+                <label><span>Protocolo</span><input id="intimacao-protocolo" required maxlength="11" placeholder="IN01625306C" pattern="IN[0-9]{8}C" oninput="this.value=this.value.toUpperCase()"></label>
                 <label><span>Nome do credor</span><input id="intimacao-credor" required maxlength="160"></label>
                 <label><span>Nome do devedor</span><input id="intimacao-devedor" required maxlength="160"></label>
                 <label><span>Data do último andamento</span><input id="intimacao-andamento" type="date" required></label>
@@ -559,7 +559,7 @@
                 let importados = 0;
                 linhas.slice(1).forEach(linha => {
                     const colunas = lerLinhaCsv(linha, separador); const protocolo = (colunas[ip] || '').trim().toUpperCase();
-                    if (!/^IN\d{7}C$/.test(protocolo) || intimacoes.some(item => item.protocolo === protocolo)) return;
+                    if (!/^IN\d{8}C$/.test(protocolo) || intimacoes.some(item => item.protocolo === protocolo)) return;
                     const item = {protocolo,
                         credor:(colunas[ic] || '').trim(), devedor:(colunas[id] || '').trim(),
                         ultimoAndamento:converterDataImportada(colunas[ia])};

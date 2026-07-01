@@ -33,7 +33,7 @@ def preparar_banco() -> None:
 
                 CREATE TABLE IF NOT EXISTS intimacoes_aeri (
                     id UUID PRIMARY KEY,
-                    protocolo VARCHAR(10) NOT NULL UNIQUE,
+                    protocolo VARCHAR(11) NOT NULL UNIQUE,
                     credor VARCHAR(160) NOT NULL,
                     devedor VARCHAR(160) NOT NULL,
                     ultimo_andamento DATE NOT NULL,
@@ -42,6 +42,9 @@ def preparar_banco() -> None:
                     criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 );
+
+                ALTER TABLE intimacoes_aeri
+                    ALTER COLUMN protocolo TYPE VARCHAR(11);
                 """
             )
 
