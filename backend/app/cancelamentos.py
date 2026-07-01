@@ -11,9 +11,10 @@ def aplicar_cancelamentos(atos):
             chave_normalizada = f"{match.group(1).upper()}.{match.group(2)}"
             indice[chave_normalizada] = ato
 
-    for ato in atos:
+    for posicao, ato in enumerate(atos):
         if ato.categoria == "CANCELAMENTO":
             texto = ato.descricao.upper()
+            cancelou_alvo_explicito = False
             
             alvos = re.finditer(r'(R|AV)[\.\-]\s*0*(\d+)', texto)
             
@@ -28,6 +29,7 @@ def aplicar_cancelamentos(atos):
                     ato_alvo.status = "CANCELADO"
                     ato_alvo.cancelado_por = ato.codigo
                     ato_alvo.impacta_resultado = False
+                    cancelou_alvo_explicito = True
                 else:
                     # TENTATIVA 2: Busca por erro de digitação (Inverte R e AV)
                     tipo_inverso = "AV" if tipo == "R" else "R"
@@ -38,5 +40,27 @@ def aplicar_cancelamentos(atos):
                         ato_alvo.status = "CANCELADO"
                         ato_alvo.cancelado_por = ato.codigo
                         ato_alvo.impacta_resultado = False
+                        cancelou_alvo_explicito = True
+
+            # Nos leilões fiduciários negativos, a matrícula pode declarar a
+            # extinção da dívida sem repetir o número do registro da garantia.
+            # Nesse caso, o alvo é a alienação fiduciária ativa mais recente.
+            if (
+                not cancelou_alvo_explicito
+                and "LEIL" in texto
+                and "NEGATIV" in texto
+                and "DÍVIDA ORIGINÁRIA" in texto
+                and "EXTINT" in texto
+            ):
+                for ato_anterior in reversed(atos[:posicao]):
+                    if (
+                        ato_anterior.status == "ATIVO"
+                        and "ALIENAÇÃO FIDUCIÁRIA" in ato_anterior.descricao.upper()
+                        and ato_anterior.categoria == "ÔNUS"
+                    ):
+                        ato_anterior.status = "CANCELADO"
+                        ato_anterior.cancelado_por = ato.codigo
+                        ato_anterior.impacta_resultado = False
+                        break
 
     return atos

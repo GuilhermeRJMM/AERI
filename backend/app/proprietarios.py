@@ -144,6 +144,20 @@ def extrair_retificacoes_cpf(texto):
         pessoas.append({"nome": nome, "cpf": cpf.strip()})
     return pessoas
 
+def extrair_credor_consolidacao(texto):
+    if not re.search(r'CONSOLIDA[ÇC][ÃA]O\s+DA\s+PROPRIEDADE', texto, re.I):
+        return []
+
+    m = re.search(
+        r'em\s+favor\s+d[oa]\s+credor[ao]\s+fiduci[áa]ri[oa]\s+([^,]+),'
+        r'.*?(?:CNPJ|CPF)(?:/MF)?\s+sob\s+o\s+n[.º°o]*\s*([\d.\-/]{9,20})',
+        texto,
+        re.I | re.DOTALL
+    )
+    if not m:
+        return []
+    return [{"nome": m.group(1).strip(), "cpf": m.group(2).strip()}]
+
 def calcular_cadeia_dominial(atos, texto_integral=""):
     estado = {}
     
@@ -161,6 +175,19 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
     atos_transmissao = ["VENDA E COMPRA", "COMPRA E VENDA", "INVENTÁRIO", "PARTILHA", "SOBREPARTILHA", "DOAÇÃO"]
     
     for ato in atos:
+        credores_consolidados = extrair_credor_consolidacao(ato.descricao)
+        if credores_consolidados:
+            estado.clear()
+            proporcao = 100.0 / len(credores_consolidados)
+            for credor in credores_consolidados:
+                chave = padronizar_chave(credor["cpf"], credor["nome"])
+                estado[chave] = {
+                    "nome": credor["nome"],
+                    "cpf_original": credor["cpf"],
+                    "proporcao": proporcao
+                }
+            continue
+
         retificados = extrair_retificacoes_cpf(ato.descricao)
         if retificados:
             chaves_encontradas = []
