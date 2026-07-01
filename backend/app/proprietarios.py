@@ -83,7 +83,7 @@ def extrair_pessoas(texto_bloco):
     # Em atos com casal, cada cônjuge pode ter nome e CPF próprios no mesmo bloco.
     # Se não separarmos aqui, a limpeza abaixo remove o segundo cônjuge inteiro.
     partes_conjuges = re.split(
-        r'\s+e\s+(?:seu|sua)\s+c[oô]njuge\s+',
+        r'\s+e\s+(?:seu|sua)\s+(?:c[oô]njuge|mulher|marido|esposa)\s+',
         texto_bloco,
         flags=re.I
     )
