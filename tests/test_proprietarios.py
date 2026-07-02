@@ -49,6 +49,35 @@ class TesteProprietarios(unittest.TestCase):
             },
         )
 
+    def test_titulo_de_dominio_do_incra_transfere_ao_outorgado(self):
+        cabecalho = """
+        IMÓVEL: Fazenda Paraíso e Tijuqueiro, Lote 18. PROPRIETÁRIO: Instituto
+        Nacional de Colonização e Reforma Agrária - INCRA, inscrita no CNPJ/MF
+        sob o n.º 00.375.972/0001-60. Origem: Matrícula n.º 38.838.
+        """
+        registro = """
+        R.05-39.071 - REFORMA AGRÁRIA. OUTORGANTE: Instituto Nacional de
+        Colonização e Reforma Agrária - INCRA, inscrita no CNPJ/MF sob o n.º
+        00.375.972/0001-60. OUTORGADO: Carlos Eli da Silva, brasileiro, solteiro,
+        agricultor, inscrito no CPF/MF sob o n.º 211.721.881-49. IMÓVEL: O imóvel
+        descrito na matrícula. FORMA DO TÍTULO: Título de Domínio emitido sob
+        condição resolutiva pelo INCRA.
+        """
+        clausulas = """
+        AV.06-39.071 - CLÁUSULAS RESOLUTIVAS E CONDIÇÕES. Nos termos do Título
+        de Domínio, a transmissão foi feita sob condições resolutivas.
+        """
+
+        resultado = calcular_cadeia_dominial(
+            [SimpleNamespace(descricao=registro), SimpleNamespace(descricao=clausulas)],
+            cabecalho + registro + clausulas,
+        )
+
+        self.assertEqual(
+            resultado,
+            [{"nome": "Carlos Eli da Silva", "cpf": "211.721.881-49", "proporcao": "100%"}],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

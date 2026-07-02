@@ -36,6 +36,9 @@ def parse_percent(texto):
 
 def extrair_bloco(texto, tipo):
     if tipo == "ADQUIRENTE":
+        m = re.search(r'OUTORGADO[S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
+
         m = re.search(r'ADQUIRENTE[S]?\s*:(.*?)(?=\bIMÓVEL\s*:|\bORIGEM\s*:|\bFORMA DO TÍTULO\b)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
@@ -59,6 +62,9 @@ def extrair_bloco(texto, tipo):
             return t
 
     elif tipo == "TRANSMITENTE":
+        m = re.search(r'OUTORGANTE[S]?\s*:(.*?)(?=\bOUTORGADO[S]?\s*:|\bIM[ÓO]VEL\s*:)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
+
         m = re.search(r'TRANSMITENTE[S]?\s*:(.*?)(?=\bADQUIRENTE[S]?\s*:|\bIMÓVEL\s*:)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
@@ -108,7 +114,7 @@ def extrair_pessoas(texto_bloco):
         cpf_match = re.search(r'(?:CPF|CIC|CNPJ|CGC|MF)[^\d]*([\d\.\-\/]{9,20})', parte, re.I)
 
         nome = nome_match.group(1).strip() if nome_match else "DESCONHECIDO"
-        cpf = cpf_match.group(1).strip() if cpf_match else "CPF/CNPJ NÃO INFORMADO"
+        cpf = cpf_match.group(1).strip().rstrip('.,;') if cpf_match else "CPF/CNPJ NÃO INFORMADO"
 
         # Limpeza visual (remove estado civil e termo "pessoa jurídica")
         nome = re.sub(r'\s+e\s+(?:seu\s+c[oô]njuge|sua\s+mulher|seu\s+marido|sua\s+esposa).*', '', nome, flags=re.I)
@@ -172,7 +178,10 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                 chave = padronizar_chave(p["cpf"], p["nome"])
                 estado[chave] = {"nome": p["nome"], "cpf_original": p["cpf"], "proporcao": fração}
 
-    atos_transmissao = ["VENDA E COMPRA", "COMPRA E VENDA", "INVENTÁRIO", "PARTILHA", "SOBREPARTILHA", "DOAÇÃO"]
+    atos_transmissao = [
+        "VENDA E COMPRA", "COMPRA E VENDA", "INVENTÁRIO", "PARTILHA",
+        "SOBREPARTILHA", "DOAÇÃO", "REFORMA AGRÁRIA", "TÍTULO DE DOMÍNIO",
+    ]
     
     for ato in atos:
         credores_consolidados = extrair_credor_consolidacao(ato.descricao)
