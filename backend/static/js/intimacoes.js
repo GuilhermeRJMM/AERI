@@ -28,7 +28,7 @@ function formatarDataRotina(data) {
 function renderizarIntimacoes() {
     const tbody = document.getElementById('rotina-tbody');
     const termo = document.getElementById('busca-intimacao').value.toLowerCase().trim();
-    const filtradas = intimacoes.filter(item => [item.protocolo, item.credor, item.devedor]
+    const filtradas = intimacoes.filter(item => [item.protocolo, item.credor, item.devedor, item.nomeAndamento]
         .some(valor => String(valor || '').toLowerCase().includes(termo)))
         .sort((a, b) => situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo));
 
@@ -40,6 +40,7 @@ function renderizarIntimacoes() {
             <td><strong class="rotina-protocolo">${escaparHtml(item.protocolo)}</strong></td>
             <td>${escaparHtml(item.credor)}</td>
             <td>${escaparHtml(item.devedor)}</td>
+            <td>${escaparHtml(item.nomeAndamento || 'Não informado')}</td>
             <td>${formatarDataRotina(item.ultimoAndamento)}</td>
             <td>${item.ultimaConferencia ? formatarDataRotina(item.ultimaConferencia) : '—'}</td>
             <td><div class="rotina-row-actions">
@@ -48,7 +49,7 @@ function renderizarIntimacoes() {
                 <button class="perigo" data-acao="excluir" data-id="${item.id}" title="Excluir">Excluir</button>
             </div></td>
         </tr>`;
-    }).join('') || '<tr><td colspan="7" class="rotina-vazio">Nenhuma intimação cadastrada. Use “Nova intimação” ou importe sua planilha em CSV.</td></tr>';
+    }).join('') || '<tr><td colspan="8" class="rotina-vazio">Nenhuma intimação cadastrada. Use “Nova intimação” ou importe sua planilha em CSV.</td></tr>';
 
     const contagens = {verde:0, amarelo:0, vermelho:0, cinza:0};
     intimacoes.forEach(item => contagens[situacaoIntimacao(item).classe]++);
@@ -99,6 +100,7 @@ async function salvarIntimacao(evento) {
         protocolo,
         credor: document.getElementById('intimacao-credor').value.trim(),
         devedor: document.getElementById('intimacao-devedor').value.trim(),
+        nomeAndamento: document.getElementById('intimacao-nome-andamento').value.trim(),
         ultimoAndamento: document.getElementById('intimacao-andamento').value,
     };
     try {
@@ -129,6 +131,7 @@ function editarIntimacao(id) {
     document.getElementById('intimacao-protocolo').value = item.protocolo;
     document.getElementById('intimacao-credor').value = item.credor;
     document.getElementById('intimacao-devedor').value = item.devedor;
+    document.getElementById('intimacao-nome-andamento').value = item.nomeAndamento || 'Não informado';
     document.getElementById('intimacao-andamento').value = item.ultimoAndamento;
     document.getElementById('titulo-form-intimacao').textContent = 'Editar intimação';
     document.getElementById('modal-intimacao').classList.add('aberta');
@@ -205,35 +208,60 @@ function importarIntimacoesCsv(evento) {
         const separador = (linhas[0].match(/;/g) || []).length >= (linhas[0].match(/,/g) || []).length ? ';' : ',';
         const cabecalhos = lerLinhaCsv(linhas[0], separador).map(normalizarCabecalho);
         const indice = nome => cabecalhos.findIndex(cabecalho => cabecalho.includes(nome));
-        const ip = indice('protocolo'), ic = indice('credor'), id = indice('devedor'), ia = indice('ultimo andamento');
-        if ([ip,ic,id,ia].some(i => i < 0)) return alert('Use as colunas: Protocolo, Credor, Devedor e Data do Último Andamento.');
-        let importados = 0;
-        const novos = [];
+        const ip = indice('protocolo');
+        const ic = indice('credor') >= 0 ? indice('credor') : indice('solicitante');
+        const id = indice('devedor');
+        const ina = indice('nome do andamento') >= 0 ? indice('nome do andamento')
+            : (indice('nome andamento') >= 0 ? indice('nome andamento') : indice('status'));
+        const ia = indice('data do ultimo andamento') >= 0 ? indice('data do ultimo andamento')
+            : (indice('ultimo andamento') >= 0 ? indice('ultimo andamento') : indice('data status'));
+        if ([ip,ic,ia].some(i => i < 0)) return alert('Use as colunas: Protocolo, Credor/Solicitante e Data do Último Andamento/Data Status.');
+        let importados = 0, atualizados = 0, ignorados = 0;
+        const registros = new Map();
         linhas.slice(1).forEach(linha => {
             const colunas = lerLinhaCsv(linha, separador);
             const protocolo = (colunas[ip] || '').trim().toUpperCase();
-            if (!/^IN\d{8}C$/.test(protocolo) || intimacoes.some(item => item.protocolo === protocolo) || novos.some(item => item.protocolo === protocolo)) return;
-            const item = {protocolo, credor:(colunas[ic] || '').trim(), devedor:(colunas[id] || '').trim(), ultimoAndamento:converterDataImportada(colunas[ia])};
-            if (item.ultimoAndamento) novos.push(item);
+            const nomeAndamento = ina >= 0 ? (colunas[ina] || '').trim() : 'Não informado';
+            if (normalizarCabecalho(nomeAndamento) === 'desistencia concluida') { ignorados++; return; }
+            if (!/^IN\d{8}C$/.test(protocolo)) { ignorados++; return; }
+            const existente = intimacoes.find(item => item.protocolo === protocolo);
+            const item = {
+                protocolo,
+                credor:(colunas[ic] || '').trim(),
+                devedor:id >= 0 ? (colunas[id] || '').trim() : (existente?.devedor || 'Não informado no relatório'),
+                nomeAndamento: nomeAndamento || 'Não informado',
+                ultimoAndamento:converterDataImportada(colunas[ia]),
+            };
+            if (item.credor && item.devedor && item.ultimoAndamento) registros.set(protocolo, {item, existente});
+            else ignorados++;
         });
-        for (const item of novos) {
+        for (const {item, existente} of registros.values()) {
             try {
-                intimacoes.push(await requisicaoAeri('/api/intimacoes', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(item)}));
-                importados++;
+                const salvo = await requisicaoAeri(existente ? `/api/intimacoes/${existente.id}` : '/api/intimacoes', {
+                    method: existente ? 'PUT' : 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(item),
+                });
+                if (existente) {
+                    intimacoes[intimacoes.findIndex(atual => atual.id === existente.id)] = salvo;
+                    atualizados++;
+                } else {
+                    intimacoes.push(salvo);
+                    importados++;
+                }
             } catch (falha) {
                 console.warn(item.protocolo, falha.message);
+                ignorados++;
             }
         }
         renderizarIntimacoes();
         input.value = '';
-        alert(`${importados} intimações importadas.`);
+        alert(`${importados} novas, ${atualizados} atualizadas e ${ignorados} ignoradas.`);
     };
     leitor.readAsText(arquivo, 'UTF-8');
 }
 
 function exportarIntimacoesCsv() {
-    const cabecalho = 'Protocolo;Credor;Devedor;Data do Último Andamento;Última Conferência';
-    const linhas = intimacoes.map(item => [item.protocolo,item.credor,item.devedor,item.ultimoAndamento,item.ultimaConferencia || '']
+    const cabecalho = 'Protocolo;Credor;Devedor;Nome do Andamento;Data do Último Andamento;Última Conferência';
+    const linhas = intimacoes.map(item => [item.protocolo,item.credor,item.devedor,item.nomeAndamento || 'Não informado',item.ultimoAndamento,item.ultimaConferencia || '']
         .map(valor => `"${String(valor).replace(/"/g,'""')}"`).join(';'));
     baixarArquivo('\uFEFF' + [cabecalho,...linhas].join('\n'), 'text/csv;charset=utf-8', `intimacoes-aeri-${hojeLocal()}.csv`);
 }

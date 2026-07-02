@@ -158,13 +158,13 @@
                         <div class="rotina-toolbar">
                             <div class="rotina-busca">
                                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                                <input id="busca-intimacao" type="search" placeholder="Buscar protocolo, credor ou devedor">
+                                <input id="busca-intimacao" type="search" placeholder="Buscar protocolo, credor, devedor ou andamento">
                             </div>
                             <span id="rotina-total" class="rotina-total"></span>
                         </div>
                         <div class="rotina-table-wrap">
                             <table class="rotina-table">
-                                <thead><tr><th>Situação</th><th>Protocolo</th><th>Credor</th><th>Devedor</th><th>Último andamento</th><th>Última conferência</th><th>Ações</th></tr></thead>
+                                <thead><tr><th>Situação</th><th>Protocolo</th><th>Credor</th><th>Devedor</th><th>Nome do andamento</th><th>Data do último andamento</th><th>Última conferência</th><th>Ações</th></tr></thead>
                                 <tbody id="rotina-tbody"></tbody>
                             </table>
                         </div>
@@ -195,6 +195,7 @@
                 <label><span>Protocolo</span><input id="intimacao-protocolo" required maxlength="11" placeholder="IN01625306C" pattern="IN[0-9]{8}C"></label>
                 <label><span>Nome do credor</span><input id="intimacao-credor" required maxlength="160"></label>
                 <label><span>Nome do devedor</span><input id="intimacao-devedor" required maxlength="160"></label>
+                <label><span>Nome do último andamento</span><input id="intimacao-nome-andamento" required maxlength="160" placeholder="Ex.: Aguardando cumprimento"></label>
                 <label><span>Data do último andamento</span><input id="intimacao-andamento" type="date" required></label>
                 <div class="rotina-form-actions">
                     <button type="button" class="rotina-btn-secondary" id="btn-cancelar-intimacao">Cancelar</button>

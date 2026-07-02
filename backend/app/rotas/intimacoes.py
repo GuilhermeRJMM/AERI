@@ -7,11 +7,15 @@ from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
 
 from backend.app.autenticacao import usuario_atual
-from backend.app.database import conectar
+from backend.app.database import conectar, preparar_banco
 from backend.app.servicos.intimacoes import intimacao_json, validar_intimacao
 
 
-router = APIRouter(prefix="/api/intimacoes", tags=["intimações"])
+router = APIRouter(
+    prefix="/api/intimacoes",
+    tags=["intimações"],
+    dependencies=[Depends(preparar_banco)],
+)
 
 
 @router.get("")
@@ -24,16 +28,16 @@ def listar_intimacoes(_usuario: str = Depends(usuario_atual)):
 
 @router.post("", status_code=201)
 def criar_intimacao(dados: dict, _usuario: str = Depends(usuario_atual)):
-    protocolo, credor, devedor, andamento = validar_intimacao(dados)
+    protocolo, credor, devedor, nome_andamento, andamento = validar_intimacao(dados)
     identificador = uuid4()
     try:
         with conectar() as conexao:
             with conexao.cursor() as cursor:
                 cursor.execute(
                     """INSERT INTO intimacoes_aeri
-                    (id, protocolo, credor, devedor, ultimo_andamento)
-                    VALUES (%s, %s, %s, %s, %s) RETURNING *""",
-                    (identificador, protocolo, credor, devedor, andamento),
+                    (id, protocolo, credor, devedor, nome_andamento, ultimo_andamento)
+                    VALUES (%s, %s, %s, %s, %s, %s) RETURNING *""",
+                    (identificador, protocolo, credor, devedor, nome_andamento, andamento),
                 )
                 item = cursor.fetchone()
             conexao.commit()
@@ -44,14 +48,15 @@ def criar_intimacao(dados: dict, _usuario: str = Depends(usuario_atual)):
 
 @router.put("/{identificador}")
 def atualizar_intimacao(identificador: UUID, dados: dict, _usuario: str = Depends(usuario_atual)):
-    protocolo, credor, devedor, andamento = validar_intimacao(dados)
+    protocolo, credor, devedor, nome_andamento, andamento = validar_intimacao(dados)
     try:
         with conectar() as conexao:
             with conexao.cursor() as cursor:
                 cursor.execute(
                     """UPDATE intimacoes_aeri SET protocolo=%s, credor=%s, devedor=%s,
-                    ultimo_andamento=%s, atualizado_em=NOW() WHERE id=%s RETURNING *""",
-                    (protocolo, credor, devedor, andamento, identificador),
+                    nome_andamento=%s, ultimo_andamento=%s, atualizado_em=NOW()
+                    WHERE id=%s RETURNING *""",
+                    (protocolo, credor, devedor, nome_andamento, andamento, identificador),
                 )
                 item = cursor.fetchone()
             conexao.commit()
