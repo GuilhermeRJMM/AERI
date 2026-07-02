@@ -8,7 +8,11 @@ from psycopg.types.json import Jsonb
 
 from backend.app.autenticacao import usuario_atual
 from backend.app.database import conectar, preparar_banco
-from backend.app.servicos.intimacoes import intimacao_json, validar_intimacao
+from backend.app.servicos.intimacoes import (
+    intimacao_json,
+    validar_intimacao,
+    validar_novo_andamento,
+)
 
 
 router = APIRouter(
@@ -68,8 +72,13 @@ def atualizar_intimacao(identificador: UUID, dados: dict, _usuario: str = Depend
 
 
 @router.post("/{identificador}/conferir")
-def conferir_intimacao(identificador: UUID, _usuario: str = Depends(usuario_atual)):
+def conferir_intimacao(
+    identificador: UUID,
+    dados: dict | None = None,
+    _usuario: str = Depends(usuario_atual),
+):
     hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date().isoformat()
+    novo_andamento = validar_novo_andamento(dados)
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute("SELECT historico FROM intimacoes_aeri WHERE id=%s", (identificador,))
@@ -77,11 +86,19 @@ def conferir_intimacao(identificador: UUID, _usuario: str = Depends(usuario_atua
             if not atual:
                 raise HTTPException(status_code=404, detail="Intimação não encontrada.")
             historico = list(dict.fromkeys([*(atual["historico"] or []), hoje]))
-            cursor.execute(
-                """UPDATE intimacoes_aeri SET ultima_conferencia=%s, historico=%s,
-                atualizado_em=NOW() WHERE id=%s RETURNING *""",
-                (hoje, Jsonb(historico), identificador),
-            )
+            if novo_andamento:
+                cursor.execute(
+                    """UPDATE intimacoes_aeri SET ultima_conferencia=%s, historico=%s,
+                    nome_andamento=%s, ultimo_andamento=%s, atualizado_em=NOW()
+                    WHERE id=%s RETURNING *""",
+                    (hoje, Jsonb(historico), novo_andamento, hoje, identificador),
+                )
+            else:
+                cursor.execute(
+                    """UPDATE intimacoes_aeri SET ultima_conferencia=%s, historico=%s,
+                    atualizado_em=NOW() WHERE id=%s RETURNING *""",
+                    (hoje, Jsonb(historico), identificador),
+                )
             item = cursor.fetchone()
         conexao.commit()
     return intimacao_json(item)

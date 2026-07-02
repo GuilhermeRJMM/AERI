@@ -37,3 +37,12 @@ def validar_intimacao(dados: dict) -> tuple[str, str, str, str, date]:
     if not nome_andamento or len(nome_andamento) > 160:
         raise HTTPException(status_code=422, detail="Informe o nome do último andamento.")
     return protocolo, credor, devedor, nome_andamento, andamento
+
+
+def validar_novo_andamento(dados: dict | None) -> str | None:
+    if not dados or "nomeAndamento" not in dados:
+        return None
+    nome_andamento = str(dados["nomeAndamento"]).strip()
+    if not nome_andamento or len(nome_andamento) > 160:
+        raise HTTPException(status_code=422, detail="Informe um novo andamento válido.")
+    return nome_andamento

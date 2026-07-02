@@ -205,7 +205,30 @@
         </div>
     </div>
 
+    <div id="modal-check-intimacao" class="modal-overlay">
+        <div class="modal-box rotina-modal rotina-check-modal">
+            <button class="modal-fechar" id="btn-fechar-check-intimacao">&times;</button>
+            <div class="rotina-form-header">
+                <span class="eyebrow">CONFERÊNCIA DIÁRIA</span>
+                <h2>Existe um novo andamento?</h2>
+                <p id="check-intimacao-protocolo"></p>
+            </div>
+            <div id="check-intimacao-escolha" class="rotina-check-escolha">
+                <button type="button" class="rotina-btn-secondary" id="btn-check-sem-andamento">Não, manter o atual</button>
+                <button type="button" class="btn btn-primary" id="btn-check-com-andamento">Sim, informar andamento</button>
+            </div>
+            <form id="form-check-andamento" class="rotina-check-form" hidden>
+                <label for="check-novo-andamento">Novo andamento</label>
+                <input id="check-novo-andamento" maxlength="160" required placeholder="Digite o novo andamento">
+                <div class="rotina-form-actions">
+                    <button type="button" class="rotina-btn-secondary" id="btn-voltar-check">Voltar</button>
+                    <button type="submit" class="btn btn-primary">Salvar e conferir</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-    <script type="module" src="/static/js/app.js?v=20260702-2"></script>
+
+    <script type="module" src="/static/js/app.js?v=20260702-3"></script>
 </body>
 </html>

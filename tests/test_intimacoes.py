@@ -51,6 +51,14 @@ class TesteIntimacoes(unittest.TestCase):
         self.assertEqual("Prenotado", item["nomeAndamento"])
         self.assertEqual("2026-07-01", item["ultimoAndamento"])
 
+    def test_novo_andamento_e_opcional_na_conferencia(self):
+        self.assertIsNone(servico.validar_novo_andamento(None))
+        self.assertIsNone(servico.validar_novo_andamento({}))
+        self.assertEqual(
+            "Intimação por edital",
+            servico.validar_novo_andamento({"nomeAndamento": " Intimação por edital "}),
+        )
+
     def test_migracao_importa_somente_os_39_ativos(self):
         caminho = Path(__file__).parents[1] / "backend/app/migrations/003_nome_ultimo_andamento.sql"
         sql = caminho.read_text(encoding="utf-8")

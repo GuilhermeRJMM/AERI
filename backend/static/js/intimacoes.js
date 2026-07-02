@@ -3,6 +3,7 @@ import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
 
 let intimacoes = [];
 const intimacoesPendentes = new Set();
+let intimacaoCheckId = null;
 
 function diasDesde(data) {
     if (!data) return null;
@@ -137,16 +138,51 @@ function editarIntimacao(id) {
     document.getElementById('modal-intimacao').classList.add('aberta');
 }
 
-async function conferirIntimacao(id) {
+function fecharCheckIntimacao() {
+    document.getElementById('modal-check-intimacao').classList.remove('aberta');
+    document.getElementById('form-check-andamento').hidden = true;
+    document.getElementById('check-intimacao-escolha').hidden = false;
+    document.getElementById('form-check-andamento').reset();
+    intimacaoCheckId = null;
+}
+
+function abrirCheckIntimacao(id) {
+    const item = intimacoes.find(atual => atual.id === id);
+    if (!item || intimacoesPendentes.has(id)) return;
+    intimacaoCheckId = id;
+    document.getElementById('check-intimacao-protocolo').textContent = `${item.protocolo} — andamento atual: ${item.nomeAndamento || 'Não informado'}`;
+    document.getElementById('check-intimacao-escolha').hidden = false;
+    document.getElementById('form-check-andamento').hidden = true;
+    document.getElementById('modal-check-intimacao').classList.add('aberta');
+}
+
+function escolherNovoAndamento() {
+    document.getElementById('check-intimacao-escolha').hidden = true;
+    document.getElementById('form-check-andamento').hidden = false;
+    document.getElementById('check-novo-andamento').focus();
+}
+
+async function conferirIntimacao(id, novoAndamento = null) {
     const indice = intimacoes.findIndex(item => item.id === id);
     if (indice < 0 || intimacoesPendentes.has(id)) return;
     const anterior = {...intimacoes[indice], historico:[...(intimacoes[indice].historico || [])]};
     const hoje = hojeLocal();
     intimacoesPendentes.add(id);
-    intimacoes[indice] = {...anterior, ultimaConferencia: hoje, historico: [...new Set([...(anterior.historico || []), hoje])]};
+    intimacoes[indice] = {
+        ...anterior,
+        ultimaConferencia: hoje,
+        historico: [...new Set([...(anterior.historico || []), hoje])],
+        ...(novoAndamento ? {nomeAndamento: novoAndamento, ultimoAndamento: hoje} : {}),
+    };
+    fecharCheckIntimacao();
     renderizarIntimacoes();
     try {
-        const salvo = await requisicaoAeri(`/api/intimacoes/${id}/conferir`, {method:'POST'});
+        const opcoes = {method:'POST'};
+        if (novoAndamento) {
+            opcoes.headers = {'Content-Type':'application/json'};
+            opcoes.body = JSON.stringify({nomeAndamento: novoAndamento});
+        }
+        const salvo = await requisicaoAeri(`/api/intimacoes/${id}/conferir`, opcoes);
         const indiceAtual = intimacoes.findIndex(item => item.id === id);
         if (indiceAtual >= 0) intimacoes[indiceAtual] = salvo;
     } catch (falha) {
@@ -269,7 +305,7 @@ function exportarIntimacoesCsv() {
 function tratarAcaoTabela(evento) {
     const botao = evento.target.closest('button[data-acao]');
     if (!botao) return;
-    if (botao.dataset.acao === 'conferir') conferirIntimacao(botao.dataset.id);
+    if (botao.dataset.acao === 'conferir') abrirCheckIntimacao(botao.dataset.id);
     if (botao.dataset.acao === 'editar') editarIntimacao(botao.dataset.id);
     if (botao.dataset.acao === 'excluir') excluirIntimacao(botao.dataset.id);
 }
@@ -281,6 +317,23 @@ export function iniciarIntimacoes() {
     document.getElementById('btn-cancelar-intimacao').addEventListener('click', fecharFormularioIntimacao);
     document.getElementById('modal-intimacao').addEventListener('click', evento => {
         if (evento.target.id === 'modal-intimacao') fecharFormularioIntimacao();
+    });
+    document.getElementById('btn-fechar-check-intimacao').addEventListener('click', fecharCheckIntimacao);
+    document.getElementById('modal-check-intimacao').addEventListener('click', evento => {
+        if (evento.target.id === 'modal-check-intimacao') fecharCheckIntimacao();
+    });
+    document.getElementById('btn-check-sem-andamento').addEventListener('click', () => {
+        if (intimacaoCheckId) conferirIntimacao(intimacaoCheckId);
+    });
+    document.getElementById('btn-check-com-andamento').addEventListener('click', escolherNovoAndamento);
+    document.getElementById('btn-voltar-check').addEventListener('click', () => {
+        document.getElementById('form-check-andamento').hidden = true;
+        document.getElementById('check-intimacao-escolha').hidden = false;
+    });
+    document.getElementById('form-check-andamento').addEventListener('submit', evento => {
+        evento.preventDefault();
+        const novoAndamento = document.getElementById('check-novo-andamento').value.trim();
+        if (intimacaoCheckId && novoAndamento) conferirIntimacao(intimacaoCheckId, novoAndamento);
     });
     document.getElementById('intimacao-protocolo').addEventListener('input', evento => {
         evento.target.value = evento.target.value.toUpperCase();

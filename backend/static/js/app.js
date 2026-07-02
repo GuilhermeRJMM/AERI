@@ -1,7 +1,7 @@
 import {iniciarAnalisador} from './analisador.js';
 import {iniciarAutenticacao} from './autenticacao.js';
 import {iniciarIncra} from './incra.js';
-import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260702-2';
+import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260702-3';
 import {iniciarNavegacao} from './navegacao.js';
 
 let splashEncerrada = false;

@@ -1136,6 +1136,16 @@ textarea::-webkit-scrollbar-thumb:hover {
 }
 .rotina-form input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
 .rotina-form-actions { grid-column:span 2; display:flex; justify-content:flex-end; gap:8px; padding-top:7px; }
+.rotina-check-modal { max-width:560px; }
+.rotina-check-escolha { display:flex; justify-content:flex-end; gap:10px; padding-top:22px; }
+.rotina-check-form { display:grid; gap:10px; padding-top:22px; }
+.rotina-check-form label { color:#475569; font-size:.78rem; font-weight:700; }
+.rotina-check-form input {
+  width:100%; border:1px solid #d7deea; border-radius:9px; padding:11px 12px;
+  font:inherit; color:var(--text-main); outline:none;
+}
+.rotina-check-form input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.rotina-check-form .rotina-form-actions { grid-column:auto; }
 
 @media (max-width: 960px) {
   .rotina-header { align-items:flex-start; flex-direction:column; }
@@ -1147,4 +1157,5 @@ textarea::-webkit-scrollbar-thumb:hover {
   .rotina-toolbar { align-items:flex-start; flex-direction:column; }
   .rotina-form { grid-template-columns:1fr; }
   .rotina-form label, .rotina-form label:nth-of-type(2), .rotina-form label:nth-of-type(3), .rotina-form-actions { grid-column:1; }
+  .rotina-check-escolha { flex-direction:column-reverse; }
 }
