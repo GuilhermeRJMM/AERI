@@ -2,7 +2,7 @@ import unittest
 from types import SimpleNamespace
 
 from backend.app.cancelamentos import aplicar_cancelamentos
-from backend.app.regras import classificar
+from backend.app.regras import REGRAS, classificar
 
 
 def ato(codigo, descricao):
@@ -42,6 +42,28 @@ edificação residencial unifamiliar e vedação de edificações comerciais.
 
 
 class TesteCancelamentos(unittest.TestCase):
+    def test_nenhuma_regra_classifica_restricao_como_onus(self):
+        self.assertNotIn("RESTRIÇÃO", {regra["categoria"] for regra in REGRAS.values()})
+
+    def test_alienacao_cancelada_com_restricao_resulta_so_em_publicidade(self):
+        alienacao = ato("AV.01", "AV.01 - ALIENAÇÃO FIDUCIÁRIA do imóvel.")
+        restricao = ato("AV.02", "AV.02 - CLÁUSULA RESTRITIVA de inalienabilidade.")
+        cancelamento = ato("AV.03", "AV.03 - CANCELAMENTO da alienação do AV.01.")
+
+        aplicar_cancelamentos([alienacao, restricao, cancelamento])
+
+        self.assertEqual(alienacao.status, "CANCELADO")
+        self.assertEqual(restricao.categoria, "PUBLICIDADE")
+        self.assertFalse(restricao.impacta_resultado)
+        self.assertFalse(any(
+            item.categoria == "ÔNUS" and item.status == "ATIVO"
+            for item in [alienacao, restricao, cancelamento]
+        ))
+        self.assertTrue(any(
+            item.categoria == "PUBLICIDADE" and item.status == "ATIVO"
+            for item in [alienacao, restricao, cancelamento]
+        ))
+
     def test_restricao_urbanistica_e_publicidade_sem_onus(self):
         categoria, impacta = classificar(RESTRICAO_URBANISTICA)
 

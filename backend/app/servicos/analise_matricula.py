@@ -19,10 +19,7 @@ def analisar_matricula(texto: str) -> dict:
         )
 
     atos = aplicar_cancelamentos(atos)
-    tem_onus = any(
-        ato.categoria in ["ÔNUS", "RESTRIÇÃO"] and ato.status == "ATIVO"
-        for ato in atos
-    )
+    tem_onus = any(ato.categoria == "ÔNUS" and ato.status == "ATIVO" for ato in atos)
     tem_publicidade = any(
         ato.categoria == "PUBLICIDADE" and ato.status == "ATIVO"
         for ato in atos
