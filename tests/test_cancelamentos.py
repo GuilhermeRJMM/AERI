@@ -34,8 +34,20 @@ AV.06-02 - Para constar que foi liberado do gravame hipotecário o R.04-02,
 com autorização da Caixa Econômica do Estado de Goiás.
 """
 
+RESTRICAO_URBANISTICA = """
+AV.01-39.513 - TRASLADO/RESTRIÇÕES URBANÍSTICAS. O loteamento residencial
+está sujeito às seguintes restrições urbanísticas: uso exclusivamente para
+edificação residencial unifamiliar e vedação de edificações comerciais.
+"""
+
 
 class TesteCancelamentos(unittest.TestCase):
+    def test_restricao_urbanistica_e_publicidade_sem_onus(self):
+        categoria, impacta = classificar(RESTRICAO_URBANISTICA)
+
+        self.assertEqual(categoria, "PUBLICIDADE")
+        self.assertFalse(impacta)
+
     def test_substituicao_parcial_nao_cria_onus_nem_cancela_hipoteca(self):
         hipoteca = ato("R.04", HIPOTECA)
         substituicao = ato("AV.05", SUBSTITUICAO_PARCIAL)
