@@ -9,6 +9,12 @@ O AERI é dividido em quatro camadas principais:
 - `backend/app`: regras registrais e infraestrutura compartilhada.
 - `backend/static/js`: módulos da interface, sem JavaScript de negócio dentro do HTML.
 
+O sistema possui atualmente três módulos funcionais:
+
+- **Ônus & Matrícula**: classificação dos atos e cálculo da cadeia dominial.
+- **INCRA**: extração e classificação de protocolos do Relatório Rural.
+- **Rotina - Intimação**: controle de intimações, andamento interno, conferência diária e importação/exportação CSV.
+
 ## Backend
 
 ### Rotas
@@ -33,6 +39,24 @@ As alterações estruturais ficam em `backend/app/migrations` e são aplicadas e
 
 Novas mudanças de estrutura devem ser adicionadas em um novo arquivo SQL numerado. Migrações já publicadas não devem ser editadas.
 
+As intimações são persistidas em `intimacoes_aeri`. O andamento informado pelo usuário é independente da conferência diária: uma conferência pode manter o andamento anterior ou registrar um novo andamento e sua data.
+
+## Integrações externas
+
+### Central ONRTDPJ — planejada
+
+A integração automática com a Central ONRTDPJ ainda não está implementada. O desenho validado prevê:
+
+- duas novas colunas visíveis na Rotina - Intimação: **Protocolo RTD** e **Andamento RTD**;
+- vinculação manual do protocolo RTD à intimação quando o andamento interno for “Aguardando diligências do RTD”;
+- consulta incremental da situação dos pedidos pela API oficial;
+- atualização automática preferencialmente a cada hora;
+- armazenamento do token somente em variável de ambiente da Vercel;
+- persistência do resultado e do horário da última sincronização no Postgres;
+- sincronização idempotente, com trava contra execuções simultâneas e registro de falhas sem exposição do token.
+
+O detalhamento funcional, os requisitos de acesso já confirmados e as pendências a validar com a Central estão em [INTEGRACAO_ONRTDPJ.md](INTEGRACAO_ONRTDPJ.md).
+
 ## Interface
 
 - `app.js`: inicialização da aplicação.
@@ -53,3 +77,4 @@ Eventos são registrados pelos módulos. Não devem ser adicionados atributos `o
 - Criar caso de regressão antes de alterar uma regra validada.
 - Usar a API como única fronteira para dados operacionais do navegador.
 - Nunca persistir dados operacionais em `localStorage`.
+- Nunca enviar tokens de integrações externas ao navegador nem registrá-los em logs.
