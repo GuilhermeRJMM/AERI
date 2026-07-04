@@ -36,7 +36,7 @@
     <header class="navbar">
         <div class="navbar-content">
             <div class="logo-text">AERI</div>
-            <div class="navbar-user"><span id="perfil-logado" class="perfil-logado"></span><span id="usuario-logado"></span><button id="btn-sair" type="button">Sair</button></div>
+            <div class="navbar-user"><span id="perfil-logado" class="perfil-logado"></span><span id="usuario-logado"></span><button id="btn-minha-senha" type="button">Alterar senha</button><button id="btn-sair" type="button">Sair</button></div>
         </div>
     </header>
 
@@ -278,6 +278,7 @@
 
     <div id="modal-trocar-senha" class="modal-overlay modal-obrigatorio">
         <div class="modal-box rotina-modal">
+            <button class="modal-fechar" id="btn-fechar-troca-senha">&times;</button>
             <div class="rotina-form-header"><span class="eyebrow">SEGURANÇA</span><h2>Troque sua senha temporária</h2><p>Escolha uma senha exclusiva com 14 caracteres, maiúscula, minúscula, número e símbolo.</p></div>
             <form id="form-trocar-senha" class="rotina-form">
                 <label><span>Senha atual</span><input id="senha-atual" type="password" autocomplete="current-password" required></label>

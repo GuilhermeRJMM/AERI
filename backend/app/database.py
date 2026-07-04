@@ -50,7 +50,7 @@ def _garantir_usuario_administrador(cursor) -> None:
     if not usuario or not senha:
         return
 
-    from backend.app.autenticacao import hash_senha, senha_forte, verificar_senha
+    from backend.app.autenticacao import hash_senha, senha_forte
 
     if not senha_forte(senha):
         raise RuntimeError(
@@ -59,15 +59,18 @@ def _garantir_usuario_administrador(cursor) -> None:
 
     cursor.execute("SELECT senha_hash FROM usuarios_aeri WHERE usuario = %s", (usuario,))
     existente = cursor.fetchone()
-    if existente and verificar_senha(senha, existente["senha_hash"]):
+    if existente:
+        cursor.execute(
+            "UPDATE usuarios_aeri SET perfil='ADMIN', ativo=TRUE WHERE usuario=%s",
+            (usuario,),
+        )
         return
 
     cursor.execute(
         """
         INSERT INTO usuarios_aeri (usuario, senha_hash, nome, perfil, ativo)
         VALUES (%s, %s, %s, 'ADMIN', TRUE)
-        ON CONFLICT (usuario) DO UPDATE SET
-            senha_hash=EXCLUDED.senha_hash, perfil='ADMIN', ativo=TRUE
+        ON CONFLICT (usuario) DO NOTHING
         """,
         (usuario, hash_senha(senha), usuario),
     )

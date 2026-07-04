@@ -93,8 +93,14 @@ async function acaoTabela(evento) {
     } catch (erro) { alert(erro.message); await carregarUsuarios(); }
 }
 
+export function abrirTrocaSenha(obrigatoria = false) {
+    document.getElementById('btn-fechar-troca-senha').hidden = obrigatoria;
+    document.getElementById('modal-trocar-senha').classList.add('aberta');
+}
+
 export function exigirTrocaSenha(deveTrocar) {
-    document.getElementById('modal-trocar-senha').classList.toggle('aberta', Boolean(deveTrocar));
+    if (deveTrocar) abrirTrocaSenha(true);
+    else document.getElementById('modal-trocar-senha').classList.remove('aberta');
 }
 
 async function trocarSenha(evento) {
@@ -122,4 +128,6 @@ export function iniciarUsuarios() {
     document.getElementById('usuarios-tbody').addEventListener('change', acaoTabela);
     document.getElementById('usuarios-tbody').addEventListener('click', acaoTabela);
     document.getElementById('form-trocar-senha').addEventListener('submit', trocarSenha);
+    document.getElementById('btn-minha-senha').addEventListener('click', () => abrirTrocaSenha(false));
+    document.getElementById('btn-fechar-troca-senha').addEventListener('click', () => exigirTrocaSenha(false));
 }

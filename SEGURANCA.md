@@ -18,7 +18,7 @@
 
 - `POSTGRES_URL`: adicionada pela integração Neon/Postgres.
 - `AERI_ADMIN_USER`: usuário administrativo.
-- `AERI_ADMIN_PASSWORD`: senha forte conforme a política acima. Ao mudar esta variável e fazer novo deploy, o hash no banco é atualizado.
+- `AERI_ADMIN_PASSWORD`: senha forte usada somente para criar a conta administrativa inicial. Depois disso, a senha deve ser alterada pela opção **Alterar senha** do próprio AERI.
 - `AERI_ORIGIN`: origem exata de produção, por exemplo `https://aeri.vercel.app`, sem barra no final.
 - `AERI_AUDIT_RETENTION_DAYS`: retenção dos eventos de auditoria, entre 30 e 730 dias; padrão 180.
 
