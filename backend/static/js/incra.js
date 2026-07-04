@@ -1,4 +1,5 @@
 import {baixarArquivo, escaparHtml} from './util.js';
+import {requisicaoAeri} from './api.js';
 
 let arquivoIncra = null;
 let resultadoIncra = null;
@@ -20,12 +21,11 @@ async function analisarIncra() {
     botao.textContent = 'Lendo relatório...';
     resultado.innerHTML = '<div class="incra-loading">Extraindo e classificando os protocolos...</div>';
     try {
-        const resposta = await fetch('/analisar-incra', {
+        resultadoIncra = await requisicaoAeri('/analisar-incra', {
             method: 'POST',
             headers: {'Content-Type': 'application/pdf'},
             body: arquivoIncra,
         });
-        resultadoIncra = await resposta.json();
         if (resultadoIncra.erro) throw new Error(resultadoIncra.erro);
         renderizarIncra('COMUNICAR');
     } catch (erro) {

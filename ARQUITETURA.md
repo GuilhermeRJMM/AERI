@@ -14,6 +14,7 @@ O sistema possui atualmente três módulos funcionais:
 - **Ônus & Matrícula**: classificação dos atos e cálculo da cadeia dominial.
 - **INCRA**: extração e classificação de protocolos do Relatório Rural.
 - **Rotina - Intimação**: controle de intimações, andamento interno, conferência diária e importação/exportação CSV.
+- **Usuários e Acessos**: gestão administrativa de contas, perfis e consulta da auditoria de segurança.
 
 ## Backend
 

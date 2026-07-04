@@ -36,6 +36,12 @@ function renderizarIntimacoes() {
     tbody.innerHTML = filtradas.map(item => {
         const situacao = situacaoIntimacao(item);
         const pendente = intimacoesPendentes.has(item.id);
+        const perfil = document.body.dataset.perfil;
+        const acoes = perfil === 'CONSULTA' ? '<span class="rotina-total">Somente leitura</span>' : `<div class="rotina-row-actions">
+                <button class="rotina-check" data-acao="conferir" data-id="${item.id}" title="Registrar conferência de hoje" ${pendente ? 'disabled' : ''}>${pendente ? 'Salvando...' : '✓ Check'}</button>
+                <button data-acao="editar" data-id="${item.id}" title="Editar">Editar</button>
+                ${perfil === 'ADMIN' ? `<button class="perigo" data-acao="excluir" data-id="${item.id}" title="Excluir">Excluir</button>` : ''}
+            </div>`;
         return `<tr class="rotina-row rotina-row-${situacao.classe}">
             <td><span class="rotina-status ${situacao.classe}"><i></i>${situacao.rotulo}</span><small>${situacao.detalhe}</small></td>
             <td><strong class="rotina-protocolo">${escaparHtml(item.protocolo)}</strong></td>
@@ -44,11 +50,7 @@ function renderizarIntimacoes() {
             <td>${escaparHtml(item.nomeAndamento || 'Não informado')}</td>
             <td>${formatarDataRotina(item.ultimoAndamento)}</td>
             <td>${item.ultimaConferencia ? formatarDataRotina(item.ultimaConferencia) : '—'}</td>
-            <td><div class="rotina-row-actions">
-                <button class="rotina-check" data-acao="conferir" data-id="${item.id}" title="Registrar conferência de hoje" ${pendente ? 'disabled' : ''}>${pendente ? 'Salvando...' : '✓ Check'}</button>
-                <button data-acao="editar" data-id="${item.id}" title="Editar">Editar</button>
-                <button class="perigo" data-acao="excluir" data-id="${item.id}" title="Excluir">Excluir</button>
-            </div></td>
+            <td>${acoes}</td>
         </tr>`;
     }).join('') || '<tr><td colspan="8" class="rotina-vazio">Nenhuma intimação cadastrada. Use “Nova intimação” ou importe sua planilha em CSV.</td></tr>';
 

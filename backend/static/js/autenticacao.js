@@ -1,3 +1,5 @@
+import {definirCsrfToken, requisicaoAeri} from './api.js';
+
 let autenticado = false;
 let aoEntrar = () => {};
 let aoSair = () => {};
@@ -8,19 +10,24 @@ function abrirLogin() {
     window.setTimeout(() => document.getElementById('login-usuario').focus(), 80);
 }
 
-function abrirAplicacao(usuario) {
+function abrirAplicacao(dados) {
     autenticado = true;
-    document.getElementById('usuario-logado').textContent = usuario;
+    document.body.dataset.perfil = dados.perfil;
+    document.getElementById('usuario-logado').textContent = dados.nome || dados.usuario;
+    document.getElementById('perfil-logado').textContent = dados.perfil;
+    document.getElementById('nav-usuarios').hidden = dados.perfil !== 'ADMIN';
     document.getElementById('login-aeri').classList.remove('aberto');
     document.body.classList.remove('auth-pending');
-    aoEntrar();
+    aoEntrar(dados);
 }
 
 async function verificarSessao() {
     try {
         const resposta = await fetch('/api/sessao');
         if (!resposta.ok) return abrirLogin();
-        abrirAplicacao((await resposta.json()).usuario);
+        const dados = await resposta.json();
+        definirCsrfToken(dados.csrfToken);
+        abrirAplicacao(dados);
     } catch {
         abrirLogin();
     }
@@ -43,8 +50,9 @@ async function fazerLogin(evento) {
         });
         const dados = await resposta.json();
         if (!resposta.ok) throw new Error(dados.detail || 'Não foi possível entrar.');
+        definirCsrfToken(dados.csrfToken);
         document.getElementById('form-login').reset();
-        abrirAplicacao(dados.usuario);
+        abrirAplicacao(dados);
     } catch (falha) {
         erro.textContent = falha.message;
     } finally {
@@ -53,10 +61,14 @@ async function fazerLogin(evento) {
 }
 
 async function sairAeri() {
-    await fetch('/api/logout', {method: 'POST'});
-    autenticado = false;
-    aoSair();
-    abrirLogin();
+    try {
+        await requisicaoAeri('/api/logout', {method: 'POST'});
+    } finally {
+        definirCsrfToken('');
+        autenticado = false;
+        aoSair();
+        abrirLogin();
+    }
 }
 
 export function estaAutenticado() {

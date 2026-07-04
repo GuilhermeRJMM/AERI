@@ -21,7 +21,7 @@ def database_url() -> str:
 
 @contextmanager
 def conectar():
-    with psycopg.connect(database_url(), row_factory=dict_row) as conexao:
+    with psycopg.connect(database_url(), row_factory=dict_row, connect_timeout=10) as conexao:
         yield conexao
 
 
@@ -50,19 +50,37 @@ def _garantir_usuario_administrador(cursor) -> None:
     if not usuario or not senha:
         return
 
-    cursor.execute("SELECT 1 FROM usuarios_aeri WHERE usuario = %s", (usuario,))
-    if cursor.fetchone():
-        return
+    from backend.app.autenticacao import hash_senha, senha_forte, verificar_senha
 
-    from backend.app.autenticacao import hash_senha
+    if not senha_forte(senha):
+        raise RuntimeError(
+            "AERI_ADMIN_PASSWORD deve ter 14 caracteres, maiúscula, minúscula, número e símbolo."
+        )
+
+    cursor.execute("SELECT senha_hash FROM usuarios_aeri WHERE usuario = %s", (usuario,))
+    existente = cursor.fetchone()
+    if existente and verificar_senha(senha, existente["senha_hash"]):
+        return
 
     cursor.execute(
         """
-        INSERT INTO usuarios_aeri (usuario, senha_hash)
-        VALUES (%s, %s)
-        ON CONFLICT (usuario) DO NOTHING
+        INSERT INTO usuarios_aeri (usuario, senha_hash, nome, perfil, ativo)
+        VALUES (%s, %s, %s, 'ADMIN', TRUE)
+        ON CONFLICT (usuario) DO UPDATE SET
+            senha_hash=EXCLUDED.senha_hash, perfil='ADMIN', ativo=TRUE
         """,
-        (usuario, hash_senha(senha)),
+        (usuario, hash_senha(senha), usuario),
+    )
+
+
+def _limpar_dados_de_seguranca(cursor) -> None:
+    retencao = int(os.getenv("AERI_AUDIT_RETENTION_DAYS", "180"))
+    retencao = min(max(retencao, 30), 730)
+    cursor.execute("DELETE FROM sessoes_aeri WHERE expira_em < NOW() - INTERVAL '7 days'")
+    cursor.execute("DELETE FROM tentativas_login_aeri WHERE criada_em < NOW() - INTERVAL '2 days'")
+    cursor.execute(
+        "DELETE FROM auditoria_aeri WHERE criada_em < NOW() - (%s * INTERVAL '1 day')",
+        (retencao,),
     )
 
 
@@ -80,5 +98,6 @@ def preparar_banco() -> None:
             with conexao.cursor() as cursor:
                 _executar_migracoes(cursor)
                 _garantir_usuario_administrador(cursor)
+                _limpar_dados_de_seguranca(cursor)
             conexao.commit()
         _banco_preparado = True

@@ -30,6 +30,8 @@
 - Preservar os estados visuais verde, amarelo, vermelho e cinza e a importação/exportação CSV.
 - Persistir usuários, intimações e conferências no Postgres configurado no Vercel; não usar `localStorage` para dados operacionais.
 - Manter o acesso protegido por sessão e nunca armazenar senhas em texto puro.
+- Exigir CSRF nas operações não seguras, sessões revogáveis no banco e auditoria sem conteúdo sensível.
+- Não reduzir os limites de senha, upload, sessão ou tentativas de login sem justificativa documentada.
 
 ## Verificação
 

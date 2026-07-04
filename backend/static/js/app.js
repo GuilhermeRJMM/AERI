@@ -3,6 +3,7 @@ import {iniciarAutenticacao} from './autenticacao.js';
 import {iniciarIncra} from './incra.js';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260702-3';
 import {iniciarNavegacao} from './navegacao.js';
+import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js';
 
 let splashEncerrada = false;
 
@@ -13,12 +14,20 @@ function fecharSplash() {
     splash.classList.add('splash-saindo');
     document.body.classList.remove('splash-active');
     window.setTimeout(() => splash.remove(), 650);
-    iniciarAutenticacao({aoEntrar: carregarIntimacoes, aoSair: limparIntimacoes});
+    iniciarAutenticacao({
+        aoEntrar: dados => {
+            exigirTrocaSenha(dados.deveTrocarSenha);
+            if (!dados.deveTrocarSenha) carregarIntimacoes();
+            if (dados.perfil === 'ADMIN' && !dados.deveTrocarSenha) carregarUsuarios();
+        },
+        aoSair: limparIntimacoes,
+    });
 }
 
 iniciarNavegacao();
 iniciarAnalisador();
 iniciarIncra();
 iniciarIntimacoes();
+iniciarUsuarios();
 document.getElementById('btn-fechar-splash').addEventListener('click', fecharSplash);
 window.setTimeout(fecharSplash, 2600);

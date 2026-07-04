@@ -95,6 +95,7 @@ body.auth-pending > .app-body {
 
 .navbar-user { display: flex; align-items: center; gap: 12px; color: #64748b; font-size: .8rem; font-weight: 700; }
 .navbar-user button { border: 0; background: transparent; color: #2563eb; font: inherit; cursor: pointer; }
+.perfil-logado { padding:4px 8px; border-radius:999px; background:#e8f0ff; color:#1d4ed8; font-size:.64rem; letter-spacing:.4px; }
 
 /* --- ABERTURA DA MARCA --- */
 .splash-aeri {
@@ -1134,6 +1135,10 @@ textarea::-webkit-scrollbar-thumb:hover {
   width:100%; border:1px solid #dce5f1; border-radius:9px; padding:11px 12px;
   outline:0; color:var(--text-main); font:400 .84rem "Inter",sans-serif; background:#fff;
 }
+.rotina-form select {
+  width:100%; border:1px solid #dce5f1; border-radius:9px; padding:11px 12px;
+  outline:0; color:var(--text-main); font:400 .84rem "Inter",sans-serif; background:#fff;
+}
 .rotina-form input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
 .rotina-form-actions { grid-column:span 2; display:flex; justify-content:flex-end; gap:8px; padding-top:7px; }
 .rotina-check-modal { max-width:560px; }
@@ -1159,3 +1164,25 @@ textarea::-webkit-scrollbar-thumb:hover {
   .rotina-form label, .rotina-form label:nth-of-type(2), .rotina-form label:nth-of-type(3), .rotina-form-actions { grid-column:1; }
   .rotina-check-escolha { flex-direction:column-reverse; }
 }
+
+/* --- USUÁRIOS E PERMISSÕES --- */
+.usuarios-layout { max-width:1180px; }
+.perfis-resumo { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
+.perfis-resumo > div { padding:17px 19px; border:1px solid var(--glass-border); border-radius:14px; background:rgba(255,255,255,.8); box-shadow:0 5px 18px rgba(15,23,42,.05); }
+.perfis-resumo strong { display:block; color:#10254b; font-size:.83rem; margin-bottom:5px; }
+.perfis-resumo span { color:var(--text-muted); font-size:.72rem; line-height:1.4; }
+.usuarios-table { min-width:900px; }
+.auditoria-header { margin-top:30px; margin-bottom:12px; }
+.auditoria-header h2 { margin:4px 0; color:var(--text-main); font-size:1.35rem; }
+.auditoria-table { min-width:850px; }
+.usuario-status { display:inline-flex; padding:4px 8px; border-radius:999px; font-size:.68rem; font-weight:700; }
+.usuario-status.ativo { color:#15803d; background:#dcfce7; }
+.usuario-status.inativo { color:#64748b; background:#e2e8f0; }
+.usuario-perfil-select { border:1px solid #dce5f1; border-radius:7px; padding:6px 8px; background:#fff; color:#334155; font:600 .7rem Inter,sans-serif; }
+.senha-gerada { display:flex; gap:7px; }
+.senha-gerada input { flex:1; }
+.senha-gerada button { border:1px solid #bfdbfe; border-radius:8px; background:#eff6ff; color:#1d4ed8; padding:0 12px; font-weight:700; cursor:pointer; }
+.modal-obrigatorio { z-index:1200; background:rgba(2,12,32,.72); }
+body[data-perfil="CONSULTA"] #btn-nova-intimacao,
+body[data-perfil="CONSULTA"] label[for="importar-intimacoes"] { display:none; }
+@media (max-width:760px) { .perfis-resumo { grid-template-columns:1fr; } }

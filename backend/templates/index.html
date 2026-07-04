@@ -36,7 +36,7 @@
     <header class="navbar">
         <div class="navbar-content">
             <div class="logo-text">AERI</div>
-            <div class="navbar-user"><span id="usuario-logado"></span><button id="btn-sair" type="button">Sair</button></div>
+            <div class="navbar-user"><span id="perfil-logado" class="perfil-logado"></span><span id="usuario-logado"></span><button id="btn-sair" type="button">Sair</button></div>
         </div>
     </header>
 
@@ -72,6 +72,11 @@
                         <line x1="3" y1="10" x2="21" y2="10"/>
                     </svg>
                     <span>Rotina - Intimação</span>
+                </div>
+
+                <div class="nav-item" id="nav-usuarios" data-page="usuarios" hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+                    <span>Usuários e Acessos</span>
                 </div>
 
             </nav>
@@ -172,6 +177,35 @@
                 </main>
             </div>
 
+            <div id="page-usuarios" class="page">
+                <main class="layout usuarios-layout">
+                    <div class="rotina-header">
+                        <div><span class="eyebrow">ADMINISTRAÇÃO</span><h1>Usuários e Acessos</h1><p>Crie contas individuais e limite o que cada pessoa pode fazer no AERI.</p></div>
+                        <button class="btn btn-primary" id="btn-novo-usuario">Novo usuário</button>
+                    </div>
+                    <div class="perfis-resumo">
+                        <div><strong>Administrador</strong><span>Acesso total, usuários, exclusões e auditoria.</span></div>
+                        <div><strong>Operador</strong><span>Analisa documentos e mantém as intimações.</span></div>
+                        <div><strong>Consulta</strong><span>Analisa e consulta, sem alterar dados.</span></div>
+                    </div>
+                    <section class="rotina-painel">
+                        <div class="rotina-table-wrap">
+                            <table class="rotina-table usuarios-table">
+                                <thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Senha</th><th>Ações</th></tr></thead>
+                                <tbody id="usuarios-tbody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                    <div class="rotina-header auditoria-header"><div><span class="eyebrow">RASTREABILIDADE</span><h2>Atividade recente</h2><p>Últimos acessos e alterações relevantes registrados pelo sistema.</p></div></div>
+                    <section class="rotina-painel">
+                        <div class="rotina-table-wrap"><table class="rotina-table auditoria-table">
+                            <thead><tr><th>Data</th><th>Usuário</th><th>Ação</th><th>Recurso</th><th>Resultado</th><th>IP</th></tr></thead>
+                            <tbody id="auditoria-tbody"></tbody>
+                        </table></div>
+                    </section>
+                </main>
+            </div>
+
         </div>
     </div>
 
@@ -228,7 +262,34 @@
         </div>
     </div>
 
+    <div id="modal-usuario" class="modal-overlay">
+        <div class="modal-box rotina-modal">
+            <button class="modal-fechar" id="btn-fechar-usuario">&times;</button>
+            <div class="rotina-form-header"><span class="eyebrow">ACESSO</span><h2>Novo usuário</h2><p>A senha será temporária e deverá ser trocada no primeiro acesso.</p></div>
+            <form id="form-usuario" class="rotina-form">
+                <label><span>Nome</span><input id="usuario-nome" required maxlength="160"></label>
+                <label><span>Usuário</span><input id="usuario-login" required maxlength="40" pattern="[A-Za-z0-9._-]{3,40}"></label>
+                <label><span>Perfil</span><select id="usuario-perfil"><option value="OPERADOR">Operador</option><option value="CONSULTA">Consulta</option><option value="ADMIN">Administrador</option></select></label>
+                <label><span>Senha temporária</span><div class="senha-gerada"><input id="usuario-senha" type="text" required minlength="14"><button type="button" id="btn-gerar-senha">Gerar</button></div></label>
+                <div class="rotina-form-actions"><button type="button" class="rotina-btn-secondary" id="btn-cancelar-usuario">Cancelar</button><button type="submit" class="btn btn-primary">Criar usuário</button></div>
+            </form>
+        </div>
+    </div>
 
-    <script type="module" src="/static/js/app.js?v=20260702-3"></script>
+    <div id="modal-trocar-senha" class="modal-overlay modal-obrigatorio">
+        <div class="modal-box rotina-modal">
+            <div class="rotina-form-header"><span class="eyebrow">SEGURANÇA</span><h2>Troque sua senha temporária</h2><p>Escolha uma senha exclusiva com 14 caracteres, maiúscula, minúscula, número e símbolo.</p></div>
+            <form id="form-trocar-senha" class="rotina-form">
+                <label><span>Senha atual</span><input id="senha-atual" type="password" autocomplete="current-password" required></label>
+                <label><span>Nova senha</span><input id="senha-nova" type="password" autocomplete="new-password" minlength="14" required></label>
+                <label><span>Confirmar nova senha</span><input id="senha-confirmar" type="password" autocomplete="new-password" minlength="14" required></label>
+                <div id="troca-senha-erro" class="login-erro" role="alert"></div>
+                <div class="rotina-form-actions"><button type="submit" class="btn btn-primary">Salvar nova senha</button></div>
+            </form>
+        </div>
+    </div>
+
+
+    <script type="module" src="/static/js/app.js?v=20260704-1"></script>
 </body>
 </html>

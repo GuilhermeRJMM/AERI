@@ -5,10 +5,16 @@ from backend.app.autenticacao import (
     COOKIE_SESSAO,
     SESSAO_SEGUNDOS,
     autenticar,
-    criar_token,
+    criar_sessao,
+    proteger_csrf,
+    registrar_tentativa,
+    renovar_csrf,
+    revogar_sessao,
     usuario_atual,
+    verificar_bloqueio,
 )
-from backend.app.database import preparar_banco
+from backend.app.database import conectar, preparar_banco
+from backend.app.seguranca_web import ip_cliente, registrar_auditoria, validar_origem
 
 
 router = APIRouter(prefix="/api", tags=["autenticação"])
@@ -17,30 +23,51 @@ router = APIRouter(prefix="/api", tags=["autenticação"])
 @router.post("/login")
 def login(dados: dict, request: Request):
     preparar_banco()
-    usuario = str(dados.get("usuario", "")).strip()
-    senha = str(dados.get("senha", ""))
+    validar_origem(request)
+    usuario = str(dados.get("usuario", "")).strip().upper()[:80]
+    senha = str(dados.get("senha", ""))[:256]
+    ip = ip_cliente(request)
+    restantes = verificar_bloqueio(usuario, ip)
+    if restantes <= 0:
+        registrar_auditoria(request, "login", "bloqueado", usuario)
+        raise HTTPException(status_code=429, detail="Muitas tentativas. Aguarde 15 minutos.")
     if not autenticar(usuario, senha):
+        registrar_tentativa(usuario, ip, False)
+        registrar_auditoria(request, "login", "falha", usuario)
         raise HTTPException(status_code=401, detail="Usuário ou senha inválidos.")
 
-    resposta = JSONResponse({"usuario": usuario})
+    registrar_tentativa(usuario, ip, True)
+    token, csrf = criar_sessao(usuario, request)
+    registrar_auditoria(request, "login", "sucesso", usuario)
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute("SELECT nome, perfil, deve_trocar_senha FROM usuarios_aeri WHERE usuario=%s", (usuario,))
+            conta = cursor.fetchone()
+    resposta = JSONResponse({
+        "usuario": usuario, "nome": conta["nome"], "perfil": conta["perfil"],
+        "deveTrocarSenha": conta["deve_trocar_senha"], "csrfToken": csrf,
+    })
     resposta.set_cookie(
-        COOKIE_SESSAO,
-        criar_token(usuario),
-        max_age=SESSAO_SEGUNDOS,
-        httponly=True,
-        secure=request.url.scheme == "https",
-        samesite="lax",
+        COOKIE_SESSAO, token, max_age=SESSAO_SEGUNDOS, httponly=True,
+        secure=True, samesite="strict", path="/",
     )
     return resposta
 
 
 @router.get("/sessao")
-def sessao(usuario: str = Depends(usuario_atual)):
-    return {"usuario": usuario}
+def sessao(request: Request, usuario: str = Depends(usuario_atual)):
+    conta = request.state.sessao
+    return {
+        "usuario": usuario, "nome": conta["nome"], "perfil": conta["perfil"],
+        "deveTrocarSenha": conta["deve_trocar_senha"], "csrfToken": renovar_csrf(request),
+    }
 
 
-@router.post("/logout")
-def logout():
+@router.post("/logout", dependencies=[Depends(usuario_atual), Depends(proteger_csrf)])
+def logout(request: Request):
+    usuario = request.state.sessao["usuario"]
+    revogar_sessao(request)
+    registrar_auditoria(request, "logout", "sucesso", usuario)
     resposta = Response(status_code=204)
-    resposta.delete_cookie(COOKIE_SESSAO)
+    resposta.delete_cookie(COOKIE_SESSAO, path="/", secure=True, samesite="strict")
     return resposta

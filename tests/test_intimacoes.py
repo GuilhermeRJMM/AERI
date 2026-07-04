@@ -1,21 +1,10 @@
-import importlib
-import sys
-import types
 import unittest
 from datetime import date
 from pathlib import Path
 from uuid import uuid4
 
 
-class HTTPException(Exception):
-    def __init__(self, status_code, detail):
-        self.status_code = status_code
-        self.detail = detail
-        super().__init__(detail)
-
-
-sys.modules.setdefault("fastapi", types.SimpleNamespace(HTTPException=HTTPException))
-servico = importlib.import_module("backend.app.servicos.intimacoes")
+from backend.app.servicos import intimacoes as servico
 
 
 class TesteIntimacoes(unittest.TestCase):
