@@ -248,6 +248,34 @@ body.auth-pending > .app-body {
   align-items: center;
 }
 
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-sidebar {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dbe5f3;
+  border-radius: 10px;
+  color: #1d4ed8;
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  transition: background .18s, border-color .18s, transform .18s;
+}
+
+.btn-sidebar:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.btn-sidebar:active { transform: scale(.96); }
+.btn-sidebar:focus-visible { outline: 3px solid rgba(37, 99, 235, .2); outline-offset: 2px; }
+
 .logo-text {
   font-weight: 800;
   font-size: 1.4rem;
@@ -641,6 +669,7 @@ textarea::-webkit-scrollbar-thumb:hover {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  transition: width .24s ease, padding .24s ease, transform .24s ease;
 }
 
 .sidebar-label {
@@ -724,22 +753,61 @@ textarea::-webkit-scrollbar-thumb:hover {
   animation: logoFadeIn 0.7s ease-out both;
 }
 
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 57px 0 0;
+  z-index: 79;
+  border: 0;
+  background: rgba(7, 26, 62, .42);
+  backdrop-filter: blur(2px);
+}
+
+body.sidebar-recolhida .sidebar {
+  width: 76px;
+  padding-inline: 8px;
+}
+
+body.sidebar-recolhida .sidebar-label,
+body.sidebar-recolhida .nav-item span,
+body.sidebar-recolhida .sidebar-logo {
+  display: none;
+}
+
+body.sidebar-recolhida .nav-item {
+  justify-content: center;
+  padding-inline: 10px;
+}
+
 @media (max-width: 720px) {
   .sidebar {
-    width: 76px;
-    padding-inline: 8px;
+    position: fixed;
+    left: 0;
+    z-index: 80;
+    width: min(280px, 84vw);
+    padding: 24px 12px;
+    transform: translateX(-100%);
+    box-shadow: 16px 0 36px rgba(7, 26, 62, .24);
   }
 
-  .sidebar-label,
-  .nav-item span,
-  .sidebar-logo {
-    display: none;
+  body.sidebar-aberta-mobile .sidebar {
+    transform: translateX(0);
   }
 
-  .nav-item {
-    justify-content: center;
-    padding-inline: 10px;
+  body.sidebar-aberta-mobile .sidebar-backdrop {
+    display: block;
+    left: min(280px, 84vw);
   }
+
+  body.sidebar-recolhida .sidebar { width: min(280px, 84vw); padding: 24px 12px; }
+  body.sidebar-recolhida .sidebar-label { display: block; }
+  body.sidebar-recolhida .nav-item span { display: inline; }
+  body.sidebar-recolhida .sidebar-logo { display: flex; }
+  body.sidebar-recolhida .nav-item { justify-content: flex-start; padding-inline: 14px; }
+
+  .navbar-content { padding-inline: 14px; }
+  .navbar-user { gap: 8px; }
+  #usuario-logado { display: none; }
 
   .layout {
     padding-inline: 16px;

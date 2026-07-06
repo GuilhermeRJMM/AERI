@@ -2,7 +2,7 @@ import {iniciarAnalisador} from './analisador.js';
 import {iniciarAutenticacao} from './autenticacao.js';
 import {iniciarIncra} from './incra.js';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260702-3';
-import {iniciarNavegacao} from './navegacao.js';
+import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
 import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js';
 
 let splashEncerrada = false;
