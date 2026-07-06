@@ -673,6 +673,11 @@ textarea::-webkit-scrollbar-thumb:hover {
   user-select: none;
 }
 
+.nav-item[hidden],
+[hidden] {
+  display: none !important;
+}
+
 .nav-item:hover {
   background: rgba(255, 255, 255, 0.07);
   color: rgba(255, 255, 255, 0.9);

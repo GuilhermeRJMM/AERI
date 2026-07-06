@@ -4,6 +4,31 @@ let autenticado = false;
 let aoEntrar = () => {};
 let aoSair = () => {};
 
+function definirModuloVisivel(pageId, visivel) {
+    const item = document.querySelector(`.nav-item[data-page="${pageId}"]`);
+    if (item) item.hidden = !visivel;
+}
+
+function aplicarPermissoesSidebar(dados) {
+    const admin = dados.perfil === 'ADMIN';
+    const permissoes = dados.permissoes || {};
+    definirModuloVisivel('onus', admin || Boolean(permissoes.processar_matricula));
+    definirModuloVisivel('incra', admin || Boolean(permissoes.processar_incra));
+    definirModuloVisivel('rotina', admin || Boolean(permissoes.ver_intimacoes));
+    definirModuloVisivel('usuarios', admin);
+
+    const ativo = document.querySelector('.nav-item.active');
+    if (ativo?.hidden) {
+        ativo.classList.remove('active');
+        document.querySelectorAll('.page.active').forEach(pagina => pagina.classList.remove('active'));
+        const proximo = [...document.querySelectorAll('.nav-item')].find(item => !item.hidden);
+        if (proximo) {
+            proximo.classList.add('active');
+            document.getElementById(`page-${proximo.dataset.page}`)?.classList.add('active');
+        }
+    }
+}
+
 function abrirLogin() {
     document.body.classList.add('auth-pending');
     document.getElementById('login-aeri').classList.add('aberto');
@@ -16,20 +41,7 @@ function abrirAplicacao(dados) {
     window.aeriPermissoes = dados.permissoes || {};
     document.getElementById('usuario-logado').textContent = dados.nome || dados.usuario;
     document.getElementById('perfil-logado').textContent = dados.perfil;
-    document.getElementById('nav-usuarios').hidden = dados.perfil !== 'ADMIN';
-    document.querySelector('[data-page="onus"]').hidden = dados.perfil !== 'ADMIN' && !window.aeriPermissoes.processar_matricula;
-    document.querySelector('[data-page="incra"]').hidden = dados.perfil !== 'ADMIN' && !window.aeriPermissoes.processar_incra;
-    document.querySelector('[data-page="rotina"]').hidden = dados.perfil !== 'ADMIN' && !window.aeriPermissoes.ver_intimacoes;
-    const ativo = document.querySelector('.nav-item.active');
-    if (ativo?.hidden) {
-        ativo.classList.remove('active');
-        document.querySelectorAll('.page.active').forEach(pagina => pagina.classList.remove('active'));
-        const proximo = [...document.querySelectorAll('.nav-item')].find(item => !item.hidden);
-        if (proximo) {
-            proximo.classList.add('active');
-            document.getElementById(`page-${proximo.dataset.page}`)?.classList.add('active');
-        }
-    }
+    aplicarPermissoesSidebar(dados);
     document.getElementById('login-aeri').classList.remove('aberto');
     document.body.classList.remove('auth-pending');
     aoEntrar(dados);
