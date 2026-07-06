@@ -19,6 +19,14 @@ SESSAO_SEGUNDOS = 60 * 60 * 8
 INATIVIDADE_SEGUNDOS = 60 * 30
 MAX_TENTATIVAS = 5
 JANELA_TENTATIVAS_MINUTOS = 15
+PERMISSOES = {
+    "processar_matricula": "pode_processar_matricula",
+    "processar_incra": "pode_processar_incra",
+    "ver_intimacoes": "pode_ver_intimacoes",
+    "criar_intimacoes": "pode_criar_intimacoes",
+    "alterar_intimacoes": "pode_alterar_intimacoes",
+    "conferir_intimacoes": "pode_conferir_intimacoes",
+}
 _argon2 = PasswordHasher(time_cost=2, memory_cost=19_456, parallelism=1)
 _HASH_SIMULADO = _argon2.hash("senha-inexistente-para-tempo-constante")
 
@@ -127,7 +135,10 @@ def _obter_sessao(request: Request) -> dict | None:
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
-                """SELECT s.*, u.perfil, u.nome, u.ativo, u.deve_trocar_senha
+                """SELECT s.*, u.perfil, u.nome, u.ativo, u.deve_trocar_senha,
+                u.pode_processar_matricula, u.pode_processar_incra,
+                u.pode_ver_intimacoes, u.pode_criar_intimacoes,
+                u.pode_alterar_intimacoes, u.pode_conferir_intimacoes
                 FROM sessoes_aeri s JOIN usuarios_aeri u ON u.usuario=s.usuario
                 WHERE s.token_hash=%s AND s.revogada_em IS NULL AND u.ativo=TRUE
                 AND s.expira_em > NOW() AND s.ultimo_acesso > NOW() - (%s * INTERVAL '1 second')""",
@@ -148,6 +159,12 @@ def usuario_atual(request: Request) -> str:
     return sessao["usuario"]
 
 
+def permissoes_sessao(sessao: dict) -> dict:
+    if sessao["perfil"] == "ADMIN":
+        return {chave: True for chave in PERMISSOES}
+    return {chave: bool(sessao.get(coluna)) for chave, coluna in PERMISSOES.items()}
+
+
 def exigir_perfis(*perfis: str):
     def verificar(request: Request, usuario: str = Depends(usuario_atual)) -> str:
         sessao = request.state.sessao
@@ -156,6 +173,21 @@ def exigir_perfis(*perfis: str):
         if sessao["perfil"] not in perfis:
             raise HTTPException(status_code=403, detail="Você não possui permissão para esta operação.")
         return usuario
+    return verificar
+
+
+def exigir_permissao(permissao: str):
+    if permissao not in PERMISSOES:
+        raise RuntimeError(f"Permissão desconhecida: {permissao}")
+
+    def verificar(request: Request, usuario: str = Depends(usuario_atual)) -> str:
+        sessao = request.state.sessao
+        if sessao["deve_trocar_senha"]:
+            raise HTTPException(status_code=403, detail="Troque sua senha temporária para continuar.")
+        if sessao["perfil"] == "ADMIN" or bool(sessao.get(PERMISSOES[permissao])):
+            return usuario
+        raise HTTPException(status_code=403, detail="Você não possui permissão para esta operação.")
+
     return verificar
 
 

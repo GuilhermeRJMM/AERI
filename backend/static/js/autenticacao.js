@@ -13,9 +13,23 @@ function abrirLogin() {
 function abrirAplicacao(dados) {
     autenticado = true;
     document.body.dataset.perfil = dados.perfil;
+    window.aeriPermissoes = dados.permissoes || {};
     document.getElementById('usuario-logado').textContent = dados.nome || dados.usuario;
     document.getElementById('perfil-logado').textContent = dados.perfil;
     document.getElementById('nav-usuarios').hidden = dados.perfil !== 'ADMIN';
+    document.querySelector('[data-page="onus"]').hidden = dados.perfil !== 'ADMIN' && !window.aeriPermissoes.processar_matricula;
+    document.querySelector('[data-page="incra"]').hidden = dados.perfil !== 'ADMIN' && !window.aeriPermissoes.processar_incra;
+    document.querySelector('[data-page="rotina"]').hidden = dados.perfil !== 'ADMIN' && !window.aeriPermissoes.ver_intimacoes;
+    const ativo = document.querySelector('.nav-item.active');
+    if (ativo?.hidden) {
+        ativo.classList.remove('active');
+        document.querySelectorAll('.page.active').forEach(pagina => pagina.classList.remove('active'));
+        const proximo = [...document.querySelectorAll('.nav-item')].find(item => !item.hidden);
+        if (proximo) {
+            proximo.classList.add('active');
+            document.getElementById(`page-${proximo.dataset.page}`)?.classList.add('active');
+        }
+    }
     document.getElementById('login-aeri').classList.remove('aberto');
     document.body.classList.remove('auth-pending');
     aoEntrar(dados);

@@ -5,6 +5,10 @@ let intimacoes = [];
 const intimacoesPendentes = new Set();
 let intimacaoCheckId = null;
 
+function pode(permissao) {
+    return document.body.dataset.perfil === 'ADMIN' || Boolean(window.aeriPermissoes?.[permissao]);
+}
+
 function diasDesde(data) {
     if (!data) return null;
     const hoje = new Date(`${hojeLocal()}T00:00:00`);
@@ -28,6 +32,8 @@ function formatarDataRotina(data) {
 
 function renderizarIntimacoes() {
     const tbody = document.getElementById('rotina-tbody');
+    document.querySelector('label[for="importar-intimacoes"]').hidden = !(pode('criar_intimacoes') && pode('alterar_intimacoes'));
+    document.getElementById('btn-nova-intimacao').hidden = !pode('criar_intimacoes');
     const termo = document.getElementById('busca-intimacao').value.toLowerCase().trim();
     const filtradas = intimacoes.filter(item => [item.protocolo, item.credor, item.devedor, item.nomeAndamento]
         .some(valor => String(valor || '').toLowerCase().includes(termo)))
@@ -36,12 +42,12 @@ function renderizarIntimacoes() {
     tbody.innerHTML = filtradas.map(item => {
         const situacao = situacaoIntimacao(item);
         const pendente = intimacoesPendentes.has(item.id);
-        const perfil = document.body.dataset.perfil;
-        const acoes = perfil === 'CONSULTA' ? '<span class="rotina-total">Somente leitura</span>' : `<div class="rotina-row-actions">
-                <button class="rotina-check" data-acao="conferir" data-id="${item.id}" title="Registrar conferência de hoje" ${pendente ? 'disabled' : ''}>${pendente ? 'Salvando...' : '✓ Check'}</button>
-                <button data-acao="editar" data-id="${item.id}" title="Editar">Editar</button>
-                ${perfil === 'ADMIN' ? `<button class="perigo" data-acao="excluir" data-id="${item.id}" title="Excluir">Excluir</button>` : ''}
-            </div>`;
+        const acoesDisponiveis = [
+            pode('conferir_intimacoes') ? `<button class="rotina-check" data-acao="conferir" data-id="${item.id}" title="Registrar conferência de hoje" ${pendente ? 'disabled' : ''}>${pendente ? 'Salvando...' : '✓ Check'}</button>` : '',
+            pode('alterar_intimacoes') ? `<button data-acao="editar" data-id="${item.id}" title="Editar">Editar</button>` : '',
+            document.body.dataset.perfil === 'ADMIN' ? `<button class="perigo" data-acao="excluir" data-id="${item.id}" title="Excluir">Excluir</button>` : '',
+        ].filter(Boolean).join('');
+        const acoes = acoesDisponiveis ? `<div class="rotina-row-actions">${acoesDisponiveis}</div>` : '<span class="rotina-total">Somente leitura</span>';
         return `<tr class="rotina-row rotina-row-${situacao.classe}">
             <td><span class="rotina-status ${situacao.classe}"><i></i>${situacao.rotulo}</span><small>${situacao.detalhe}</small></td>
             <td><strong class="rotina-protocolo">${escaparHtml(item.protocolo)}</strong></td>
@@ -79,6 +85,7 @@ export function limparIntimacoes() {
 }
 
 function abrirFormularioIntimacao() {
+    if (!pode('criar_intimacoes')) return;
     document.getElementById('form-intimacao').reset();
     document.getElementById('intimacao-id').value = '';
     document.getElementById('titulo-form-intimacao').textContent = 'Nova intimação';
@@ -128,6 +135,7 @@ async function salvarIntimacao(evento) {
 }
 
 function editarIntimacao(id) {
+    if (!pode('alterar_intimacoes')) return;
     const item = intimacoes.find(atual => atual.id === id);
     if (!item) return;
     document.getElementById('intimacao-id').value = item.id;
@@ -149,6 +157,7 @@ function fecharCheckIntimacao() {
 }
 
 function abrirCheckIntimacao(id) {
+    if (!pode('conferir_intimacoes')) return;
     const item = intimacoes.find(atual => atual.id === id);
     if (!item || intimacoesPendentes.has(id)) return;
     intimacaoCheckId = id;
@@ -235,6 +244,7 @@ function converterDataImportada(valor) {
 }
 
 function importarIntimacoesCsv(evento) {
+    if (!(pode('criar_intimacoes') && pode('alterar_intimacoes'))) return;
     const input = evento.target;
     const arquivo = input.files?.[0];
     if (!arquivo) return;

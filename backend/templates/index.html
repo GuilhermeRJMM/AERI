@@ -185,13 +185,12 @@
                     </div>
                     <div class="perfis-resumo">
                         <div><strong>Administrador</strong><span>Acesso total, usuários, exclusões e auditoria.</span></div>
-                        <div><strong>Operador</strong><span>Analisa documentos e mantém as intimações.</span></div>
-                        <div><strong>Consulta</strong><span>Analisa e consulta, sem alterar dados.</span></div>
+                        <div><strong>Operador</strong><span>Recebe somente as atribuições marcadas pelo administrador.</span></div>
                     </div>
                     <section class="rotina-painel">
                         <div class="rotina-table-wrap">
                             <table class="rotina-table usuarios-table">
-                                <thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Senha</th><th>Ações</th></tr></thead>
+                                <thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Atribuições</th><th>Status</th><th>Senha</th><th>Ações</th></tr></thead>
                                 <tbody id="usuarios-tbody"></tbody>
                             </table>
                         </div>
@@ -269,7 +268,16 @@
             <form id="form-usuario" class="rotina-form">
                 <label><span>Nome</span><input id="usuario-nome" required maxlength="160"></label>
                 <label><span>Usuário</span><input id="usuario-login" required maxlength="40" pattern="[A-Za-z0-9._-]{3,40}"></label>
-                <label><span>Perfil</span><select id="usuario-perfil"><option value="OPERADOR">Operador</option><option value="CONSULTA">Consulta</option><option value="ADMIN">Administrador</option></select></label>
+                <label><span>Perfil</span><select id="usuario-perfil"><option value="OPERADOR">Operador</option><option value="ADMIN">Administrador</option></select></label>
+                <fieldset class="usuario-atribuicoes">
+                    <legend>Atribuições do operador</legend>
+                    <label><input type="checkbox" data-permissao-form="processar_matricula" checked> Processar matrículas</label>
+                    <label><input type="checkbox" data-permissao-form="processar_incra" checked> Processar relatório do INCRA</label>
+                    <label><input type="checkbox" data-permissao-form="ver_intimacoes" checked> Visualizar intimações</label>
+                    <label><input type="checkbox" data-permissao-form="criar_intimacoes" checked> Criar/importar intimações</label>
+                    <label><input type="checkbox" data-permissao-form="alterar_intimacoes" checked> Alterar intimações</label>
+                    <label><input type="checkbox" data-permissao-form="conferir_intimacoes" checked> Dar check em intimações</label>
+                </fieldset>
                 <label><span>Senha temporária</span><div class="senha-gerada"><input id="usuario-senha" type="text" required minlength="14"><button type="button" id="btn-gerar-senha">Gerar</button></div></label>
                 <div class="rotina-form-actions"><button type="button" class="rotina-btn-secondary" id="btn-cancelar-usuario">Cancelar</button><button type="submit" class="btn btn-primary">Criar usuário</button></div>
             </form>

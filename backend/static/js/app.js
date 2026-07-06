@@ -17,7 +17,7 @@ function fecharSplash() {
     iniciarAutenticacao({
         aoEntrar: dados => {
             exigirTrocaSenha(dados.deveTrocarSenha);
-            if (!dados.deveTrocarSenha) carregarIntimacoes();
+            if (!dados.deveTrocarSenha && (dados.perfil === 'ADMIN' || dados.permissoes?.ver_intimacoes)) carregarIntimacoes();
             if (dados.perfil === 'ADMIN' && !dados.deveTrocarSenha) carregarUsuarios();
         },
         aoSair: limparIntimacoes,

@@ -6,6 +6,7 @@ from backend.app.autenticacao import (
     SESSAO_SEGUNDOS,
     autenticar,
     criar_sessao,
+    permissoes_sessao,
     proteger_csrf,
     registrar_tentativa,
     renovar_csrf,
@@ -41,11 +42,18 @@ def login(dados: dict, request: Request):
     registrar_auditoria(request, "login", "sucesso", usuario)
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            cursor.execute("SELECT nome, perfil, deve_trocar_senha FROM usuarios_aeri WHERE usuario=%s", (usuario,))
+            cursor.execute(
+                """SELECT nome, perfil, deve_trocar_senha,
+                pode_processar_matricula, pode_processar_incra, pode_ver_intimacoes,
+                pode_criar_intimacoes, pode_alterar_intimacoes, pode_conferir_intimacoes
+                FROM usuarios_aeri WHERE usuario=%s""",
+                (usuario,),
+            )
             conta = cursor.fetchone()
     resposta = JSONResponse({
         "usuario": usuario, "nome": conta["nome"], "perfil": conta["perfil"],
         "deveTrocarSenha": conta["deve_trocar_senha"], "csrfToken": csrf,
+        "permissoes": permissoes_sessao(conta),
     })
     resposta.set_cookie(
         COOKIE_SESSAO, token, max_age=SESSAO_SEGUNDOS, httponly=True,
@@ -54,12 +62,13 @@ def login(dados: dict, request: Request):
     return resposta
 
 
-@router.get("/sessao")
+@router.get("/sessao", dependencies=[Depends(preparar_banco)])
 def sessao(request: Request, usuario: str = Depends(usuario_atual)):
     conta = request.state.sessao
     return {
         "usuario": usuario, "nome": conta["nome"], "perfil": conta["perfil"],
         "deveTrocarSenha": conta["deve_trocar_senha"], "csrfToken": renovar_csrf(request),
+        "permissoes": permissoes_sessao(conta),
     }
 
 

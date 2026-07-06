@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from backend.app.autenticacao import exigir_perfis, proteger_csrf
+from backend.app.autenticacao import exigir_permissao, proteger_csrf
 from backend.app.incra import extrair_protocolos
 from backend.app.seguranca_web import registrar_auditoria
 
@@ -9,7 +9,7 @@ router = APIRouter(tags=["incra"])
 
 
 @router.post("/analisar-incra", dependencies=[Depends(proteger_csrf)])
-async def analisar_incra(request: Request, usuario: str = Depends(exigir_perfis("ADMIN", "OPERADOR", "CONSULTA"))):
+async def analisar_incra(request: Request, usuario: str = Depends(exigir_permissao("processar_incra"))):
     try:
         tamanho = int(request.headers.get("content-length", "0") or 0)
         if tamanho > 15_000_000:

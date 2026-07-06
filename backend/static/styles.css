@@ -1172,6 +1172,30 @@ textarea::-webkit-scrollbar-thumb:hover {
 .perfis-resumo strong { display:block; color:#10254b; font-size:.83rem; margin-bottom:5px; }
 .perfis-resumo span { color:var(--text-muted); font-size:.72rem; line-height:1.4; }
 .usuarios-table { min-width:900px; }
+.usuario-atribuicoes {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+}
+.usuario-atribuicoes legend {
+  color: var(--text-muted);
+  font-size: .78rem;
+  font-weight: 700;
+  padding: 0 6px;
+  text-transform: uppercase;
+}
+.usuario-atribuicoes label,
+.usuario-atribuicoes-lista label {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+.usuario-atribuicoes-lista {
+  display: grid;
+  gap: 6px 12px;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  min-width: 300px;
+}
 .auditoria-header { margin-top:30px; margin-bottom:12px; }
 .auditoria-header h2 { margin:4px 0; color:var(--text-main); font-size:1.35rem; }
 .auditoria-table { min-width:850px; }
@@ -1183,6 +1207,4 @@ textarea::-webkit-scrollbar-thumb:hover {
 .senha-gerada input { flex:1; }
 .senha-gerada button { border:1px solid #bfdbfe; border-radius:8px; background:#eff6ff; color:#1d4ed8; padding:0 12px; font-weight:700; cursor:pointer; }
 .modal-obrigatorio { z-index:1200; background:rgba(2,12,32,.72); }
-body[data-perfil="CONSULTA"] #btn-nova-intimacao,
-body[data-perfil="CONSULTA"] label[for="importar-intimacoes"] { display:none; }
 @media (max-width:760px) { .perfis-resumo { grid-template-columns:1fr; } }

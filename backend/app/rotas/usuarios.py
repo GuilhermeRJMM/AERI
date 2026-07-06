@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from psycopg.errors import UniqueViolation
 
 from backend.app.autenticacao import (
+    PERMISSOES,
     exigir_perfis,
     hash_senha,
+    permissoes_sessao,
     proteger_csrf,
     senha_forte,
     usuario_atual,
@@ -15,7 +17,7 @@ from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria
 
 
-PERFIS = {"ADMIN", "OPERADOR", "CONSULTA"}
+PERFIS = {"ADMIN", "OPERADOR"}
 router = APIRouter(prefix="/api/usuarios", tags=["usuários"], dependencies=[Depends(preparar_banco)])
 
 
@@ -24,6 +26,7 @@ def _usuario_json(item: dict) -> dict:
         "usuario": item["usuario"], "nome": item["nome"], "perfil": item["perfil"],
         "ativo": item["ativo"], "deveTrocarSenha": item["deve_trocar_senha"],
         "criadoEm": item["criado_em"].isoformat(),
+        "permissoes": permissoes_sessao(item),
     }
 
 
@@ -39,6 +42,16 @@ def _validar_usuario(dados: dict, exigir_senha: bool = True) -> tuple[str, str, 
     if exigir_senha and not senha_forte(senha):
         raise HTTPException(status_code=422, detail="A senha precisa ter 14 caracteres, maiúscula, minúscula, número e símbolo.")
     return usuario, nome, perfil, senha
+
+
+def _validar_permissoes(dados: dict, perfil: str) -> dict:
+    if perfil == "ADMIN":
+        return {coluna: True for coluna in PERMISSOES.values()}
+    permissoes = dados.get("permissoes") or {}
+    return {
+        coluna: bool(permissoes.get(chave, False))
+        for chave, coluna in PERMISSOES.items()
+    }
 
 
 @router.get("")
@@ -66,14 +79,25 @@ def listar_auditoria(_admin: str = Depends(exigir_perfis("ADMIN"))):
 @router.post("", status_code=201, dependencies=[Depends(proteger_csrf)])
 def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_perfis("ADMIN"))):
     usuario, nome, perfil, senha = _validar_usuario(dados)
+    permissoes = _validar_permissoes(dados, perfil)
     try:
         with conectar() as conexao:
             with conexao.cursor() as cursor:
                 cursor.execute(
                     """INSERT INTO usuarios_aeri
-                    (usuario, nome, perfil, senha_hash, deve_trocar_senha)
-                    VALUES (%s, %s, %s, %s, TRUE) RETURNING *""",
-                    (usuario, nome, perfil, hash_senha(senha)),
+                    (usuario, nome, perfil, senha_hash, deve_trocar_senha,
+                    pode_processar_matricula, pode_processar_incra, pode_ver_intimacoes,
+                    pode_criar_intimacoes, pode_alterar_intimacoes, pode_conferir_intimacoes)
+                    VALUES (%s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s, %s) RETURNING *""",
+                    (
+                        usuario, nome, perfil, hash_senha(senha),
+                        permissoes["pode_processar_matricula"],
+                        permissoes["pode_processar_incra"],
+                        permissoes["pode_ver_intimacoes"],
+                        permissoes["pode_criar_intimacoes"],
+                        permissoes["pode_alterar_intimacoes"],
+                        permissoes["pode_conferir_intimacoes"],
+                    ),
                 )
                 item = cursor.fetchone()
             conexao.commit()
@@ -87,14 +111,28 @@ def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_per
 def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: str = Depends(exigir_perfis("ADMIN"))):
     usuario_alvo = usuario_alvo.upper()
     _, nome, perfil, _ = _validar_usuario({**dados, "usuario": usuario_alvo}, exigir_senha=False)
+    permissoes = _validar_permissoes(dados, perfil)
     ativo = bool(dados.get("ativo", True))
     if usuario_alvo == admin and (not ativo or perfil != "ADMIN"):
         raise HTTPException(status_code=422, detail="O administrador não pode remover o próprio acesso total.")
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
-                """UPDATE usuarios_aeri SET nome=%s, perfil=%s, ativo=%s, atualizado_em=NOW()
-                WHERE usuario=%s RETURNING *""", (nome, perfil, ativo, usuario_alvo),
+                """UPDATE usuarios_aeri SET nome=%s, perfil=%s, ativo=%s,
+                pode_processar_matricula=%s, pode_processar_incra=%s, pode_ver_intimacoes=%s,
+                pode_criar_intimacoes=%s, pode_alterar_intimacoes=%s, pode_conferir_intimacoes=%s,
+                atualizado_em=NOW()
+                WHERE usuario=%s RETURNING *""",
+                (
+                    nome, perfil, ativo,
+                    permissoes["pode_processar_matricula"],
+                    permissoes["pode_processar_incra"],
+                    permissoes["pode_ver_intimacoes"],
+                    permissoes["pode_criar_intimacoes"],
+                    permissoes["pode_alterar_intimacoes"],
+                    permissoes["pode_conferir_intimacoes"],
+                    usuario_alvo,
+                ),
             )
             item = cursor.fetchone()
             if item and not ativo:

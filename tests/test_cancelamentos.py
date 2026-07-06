@@ -14,6 +14,7 @@ def ato(codigo, descricao):
         impacta_resultado=impacta,
         status="ATIVO",
         cancelado_por=None,
+        cancela_atos=[],
     )
 
 
@@ -93,6 +94,28 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(hipoteca.cancelado_por, "AV.06")
         self.assertFalse(hipoteca.impacta_resultado)
         self.assertEqual(substituicao.status, "ATIVO")
+
+    def test_alienacao_fiduciaria_com_venda_no_titulo_e_onus(self):
+        texto = """
+        R.05 - DEVEDORES/FIDUCIANTES: Fulano. CREDORA/FIDUCIÁRIA: Banco.
+        TÍTULO: Instrumento particular de financiamento para aquisição de imóvel,
+        venda e compra e constituição de alienação fiduciária.
+        OBJETO DA GARANTIA: Em Alienação Fiduciária, o imóvel desta matrícula.
+        """
+
+        categoria, impacta = classificar(texto)
+
+        self.assertEqual(categoria, "ÔNUS")
+        self.assertTrue(impacta)
+
+    def test_cancelamento_informa_ato_cancelado_mesmo_no_ato_cancelador(self):
+        alienacao = ato("R.05", "R.05 - ALIENAÇÃO FIDUCIÁRIA. OBJETO DA GARANTIA: Em Alienação Fiduciária.")
+        cancelamento = ato("AV.08", "AV.08 - CANCELAMENTO. Fica cancelada a alienação fiduciária constante do R.05 desta matrícula.")
+
+        aplicar_cancelamentos([alienacao, cancelamento])
+
+        self.assertEqual(alienacao.status, "CANCELADO")
+        self.assertEqual(cancelamento.cancela_atos, ["R.05"])
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
 
-from backend.app.autenticacao import exigir_perfis, proteger_csrf
+from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
 from backend.app.database import conectar, preparar_banco
 from backend.app.servicos.intimacoes import (
     intimacao_json,
@@ -24,7 +24,7 @@ router = APIRouter(
 
 
 @router.get("")
-def listar_intimacoes(_usuario: str = Depends(exigir_perfis("ADMIN", "OPERADOR", "CONSULTA"))):
+def listar_intimacoes(_usuario: str = Depends(exigir_permissao("ver_intimacoes"))):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute("SELECT * FROM intimacoes_aeri ORDER BY protocolo")
@@ -32,7 +32,7 @@ def listar_intimacoes(_usuario: str = Depends(exigir_perfis("ADMIN", "OPERADOR",
 
 
 @router.post("", status_code=201, dependencies=[Depends(proteger_csrf)])
-def criar_intimacao(dados: dict, request: Request, usuario: str = Depends(exigir_perfis("ADMIN", "OPERADOR"))):
+def criar_intimacao(dados: dict, request: Request, usuario: str = Depends(exigir_permissao("criar_intimacoes"))):
     protocolo, credor, devedor, nome_andamento, andamento = validar_intimacao(dados)
     identificador = uuid4()
     try:
@@ -53,7 +53,7 @@ def criar_intimacao(dados: dict, request: Request, usuario: str = Depends(exigir
 
 
 @router.put("/{identificador}", dependencies=[Depends(proteger_csrf)])
-def atualizar_intimacao(identificador: UUID, dados: dict, request: Request, usuario: str = Depends(exigir_perfis("ADMIN", "OPERADOR"))):
+def atualizar_intimacao(identificador: UUID, dados: dict, request: Request, usuario: str = Depends(exigir_permissao("alterar_intimacoes"))):
     protocolo, credor, devedor, nome_andamento, andamento = validar_intimacao(dados)
     try:
         with conectar() as conexao:
@@ -79,7 +79,7 @@ def conferir_intimacao(
     identificador: UUID,
     request: Request,
     dados: dict | None = None,
-    usuario: str = Depends(exigir_perfis("ADMIN", "OPERADOR")),
+    usuario: str = Depends(exigir_permissao("conferir_intimacoes")),
 ):
     hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date().isoformat()
     novo_andamento = validar_novo_andamento(dados)

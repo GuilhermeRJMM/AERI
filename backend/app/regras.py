@@ -1,3 +1,6 @@
+import unicodedata
+
+
 # backend/app/regras.py
 
 REGRAS = {
@@ -82,8 +85,26 @@ PALAVRAS_PUBLICIDADE_FORTE = [
     "RESTRIÇÕES URBANÍSTICAS", "RESTRIÇÃO URBANÍSTICA",
 ]
 
+
+def _sem_acentos(texto):
+    return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
+
 def classificar(texto):
     texto = texto.upper()
+    texto_sem_acentos = _sem_acentos(texto)
+
+    if (
+        "ALIENACAO FIDUCIARIA" in texto_sem_acentos
+        and not any(p in texto for p in PALAVRAS_CANCELAMENTO)
+        and (
+            "OBJETO DA GARANTIA" in texto
+            or "CREDOR/ FIDUCIARIO" in texto_sem_acentos
+            or "CREDORA/FIDUCIARIA" in texto_sem_acentos
+            or "PROPRIEDADE FIDUCIARIA" in texto_sem_acentos
+            or "EM ALIENACAO FIDUCIARIA" in texto_sem_acentos
+        )
+    ):
+        return ("ÔNUS", True)
 
     # A liberação parcial com substituição de garantia não cria novo ônus
     # e também não extingue a hipoteca anterior, que permanece ativa sobre

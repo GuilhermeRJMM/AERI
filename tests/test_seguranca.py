@@ -1,6 +1,6 @@
 import unittest
 
-from backend.app.autenticacao import hash_senha, senha_forte, verificar_senha
+from backend.app.autenticacao import hash_senha, permissoes_sessao, senha_forte, verificar_senha
 
 
 class TesteSeguranca(unittest.TestCase):
@@ -16,6 +16,29 @@ class TesteSeguranca(unittest.TestCase):
         self.assertTrue(senha_forte("Senha-Forte-AERI-2026!"))
         self.assertFalse(senha_forte("adm123"))
         self.assertFalse(senha_forte("somente-minusculas-2026"))
+
+    def test_admin_tem_todas_as_permissoes(self):
+        permissoes = permissoes_sessao({"perfil": "ADMIN"})
+
+        self.assertTrue(all(permissoes.values()))
+
+    def test_operador_respeita_atribuicoes(self):
+        permissoes = permissoes_sessao(
+            {
+                "perfil": "OPERADOR",
+                "pode_processar_matricula": True,
+                "pode_processar_incra": False,
+                "pode_ver_intimacoes": True,
+                "pode_criar_intimacoes": False,
+                "pode_alterar_intimacoes": False,
+                "pode_conferir_intimacoes": True,
+            }
+        )
+
+        self.assertTrue(permissoes["processar_matricula"])
+        self.assertFalse(permissoes["processar_incra"])
+        self.assertFalse(permissoes["criar_intimacoes"])
+        self.assertTrue(permissoes["conferir_intimacoes"])
 
 
 if __name__ == "__main__":

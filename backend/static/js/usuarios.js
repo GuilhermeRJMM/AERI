@@ -2,6 +2,34 @@ import {requisicaoAeri} from './api.js';
 import {escaparHtml} from './util.js';
 
 let usuarios = [];
+const ATRIBUICOES = [
+    ['processar_matricula', 'Matrículas'],
+    ['processar_incra', 'INCRA'],
+    ['ver_intimacoes', 'Ver intimações'],
+    ['criar_intimacoes', 'Criar/importar'],
+    ['alterar_intimacoes', 'Alterar'],
+    ['conferir_intimacoes', 'Check'],
+];
+
+function lerPermissoesFormulario() {
+    return Object.fromEntries([...document.querySelectorAll('[data-permissao-form]')]
+        .map(campo => [campo.dataset.permissaoForm, campo.checked]));
+}
+
+function renderizarAtribuicoes(item) {
+    if (item.perfil === 'ADMIN') return '<span class="usuario-status ativo">Todas</span>';
+    return `<div class="usuario-atribuicoes-lista">${ATRIBUICOES.map(([chave, rotulo]) => `
+        <label><input type="checkbox" data-acao="permissao" data-permissao="${chave}" data-usuario="${item.usuario}" ${item.permissoes?.[chave] ? 'checked' : ''}> ${rotulo}</label>
+    `).join('')}</div>`;
+}
+
+function atualizarAtribuicoesFormulario() {
+    const admin = document.getElementById('usuario-perfil').value === 'ADMIN';
+    document.querySelectorAll('[data-permissao-form]').forEach(campo => {
+        campo.disabled = admin;
+        if (admin) campo.checked = true;
+    });
+}
 
 function senhaTemporaria() {
     const grupos = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnopqrstuvwxyz', '23456789', '!@#$%&*_-'];
@@ -19,15 +47,16 @@ function renderizarUsuarios() {
             <td><strong>${escaparHtml(item.nome)}</strong></td>
             <td>${escaparHtml(item.usuario)}</td>
             <td><select class="usuario-perfil-select" data-acao="perfil" data-usuario="${item.usuario}">
-                ${['ADMIN','OPERADOR','CONSULTA'].map(perfil => `<option value="${perfil}" ${perfil === item.perfil ? 'selected' : ''}>${perfil}</option>`).join('')}
+                ${['ADMIN','OPERADOR'].map(perfil => `<option value="${perfil}" ${perfil === item.perfil ? 'selected' : ''}>${perfil}</option>`).join('')}
             </select></td>
+            <td>${renderizarAtribuicoes(item)}</td>
             <td><span class="usuario-status ${item.ativo ? 'ativo' : 'inativo'}">${item.ativo ? 'Ativo' : 'Bloqueado'}</span></td>
             <td>${item.deveTrocarSenha ? '<span class="usuario-status inativo">Troca pendente</span>' : 'Definida'}</td>
             <td><div class="rotina-row-actions">
                 <button data-acao="senha" data-usuario="${item.usuario}">Redefinir senha</button>
                 <button data-acao="ativo" data-usuario="${item.usuario}" class="${item.ativo ? 'perigo' : ''}">${item.ativo ? 'Bloquear' : 'Reativar'}</button>
             </div></td>
-        </tr>`).join('') || '<tr><td colspan="6" class="rotina-vazio">Nenhum usuário encontrado.</td></tr>';
+        </tr>`).join('') || '<tr><td colspan="7" class="rotina-vazio">Nenhum usuário encontrado.</td></tr>';
 }
 
 export async function carregarUsuarios() {
@@ -47,6 +76,8 @@ export async function carregarUsuarios() {
 function abrirNovoUsuario() {
     document.getElementById('form-usuario').reset();
     document.getElementById('usuario-senha').value = senhaTemporaria();
+    document.querySelectorAll('[data-permissao-form]').forEach(campo => { campo.checked = true; campo.disabled = false; });
+    atualizarAtribuicoesFormulario();
     document.getElementById('modal-usuario').classList.add('aberta');
     document.getElementById('usuario-nome').focus();
 }
@@ -60,6 +91,7 @@ async function salvarUsuario(evento) {
         usuario: document.getElementById('usuario-login').value.trim(),
         perfil: document.getElementById('usuario-perfil').value,
         senha: document.getElementById('usuario-senha').value,
+        permissoes: lerPermissoesFormulario(),
     };
     try {
         await requisicaoAeri('/api/usuarios', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados)});
@@ -70,7 +102,7 @@ async function salvarUsuario(evento) {
 }
 
 async function atualizar(item, alteracoes) {
-    const dados = {usuario:item.usuario, nome:item.nome, perfil:item.perfil, ativo:item.ativo, ...alteracoes};
+    const dados = {usuario:item.usuario, nome:item.nome, perfil:item.perfil, ativo:item.ativo, permissoes:item.permissoes || {}, ...alteracoes};
     await requisicaoAeri(`/api/usuarios/${item.usuario}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados)});
     await carregarUsuarios();
 }
@@ -82,6 +114,9 @@ async function acaoTabela(evento) {
     if (!item) return;
     try {
         if (alvo.dataset.acao === 'perfil' && evento.type === 'change') await atualizar(item, {perfil:alvo.value});
+        if (alvo.dataset.acao === 'permissao' && evento.type === 'change') {
+            await atualizar(item, {permissoes:{...(item.permissoes || {}), [alvo.dataset.permissao]:alvo.checked}});
+        }
         if (alvo.dataset.acao === 'ativo') await atualizar(item, {ativo:!item.ativo});
         if (alvo.dataset.acao === 'senha') {
             const senha = senhaTemporaria();
@@ -124,6 +159,7 @@ export function iniciarUsuarios() {
     document.getElementById('btn-fechar-usuario').addEventListener('click', fecharNovoUsuario);
     document.getElementById('btn-cancelar-usuario').addEventListener('click', fecharNovoUsuario);
     document.getElementById('btn-gerar-senha').addEventListener('click', () => { document.getElementById('usuario-senha').value = senhaTemporaria(); });
+    document.getElementById('usuario-perfil').addEventListener('change', atualizarAtribuicoesFormulario);
     document.getElementById('form-usuario').addEventListener('submit', salvarUsuario);
     document.getElementById('usuarios-tbody').addEventListener('change', acaoTabela);
     document.getElementById('usuarios-tbody').addEventListener('click', acaoTabela);

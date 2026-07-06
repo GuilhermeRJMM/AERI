@@ -12,6 +12,9 @@ function resumo(ato, todosAtos) {
         return `Ato cancelado (pela ${autor})`;
     }
     if (ato.categoria === 'CANCELAMENTO') {
+        if (ato.cancela_atos?.length) {
+            return `Cancelamento processado (Cancelou ${ato.cancela_atos.join(', ')})`;
+        }
         const referencias = [...ato.descricao.matchAll(/\b(R|AV)[.\-]\s*0*(\d+)/gi)];
         for (const referencia of referencias) {
             const tipo = referencia[1].toUpperCase();
