@@ -14,7 +14,7 @@ from backend.app.autenticacao import (
     verificar_senha,
 )
 from backend.app.database import conectar, preparar_banco
-from backend.app.seguranca_web import registrar_auditoria
+from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
 
 
 PERFIS = {"ADMIN", "OPERADOR"}
@@ -100,10 +100,10 @@ def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_per
                     ),
                 )
                 item = cursor.fetchone()
+                registrar_auditoria_cursor(cursor, request, "criar_usuario", "sucesso", admin, usuario, {"perfil": perfil})
             conexao.commit()
     except UniqueViolation as exc:
         raise HTTPException(status_code=409, detail="Este usuário já existe.") from exc
-    registrar_auditoria(request, "criar_usuario", "sucesso", admin, usuario, {"perfil": perfil})
     return _usuario_json(item)
 
 
@@ -137,10 +137,11 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
             item = cursor.fetchone()
             if item and not ativo:
                 cursor.execute("UPDATE sessoes_aeri SET revogada_em=NOW() WHERE usuario=%s", (usuario_alvo,))
+            if item:
+                registrar_auditoria_cursor(cursor, request, "atualizar_usuario", "sucesso", admin, usuario_alvo, {"perfil": perfil, "ativo": ativo})
         conexao.commit()
     if not item:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
-    registrar_auditoria(request, "atualizar_usuario", "sucesso", admin, usuario_alvo, {"perfil": perfil, "ativo": ativo})
     return _usuario_json(item)
 
 

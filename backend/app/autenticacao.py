@@ -63,6 +63,11 @@ def verificar_senha(senha: str, armazenada: str) -> bool:
         return False
 
 
+def verificar_senha_login(senha: str, registro: dict | None) -> bool:
+    armazenada = registro["senha_hash"] if registro else _HASH_SIMULADO
+    return verificar_senha(senha, armazenada) and registro is not None
+
+
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
@@ -70,27 +75,35 @@ def _hash_token(token: str) -> str:
 def verificar_bloqueio(usuario: str, ip: str) -> int:
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            cursor.execute(
-                """SELECT COUNT(*) AS total FROM tentativas_login_aeri
-                WHERE usuario=%s AND ip=%s AND sucesso=FALSE
-                AND criada_em > NOW() - (%s * INTERVAL '1 minute')""",
-                (usuario, ip, JANELA_TENTATIVAS_MINUTOS),
-            )
-            total = cursor.fetchone()["total"]
+            total = contar_tentativas_invalidas(cursor, usuario, ip)
     return max(0, MAX_TENTATIVAS - total)
+
+
+def contar_tentativas_invalidas(cursor, usuario: str, ip: str) -> int:
+    cursor.execute(
+        """SELECT COUNT(*) AS total FROM tentativas_login_aeri
+        WHERE usuario=%s AND ip=%s AND sucesso=FALSE
+        AND criada_em > NOW() - (%s * INTERVAL '1 minute')""",
+        (usuario, ip, JANELA_TENTATIVAS_MINUTOS),
+    )
+    return cursor.fetchone()["total"]
+
+
+def registrar_tentativa_cursor(cursor, usuario: str, ip: str, sucesso: bool) -> None:
+    if sucesso:
+        cursor.execute("DELETE FROM tentativas_login_aeri WHERE usuario=%s AND ip=%s", (usuario, ip))
+    else:
+        cursor.execute(
+            "INSERT INTO tentativas_login_aeri (usuario, ip, sucesso) VALUES (%s, %s, FALSE)",
+            (usuario, ip),
+        )
+    cursor.execute("DELETE FROM tentativas_login_aeri WHERE criada_em < NOW() - INTERVAL '2 days'")
 
 
 def registrar_tentativa(usuario: str, ip: str, sucesso: bool) -> None:
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            if sucesso:
-                cursor.execute("DELETE FROM tentativas_login_aeri WHERE usuario=%s AND ip=%s", (usuario, ip))
-            else:
-                cursor.execute(
-                    "INSERT INTO tentativas_login_aeri (usuario, ip, sucesso) VALUES (%s, %s, FALSE)",
-                    (usuario, ip),
-                )
-            cursor.execute("DELETE FROM tentativas_login_aeri WHERE criada_em < NOW() - INTERVAL '2 days'")
+            registrar_tentativa_cursor(cursor, usuario, ip, sucesso)
         conexao.commit()
 
 
@@ -111,20 +124,25 @@ def autenticar(usuario: str, senha: str) -> bool:
 
 
 def criar_sessao(usuario: str, request: Request) -> tuple[str, str]:
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            token, csrf = criar_sessao_cursor(cursor, usuario, request)
+        conexao.commit()
+    return token, csrf
+
+
+def criar_sessao_cursor(cursor, usuario: str, request: Request) -> tuple[str, str]:
     token = secrets.token_urlsafe(48)
     csrf = secrets.token_urlsafe(32)
     agora = datetime.now(timezone.utc)
-    with conectar() as conexao:
-        with conexao.cursor() as cursor:
-            cursor.execute("DELETE FROM sessoes_aeri WHERE expira_em < NOW() OR revogada_em IS NOT NULL")
-            cursor.execute(
-                """INSERT INTO sessoes_aeri
-                (id, usuario, token_hash, csrf_hash, ip, user_agent, expira_em)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-                (uuid4(), usuario, _hash_token(token), _hash_token(csrf), ip_cliente(request),
-                 request.headers.get("user-agent", "")[:300], agora + timedelta(seconds=SESSAO_SEGUNDOS)),
-            )
-        conexao.commit()
+    cursor.execute("DELETE FROM sessoes_aeri WHERE expira_em < NOW() OR revogada_em IS NOT NULL")
+    cursor.execute(
+        """INSERT INTO sessoes_aeri
+        (id, usuario, token_hash, csrf_hash, ip, user_agent, expira_em)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+        (uuid4(), usuario, _hash_token(token), _hash_token(csrf), ip_cliente(request),
+         request.headers.get("user-agent", "")[:300], agora + timedelta(seconds=SESSAO_SEGUNDOS)),
+    )
     return token, csrf
 
 

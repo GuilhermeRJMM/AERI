@@ -2,6 +2,7 @@ import {requisicaoAeri} from './api.js';
 import {escaparHtml} from './util.js';
 
 let usuarios = [];
+const salvamentosUsuarios = new Map();
 const ATRIBUICOES = [
     ['processar_matricula', 'Matrículas'],
     ['processar_incra', 'INCRA'],
@@ -21,6 +22,11 @@ function renderizarAtribuicoes(item) {
     return `<div class="usuario-atribuicoes-lista">${ATRIBUICOES.map(([chave, rotulo]) => `
         <label><input type="checkbox" data-acao="permissao" data-permissao="${chave}" data-usuario="${item.usuario}" ${item.permissoes?.[chave] ? 'checked' : ''}> ${rotulo}</label>
     `).join('')}</div>`;
+}
+
+function substituirUsuario(atualizado) {
+    const indice = usuarios.findIndex(item => item.usuario === atualizado.usuario);
+    if (indice >= 0) usuarios[indice] = atualizado;
 }
 
 function atualizarAtribuicoesFormulario() {
@@ -103,8 +109,46 @@ async function salvarUsuario(evento) {
 
 async function atualizar(item, alteracoes) {
     const dados = {usuario:item.usuario, nome:item.nome, perfil:item.perfil, ativo:item.ativo, permissoes:item.permissoes || {}, ...alteracoes};
-    await requisicaoAeri(`/api/usuarios/${item.usuario}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados)});
-    await carregarUsuarios();
+    const salvo = await requisicaoAeri(`/api/usuarios/${item.usuario}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados)});
+    substituirUsuario(salvo);
+    renderizarUsuarios();
+    return salvo;
+}
+
+async function salvarUsuarioSerializado(usuario) {
+    const estado = salvamentosUsuarios.get(usuario) || {salvando:false, pendente:false};
+    if (estado.salvando) {
+        estado.pendente = true;
+        salvamentosUsuarios.set(usuario, estado);
+        return;
+    }
+    estado.salvando = true;
+    salvamentosUsuarios.set(usuario, estado);
+    try {
+        do {
+            estado.pendente = false;
+            const item = usuarios.find(atual => atual.usuario === usuario);
+            if (!item) return;
+            const salvo = await requisicaoAeri(`/api/usuarios/${usuario}`, {
+                method:'PUT',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({
+                    usuario:item.usuario,
+                    nome:item.nome,
+                    perfil:item.perfil,
+                    ativo:item.ativo,
+                    permissoes:item.permissoes || {},
+                }),
+            });
+            substituirUsuario(salvo);
+        } while (estado.pendente);
+    } catch (erro) {
+        alert(erro.message);
+        await carregarUsuarios();
+    } finally {
+        salvamentosUsuarios.delete(usuario);
+        renderizarUsuarios();
+    }
 }
 
 async function acaoTabela(evento) {
@@ -115,7 +159,8 @@ async function acaoTabela(evento) {
     try {
         if (alvo.dataset.acao === 'perfil' && evento.type === 'change') await atualizar(item, {perfil:alvo.value});
         if (alvo.dataset.acao === 'permissao' && evento.type === 'change') {
-            await atualizar(item, {permissoes:{...(item.permissoes || {}), [alvo.dataset.permissao]:alvo.checked}});
+            item.permissoes = {...(item.permissoes || {}), [alvo.dataset.permissao]:alvo.checked};
+            salvarUsuarioSerializado(item.usuario);
         }
         if (alvo.dataset.acao === 'ativo') await atualizar(item, {ativo:!item.ativo});
         if (alvo.dataset.acao === 'senha') {

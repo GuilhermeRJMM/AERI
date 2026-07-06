@@ -27,16 +27,28 @@ def registrar_auditoria(
     try:
         with conectar() as conexao:
             with conexao.cursor() as cursor:
-                cursor.execute(
-                    """INSERT INTO auditoria_aeri
-                    (usuario, acao, recurso, resultado, ip, detalhes)
-                    VALUES (%s, %s, %s, %s, %s, %s)""",
-                    (usuario, acao, recurso, resultado, ip_cliente(request), Jsonb(detalhes or {})),
-                )
+                registrar_auditoria_cursor(cursor, request, acao, resultado, usuario, recurso, detalhes)
             conexao.commit()
     except Exception:
         # Auditoria nunca deve expor dados nem derrubar a operacao principal.
         pass
+
+
+def registrar_auditoria_cursor(
+    cursor,
+    request: Request,
+    acao: str,
+    resultado: str,
+    usuario: str | None = None,
+    recurso: str | None = None,
+    detalhes: dict | None = None,
+) -> None:
+    cursor.execute(
+        """INSERT INTO auditoria_aeri
+        (usuario, acao, recurso, resultado, ip, detalhes)
+        VALUES (%s, %s, %s, %s, %s, %s)""",
+        (usuario, acao, recurso, resultado, ip_cliente(request), Jsonb(detalhes or {})),
+    )
 
 
 def validar_origem(request: Request) -> None:
