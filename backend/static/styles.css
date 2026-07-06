@@ -660,7 +660,7 @@ textarea::-webkit-scrollbar-thumb:hover {
 }
 
 .nav-item {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 10px;
   padding: 11px 14px;
@@ -671,6 +671,10 @@ textarea::-webkit-scrollbar-thumb:hover {
   font-size: 0.9rem;
   transition: background 0.18s, color 0.18s;
   user-select: none;
+}
+
+.nav-item[data-autorizado="true"] {
+  display: flex;
 }
 
 .nav-item[hidden],

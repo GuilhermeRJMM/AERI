@@ -6,7 +6,9 @@ let aoSair = () => {};
 
 function definirModuloVisivel(pageId, visivel) {
     const item = document.querySelector(`.nav-item[data-page="${pageId}"]`);
-    if (item) item.hidden = !visivel;
+    if (!item) return;
+    item.dataset.autorizado = String(visivel);
+    item.hidden = !visivel;
 }
 
 function aplicarPermissoesSidebar(dados) {
