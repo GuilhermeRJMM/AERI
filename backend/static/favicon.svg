@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="titulo">
+  <title id="titulo">AERI</title>
+  <defs>
+    <linearGradient id="fundo" x1="8" y1="6" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#0b2f6b"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#fundo)"/>
+  <path d="M12 29 26 17l10 8" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M17 27v15h11" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M31 14h16l7 7v24H31z" fill="#fff" stroke="#dbeafe" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M47 14v8h7M37 29h11M37 35h8" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="30" cy="43" r="9" fill="#0b2f6b" stroke="#fff" stroke-width="3"/>
+  <path d="m36.5 49.5 6 6" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <path d="M26 43h8" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
