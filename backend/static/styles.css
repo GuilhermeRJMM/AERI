@@ -240,9 +240,8 @@ body.auth-pending > .app-body {
 }
 
 .navbar-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 12px 24px;
+  width: 100%;
+  padding: 12px 24px 12px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
