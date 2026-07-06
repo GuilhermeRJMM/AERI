@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from backend.app.rotas import analisador, autenticacao, incra, intimacoes, usuarios
+from backend.app.rotas import analisador, autenticacao, incra, intimacoes, status_onr, usuarios
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,6 +23,7 @@ app.include_router(autenticacao.router)
 app.include_router(analisador.router)
 app.include_router(incra.router)
 app.include_router(intimacoes.router)
+app.include_router(status_onr.router)
 app.include_router(usuarios.router)
 
 

@@ -85,6 +85,7 @@ def _limpar_dados_de_seguranca(cursor) -> None:
         "DELETE FROM auditoria_aeri WHERE criada_em < NOW() - (%s * INTERVAL '1 day')",
         (retencao,),
     )
+    cursor.execute("DELETE FROM eventos_onr_aeri WHERE recebido_em < NOW() - INTERVAL '180 days'")
 
 
 def preparar_banco() -> None:

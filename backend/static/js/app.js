@@ -3,6 +3,7 @@ import {iniciarAutenticacao} from './autenticacao.js';
 import {iniciarIncra} from './incra.js';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260702-3';
 import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
+import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260706-status-onr';
 import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js';
 
 let splashEncerrada = false;
@@ -19,12 +20,17 @@ function fecharSplash() {
             exigirTrocaSenha(dados.deveTrocarSenha);
             if (!dados.deveTrocarSenha && (dados.perfil === 'ADMIN' || dados.permissoes?.ver_intimacoes)) carregarIntimacoes();
             if (dados.perfil === 'ADMIN' && !dados.deveTrocarSenha) carregarUsuarios();
+            if (!dados.deveTrocarSenha) ativarStatusOnr();
         },
-        aoSair: limparIntimacoes,
+        aoSair: () => {
+            limparIntimacoes();
+            pararStatusOnr();
+        },
     });
 }
 
 iniciarNavegacao();
+iniciarStatusOnr();
 iniciarAnalisador();
 iniciarIncra();
 iniciarIntimacoes();
