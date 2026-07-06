@@ -22,7 +22,6 @@ REGRAS_COMUNICAR = (
     (("FUSAO", "UNIFICACAO", "REMEMBRAMENTO"), "Fusão ou remembramento"),
     (("RETIFICACAO DE AREA",), "Retificação de área"),
     (("RESERVA LEGAL", "PATRIMONIO NATURAL", "RPPN"), "Limitação ambiental"),
-    (("INSCRICAO NO CAR", "CADASTRO AMBIENTAL RURAL"), "Restrição ou informação ambiental"),
     (("REFORMA AGRARIA",), "Modificação territorial ou de titularidade"),
 )
 
