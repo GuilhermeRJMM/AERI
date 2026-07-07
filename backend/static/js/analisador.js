@@ -83,6 +83,74 @@ function renderizarProprietarios(proprietarios) {
         </div>`;
 }
 
+function valorCampo(valor) {
+    return valor ? escaparHtml(valor) : '<span class="dados-imovel-vazio">Não identificado</span>';
+}
+
+function linhaDado(rotulo, valor) {
+    return `
+        <div class="dados-imovel-item">
+            <span>${escaparHtml(rotulo)}</span>
+            <strong>${valorCampo(valor)}</strong>
+        </div>`;
+}
+
+function renderizarDadosUrbanos(dados) {
+    const confrontacoes = dados.confrontacoes || {};
+    return `
+        <div class="dados-imovel-grid">
+            ${linhaDado('Matrícula', dados.matricula)}
+            ${linhaDado('Lote', dados.lote)}
+            ${linhaDado('Quadra', dados.quadra)}
+            ${linhaDado('Área', dados.area)}
+            ${linhaDado('Rua', dados.rua)}
+            ${linhaDado('Setor', dados.setor)}
+            ${linhaDado('CCI', dados.cci)}
+            ${linhaDado('CEP', dados.cep)}
+            ${linhaDado('N.º', dados.numero)}
+            ${linhaDado('Área Construída', dados.area_construida)}
+            ${linhaDado('Finalidade', dados.finalidade)}
+            ${linhaDado('Proprietário', dados.proprietario)}
+        </div>
+        <div class="dados-imovel-secao">
+            <h3>Confrontações do lote</h3>
+            <div class="dados-imovel-grid">
+                ${linhaDado('Frente', confrontacoes.frente)}
+                ${linhaDado('Lateral direita', confrontacoes.lateral_direita)}
+                ${linhaDado('Lateral esquerda', confrontacoes.lateral_esquerda)}
+                ${linhaDado('Fundos', confrontacoes.fundos)}
+            </div>
+        </div>`;
+}
+
+function renderizarDadosRurais(dados) {
+    return `
+        <div class="dados-imovel-grid">
+            ${linhaDado('Matrícula', dados.matricula)}
+            ${linhaDado('Nome', dados.nome)}
+            ${linhaDado('Área', dados.area)}
+            ${linhaDado('INCRA/CCIR', dados.incra_ccir)}
+            ${linhaDado('ITR/CIB/NIRF', dados.itr_cib_nirf)}
+            ${linhaDado('CAR', dados.car)}
+        </div>`;
+}
+
+function renderizarDadosImovel(dados) {
+    if (!dados) {
+        return '<div class="dados-imovel-empty">Nenhum dado do imóvel foi identificado.</div>';
+    }
+    const tipo = dados.tipo === 'rural' ? 'Imóvel rural' : 'Imóvel urbano';
+    const conteudo = dados.tipo === 'rural' ? renderizarDadosRurais(dados) : renderizarDadosUrbanos(dados);
+    return `
+        <div class="dados-imovel">
+            <div class="dados-imovel-topo">
+                <span>Dados do Imóvel</span>
+                <strong>${tipo}</strong>
+            </div>
+            ${conteudo}
+        </div>`;
+}
+
 function renderizarResultado(dados) {
     let cor = '#16a34a';
     let fundo = '#f0fdf4';
@@ -97,9 +165,11 @@ function renderizarResultado(dados) {
             <div class="tabs-container">
                 <button class="tab-btn active" data-tab="tab-atos">Atos Registrais (${dados.atos.length})</button>
                 <button class="tab-btn" data-tab="tab-prop">Proprietários (${proprietarios.length})</button>
+                <button class="tab-btn" data-tab="tab-imovel">Dados do Imóvel</button>
             </div>
             <div id="tab-atos" class="tab-content active"><div class="cards">${renderizarAtos(dados)}</div></div>
             <div id="tab-prop" class="tab-content" style="padding:16px">${renderizarProprietarios(proprietarios)}</div>
+            <div id="tab-imovel" class="tab-content" style="padding:16px">${renderizarDadosImovel(dados.dados_imovel)}</div>
         </div>`;
     document.getElementById('modal-resultado').classList.add('aberta');
 }

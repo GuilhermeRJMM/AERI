@@ -891,6 +891,10 @@ body.sidebar-recolhida .nav-item {
   .cards {
     grid-template-columns: 1fr;
   }
+
+  .dados-imovel-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1094,6 +1098,93 @@ body.sidebar-recolhida .nav-item {
   background: var(--primary-color);
   color: #fff;
   border-color: var(--primary-color);
+}
+
+/* --- DADOS DO IMÓVEL --- */
+.dados-imovel {
+  display: grid;
+  gap: 16px;
+}
+
+.dados-imovel-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: 12px;
+  background: rgba(239, 246, 255, 0.72);
+}
+
+.dados-imovel-topo span {
+  color: var(--text-muted);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+
+.dados-imovel-topo strong {
+  color: #1d4ed8;
+  font-size: .84rem;
+}
+
+.dados-imovel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dados-imovel-item {
+  min-height: 72px;
+  padding: 12px 14px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.dados-imovel-item span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-muted);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .45px;
+  text-transform: uppercase;
+}
+
+.dados-imovel-item strong {
+  display: block;
+  color: var(--text-main);
+  font-size: .86rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.dados-imovel-vazio {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.dados-imovel-secao {
+  display: grid;
+  gap: 10px;
+}
+
+.dados-imovel-secao h3 {
+  color: var(--text-main);
+  font-size: .92rem;
+}
+
+.dados-imovel-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: .95rem;
+  background: rgba(0, 0, 0, .02);
+  border-radius: 8px;
 }
 
 /* --- INCRA: EXTRAÇÃO DO RELATÓRIO RURAL --- */
