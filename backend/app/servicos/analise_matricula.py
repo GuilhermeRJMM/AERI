@@ -1,5 +1,4 @@
 from backend.app.cancelamentos import aplicar_cancelamentos
-from backend.app.dados_imovel import extrair_dados_imovel
 from backend.app.modelos import Ato
 from backend.app.parser import separar_atos
 from backend.app.proprietarios import calcular_cadeia_dominial
@@ -40,12 +39,9 @@ def analisar_matricula(texto: str) -> dict:
         if ato.categoria in categorias_permitidas
     ]
 
-    proprietarios_atuais = calcular_cadeia_dominial(atos, texto)
-
     return {
         "resultado": resultado_final,
         "publicidade": "COM PUBLICIDADE" if tem_publicidade else "SEM PUBLICIDADE",
         "atos": atos_filtrados,
-        "proprietarios_atuais": proprietarios_atuais,
-        "dados_imovel": extrair_dados_imovel(texto, proprietarios_atuais),
+        "proprietarios_atuais": calcular_cadeia_dominial(atos, texto),
     }
