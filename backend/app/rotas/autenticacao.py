@@ -68,7 +68,7 @@ def login(dados: dict, request: Request):
         conexao.commit()
 
     resposta = JSONResponse({
-        "usuario": conta["usuario"], "nome": conta["nome"], "perfil": conta["perfil"],
+        "usuario": conta["usuario"], "nome": conta["nome"], "perfil": conta["perfil"], "cargo": conta["perfil"],
         "deveTrocarSenha": conta["deve_trocar_senha"], "csrfToken": csrf,
         "permissoes": permissoes_sessao(conta),
     })
@@ -83,7 +83,7 @@ def login(dados: dict, request: Request):
 def sessao(request: Request, usuario: str = Depends(usuario_atual)):
     conta = request.state.sessao
     return {
-        "usuario": usuario, "nome": conta["nome"], "perfil": conta["perfil"],
+        "usuario": usuario, "nome": conta["nome"], "perfil": conta["perfil"], "cargo": conta["perfil"],
         "deveTrocarSenha": conta["deve_trocar_senha"], "csrfToken": renovar_csrf(request),
         "permissoes": permissoes_sessao(conta),
     }

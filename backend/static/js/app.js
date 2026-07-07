@@ -8,6 +8,10 @@ import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js
 
 let splashEncerrada = false;
 
+function cargoAdministrativo(perfil) {
+    return ['ADMIN', 'SUBSTITUTO'].includes(perfil);
+}
+
 function fecharSplash() {
     if (splashEncerrada) return;
     splashEncerrada = true;
@@ -18,8 +22,8 @@ function fecharSplash() {
     iniciarAutenticacao({
         aoEntrar: dados => {
             exigirTrocaSenha(dados.deveTrocarSenha);
-            if (!dados.deveTrocarSenha && (dados.perfil === 'ADMIN' || dados.permissoes?.ver_intimacoes)) carregarIntimacoes();
-            if (dados.perfil === 'ADMIN' && !dados.deveTrocarSenha) carregarUsuarios();
+            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.ver_intimacoes)) carregarIntimacoes();
+            if (cargoAdministrativo(dados.perfil) && !dados.deveTrocarSenha) carregarUsuarios();
             if (!dados.deveTrocarSenha) ativarStatusOnr();
         },
         aoSair: () => {

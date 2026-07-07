@@ -6,7 +6,11 @@ const intimacoesPendentes = new Set();
 let intimacaoCheckId = null;
 
 function pode(permissao) {
-    return document.body.dataset.perfil === 'ADMIN' || Boolean(window.aeriPermissoes?.[permissao]);
+    return ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil) || Boolean(window.aeriPermissoes?.[permissao]);
+}
+
+function cargoAdministrativo() {
+    return ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil);
 }
 
 function diasDesde(data) {
@@ -45,7 +49,7 @@ function renderizarIntimacoes() {
         const acoesDisponiveis = [
             pode('conferir_intimacoes') ? `<button class="rotina-check" data-acao="conferir" data-id="${item.id}" title="Registrar conferência de hoje" ${pendente ? 'disabled' : ''}>${pendente ? 'Salvando...' : '✓ Check'}</button>` : '',
             pode('alterar_intimacoes') ? `<button data-acao="editar" data-id="${item.id}" title="Editar">Editar</button>` : '',
-            document.body.dataset.perfil === 'ADMIN' ? `<button class="perigo" data-acao="excluir" data-id="${item.id}" title="Excluir">Excluir</button>` : '',
+            cargoAdministrativo() ? `<button class="perigo" data-acao="excluir" data-id="${item.id}" title="Excluir">Excluir</button>` : '',
         ].filter(Boolean).join('');
         const acoes = acoesDisponiveis ? `<div class="rotina-row-actions">${acoesDisponiveis}</div>` : '<span class="rotina-total">Somente leitura</span>';
         return `<tr class="rotina-row rotina-row-${situacao.classe}">

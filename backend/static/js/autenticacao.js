@@ -12,7 +12,7 @@ function definirModuloVisivel(pageId, visivel) {
 }
 
 function aplicarPermissoesSidebar(dados) {
-    const admin = dados.perfil === 'ADMIN';
+    const admin = ['ADMIN', 'SUBSTITUTO'].includes(dados.perfil);
     const permissoes = dados.permissoes || {};
     definirModuloVisivel('onus', admin || Boolean(permissoes.processar_matricula));
     definirModuloVisivel('incra', admin || Boolean(permissoes.processar_incra));

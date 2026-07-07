@@ -219,13 +219,14 @@
                         <button class="btn btn-primary" id="btn-novo-usuario">Novo usuário</button>
                     </div>
                     <div class="perfis-resumo">
-                        <div><strong>Administrador</strong><span>Acesso total, usuários, exclusões e auditoria.</span></div>
-                        <div><strong>Operador</strong><span>Recebe somente as atribuições marcadas pelo administrador.</span></div>
+                        <div><strong>ADM</strong><span>Acesso supremo, inclusive criação de usuários.</span></div>
+                        <div><strong>Substituto</strong><span>Poder administrativo, sem criar novos usuários.</span></div>
+                        <div><strong>Operacionais</strong><span>Supervisores, conferentes e produtores recebem as permissões marcadas.</span></div>
                     </div>
                     <section class="rotina-painel">
                         <div class="rotina-table-wrap">
                             <table class="rotina-table usuarios-table">
-                                <thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Atribuições</th><th>Status</th><th>Senha</th><th>Ações</th></tr></thead>
+                                <thead><tr><th>Nome</th><th>Usuário</th><th>Cargo</th><th>Atribuições</th><th>Status</th><th>Senha</th><th>Ações</th></tr></thead>
                                 <tbody id="usuarios-tbody"></tbody>
                             </table>
                         </div>
@@ -303,9 +304,9 @@
             <form id="form-usuario" class="rotina-form">
                 <label><span>Nome</span><input id="usuario-nome" required maxlength="160"></label>
                 <label><span>Usuário</span><input id="usuario-login" required maxlength="40" pattern="[A-Za-z0-9._-]{3,40}"></label>
-                <label><span>Perfil</span><select id="usuario-perfil"><option value="OPERADOR">Operador</option><option value="ADMIN">Administrador</option></select></label>
+                <label><span>Cargo</span><select id="usuario-perfil"><option value="CONFERENTE">Conferente</option><option value="PRODUTOR">Produtor</option><option value="SUPERVISOR">Supervisor</option><option value="SUBSTITUTO">Substituto</option><option value="ADMIN">ADM</option></select></label>
                 <fieldset class="usuario-atribuicoes">
-                    <legend>Atribuições do operador</legend>
+                    <legend>Atribuições do cargo operacional</legend>
                     <label><input type="checkbox" data-permissao-form="processar_matricula" checked> Processar matrículas</label>
                     <label><input type="checkbox" data-permissao-form="processar_incra" checked> Processar relatório do INCRA</label>
                     <label><input type="checkbox" data-permissao-form="ver_intimacoes" checked> Visualizar intimações</label>

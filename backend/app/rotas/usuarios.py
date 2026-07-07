@@ -5,6 +5,7 @@ from psycopg.errors import UniqueViolation
 
 from backend.app.autenticacao import (
     PERMISSOES,
+    PERFIS_ADMINISTRATIVOS,
     exigir_perfis,
     hash_senha,
     permissoes_sessao,
@@ -17,13 +18,13 @@ from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
 
 
-PERFIS = {"ADMIN", "OPERADOR"}
+PERFIS = {"ADMIN", "SUBSTITUTO", "SUPERVISOR", "CONFERENTE", "PRODUTOR"}
 router = APIRouter(prefix="/api/usuarios", tags=["usuários"], dependencies=[Depends(preparar_banco)])
 
 
 def _usuario_json(item: dict) -> dict:
     return {
-        "usuario": item["usuario"], "nome": item["nome"], "perfil": item["perfil"],
+        "usuario": item["usuario"], "nome": item["nome"], "perfil": item["perfil"], "cargo": item["perfil"],
         "ativo": item["ativo"], "deveTrocarSenha": item["deve_trocar_senha"],
         "criadoEm": item["criado_em"].isoformat(),
         "permissoes": permissoes_sessao(item),
@@ -45,7 +46,7 @@ def _validar_usuario(dados: dict, exigir_senha: bool = True) -> tuple[str, str, 
 
 
 def _validar_permissoes(dados: dict, perfil: str) -> dict:
-    if perfil == "ADMIN":
+    if perfil in PERFIS_ADMINISTRATIVOS:
         return {coluna: True for coluna in PERMISSOES.values()}
     permissoes = dados.get("permissoes") or {}
     return {
@@ -55,7 +56,7 @@ def _validar_permissoes(dados: dict, perfil: str) -> dict:
 
 
 @router.get("")
-def listar_usuarios(_admin: str = Depends(exigir_perfis("ADMIN"))):
+def listar_usuarios(_admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute("SELECT * FROM usuarios_aeri ORDER BY ativo DESC, nome, usuario")
@@ -63,7 +64,7 @@ def listar_usuarios(_admin: str = Depends(exigir_perfis("ADMIN"))):
 
 
 @router.get("/auditoria")
-def listar_auditoria(_admin: str = Depends(exigir_perfis("ADMIN"))):
+def listar_auditoria(_admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
@@ -108,15 +109,23 @@ def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_per
 
 
 @router.put("/{usuario_alvo}", dependencies=[Depends(proteger_csrf)])
-def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: str = Depends(exigir_perfis("ADMIN"))):
+def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
     usuario_alvo = usuario_alvo.upper()
     _, nome, perfil, _ = _validar_usuario({**dados, "usuario": usuario_alvo}, exigir_senha=False)
+    perfil_editor = request.state.sessao["perfil"]
+    if perfil_editor != "ADMIN" and perfil in PERFIS_ADMINISTRATIVOS:
+        raise HTTPException(status_code=403, detail="Somente ADM pode atribuir cargo administrativo.")
     permissoes = _validar_permissoes(dados, perfil)
     ativo = bool(dados.get("ativo", True))
-    if usuario_alvo == admin and (not ativo or perfil != "ADMIN"):
+    if usuario_alvo == admin and (not ativo or perfil != perfil_editor):
         raise HTTPException(status_code=422, detail="O administrador não pode remover o próprio acesso total.")
     with conectar() as conexao:
         with conexao.cursor() as cursor:
+            if request.state.sessao["perfil"] != "ADMIN":
+                cursor.execute("SELECT perfil FROM usuarios_aeri WHERE usuario=%s", (usuario_alvo.upper(),))
+                existente = cursor.fetchone()
+                if existente and existente["perfil"] in PERFIS_ADMINISTRATIVOS:
+                    raise HTTPException(status_code=403, detail="Somente ADM pode alterar cargo administrativo.")
             cursor.execute(
                 """UPDATE usuarios_aeri SET nome=%s, perfil=%s, ativo=%s,
                 pode_processar_matricula=%s, pode_processar_incra=%s, pode_ver_intimacoes=%s,
@@ -146,12 +155,17 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
 
 
 @router.post("/{usuario_alvo}/redefinir-senha", dependencies=[Depends(proteger_csrf)])
-def redefinir_senha(usuario_alvo: str, dados: dict, request: Request, admin: str = Depends(exigir_perfis("ADMIN"))):
+def redefinir_senha(usuario_alvo: str, dados: dict, request: Request, admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
     senha = str(dados.get("senha", ""))
     if not senha_forte(senha):
         raise HTTPException(status_code=422, detail="A senha precisa ter 14 caracteres, maiúscula, minúscula, número e símbolo.")
     with conectar() as conexao:
         with conexao.cursor() as cursor:
+            if request.state.sessao["perfil"] != "ADMIN":
+                cursor.execute("SELECT perfil FROM usuarios_aeri WHERE usuario=%s", (usuario_alvo.upper(),))
+                existente = cursor.fetchone()
+                if existente and existente["perfil"] in PERFIS_ADMINISTRATIVOS:
+                    raise HTTPException(status_code=403, detail="Somente ADM pode redefinir senha de cargo administrativo.")
             cursor.execute(
                 """UPDATE usuarios_aeri SET senha_hash=%s, deve_trocar_senha=TRUE, atualizado_em=NOW()
                 WHERE usuario=%s RETURNING usuario""", (hash_senha(senha), usuario_alvo.upper()),

@@ -22,10 +22,15 @@ class TesteSeguranca(unittest.TestCase):
 
         self.assertTrue(all(permissoes.values()))
 
+    def test_substituto_tem_permissoes_administrativas(self):
+        permissoes = permissoes_sessao({"perfil": "SUBSTITUTO"})
+
+        self.assertTrue(all(permissoes.values()))
+
     def test_operador_respeita_atribuicoes(self):
         permissoes = permissoes_sessao(
             {
-                "perfil": "OPERADOR",
+                "perfil": "CONFERENTE",
                 "pode_processar_matricula": True,
                 "pode_processar_incra": False,
                 "pode_ver_intimacoes": True,

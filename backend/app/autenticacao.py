@@ -27,6 +27,7 @@ PERMISSOES = {
     "alterar_intimacoes": "pode_alterar_intimacoes",
     "conferir_intimacoes": "pode_conferir_intimacoes",
 }
+PERFIS_ADMINISTRATIVOS = {"ADMIN", "SUBSTITUTO"}
 _argon2 = PasswordHasher(time_cost=2, memory_cost=19_456, parallelism=1)
 _HASH_SIMULADO = _argon2.hash("senha-inexistente-para-tempo-constante")
 
@@ -178,7 +179,7 @@ def usuario_atual(request: Request) -> str:
 
 
 def permissoes_sessao(sessao: dict) -> dict:
-    if sessao["perfil"] == "ADMIN":
+    if sessao["perfil"] in PERFIS_ADMINISTRATIVOS:
         return {chave: True for chave in PERMISSOES}
     return {chave: bool(sessao.get(coluna)) for chave, coluna in PERMISSOES.items()}
 
@@ -202,7 +203,7 @@ def exigir_permissao(permissao: str):
         sessao = request.state.sessao
         if sessao["deve_trocar_senha"]:
             raise HTTPException(status_code=403, detail="Troque sua senha temporária para continuar.")
-        if sessao["perfil"] == "ADMIN" or bool(sessao.get(PERMISSOES[permissao])):
+        if sessao["perfil"] in PERFIS_ADMINISTRATIVOS or bool(sessao.get(PERMISSOES[permissao])):
             return usuario
         raise HTTPException(status_code=403, detail="Você não possui permissão para esta operação.")
 

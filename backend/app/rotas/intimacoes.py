@@ -110,7 +110,7 @@ def conferir_intimacao(
 
 
 @router.delete("/{identificador}", status_code=204, dependencies=[Depends(proteger_csrf)])
-def excluir_intimacao(identificador: UUID, request: Request, usuario: str = Depends(exigir_perfis("ADMIN"))):
+def excluir_intimacao(identificador: UUID, request: Request, usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute("DELETE FROM intimacoes_aeri WHERE id=%s", (identificador,))

@@ -3,6 +3,13 @@ import {escaparHtml} from './util.js';
 
 let usuarios = [];
 const salvamentosUsuarios = new Map();
+const CARGOS = [
+    ['ADMIN', 'ADM'],
+    ['SUBSTITUTO', 'Substituto'],
+    ['SUPERVISOR', 'Supervisor'],
+    ['CONFERENTE', 'Conferente'],
+    ['PRODUTOR', 'Produtor'],
+];
 const ATRIBUICOES = [
     ['processar_matricula', 'Matrículas'],
     ['processar_incra', 'INCRA'],
@@ -12,13 +19,21 @@ const ATRIBUICOES = [
     ['conferir_intimacoes', 'Check'],
 ];
 
+function cargoAdministrativo(perfil) {
+    return ['ADMIN', 'SUBSTITUTO'].includes(perfil);
+}
+
+function usuarioPodeCriarUsuarios() {
+    return document.body.dataset.perfil === 'ADMIN';
+}
+
 function lerPermissoesFormulario() {
     return Object.fromEntries([...document.querySelectorAll('[data-permissao-form]')]
         .map(campo => [campo.dataset.permissaoForm, campo.checked]));
 }
 
 function renderizarAtribuicoes(item) {
-    if (item.perfil === 'ADMIN') return '<span class="usuario-status ativo">Todas</span>';
+    if (cargoAdministrativo(item.perfil)) return '<span class="usuario-status ativo">Todas</span>';
     return `<div class="usuario-atribuicoes-lista">${ATRIBUICOES.map(([chave, rotulo]) => `
         <label><input type="checkbox" data-acao="permissao" data-permissao="${chave}" data-usuario="${item.usuario}" ${item.permissoes?.[chave] ? 'checked' : ''}> ${rotulo}</label>
     `).join('')}</div>`;
@@ -30,7 +45,7 @@ function substituirUsuario(atualizado) {
 }
 
 function atualizarAtribuicoesFormulario() {
-    const admin = document.getElementById('usuario-perfil').value === 'ADMIN';
+    const admin = cargoAdministrativo(document.getElementById('usuario-perfil').value);
     document.querySelectorAll('[data-permissao-form]').forEach(campo => {
         campo.disabled = admin;
         if (admin) campo.checked = true;
@@ -48,12 +63,13 @@ function senhaTemporaria() {
 
 function renderizarUsuarios() {
     const tbody = document.getElementById('usuarios-tbody');
+    document.getElementById('btn-novo-usuario').hidden = !usuarioPodeCriarUsuarios();
     tbody.innerHTML = usuarios.map(item => `
         <tr>
             <td><strong>${escaparHtml(item.nome)}</strong></td>
             <td>${escaparHtml(item.usuario)}</td>
             <td><select class="usuario-perfil-select" data-acao="perfil" data-usuario="${item.usuario}">
-                ${['ADMIN','OPERADOR'].map(perfil => `<option value="${perfil}" ${perfil === item.perfil ? 'selected' : ''}>${perfil}</option>`).join('')}
+                ${CARGOS.map(([perfil, rotulo]) => `<option value="${perfil}" ${perfil === item.perfil ? 'selected' : ''}>${rotulo}</option>`).join('')}
             </select></td>
             <td>${renderizarAtribuicoes(item)}</td>
             <td><span class="usuario-status ${item.ativo ? 'ativo' : 'inativo'}">${item.ativo ? 'Ativo' : 'Bloqueado'}</span></td>
@@ -66,7 +82,7 @@ function renderizarUsuarios() {
 }
 
 export async function carregarUsuarios() {
-    if (document.body.dataset.perfil !== 'ADMIN') return;
+    if (!cargoAdministrativo(document.body.dataset.perfil)) return;
     const [lista, auditoria] = await Promise.all([
         requisicaoAeri('/api/usuarios'), requisicaoAeri('/api/usuarios/auditoria'),
     ]);
@@ -80,6 +96,7 @@ export async function carregarUsuarios() {
 }
 
 function abrirNovoUsuario() {
+    if (!usuarioPodeCriarUsuarios()) return;
     document.getElementById('form-usuario').reset();
     document.getElementById('usuario-senha').value = senhaTemporaria();
     document.querySelectorAll('[data-permissao-form]').forEach(campo => { campo.checked = true; campo.disabled = false; });
