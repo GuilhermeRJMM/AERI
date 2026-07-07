@@ -99,6 +99,14 @@ def extrair_pessoas(texto_bloco):
     else:
         partes = re.split(r'(?:^|\s+|;)(?:\d{1,3}|[IVX]+)[\)\-]\s+', texto_bloco)
         partes = [p.strip() for p in partes if p.strip()]
+
+        if len(partes) == 1:
+            partes_sem_ponto_virgula = re.split(
+                r';\s*(?:e\s*,?\s*)?(?=[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇa-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇa-záàâãéèêíìîóòôõúùûç]+){1,})',
+                partes[0],
+            )
+            if len(partes_sem_ponto_virgula) > 1:
+                partes = [p.strip() for p in partes_sem_ponto_virgula if p.strip()]
     
     if not partes:
         sub_partes = re.split(r';\s*', texto_bloco)

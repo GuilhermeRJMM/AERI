@@ -78,6 +78,31 @@ class TesteProprietarios(unittest.TestCase):
             [{"nome": "Carlos Eli da Silva", "cpf": "211.721.881-49", "proporcao": "100%"}],
         )
 
+    def test_adquirentes_separados_por_ponto_e_virgula_e_e(self):
+        cabecalho = """
+        MATRÍCULA 23.209. PROPRIETÁRIA: MORRINHOS EMPREENDIMENTOS IMOBILIÁRIOS LTDA,
+        inscrita no CNPJ sob o Nº14.042610/0001-62. TÍTULO AQUISITIVO: R-6-20.979.
+        """
+        registro = """
+        R-2-23.209 - COMPRA E VENDA. o imóvel constante desta matrícula, foi adquirido por:
+        RHAINER APARECIDO RIBEIRO, brasileiro, solteiro, funcionário de hotel,
+        portador da CI. 5756564 SSP/GO e do CPF n.º 753.625.621-34, residente nesta Cidade;
+        e, LOHAYNE MARIA OLIVEIRA SILVA, brasileira, solteira, caixa, portadora da CI.
+        451176716 SSP/SP e do CPF nº 394.631.118-08, residente nesta Cidade; por compra feita
+        a MORRINHOS EMPREENDIMENTOS IMOBILIÁRIOS LTDA-SPE, inscrita no CNPJ sob o
+        Nº. 14.042.610/0001-62, pelo preço de R$ 66.000,00.
+        """
+
+        resultado = calcular_cadeia_dominial([SimpleNamespace(descricao=registro)], cabecalho + registro)
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {
+                "RHAINER APARECIDO RIBEIRO": "50%",
+                "LOHAYNE MARIA OLIVEIRA SILVA": "50%",
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
