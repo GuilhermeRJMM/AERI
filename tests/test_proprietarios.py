@@ -103,6 +103,58 @@ class TesteProprietarios(unittest.TestCase):
             },
         )
 
+    def test_doacao_parcial_debita_somente_a_doadora_e_respeita_percentuais(self):
+        inventario_victoria = """
+        R.11-5.121 - INVENTÁRIO/PARTILHA - TRANSMITENTE: O Espólio de Paulo Tagliari,
+        inscrito no CPF/MF sob o n.º 162.268.108-82. ADQUIRENTE: Victoria Teruel Ortiz
+        Tagliari, inscrita no CPF/MF sob o n.º 255.472.868-26. IMÓVEL: 50% do imóvel.
+        """
+        inventario_osmar = """
+        R.12-5.121 - INVENTÁRIO/PARTILHA - TRANSMITENTE: O Espólio de Paulo Tagliari,
+        inscrito no CPF/MF sob o n.º 162.268.108-82. ADQUIRENTE: Osmar Tagliari,
+        inscrito no CPF/MF sob o n.º 772.601.718-04. IMÓVEL: 12,50% do imóvel.
+        """
+        inventario_suely = """
+        R.13-5.121 - INVENTÁRIO/PARTILHA - TRANSMITENTE: O Espólio de Paulo Tagliari,
+        inscrito no CPF/MF sob o n.º 162.268.108-82. ADQUIRENTE: Suely Tagliari,
+        inscrita no CPF/MF sob o n.º 095.788.998-40. IMÓVEL: 12,50% do imóvel.
+        """
+        doacao = """
+        R.20-5.121 - DOAÇÃO. DOADORA: Victoria Teruel Ortiz Tagliari, inscrita no
+        CPF/MF sob o n.º 255.472.868-26. DONATÁRIOS: 1)- Osmar Tagliari, inscrito no
+        CPF/MF sob o n.º 772.601.718-04, equivalente a 12,5% do imóvel; 2)- Suely
+        Tagliari, inscrita no CPF/MF sob o n.º 095.788.998-40, equivalente a 12,5%
+        do imóvel; 3)- Fabio de Almeida Tagliari, inscrito no CPF/MF sob o n.º
+        222.963.888-25, equivalente a 6,25% do imóvel; 4)- Fernanda de Almeida
+        Tagliari, inscrita no CPF/MF sob o n.º 223.701.748-46, equivalente a 6,25%
+        do imóvel; 5)- Paulo de Morais Tagliari Oliveira, inscrito no CPF/MF sob o
+        n.º 423.074.468-42, equivalente a 6,25% do imóvel; 6)- Rebeca de Morais
+        Teruel Tagliari Oliveira, inscrita no CPF/MF sob o n.º 423.074.478-14,
+        equivalente a 6,25% do imóvel. IMÓVEL: equivalente a 50% do imóvel.
+        """
+
+        resultado = calcular_cadeia_dominial(
+            [
+                SimpleNamespace(descricao=inventario_victoria),
+                SimpleNamespace(descricao=inventario_osmar),
+                SimpleNamespace(descricao=inventario_suely),
+                SimpleNamespace(descricao=doacao),
+            ],
+            inventario_victoria + inventario_osmar + inventario_suely + doacao,
+        )
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {
+                "Osmar Tagliari": "25%",
+                "Suely Tagliari": "25%",
+                "Fabio de Almeida Tagliari": "6,25%",
+                "Fernanda de Almeida Tagliari": "6,25%",
+                "Paulo de Morais Tagliari Oliveira": "6,25%",
+                "Rebeca de Morais Teruel Tagliari Oliveira": "6,25%",
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
