@@ -1,3 +1,4 @@
+import re
 import unicodedata
 
 
@@ -92,6 +93,7 @@ def _sem_acentos(texto):
 def classificar(texto):
     texto = texto.upper()
     texto_sem_acentos = _sem_acentos(texto)
+    texto_sem_acentos_compacto = re.sub(r"\s+", " ", texto_sem_acentos)
 
     if (
         "ALIENACAO FIDUCIARIA" in texto_sem_acentos
@@ -102,6 +104,28 @@ def classificar(texto):
             or "CREDORA/FIDUCIARIA" in texto_sem_acentos
             or "PROPRIEDADE FIDUCIARIA" in texto_sem_acentos
             or "EM ALIENACAO FIDUCIARIA" in texto_sem_acentos
+        )
+    ):
+        return ("ÔNUS", True)
+
+    if (
+        "HIPOTECA" in texto_sem_acentos
+        and not any(p in texto for p in PALAVRAS_CANCELAMENTO)
+        and not (
+            "LIBERACAO E SUBSTITUICAO DA AREA HIPOTECADA" in texto_sem_acentos
+            or (
+                "LIBERADA DA GARANTIA HIPOTECARIA" in texto_sem_acentos
+                and "PERMANECENDO HIPOTECADO" in texto_sem_acentos
+                and ("DERAM EM GARANTIA" in texto_sem_acentos or "SUBSTITUICAO" in texto_sem_acentos)
+            )
+        )
+        and (
+            "DADO EM" in texto_sem_acentos_compacto
+            or "DADA EM" in texto_sem_acentos_compacto
+            or "EM HIPOTECA" in texto_sem_acentos_compacto
+            or "GARANTIA HIPOTECARIA" in texto_sem_acentos_compacto
+            or "CEDULA RURAL HIPOTECARIA" in texto_sem_acentos_compacto
+            or "CEDULA HIPOTECARIA" in texto_sem_acentos_compacto
         )
     ):
         return ("ÔNUS", True)

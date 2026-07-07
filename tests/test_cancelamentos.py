@@ -108,6 +108,31 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(categoria, "ÔNUS")
         self.assertTrue(impacta)
 
+    def test_hipoteca_com_compra_e_venda_no_titulo_e_onus(self):
+        texto = """
+        R.05-12.011 - Nos termos do Contrato Particular de Compra e Venda e mútuo
+        com obrigações e hipoteca, o imóvel objeto da presente matrícula foi dado
+        em primeira e especial hipoteca à outorgada Credora Caixa Econômica Federal,
+        em garantia do financiamento contraído.
+        """
+
+        categoria, impacta = classificar(texto)
+
+        self.assertEqual(categoria, "ÔNUS")
+        self.assertTrue(impacta)
+
+    def test_compra_e_venda_com_titulo_de_hipoteca_sem_constituicao_expressa_ignora(self):
+        texto = """
+        R.04-12.011 - Nos termos do Contrato Particular de Compra e Venda e mútuo
+        com obrigações e hipoteca, o imóvel objeto da presente matrícula foi adquirido
+        por Fulano; por compra feita a Beltrano; financiamento concedido pela credora.
+        """
+
+        categoria, impacta = classificar(texto)
+
+        self.assertEqual(categoria, "IGNORAR")
+        self.assertFalse(impacta)
+
     def test_cancelamento_informa_ato_cancelado_mesmo_no_ato_cancelador(self):
         alienacao = ato("R.05", "R.05 - ALIENAÇÃO FIDUCIÁRIA. OBJETO DA GARANTIA: Em Alienação Fiduciária.")
         cancelamento = ato("AV.08", "AV.08 - CANCELAMENTO. Fica cancelada a alienação fiduciária constante do R.05 desta matrícula.")
