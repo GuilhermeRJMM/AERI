@@ -156,5 +156,25 @@ class TesteProprietarios(unittest.TestCase):
         )
 
 
+    def test_adquirentes_numerados_sem_espaco_depois_do_hifen(self):
+        registro = """
+        R.04-38.801 - VENDA E COMPRA. ADQUIRENTES: 1)-Valter Alves da Silva Junior,
+        brasileiro, divorciado, eletricista, inscrito no CPF/MF sob o n.º 806.115.831-00,
+        residente em Morrinhos-GO, e 2)-Marcilia Alves de Oliveira, brasileira, solteira,
+        agricultora, inscrita no CPF/MF sob o n.º 011.230.801-51, residente em Morrinhos-GO.
+        IMÓVEL: 100,00% do imóvel descrito na matrícula.
+        """
+
+        resultado = calcular_cadeia_dominial([SimpleNamespace(descricao=registro)], registro)
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {
+                "Valter Alves da Silva Junior": "50%",
+                "Marcilia Alves de Oliveira": "50%",
+            },
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -100,7 +100,7 @@ def extrair_pessoas(texto_bloco):
     if len(partes_conjuges) > 1:
         partes = [p.strip() for p in partes_conjuges if p.strip()]
     else:
-        partes = re.split(r'(?:^|\s+|;)\s*(?:\d{1,3}|[IVX]+)\)\-?\s+', texto_bloco)
+        partes = re.split(r'(?:^|\s+|;)\s*(?:\d{1,3}|[IVX]+)\)\-?\s*', texto_bloco)
         partes = [p.strip() for p in partes if p.strip()]
 
         if len(partes) == 1:
