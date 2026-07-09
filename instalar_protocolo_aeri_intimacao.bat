@@ -5,7 +5,7 @@ set "SCRIPT=%RAIZ%ferramentas\abrir_pasta_intimacao.py"
 
 reg add "HKCU\Software\Classes\aeri-intimacao" /ve /d "URL:AERI Intimacao" /f
 reg add "HKCU\Software\Classes\aeri-intimacao" /v "URL Protocol" /d "" /f
-reg add "HKCU\Software\Classes\aeri-intimacao\shell\open\command" /ve /d "\"python\" \"%SCRIPT%\" \"%%1\"" /f
+reg add "HKCU\Software\Classes\aeri-intimacao\shell\open\command" /ve /d "\"pythonw\" \"%SCRIPT%\" \"%%1\"" /f
 
 echo.
 echo Protocolo aeri-intimacao instalado com sucesso.
