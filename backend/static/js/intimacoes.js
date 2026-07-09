@@ -253,17 +253,15 @@ async function abrirPastaIntimacao(protocolo) {
     } catch (falha) {
         console.warn('Não foi possível copiar o caminho da pasta.', falha);
     }
-    try {
-        const resposta = await fetch(`${ABRIDOR_LOCAL_INTIMACOES}/abrir?protocolo=${encodeURIComponent(protocolo)}`, {
-            method: 'GET',
-            cache: 'no-store',
-        });
-        if (resposta.ok) return;
-    } catch (falha) {
-        console.warn('Abridor local indisponível.', falha);
+    const janela = window.open(
+        `${ABRIDOR_LOCAL_INTIMACOES}/abrir?protocolo=${encodeURIComponent(protocolo)}&formato=html`,
+        'aeri_abridor_pasta',
+        'popup,width=420,height=240'
+    );
+    if (!janela) {
+        window.open(urlArquivoWindows(caminho), '_blank', 'noopener');
+        alert(`O navegador bloqueou a janelinha do abridor local. O caminho foi copiado:\n\n${caminho}`);
     }
-    window.open(urlArquivoWindows(caminho), '_blank', 'noopener');
-    alert(`Não consegui acionar o abridor local. O caminho foi copiado:\n\n${caminho}\n\nPara abrir direto pelo AERI, execute o arquivo iniciar_abridor_pastas_intimacoes.bat neste computador.`);
 }
 
 function normalizarCabecalho(valor) {
