@@ -6,7 +6,6 @@ const intimacoesPendentes = new Set();
 let intimacaoCheckId = null;
 const PROTOCOLO_PASTA_FUNCIONAL = 'IN01581267C';
 const PASTA_BASE_INTIMACOES = 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\07 - 2026\\02 - Agua. pagamento (emolu informados)';
-const ABRIDOR_LOCAL_INTIMACOES = 'http://127.0.0.1:8767';
 
 function pode(permissao) {
     return ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil) || Boolean(window.aeriPermissoes?.[permissao]);
@@ -39,10 +38,6 @@ function formatarDataRotina(data) {
 
 function caminhoPastaIntimacao(protocolo) {
     return `${PASTA_BASE_INTIMACOES}\\${protocolo}`;
-}
-
-function urlArquivoWindows(caminho) {
-    return encodeURI(`file:///${caminho.replace(/\\/g, '/')}`);
 }
 
 function botaoPastaIntimacao(item) {
@@ -253,15 +248,7 @@ async function abrirPastaIntimacao(protocolo) {
     } catch (falha) {
         console.warn('Não foi possível copiar o caminho da pasta.', falha);
     }
-    const janela = window.open(
-        `${ABRIDOR_LOCAL_INTIMACOES}/abrir?protocolo=${encodeURIComponent(protocolo)}&formato=html`,
-        'aeri_abridor_pasta',
-        'popup,width=420,height=240'
-    );
-    if (!janela) {
-        window.open(urlArquivoWindows(caminho), '_blank', 'noopener');
-        alert(`O navegador bloqueou a janelinha do abridor local. O caminho foi copiado:\n\n${caminho}`);
-    }
+    window.location.href = `aeri-intimacao://abrir/${encodeURIComponent(protocolo)}`;
 }
 
 function normalizarCabecalho(valor) {
