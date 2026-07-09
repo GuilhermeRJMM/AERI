@@ -1242,7 +1242,7 @@ body.sidebar-recolhida .nav-item {
 .rotina-busca input { border:0; outline:0; width:100%; color:var(--text-main); background:transparent; font:400 .83rem "Inter",sans-serif; }
 .rotina-total { color:var(--text-muted); font-size:.78rem; font-weight:600; white-space:nowrap; }
 .rotina-table-wrap { overflow-x:auto; }
-.rotina-table { width:100%; border-collapse:collapse; min-width:1040px; font-size:.79rem; }
+.rotina-table { width:100%; border-collapse:collapse; min-width:1100px; font-size:.79rem; }
 .rotina-table th {
   padding:11px 13px; text-align:left; color:#64748b; background:#f8fafc;
   border-bottom:1px solid #dfe7f1; text-transform:uppercase; letter-spacing:.45px; font-size:.65rem;
@@ -1269,6 +1269,13 @@ body.sidebar-recolhida .nav-item {
 }
 .rotina-row-actions .rotina-check { color:#15803d; border-color:#bbf7d0; background:#f0fdf4; }
 .rotina-row-actions .perigo { color:#b91c1c; }
+.rotina-folder-btn {
+  width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center;
+  border:1px solid #dce5f1; border-radius:9px; background:#f8fafc; color:#94a3b8; cursor:not-allowed;
+}
+.rotina-folder-btn.ativo { color:#2563eb; border-color:#bfdbfe; background:#eff6ff; cursor:pointer; }
+.rotina-folder-btn.ativo:hover { background:#dbeafe; color:#1d4ed8; }
+.rotina-folder-btn:disabled { opacity:.72; }
 .rotina-vazio { padding:48px !important; text-align:center; color:#94a3b8 !important; }
 .rotina-modal { max-width:620px; padding:0 26px 25px; }
 .rotina-form-header { padding:26px 0 18px; border-bottom:1px solid #edf1f6; }

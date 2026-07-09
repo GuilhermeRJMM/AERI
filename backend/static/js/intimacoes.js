@@ -4,6 +4,8 @@ import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
 let intimacoes = [];
 const intimacoesPendentes = new Set();
 let intimacaoCheckId = null;
+const PROTOCOLO_PASTA_FUNCIONAL = 'IN01581267C';
+const PASTA_BASE_INTIMACOES = 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\07 - 2026\\02 - Agua. pagamento (emolu informados)';
 
 function pode(permissao) {
     return ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil) || Boolean(window.aeriPermissoes?.[permissao]);
@@ -34,6 +36,26 @@ function formatarDataRotina(data) {
     return new Intl.DateTimeFormat('pt-BR').format(new Date(`${data}T12:00:00`));
 }
 
+function caminhoPastaIntimacao(protocolo) {
+    return `${PASTA_BASE_INTIMACOES}\\${protocolo}`;
+}
+
+function urlArquivoWindows(caminho) {
+    return encodeURI(`file:///${caminho.replace(/\\/g, '/')}`);
+}
+
+function botaoPastaIntimacao(item) {
+    const funcional = item.protocolo === PROTOCOLO_PASTA_FUNCIONAL;
+    const titulo = funcional
+        ? `Abrir pasta de ${item.protocolo}`
+        : 'Pasta ainda não configurada para este protocolo';
+    return `<button class="rotina-folder-btn${funcional ? ' ativo' : ''}" data-acao="abrir-pasta" data-protocolo="${escaparHtml(item.protocolo)}" title="${escaparHtml(titulo)}" ${funcional ? '' : 'disabled'} aria-label="${escaparHtml(titulo)}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"/>
+        </svg>
+    </button>`;
+}
+
 function renderizarIntimacoes() {
     const tbody = document.getElementById('rotina-tbody');
     document.querySelector('label[for="importar-intimacoes"]').hidden = !(pode('criar_intimacoes') && pode('alterar_intimacoes'));
@@ -60,9 +82,10 @@ function renderizarIntimacoes() {
             <td>${escaparHtml(item.nomeAndamento || 'Não informado')}</td>
             <td>${formatarDataRotina(item.ultimoAndamento)}</td>
             <td>${item.ultimaConferencia ? formatarDataRotina(item.ultimaConferencia) : '—'}</td>
+            <td>${botaoPastaIntimacao(item)}</td>
             <td>${acoes}</td>
         </tr>`;
-    }).join('') || '<tr><td colspan="8" class="rotina-vazio">Nenhuma intimação cadastrada. Use “Nova intimação” ou importe sua planilha em CSV.</td></tr>';
+    }).join('') || '<tr><td colspan="9" class="rotina-vazio">Nenhuma intimação cadastrada. Use “Nova intimação” ou importe sua planilha em CSV.</td></tr>';
 
     const contagens = {verde:0, amarelo:0, vermelho:0, cinza:0};
     intimacoes.forEach(item => contagens[situacaoIntimacao(item).classe]++);
@@ -221,6 +244,17 @@ async function excluirIntimacao(id) {
     }
 }
 
+async function abrirPastaIntimacao(protocolo) {
+    if (protocolo !== PROTOCOLO_PASTA_FUNCIONAL) return;
+    const caminho = caminhoPastaIntimacao(protocolo);
+    try {
+        await navigator.clipboard?.writeText(caminho);
+    } catch (falha) {
+        console.warn('Não foi possível copiar o caminho da pasta.', falha);
+    }
+    window.open(urlArquivoWindows(caminho), '_blank', 'noopener');
+}
+
 function normalizarCabecalho(valor) {
     return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
@@ -321,6 +355,7 @@ function exportarIntimacoesCsv() {
 function tratarAcaoTabela(evento) {
     const botao = evento.target.closest('button[data-acao]');
     if (!botao) return;
+    if (botao.dataset.acao === 'abrir-pasta') abrirPastaIntimacao(botao.dataset.protocolo);
     if (botao.dataset.acao === 'conferir') abrirCheckIntimacao(botao.dataset.id);
     if (botao.dataset.acao === 'editar') editarIntimacao(botao.dataset.id);
     if (botao.dataset.acao === 'excluir') excluirIntimacao(botao.dataset.id);
