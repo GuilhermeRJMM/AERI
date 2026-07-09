@@ -6,6 +6,7 @@ const intimacoesPendentes = new Set();
 let intimacaoCheckId = null;
 const PROTOCOLO_PASTA_FUNCIONAL = 'IN01581267C';
 const PASTA_BASE_INTIMACOES = 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\07 - 2026\\02 - Agua. pagamento (emolu informados)';
+const ABRIDOR_LOCAL_INTIMACOES = 'http://127.0.0.1:8767';
 
 function pode(permissao) {
     return ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil) || Boolean(window.aeriPermissoes?.[permissao]);
@@ -252,7 +253,17 @@ async function abrirPastaIntimacao(protocolo) {
     } catch (falha) {
         console.warn('Não foi possível copiar o caminho da pasta.', falha);
     }
+    try {
+        const resposta = await fetch(`${ABRIDOR_LOCAL_INTIMACOES}/abrir?protocolo=${encodeURIComponent(protocolo)}`, {
+            method: 'GET',
+            cache: 'no-store',
+        });
+        if (resposta.ok) return;
+    } catch (falha) {
+        console.warn('Abridor local indisponível.', falha);
+    }
     window.open(urlArquivoWindows(caminho), '_blank', 'noopener');
+    alert(`Não consegui acionar o abridor local. O caminho foi copiado:\n\n${caminho}\n\nPara abrir direto pelo AERI, execute o arquivo iniciar_abridor_pastas_intimacoes.bat neste computador.`);
 }
 
 function normalizarCabecalho(valor) {

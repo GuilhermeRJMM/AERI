@@ -1,7 +1,7 @@
 import {iniciarAnalisador} from './analisador.js';
 import {iniciarAutenticacao} from './autenticacao.js';
 import {iniciarIncra} from './incra.js';
-import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260709-pasta-intimacao';
+import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260709-abridor-pastas';
 import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260706-status-onr';
 import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js';
