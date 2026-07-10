@@ -176,5 +176,135 @@ class TesteProprietarios(unittest.TestCase):
         )
 
 
+    def test_partilha_por_valor_e_vendas_parciais_com_cpf_repetido(self):
+        compra_pedro = """
+        R-02-3.154 - COMPRA E VENDA. o imovel objeto da presente matricula foi adquirido por
+        Pedro Jorge Pinto, brasileiro, casado com Maria Madalena Pinto, CPF n. 016.806.681-53;
+        por compra feita a Sebastiana Honorata de Lima; pelo preco de Cr$ 116.000,00.
+        """
+        meacao_pedro = """
+        R-02-3.154 - PARTILHA. Nos termos do formal de partilha dos bens deixados por
+        falecimento de Maria Madalena Pinto; coube ao viuvo meeiro Pedro Jorge Pinto,
+        CPF n. 016.806.681-53; em pagamento de sua meacao; parte ideal de Cr$ 100.000,00,
+        na avaliacao de Cr$ 200.000,00, sobre o imovel constante da presente matricula.
+        """
+        amarilda = """
+        R-03-3.154 - PARTILHA. Nos termos do formal de partilha dos bens deixados por
+        falecimento de Maria Madalena Pinto; coube a herdeira filha Amarilda Jorge da Cruz,
+        CPF n. 016.806.681-53; em pagamento de sua heranca; parte ideal de Cr$ 33.333,30,
+        na avaliacao de Cr$ 200.000,00, sobre o imovel constante da presente matricula.
+        """
+        ivone = """
+        R-04-3.154 - PARTILHA. Nos termos do formal de partilha dos bens deixados por
+        falecimento de Maria Madalena Pinto; coube a herdeira filha Ivone Aparecida Jorge,
+        CPF n. 016.806.681-53; em pagamento de sua heranca; parte ideal de Cr$ 33.333,30,
+        na avaliacao de Cr$ 200.000,00, sobre o imovel constante da presente matricula.
+        """
+        maria = """
+        R-05-3.154 - PARTILHA. Nos termos do formal de partilha dos bens deixados por
+        falecimento de Maria Madalena Pinto; coube a herdeira filha Maria Jose Jorge Alves,
+        CPF n. 016.806.681-53; em pagamento de sua heranca; parte ideal de Cr$ 33.333,40,
+        na avaliacao de Cr$ 200.000,00, sobre o imovel constante da presente matricula.
+        """
+        venda_jales = """
+        R-07-3.154 - COMPRA E VENDA. Nos termos da escritura; Jales de Almeida Silverio,
+        brasileiro, CPF n. 008.283.351-68; adquiriu por compra feita a Amarilda Jorge da Cruz
+        Vaz e seu marido Nilson Fernandes Vaz; parte ideal de Cr$ 33.333,30, na avaliacao
+        de Cr$ 200.000,00, sobre o imovel objeto da presente matricula.
+        """
+        venda_jaci_maria = """
+        R-10-3.154 - COMPRA E VENDA. uma parte ideal de Cr$ 33.333,30, na avaliacao de
+        Cr$ 200.000,00, sobre o imovel objeto da presente matricula, foi adquirido por
+        JACI MOREIRA DE ARANTES, CPF n. 052.260.401-30; por compra feita a Maria Jose Jorge
+        Alves Fernandes e seu esposo Sebastiao Fernandes Sobrinho.
+        """
+        venda_jaci_ivone = """
+        R-11-3.154 - COMPRA E VENDA. uma parte ideal de Cr$ 33.333,30, na avaliacao de
+        Cr$ 200.000,00, sobre o imovel objeto da presente matricula, foi adquirido por
+        JACI MOREIRA DE ARANTES, CPF n. 052.260.401-30; por compra feita a Ivone Aparecida
+        Jorge de Souza e seu marido Cleudson Rosa de Souza.
+        """
+
+        atos = [
+            compra_pedro,
+            meacao_pedro,
+            amarilda,
+            ivone,
+            maria,
+            venda_jales,
+            venda_jaci_maria,
+            venda_jaci_ivone,
+        ]
+        resultado = calcular_cadeia_dominial(
+            [SimpleNamespace(descricao=ato) for ato in atos],
+            "\n".join(atos),
+        )
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {
+                "Pedro Jorge Pinto": "50%",
+                "Jales de Almeida Silverio": "16,66%",
+                "JACI MOREIRA DE ARANTES": "33,34%",
+            },
+        )
+
+    def test_partilha_com_parte_ideal_sem_de_e_adquiriu_com_virgula(self):
+        cabecalho = """
+        MATRÍCULA 5.210. Proprietário: Pedro Jorge Pinto, CPF nº 016.806.681-53,
+        casado com Maria Madalena Pinto.
+        """
+        meacao = """
+        R-01-5.210 - PARTILHA. coube ao viúvo meeiro Pedro Jorge Pinto,
+        CPF nº 016.806.681-53; em pagamento de sua meação parte ideal cr$ 75.000,00,
+        na avaliação de cr$ 150.000,00, sobre o imóvel constante da presente matrícula.
+        """
+        amarilda = """
+        R-02-5.210 - PARTILHA. coube à herdeira filha Amarilda Jorge da Cruz,
+        CPF nº 016.806.681-53; em pagamento de sua herança, parte ideal de cr$ 25.000,00,
+        na avaliação de cr$ 150.000,00, sobre o imóvel constante da presente matrícula.
+        """
+        ivone = """
+        R-03-5.210 - PARTILHA. coube à herdeira filha Ivone Aparecida Jorge,
+        CPF nº 016.806.681-53; em pagamento de sua herança, parte ideal de cr$ 25.000,00,
+        na avaliação de cr$ 150.000,00, sobre o imóvel constante da presente matrícula.
+        """
+        maria = """
+        R-04-5.210 - PARTILHA. coube à herdeira filha Maria José Jorge Alves,
+        CPF nº 016.806.681-53; em pagamento de sua herança, parte ideal de cr$ 25.000,00,
+        na avaliação de cr$ 150.000,00, sobre o imóvel constante da presente matrícula.
+        """
+        venda_jales = """
+        R-06-5.210 - COMPRA E VENDA. Nos termos da escritura pública; Jales de Almeida Silvério,
+        brasileiro, CIC nº 008.283.351-68, adquiriu por compra feita a Amarilda Jorge da Cruz Vaz,
+        parte correspondente a cr$ 25.000,00 na avaliação de cr$ 150.000,00, sobre o imóvel.
+        """
+        venda_jaci_maria = """
+        R-10-5.210 - COMPRA E VENDA. uma parte ideal de Cr$ 25.000,00, na avaliação de Cr$150.000,00,
+        no imóvel objeto da presente matrícula foi adquirido por JACI MOREIRA DE ARANTES,
+        CPF nº 052.260.401-30; por compra feita a MARIA JOSÉ JORGE ALVES FERNANDES.
+        """
+        venda_jaci_ivone = """
+        R-11-5.210 - COMPRA E VENDA. uma parte ideal de Cr$ 25.000,00, na avaliação de Cr$150.000,00,
+        no imóvel objeto da presente matrícula foi adquirido por JACI MOREIRA DE ARANTES,
+        CPF nº 052.260.401-30; por compra feita a Ivone Aparecida Jorge de Souza.
+        """
+        atos = [meacao, amarilda, ivone, maria, venda_jales, venda_jaci_maria, venda_jaci_ivone]
+
+        resultado = calcular_cadeia_dominial(
+            [SimpleNamespace(descricao=ato) for ato in atos],
+            cabecalho + "\n".join(atos),
+        )
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {
+                "Pedro Jorge Pinto": "50%",
+                "Jales de Almeida Silvério": "16,66%",
+                "JACI MOREIRA DE ARANTES": "33,34%",
+            },
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

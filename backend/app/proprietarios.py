@@ -1,5 +1,6 @@
 import re
 import unicodedata
+import math
 
 def limpar_nome(nome):
     nome = ''.join(c for c in unicodedata.normalize('NFD', nome) if unicodedata.category(c) != 'Mn')
@@ -19,7 +20,36 @@ def padronizar_chave(cpf, nome):
         return cpf_limpo
     return limpar_nome(nome)
 
+def parse_valor_monetario(texto):
+    valor = re.sub(r'[^\d,.]', '', texto or '')
+    valor = valor.strip(',.')
+    if not valor:
+        return None
+    if ',' in valor:
+        valor = valor.replace('.', '').replace(',', '.')
+    else:
+        pontos = valor.count('.')
+        if pontos > 1:
+            partes = valor.split('.')
+            valor = ''.join(partes[:-1]) + '.' + partes[-1]
+    try:
+        return float(valor)
+    except ValueError:
+        return None
+
 def parse_percent(texto):
+    m_valor = re.search(
+        r'parte\s+(?:ideal|correspondente\s+a)\s+(?:de\s*)?(?:[A-Z]{1,3}\$?\s*)?([\d\.,]+).*?'
+        r'na\s+avalia\S*\s+de\s*(?:[A-Z]{1,3}\$?\s*)?([\d\.,]+)',
+        texto,
+        re.IGNORECASE | re.DOTALL
+    )
+    if m_valor:
+        parte = parse_valor_monetario(m_valor.group(1))
+        total = parse_valor_monetario(m_valor.group(2))
+        if parte is not None and total:
+            return (parte / total) * 100.0
+
     m0 = re.search(r'IM[ÓOÃ“]VEL\s*:\s*(?:equivalente\s+a\s*)?(\d+(?:,\d+)?)%', texto, re.IGNORECASE)
     if m0: return float(m0.group(1).replace(',', '.'))
 
@@ -39,6 +69,9 @@ def parse_percent(texto):
 
 def extrair_bloco(texto, tipo):
     if tipo == "ADQUIRENTE":
+        m = re.search(r';\s*(.*?)(?=,?\s*adquiriu\s+por\s+compra\b)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
+
         m = re.search(r'OUTORGADO[S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
@@ -65,6 +98,9 @@ def extrair_bloco(texto, tipo):
             return t
 
     elif tipo == "TRANSMITENTE":
+        m = re.search(r'por compra feita a[os]?\s+(.*?)(?=\bpelo valor\b|;|\.|\Z)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
+
         m = re.search(r'OUTORGANTE[S]?\s*:(.*?)(?=\bOUTORGADO[S]?\s*:|\bIM[ÓO]VEL\s*:)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
@@ -131,6 +167,7 @@ def extrair_pessoas(texto_bloco):
 
         # Limpeza visual (remove estado civil e termo "pessoa jurídica")
         nome = re.sub(r'\s+e\s+(?:seu\s+c[oô]njuge|sua\s+mulher|seu\s+marido|sua\s+esposa).*', '', nome, flags=re.I)
+        nome = re.sub(r'^(?:(?:meeir[oa]|vi[Ãºu]v[oa]|herdeir[oa]\s+filh[oa]|herdeir[oa])\s+)+', '', nome, flags=re.I)
         nome = re.sub(r'\s*,?\s*casad[oa].*', '', nome, flags=re.I)
         nome = re.sub(r'\s*,?\s*pessoa jur[íi]dica.*', '', nome, flags=re.I)
         nome = re.sub(r'\s+', ' ', nome)
@@ -180,6 +217,34 @@ def extrair_credor_consolidacao(texto):
     if not m:
         return []
     return [{"nome": m.group(1).strip(), "cpf": m.group(2).strip()}]
+
+def nomes_compativeis(nome_a, nome_b):
+    nome_a = limpar_nome(nome_a)
+    nome_b = limpar_nome(nome_b)
+    if not nome_a or not nome_b:
+        return False
+    if nome_a == nome_b:
+        return True
+    return len(nome_a) > 5 and len(nome_b) > 5 and (nome_a in nome_b or nome_b in nome_a)
+
+def chave_para_incluir(pessoa, estado):
+    chave = padronizar_chave(pessoa["cpf"], pessoa["nome"])
+    if chave in estado and not nomes_compativeis(estado[chave]["nome"], pessoa["nome"]):
+        return limpar_nome(pessoa["nome"])
+    return chave
+
+def encontrar_chave_no_estado(pessoa, estado):
+    chave_pessoa = padronizar_chave(pessoa["cpf"], pessoa["nome"])
+    nome_pessoa = pessoa["nome"]
+
+    if chave_pessoa in estado and nomes_compativeis(estado[chave_pessoa]["nome"], nome_pessoa):
+        return chave_pessoa
+
+    for chave_estado, dados_estado in estado.items():
+        if nomes_compativeis(dados_estado["nome"], nome_pessoa):
+            return chave_estado
+
+    return None
 
 def calcular_cadeia_dominial(atos, texto_integral=""):
     estado = {}
@@ -257,61 +322,66 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
         percentuais_individuais = [a.get("percentual") for a in adquirentes]
         usar_percentual_individual = all(p is not None for p in percentuais_individuais)
         percent_por_adq = percentual_ato / len(adquirentes)
+        descricao_limpa = limpar_nome(ato.descricao)
+        partilha_meacao = (
+            ("INVENTARIO" in descricao_limpa or "PARTILHA" in descricao_limpa)
+            and ("MEACAO" in descricao_limpa or "MEEIR" in descricao_limpa)
+        )
+        houve_debito = False
         
         if percentual_ato >= 99.0:
             estado.clear()
         else:
             if transmitentes:
-                percent_por_transm = percentual_ato / len(transmitentes)
+                chaves_debito = []
                 for t in transmitentes:
-                    chave_t = padronizar_chave(t["cpf"], t["nome"])
-                    nome_t_limpo = limpar_nome(t["nome"])
-                    
-                    debitou = False
-                    
-                    for chave_estado in list(estado.keys()):
-                        if chave_t == chave_estado:
-                            estado[chave_estado]["proporcao"] -= percent_por_transm
-                            if estado[chave_estado]["proporcao"] < 0.01:
-                                del estado[chave_estado]
-                            debitou = True
-                            break
-                            
-                    if not debitou:
-                        for chave_estado, dados_estado in list(estado.items()):
-                            nome_estado_limpo = limpar_nome(dados_estado["nome"])
-                            
-                            match = False
-                            if chave_estado in chave_t or chave_t in chave_estado:
-                                match = True
-                            elif len(nome_estado_limpo) > 5 and len(nome_t_limpo) > 5:
-                                if nome_estado_limpo in nome_t_limpo or nome_t_limpo in nome_estado_limpo:
-                                    match = True
-                                    
-                            if match:
-                                estado[chave_estado]["proporcao"] -= percent_por_transm
-                                if estado[chave_estado]["proporcao"] < 0.01:
-                                    del estado[chave_estado]
-                                debitou = True
-                                break
+                    chave_encontrada = encontrar_chave_no_estado(t, estado)
+                    if chave_encontrada and chave_encontrada not in chaves_debito:
+                        chaves_debito.append(chave_encontrada)
+
+                if chaves_debito:
+                    percent_por_transm = percentual_ato / len(chaves_debito)
+                    for chave_estado in chaves_debito:
+                        if chave_estado not in estado:
+                            continue
+                        estado[chave_estado]["proporcao"] -= percent_por_transm
+                        if estado[chave_estado]["proporcao"] < 0.01:
+                            del estado[chave_estado]
+                        houve_debito = True
         
         for a in adquirentes:
-            chave_a = padronizar_chave(a["cpf"], a["nome"])
+            chave_a = chave_para_incluir(a, estado)
+            proporcao_adquirida = a["percentual"] if usar_percentual_individual else percent_por_adq
+            if partilha_meacao and not houve_debito and chave_a in estado:
+                estado[chave_a]["nome"] = a["nome"]
+                estado[chave_a]["cpf_original"] = a["cpf"]
+                estado[chave_a]["proporcao"] = proporcao_adquirida
+                continue
             if chave_a not in estado:
                 estado[chave_a] = {"nome": a["nome"], "cpf_original": a["cpf"], "proporcao": 0.0}
-            estado[chave_a]["proporcao"] += a["percentual"] if usar_percentual_individual else percent_por_adq
+            estado[chave_a]["proporcao"] += proporcao_adquirida
             
+    ativos = [dados for dados in estado.values() if dados["proporcao"] > 0.01]
+    proporcoes = [math.floor(dados["proporcao"] * 100 + 1e-9) / 100 for dados in ativos]
+    total_original = sum(dados["proporcao"] for dados in ativos)
+    if ativos and abs(total_original - 100.0) < 0.1:
+        centesimos_residuais = int(round((100.0 - sum(proporcoes)) * 100))
+        indice = len(proporcoes) - 1
+        while centesimos_residuais > 0 and indice >= 0:
+            proporcoes[indice] += 0.01
+            centesimos_residuais -= 1
+            indice -= 1
+
     resultado = []
-    for chave, dados in estado.items():
-        if dados["proporcao"] > 0.01:
-            prop_formatada = f"{dados['proporcao']:.2f}%".replace('.', ',')
-            if prop_formatada.endswith(",00%"):
-                prop_formatada = prop_formatada.replace(",00%", "%")
-                
-            resultado.append({
-                "nome": dados["nome"],
-                "cpf": dados["cpf_original"],
-                "proporcao": prop_formatada
-            })
+    for dados, proporcao in zip(ativos, proporcoes):
+        prop_formatada = f"{proporcao:.2f}%".replace('.', ',')
+        if prop_formatada.endswith(",00%"):
+            prop_formatada = prop_formatada.replace(",00%", "%")
+
+        resultado.append({
+            "nome": dados["nome"],
+            "cpf": dados["cpf_original"],
+            "proporcao": prop_formatada
+        })
             
     return resultado
