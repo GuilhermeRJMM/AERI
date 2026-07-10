@@ -69,6 +69,12 @@ def parse_percent(texto):
 
 def extrair_bloco(texto, tipo):
     if tipo == "ADQUIRENTE":
+        m = re.search(r'\bvendeu\s+.*?\bpara\s+(.*?)(?=\bpelo valor\b|\bpelo preÃ§o\b|;|\.\s*Dou|\.\s*O referido|\Z)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
+
+        m = re.search(r'\badjudicante\s*:\s*(.*?)(?=\*NOTA|;|\.\s*Dou|\.\s*DOU|\Z)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
+
         m = re.search(r';\s*(.*?)(?=,?\s*adquiriu\s+por\s+compra\b)', texto, re.I | re.DOTALL)
         if m and m.group(1).strip().rstrip(';, '): return m.group(1).strip().rstrip(';, ')
 
@@ -322,7 +328,7 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                         "proporcao": proporcao_individual
                     }
 
-        if not any(x in ato.descricao.upper() for x in atos_transmissao):
+        if not any(x in ato.descricao.upper() for x in atos_transmissao) and "ADJUDICA" not in ato.descricao.upper():
             continue
         
         percentual_ato = parse_percent(ato.descricao)

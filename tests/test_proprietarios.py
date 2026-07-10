@@ -381,5 +381,42 @@ class TesteProprietarios(unittest.TestCase):
         )
 
 
+    def test_compra_com_redacao_vendeu_para(self):
+        cabecalho = """
+        MATRÍCULA 21.535. PROPRIETÁRIA: MARIA APARECIDA DA CUNHA, CPF nº 264.168.911-15.
+        """
+        venda = """
+        R-2-Matr.21.535. COMPRA E VENDA. a proprietária, MARIA APARECIDA DA CUNHA,
+        inscrita no CPF/MF sob o nº 264.168.911-15, vendeu o imóvel objeto desta matrícula
+        para JACI MOREIRA DE ARANTES, inscrito no CPF/MF sob o nº 052.260.401-30,
+        casado com MUIARI DAS GRAÇAS SERRA DE ARANTES; pelo valor de R$ 138.000,00.
+        """
+
+        resultado = calcular_cadeia_dominial([SimpleNamespace(descricao=venda)], cabecalho + venda)
+
+        self.assertEqual(
+            resultado,
+            [{"nome": "JACI MOREIRA DE ARANTES", "cpf": "052.260.401-30", "proporcao": "100%"}],
+        )
+
+    def test_adjudicacao_transfere_propriedade(self):
+        cabecalho = """
+        MATRÍCULA 21.592. PROPRIETÁRIO: ROGÉRIO MARCONDES DE SOUZA SOARES,
+        CPF nº 784.120.641-00.
+        """
+        adjudicacao = """
+        R.07-21.592 - ADJUDICAÇÃO. para constar que o imóvel objeto desta matrícula
+        coube ao adjudicante: Jaci Moreira de Arantes, inscrito no CPF/MF sob o nº
+        052.260.401-30, casado com Muiari das Graças Serra de Arantes.
+        """
+
+        resultado = calcular_cadeia_dominial([SimpleNamespace(descricao=adjudicacao)], cabecalho + adjudicacao)
+
+        self.assertEqual(
+            resultado,
+            [{"nome": "Jaci Moreira de Arantes", "cpf": "052.260.401-30", "proporcao": "100%"}],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

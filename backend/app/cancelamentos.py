@@ -33,8 +33,9 @@ def aplicar_cancelamentos(atos):
             indice[chave_normalizada] = ato
 
     for posicao, ato in enumerate(atos):
-        if ato.categoria == "CANCELAMENTO":
-            texto = ato.descricao.upper()
+        texto = ato.descricao.upper()
+        tem_cancelamento_expresso = ato.categoria == "CANCELAMENTO" or "CANCELAD" in texto or "CANCELAMENT" in texto
+        if tem_cancelamento_expresso:
             cancelou_alvo_explicito = False
             
             alvos = re.finditer(r'(R|AV)[\.\-,]+\s*0*(\d+)', texto)

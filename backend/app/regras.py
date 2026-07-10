@@ -60,6 +60,7 @@ REGRAS = {
     # --- ATOS COMUNS (Para o sistema achar primeiro e ignorar o resto do texto) ---
     "VENDA E COMPRA": {"categoria": "IGNORAR", "impacta": False},
     "COMPRA E VENDA": {"categoria": "IGNORAR", "impacta": False},
+    "ADJUDICAÃ‡ÃƒO": {"categoria": "IGNORAR", "impacta": False},
     "DOAÇÃO": {"categoria": "IGNORAR", "impacta": False},
     "INVENTÁRIO/PARTILHA": {"categoria": "IGNORAR", "impacta": False},
     "INVENTÁRIO": {"categoria": "IGNORAR", "impacta": False},

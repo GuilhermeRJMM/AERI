@@ -191,5 +191,19 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(cancelamento.cancela_atos, ["R.02"])
 
 
+    def test_adjudicacao_pode_cancelar_penhora_na_nota(self):
+        penhora = ato("R.03", "R.03 - PENHORA do imóvel objeto da matrícula.")
+        adjudicacao = ato(
+            "R.07",
+            "R.07 - ADJUDICAÇÃO. O imóvel coube ao adjudicante. *NOTA: fica cancelada a penhora constante do R.03 supra.",
+        )
+
+        aplicar_cancelamentos([penhora, adjudicacao])
+
+        self.assertEqual(penhora.status, "CANCELADO")
+        self.assertEqual(penhora.cancelado_por, "R.07")
+        self.assertEqual(adjudicacao.cancela_atos, ["R.03"])
+
+
 if __name__ == "__main__":
     unittest.main()
