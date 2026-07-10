@@ -1,7 +1,12 @@
 import unittest
 from types import SimpleNamespace
 
-from backend.app.proprietarios import calcular_cadeia_dominial, extrair_bloco, extrair_pessoas
+from backend.app.proprietarios import (
+    calcular_cadeia_dominial,
+    extrair_bloco,
+    extrair_indicacao_titularidade,
+    extrair_pessoas,
+)
 
 
 class TesteProprietarios(unittest.TestCase):
@@ -432,6 +437,70 @@ class TesteProprietarios(unittest.TestCase):
         self.assertEqual(
             resultado,
             [{"nome": "Jaci Moreira Arantes", "cpf": "052.260.401-30", "proporcao": "100%"}],
+        )
+
+    def test_indicacao_de_titularidade_extrai_percentuais_consolidados(self):
+        indicacao = """
+        AV.19-29.774 - INDICACAO DE TITULARIDADE EX-OFFICIO.
+        ATO                                      CO-PROPRIETARIO                       PERCENTUAL
+        Matricula, R.07, R.09, R.12, R.15       Divina Aparecida Amaro da Silva       31,71375%
+        Matricula                               Albina Maria da Silva / Pedro Silva   9,49%
+        Matricula, R.07,
+        R.09
+                                                 Teneciro da Cunha e Silva             0,84%
+        Total                                   3 proprietarios                       42,04375%
+        DOU FE.
+        """
+
+        proprietarios = extrair_indicacao_titularidade(indicacao)
+
+        self.assertEqual(
+            proprietarios,
+            [
+                {
+                    "nome": "Divina Aparecida Amaro da Silva",
+                    "cpf": "CPF/CNPJ NÃO INFORMADO",
+                    "percentual": 31.71375,
+                    "proporcao_texto": "31,71375%",
+                },
+                {
+                    "nome": "Albina Maria da Silva / Pedro Silva",
+                    "cpf": "CPF/CNPJ NÃO INFORMADO",
+                    "percentual": 9.49,
+                    "proporcao_texto": "9,49%",
+                },
+                {
+                    "nome": "Teneciro da Cunha e Silva",
+                    "cpf": "CPF/CNPJ NÃO INFORMADO",
+                    "percentual": 0.84,
+                    "proporcao_texto": "0,84%",
+                },
+            ],
+        )
+
+    def test_indicacao_de_titularidade_atualiza_cadeia_e_permite_ato_posterior(self):
+        indicacao = """
+        AV.19-29.774 - INDICACAO DE TITULARIDADE EX-OFFICIO.
+        Matricula   Divina Aparecida Amaro da Silva   70%
+        Matricula   Albina Maria da Silva             30%
+        """
+        venda = """
+        R.20-29.774 - VENDA E COMPRA. TRANSMITENTE: Albina Maria da Silva.
+        ADQUIRENTE: Comprador Novo, inscrito no CPF/MF sob o n. 111.222.333-44.
+        IMOVEL: 30% do imovel descrito na matricula.
+        """
+
+        resultado = calcular_cadeia_dominial(
+            [SimpleNamespace(descricao=indicacao), SimpleNamespace(descricao=venda)],
+            indicacao + venda,
+        )
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {
+                "Divina Aparecida Amaro da Silva": "70%",
+                "Comprador Novo": "30%",
+            },
         )
 
 

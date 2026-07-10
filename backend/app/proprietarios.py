@@ -87,7 +87,7 @@ def extrair_bloco(texto, tipo):
         m = re.search(r'OUTORGADO[S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'ADQUIRENTE[S]?\s*:(.*?)(?=\bIMÓVEL\s*:|\bORIGEM\s*:|\bFORMA DO TÍTULO\b)', texto, re.I | re.DOTALL)
+        m = re.search(r'ADQUIRENTE[S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO TÍTULO\b)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(r'DONAT[AÁ]RIO[S]?\s*:(.*?)(?=\bIM[ÓOÃ“]VEL\s*:|\bOBJETO\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
@@ -116,7 +116,7 @@ def extrair_bloco(texto, tipo):
         m = re.search(r'OUTORGANTE[S]?\s*:(.*?)(?=\bOUTORGADO[S]?\s*:|\bIM[ÓO]VEL\s*:)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'TRANSMITENTE[S]?\s*:(.*?)(?=\bADQUIRENTE[S]?\s*:|\bIMÓVEL\s*:)', texto, re.I | re.DOTALL)
+        m = re.search(r'TRANSMITENTE[S]?\s*:(.*?)(?=\bADQUIRENTE[S]?\s*:|\bIM[ÓO]VEL\s*:)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(r'DOADOR(?:A|ES|AS)?\s*:(.*?)(?=\bINTERVENIENTE\s*:|\bDONAT[AÁ]RIO[S]?\s*:|\bOBJETO\s*:|\bIM[ÓOÃ“]VEL\s*:)', texto, re.I | re.DOTALL)
@@ -242,6 +242,69 @@ def extrair_credor_consolidacao(texto):
         return []
     return [{"nome": m.group(1).strip(), "cpf": m.group(2).strip()}]
 
+def contem_indicacao_titularidade(texto):
+    texto_limpo = limpar_nome(texto)
+    return "INDICA" in texto_limpo and "TITULARIDADE" in texto_limpo
+
+def formatar_percentual_indicado(valor):
+    texto = f"{valor:.5f}".rstrip('0').rstrip('.').replace('.', ',')
+    return f"{texto}%"
+
+def extrair_indicacao_titularidade(texto):
+    if not contem_indicacao_titularidade(texto):
+        return []
+
+    proprietarios = []
+    buffer = []
+
+    for linha in texto.splitlines():
+        linha = linha.strip()
+        if not linha:
+            continue
+
+        linha_limpa = limpar_nome(linha)
+        if (
+            linha_limpa in {"ATO", "CO-PROPRIETARIO", "PERCENTUAL", "(%)"}
+            or "INDICA" in linha_limpa
+            or "TITULARIDADE" in linha_limpa
+            or linha_limpa.startswith("PROCEDE-SE")
+            or linha_limpa.startswith("A FIM DE")
+        ):
+            continue
+        if linha_limpa.startswith("TOTAL") or linha_limpa.startswith("DOU FE"):
+            buffer = []
+            continue
+
+        buffer.append(linha)
+        percentual = re.search(r'(\d+(?:[,.]\d+)?)\s*%', linha)
+        if not percentual:
+            continue
+
+        linha_completa = " ".join(buffer)
+        buffer = []
+        proporcao = float(percentual.group(1).replace(',', '.'))
+        antes_percentual = linha_completa[:linha_completa.rfind(percentual.group(0))].strip(" \t-")
+        colunas = [
+            parte.strip(" \t-")
+            for parte in re.split(r'\t+|\s{2,}', antes_percentual)
+            if parte.strip(" \t-")
+        ]
+        nome = colunas[-1] if colunas else antes_percentual
+        nome = re.sub(r'^(?:(?:e\s*)?(?:Matr[ií]cula|R\.?\s*\d+|AV\.?\s*\d+)[\s,.;/-]*)+', '', nome, flags=re.I).strip(" \t-")
+        nome = re.sub(r'\s+', ' ', nome)
+
+        if not nome or limpar_nome(nome).startswith("TOTAL"):
+            continue
+
+        proprietarios.append({
+            "nome": nome,
+            "cpf": "CPF/CNPJ NÃO INFORMADO",
+            "percentual": proporcao,
+            "proporcao_texto": formatar_percentual_indicado(proporcao),
+        })
+
+    return proprietarios
+
 def nomes_compativeis(nome_a, nome_b):
     nome_a = limpar_nome(nome_a)
     nome_b = limpar_nome(nome_b)
@@ -290,6 +353,19 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
     ]
     
     for ato in atos:
+        indicados = extrair_indicacao_titularidade(ato.descricao)
+        if indicados:
+            estado.clear()
+            for indicado in indicados:
+                chave = chave_para_incluir(indicado, estado)
+                estado[chave] = {
+                    "nome": indicado["nome"],
+                    "cpf_original": indicado["cpf"],
+                    "proporcao": indicado["percentual"],
+                    "proporcao_texto": indicado["proporcao_texto"],
+                }
+            continue
+
         credores_consolidados = extrair_credor_consolidacao(ato.descricao)
         if credores_consolidados:
             estado.clear()
@@ -369,6 +445,7 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                         if chave_estado not in estado:
                             continue
                         estado[chave_estado]["proporcao"] -= percent_por_transm
+                        estado[chave_estado].pop("proporcao_texto", None)
                         if estado[chave_estado]["proporcao"] < 0.01:
                             del estado[chave_estado]
                         houve_debito = True
@@ -380,10 +457,12 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                 estado[chave_a]["nome"] = a["nome"]
                 estado[chave_a]["cpf_original"] = a["cpf"]
                 estado[chave_a]["proporcao"] = proporcao_adquirida
+                estado[chave_a].pop("proporcao_texto", None)
                 continue
             if chave_a not in estado:
                 estado[chave_a] = {"nome": a["nome"], "cpf_original": a["cpf"], "proporcao": 0.0}
             estado[chave_a]["proporcao"] += proporcao_adquirida
+            estado[chave_a].pop("proporcao_texto", None)
             
     ativos = [dados for dados in estado.values() if dados["proporcao"] > 0.01]
     proporcoes = [math.floor(dados["proporcao"] * 100 + 1e-9) / 100 for dados in ativos]
@@ -398,9 +477,11 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
 
     resultado = []
     for dados, proporcao in zip(ativos, proporcoes):
-        prop_formatada = f"{proporcao:.2f}%".replace('.', ',')
-        if prop_formatada.endswith(",00%"):
-            prop_formatada = prop_formatada.replace(",00%", "%")
+        prop_formatada = dados.get("proporcao_texto")
+        if not prop_formatada:
+            prop_formatada = f"{proporcao:.2f}%".replace('.', ',')
+            if prop_formatada.endswith(",00%"):
+                prop_formatada = prop_formatada.replace(",00%", "%")
 
         resultado.append({
             "nome": dados["nome"],
