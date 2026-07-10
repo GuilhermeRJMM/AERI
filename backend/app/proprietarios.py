@@ -137,6 +137,14 @@ def extrair_pessoas(texto_bloco):
     pessoas = []
     if not texto_bloco: return pessoas
 
+    conjuge_casamento = re.search(
+        r'\bcasad[oa]\s+sob\s+o\s+regime\b.*?\bcom\s+'
+        r'([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][^,]+?)\s*,'
+        r'.*?(?:CPF|CIC|CNPJ|CGC|MF)[^\d]*([\d\.\-\/]{9,20})',
+        texto_bloco,
+        re.I | re.DOTALL
+    )
+
     # Em atos com casal, cada cônjuge pode ter nome e CPF próprios no mesmo bloco.
     # Se não separarmos aqui, a limpeza abaixo remove o segundo cônjuge inteiro.
     partes_conjuges = re.split(
@@ -201,6 +209,15 @@ def extrair_pessoas(texto_bloco):
         if percentual is not None:
             pessoa["percentual"] = percentual
         pessoas.append(pessoa)
+
+    if conjuge_casamento and len(pessoas) > 1:
+        nome_conjuge = re.sub(r'\s+', ' ', conjuge_casamento.group(1)).strip(' ,.')
+        cpf_conjuge = conjuge_casamento.group(2).strip().rstrip('.,;')
+        for pessoa in pessoas:
+            if padronizar_chave(pessoa["cpf"], pessoa["nome"]) == padronizar_chave(cpf_conjuge, nome_conjuge):
+                pessoa["nome"] = nome_conjuge
+                pessoa["cpf"] = cpf_conjuge
+                break
 
     return pessoas
 

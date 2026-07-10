@@ -54,6 +54,35 @@ class TesteProprietarios(unittest.TestCase):
             },
         )
 
+    def test_proprietario_inicial_com_conjuge_apos_regime_de_bens(self):
+        cabecalho = """
+        IMÓVEL: Lote n.º 33, da Quadra 12. PROPRIETÁRIO: Rodrigo Lafayette de Godoy,
+        engenheiro, portador da Carteira de Identidade RG n.º 3435580-SSP/GO, e inscrito
+        no CPF/MF n.º 805.212.901-04, casado sob o regime da comunhão parcial de bens
+        posteriormente ao advento da Lei Federal 6.515/77 com Letícia Borges Mendanha de
+        Godoy, psicóloga, portadora da Carteira Nacional de Habilitação CNH registro
+        n.º 04164054414-DETRAN/GO, e inscrita no CPF/MF n.º 991.849.401-82, brasileiros,
+        residentes e domiciliados em Morrinhos-GO. Origem: Matrícula n.º 21.369.
+        """
+
+        resultado = calcular_cadeia_dominial([], cabecalho)
+
+        self.assertEqual(
+            resultado,
+            [
+                {
+                    "nome": "Rodrigo Lafayette de Godoy",
+                    "cpf": "805.212.901-04",
+                    "proporcao": "50%",
+                },
+                {
+                    "nome": "Letícia Borges Mendanha de Godoy",
+                    "cpf": "991.849.401-82",
+                    "proporcao": "50%",
+                },
+            ],
+        )
+
     def test_titulo_de_dominio_do_incra_transfere_ao_outorgado(self):
         cabecalho = """
         IMÓVEL: Fazenda Paraíso e Tijuqueiro, Lote 18. PROPRIETÁRIO: Instituto
