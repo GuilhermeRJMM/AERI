@@ -180,5 +180,16 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(cancelamento.cancela_atos, ["R.05"])
 
 
+    def test_cancelamento_reconhece_virgula_entre_tipo_e_numero(self):
+        hipoteca = ato("R.02", "R.02 - Cedula Rural Pignoraticia e Hipotecaria. Objeto da garantia: Em hipoteca cedular.")
+        cancelamento = ato("AV.04", "AV.04 - Cancelamento. Pagamento total da divida constante do R-,02 supra, averba-se o cancelamento daquele Registro.")
+
+        aplicar_cancelamentos([hipoteca, cancelamento])
+
+        self.assertEqual(hipoteca.status, "CANCELADO")
+        self.assertEqual(hipoteca.cancelado_por, "AV.04")
+        self.assertEqual(cancelamento.cancela_atos, ["R.02"])
+
+
 if __name__ == "__main__":
     unittest.main()
