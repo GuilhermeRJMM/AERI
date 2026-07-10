@@ -417,6 +417,23 @@ class TesteProprietarios(unittest.TestCase):
             [{"nome": "Jaci Moreira de Arantes", "cpf": "052.260.401-30", "proporcao": "100%"}],
         )
 
+    def test_compra_com_redacao_adquirido_pelo_remove_titulo(self):
+        cabecalho = """
+        MATRICULA 5.975. Proprietario: Jose Ferreira de Melo, CPF n. 017.044.601-82.
+        """
+        venda = """
+        R-01-5.975 - COMPRA E VENDA. o imovel objeto da presente matricula, foi adquirido pelo
+        Dr. Jaci Moreira Arantes, brasileiro, medico, CIC n. 052.260.401-30; por compra feita a
+        Jose Ferreira de Melo; pelo preco de Cr$ 68.900.000.
+        """
+
+        resultado = calcular_cadeia_dominial([SimpleNamespace(descricao=venda)], cabecalho + venda)
+
+        self.assertEqual(
+            resultado,
+            [{"nome": "Jaci Moreira Arantes", "cpf": "052.260.401-30", "proporcao": "100%"}],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

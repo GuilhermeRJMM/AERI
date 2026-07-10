@@ -93,7 +93,7 @@ def extrair_bloco(texto, tipo):
         m = re.search(r'DONAT[AÁ]RIO[S]?\s*:(.*?)(?=\bIM[ÓOÃ“]VEL\s*:|\bOBJETO\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'adquirido por\s*:?\s*(.*?)(?=\bpor compra\b|\bpelo preço\b|\bem pagamento\b|\bpor doação\b)', texto, re.I | re.DOTALL)
+        m = re.search(r'adquirido\s+(?:por|pel[oa])\s*:?\s*(.*?)(?=\bpor compra\b|\bpelo preço\b|\bem pagamento\b|\bpor doação\b)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(r'coube\s+(?:a|ao|aos|à|às)\s+(.*?)(?=\bem pagamento\b|\ba totalidade\b|\bpor aquisi[çc][ãa]o\b|\bconforme\b)', texto, re.I | re.DOTALL)
@@ -186,6 +186,7 @@ def extrair_pessoas(texto_bloco):
         percentual = float(percentual_match.group(1).replace(',', '.')) if percentual_match else None
 
         nome = nome_match.group(1).strip() if nome_match else "DESCONHECIDO"
+        nome = re.sub(r'^(?:Dr\.?|Dra\.?|Doutor(?:a)?)\s+', '', nome, flags=re.I)
         cpf = cpf_match.group(1).strip().rstrip('.,;') if cpf_match else "CPF/CNPJ NÃO INFORMADO"
 
         # Limpeza visual (remove estado civil e termo "pessoa jurídica")
