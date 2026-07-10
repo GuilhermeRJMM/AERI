@@ -150,6 +150,26 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(categoria, "IGNORAR")
         self.assertFalse(impacta)
 
+    def test_sobrenome_assuncao_em_inventario_nao_cria_onus(self):
+        texto = """
+        R.05-31.465 - INVENTÁRIO/PARTILHA. ADQUIRENTES: 1)- Valdomiro Avelino
+        Vieira, inscrito no CPF/MF sob o n.º 089.368.111-34; 2)- Eni Avelina de
+        Assunção, inscrita no CPF/MF sob o n.º 704.587.231-34, casada com Lazídio
+        Dionízio de Assunção. IMÓVEL: O descrito na matrícula. FORMA DO TÍTULO:
+        Escritura Pública de Arrolamento e Partilha.
+        """
+
+        categoria, impacta = classificar(texto)
+
+        self.assertEqual(categoria, "IGNORAR")
+        self.assertFalse(impacta)
+
+    def test_assuncao_de_divida_continua_sendo_onus(self):
+        categoria, impacta = classificar("AV.01 - ASSUNÇÃO DE DÍVIDA garantida pelo imóvel.")
+
+        self.assertEqual(categoria, "ÔNUS")
+        self.assertTrue(impacta)
+
     def test_cancelamento_informa_ato_cancelado_mesmo_no_ato_cancelador(self):
         alienacao = ato("R.05", "R.05 - ALIENAÇÃO FIDUCIÁRIA. OBJETO DA GARANTIA: Em Alienação Fiduciária.")
         cancelamento = ato("AV.08", "AV.08 - CANCELAMENTO. Fica cancelada a alienação fiduciária constante do R.05 desta matrícula.")
