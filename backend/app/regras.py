@@ -95,6 +95,27 @@ def classificar(texto):
     texto_sem_acentos = _sem_acentos(texto)
     texto_sem_acentos_compacto = re.sub(r"\s+", " ", texto_sem_acentos)
 
+    # Aditivo que apenas retifica/ratifica condiÃ§Ãµes da dÃ­vida, como
+    # vencimento e forma de pagamento, nÃ£o constitui novo Ã´nus. A garantia
+    # anterior continua sendo controlada pelo ato original jÃ¡ registrado.
+    if (
+        "ADITIVO" in texto_sem_acentos
+        and "RATIFIC" in texto_sem_acentos
+        and "VENCIMENTO" in texto_sem_acentos
+        and "FORMA DE PAGAMENTO" in texto_sem_acentos
+        and "GARANTIAS NELA CONSTITUIDAS" in texto_sem_acentos
+        and not any(expressao in texto_sem_acentos_compacto for expressao in (
+            "OBJETO DA GARANTIA",
+            "OBJETOS DA GARANTIA",
+            "EM HIPOTECA",
+            "EM ALIENACAO FIDUCIARIA",
+            "DADO EM HIPOTECA",
+            "DADA EM HIPOTECA",
+            "PROPRIEDADE FIDUCIARIA",
+        ))
+    ):
+        return ("IGNORAR", False)
+
     if (
         "ALIENACAO FIDUCIARIA" in texto_sem_acentos
         and not any(p in texto for p in PALAVRAS_CANCELAMENTO)

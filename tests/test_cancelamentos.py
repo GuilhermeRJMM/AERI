@@ -133,6 +133,23 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(categoria, "IGNORAR")
         self.assertFalse(impacta)
 
+    def test_aditivo_que_so_ratifica_vencimento_nao_cria_onus(self):
+        texto = """
+        AV.35-31.464 - ADITIVO. Nos termos do Aditivo de Retificação e
+        Ratificação à Cédula de Crédito Bancário, registrada sob o R.29,
+        procede-se a presente averbação para constar as seguintes alterações:
+        VENCIMENTO: De 20.08.2026 para 20.05.2027. FORMA DE PAGAMENTO: uma
+        parcela vencível em 20.05.2027. As partes ratificam ainda, em todos
+        seus termos, as cláusulas, itens e demais condições estabelecidas na
+        cédula aditada, inclusive as garantias nela constituídas, não
+        expressamente alteradas pelo aditivo.
+        """
+
+        categoria, impacta = classificar(texto)
+
+        self.assertEqual(categoria, "IGNORAR")
+        self.assertFalse(impacta)
+
     def test_cancelamento_informa_ato_cancelado_mesmo_no_ato_cancelador(self):
         alienacao = ato("R.05", "R.05 - ALIENAÇÃO FIDUCIÁRIA. OBJETO DA GARANTIA: Em Alienação Fiduciária.")
         cancelamento = ato("AV.08", "AV.08 - CANCELAMENTO. Fica cancelada a alienação fiduciária constante do R.05 desta matrícula.")
