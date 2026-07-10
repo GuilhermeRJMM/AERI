@@ -5,6 +5,7 @@ from uuid import uuid4
 
 
 from backend.app.servicos import intimacoes as servico
+from ferramentas.abrir_pasta_intimacao import caminho_pasta
 
 
 class TesteIntimacoes(unittest.TestCase):
@@ -55,6 +56,21 @@ class TesteIntimacoes(unittest.TestCase):
         self.assertEqual(39, sql.count("('IN"))
         self.assertNotIn("Desistência Concluída", sql)
         self.assertIn("backup_intimacoes_20260702_antes_importacao", sql)
+
+
+    def test_resolve_pasta_especifica_de_protocolo_2025(self):
+        caminho = caminho_pasta("IN01430613C")
+
+        self.assertEqual("IN01430613C", caminho.name)
+        self.assertIn("06 - 2025", str(caminho))
+        self.assertIn("03 - Intimacao por Edital", str(caminho))
+
+    def test_resolve_pasta_padrao_para_protocolos_2026(self):
+        caminho = caminho_pasta("in01625306c")
+
+        self.assertEqual("IN01625306C", caminho.name)
+        self.assertIn("07 - 2026", str(caminho))
+        self.assertIn("02 - Agua. pagamento (emolu informados)", str(caminho))
 
 
 if __name__ == "__main__":

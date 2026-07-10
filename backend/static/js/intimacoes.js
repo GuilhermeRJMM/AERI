@@ -4,8 +4,22 @@ import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
 let intimacoes = [];
 const intimacoesPendentes = new Set();
 let intimacaoCheckId = null;
-const PROTOCOLO_PASTA_FUNCIONAL = 'IN01581267C';
 const PASTA_BASE_INTIMACOES = 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\07 - 2026\\02 - Agua. pagamento (emolu informados)';
+const PASTAS_PROTOCOLOS = {
+    IN01504624C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\01 - Abertos (pagos)\\IN01504624C',
+    IN01503150C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\02 - Agua. pagamento (emolu informados)\\IN01503150C',
+    IN01473689C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\02 - Agua. pagamento (emolu informados)\\IN01473689C',
+    IN01460329C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\02 - Agua. pagamento (emolu informados)\\IN01460329C',
+    IN01430613C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\03 - Intimacao por Edital\\IN01430613C',
+    IN01422847C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\03 - Intimacao por Edital\\IN01422847C',
+    IN01401145C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\02 - Agua. pagamento (emolu informados)\\IN01401145C',
+    IN01394314C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\03 - Intimacao por Edital\\IN01394314C',
+    IN01391476C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\03 - Intimacao por Edital\\IN01391476C',
+    IN01381247C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\02 - Agua. pagamento (emolu informados)\\IN01381247C',
+    IN01369960C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\02 - Agua. pagamento (emolu informados)\\IN01369960C',
+    IN01358054C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\01 - Abertos (pagos)\\IN01358054C',
+    IN01345616C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\01 - Abertos (pagos)\\IN01345616C',
+};
 
 function pode(permissao) {
     return ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil) || Boolean(window.aeriPermissoes?.[permissao]);
@@ -37,15 +51,13 @@ function formatarDataRotina(data) {
 }
 
 function caminhoPastaIntimacao(protocolo) {
-    return `${PASTA_BASE_INTIMACOES}\\${protocolo}`;
+    const protocoloNormalizado = String(protocolo || '').trim().toUpperCase();
+    return PASTAS_PROTOCOLOS[protocoloNormalizado] || `${PASTA_BASE_INTIMACOES}\\${protocoloNormalizado}`;
 }
 
 function botaoPastaIntimacao(item) {
-    const funcional = item.protocolo === PROTOCOLO_PASTA_FUNCIONAL;
-    const titulo = funcional
-        ? `Abrir pasta de ${item.protocolo}`
-        : 'Pasta ainda não configurada para este protocolo';
-    return `<button class="rotina-folder-btn${funcional ? ' ativo' : ''}" data-acao="abrir-pasta" data-protocolo="${escaparHtml(item.protocolo)}" title="${escaparHtml(titulo)}" ${funcional ? '' : 'disabled'} aria-label="${escaparHtml(titulo)}">
+    const titulo = `Abrir pasta de ${item.protocolo}`;
+    return `<button class="rotina-folder-btn ativo" data-acao="abrir-pasta" data-protocolo="${escaparHtml(item.protocolo)}" title="${escaparHtml(titulo)}" aria-label="${escaparHtml(titulo)}">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"/>
         </svg>
@@ -241,7 +253,6 @@ async function excluirIntimacao(id) {
 }
 
 async function abrirPastaIntimacao(protocolo) {
-    if (protocolo !== PROTOCOLO_PASTA_FUNCIONAL) return;
     const caminho = caminhoPastaIntimacao(protocolo);
     try {
         await navigator.clipboard?.writeText(caminho);
