@@ -190,6 +190,16 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(hipoteca.cancelado_por, "AV.04")
         self.assertEqual(cancelamento.cancela_atos, ["R.02"])
 
+    def test_cancelamento_reconhece_referencia_grudada_no_numero(self):
+        hipoteca = ato("R.02", "R.02 - Cedula Rural Pignoraticia e Hipotecaria. Objeto da garantia: Em hipoteca cedular.")
+        cancelamento = ato("AV.03", "AV.03 - Cancelamento. Para que o registro R2-451 fique cancelado.")
+
+        aplicar_cancelamentos([hipoteca, cancelamento])
+
+        self.assertEqual(hipoteca.status, "CANCELADO")
+        self.assertEqual(hipoteca.cancelado_por, "AV.03")
+        self.assertEqual(cancelamento.cancela_atos, ["R.02"])
+
 
     def test_adjudicacao_pode_cancelar_penhora_na_nota(self):
         penhora = ato("R.03", "R.03 - PENHORA do imóvel objeto da matrícula.")

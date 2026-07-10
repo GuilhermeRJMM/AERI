@@ -10,7 +10,7 @@ def _codigo_exibicao(tipo: str, numero: str) -> str:
 
 
 def _codigo_ato_exibicao(codigo: str) -> str:
-    match = re.search(r'(R|AV)[\.\-,]+\s*0*(\d+)', codigo, re.IGNORECASE)
+    match = re.search(r'\b(R|AV)\s*[\.\-,]*\s*0*(\d+)', codigo, re.IGNORECASE)
     return _codigo_exibicao(match.group(1), match.group(2)) if match else codigo
 
 
@@ -27,7 +27,7 @@ def aplicar_cancelamentos(atos):
     for ato in atos:
         indice[ato.codigo] = ato
         
-        match = re.search(r'(R|AV)[\.\-,]+\s*0*(\d+)', ato.codigo, re.IGNORECASE)
+        match = re.search(r'\b(R|AV)\s*[\.\-,]*\s*0*(\d+)', ato.codigo, re.IGNORECASE)
         if match:
             chave_normalizada = _codigo_normalizado(match.group(1), match.group(2))
             indice[chave_normalizada] = ato
@@ -38,7 +38,7 @@ def aplicar_cancelamentos(atos):
         if tem_cancelamento_expresso:
             cancelou_alvo_explicito = False
             
-            alvos = re.finditer(r'(R|AV)[\.\-,]+\s*0*(\d+)', texto)
+            alvos = re.finditer(r'\b(R|AV)\s*[\.\-,]*\s*0*(\d+)', texto)
             
             for alvo in alvos:
                 tipo = alvo.group(1).upper()
