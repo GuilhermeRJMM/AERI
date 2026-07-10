@@ -40,7 +40,7 @@ def parse_valor_monetario(texto):
 def parse_percent(texto):
     m_valor = re.search(
         r'parte\s+(?:ideal|correspondente\s+a)\s+(?:de\s*)?(?:[A-Z]{1,3}\$?\s*)?([\d\.,]+).*?'
-        r'na\s+avalia\S*\s+de\s*(?:[A-Z]{1,3}\$?\s*)?([\d\.,]+)',
+        r'na\s+(?:avalia\S*|qualifica\S*)\s+de\s*(?:[A-Z]{1,3}\$?\s*)?([\d\.,]+)',
         texto,
         re.IGNORECASE | re.DOTALL
     )
@@ -70,7 +70,13 @@ def parse_percent(texto):
 def extrair_bloco(texto, tipo):
     if tipo == "ADQUIRENTE":
         m = re.search(r';\s*(.*?)(?=,?\s*adquiriu\s+por\s+compra\b)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip().rstrip(';, ')
+        if m and m.group(1).strip().rstrip(';, '): return m.group(1).strip().rstrip(';, ')
+
+        m = re.search(r'lavrada\b.*?,\s*(.*?)(?=;\s*adquiriu\s+por\s+compra\b)', texto, re.I | re.DOTALL)
+        if m:
+            t = m.group(1).strip().rstrip(';, ')
+            t = re.sub(r'^.*\bfls?\.\s*[\w\-\/]+,\s*', '', t, flags=re.I | re.DOTALL)
+            return t
 
         m = re.search(r'OUTORGADO[S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
@@ -138,14 +144,24 @@ def extrair_pessoas(texto_bloco):
     else:
         partes = re.split(r'(?:^|\s+|;)\s*(?:\d{1,3}|[IVX]+)\)\-?\s*', texto_bloco)
         partes = [p.strip() for p in partes if p.strip()]
+        partes = [re.sub(r'\s+e\s+d[oa]\s+CPF', ' CPF', p, flags=re.I) for p in partes]
+        partes_sem_ponto_virgula = []
 
         if len(partes) == 1:
             partes_sem_ponto_virgula = re.split(
                 r';\s*(?:e\s*,?\s*)?(?=[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇa-záàâãéèêíìîóòôõúùûç]+(?:\s+[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇa-záàâãéèêíìîóòôõúùûç]+){1,})',
                 partes[0],
             )
-            if len(partes_sem_ponto_virgula) > 1:
-                partes = [p.strip() for p in partes_sem_ponto_virgula if p.strip()]
+        if len(partes_sem_ponto_virgula) > 1:
+            partes = [p.strip() for p in partes_sem_ponto_virgula if p.strip()]
+        elif re.search(r'\s+e\s+[A-ZÃÃ€Ã‚ÃƒÃ‰ÃˆÃŠÃÃŒÃŽÃ“Ã’Ã”Ã•ÃšÃ™Ã›Ã‡][^,]+,\s*brasileir[oa]', partes[0], re.I):
+            partes_por_e = re.split(
+                r'\s+e\s+(?=[A-ZÃÃ€Ã‚ÃƒÃ‰ÃˆÃŠÃÃŒÃŽÃ“Ã’Ã”Ã•ÃšÃ™Ã›Ã‡][^,]+,\s*brasileir[oa])',
+                partes[0],
+                flags=re.I
+            )
+            if len(partes_por_e) > 1:
+                partes = [p.strip() for p in partes_por_e if p.strip()]
     
     if not partes:
         sub_partes = re.split(r';\s*', texto_bloco)
@@ -155,6 +171,7 @@ def extrair_pessoas(texto_bloco):
             partes = [texto_bloco]
 
     for parte in partes:
+        parte = re.sub(r'^\s*(?:meeir[oa]|vi[Ãºu]v[oa])\s*,\s*', '', parte, flags=re.I)
         nome_match = re.match(r'^([^,]+)', parte)
         
         # MEGA BRAIN: Agora aceita CNPJ, CGC e a barra "/" na leitura!

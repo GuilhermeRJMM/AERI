@@ -305,6 +305,81 @@ class TesteProprietarios(unittest.TestCase):
             },
         )
 
+    def test_venda_de_meacao_para_dois_adquirentes_antes_de_adquiriu(self):
+        cabecalho = """
+        MATRÍCULA 5.213. Proprietário: Pedro Jorge Pinto, CPF nº 016.806.681-53,
+        casado com Maria Madalena Pinto.
+        """
+        meacao = """
+        R-01-5.213 - PARTILHA. coube ao viúvo meeiro, Pedro Jorge Pinto,
+        CPF nº 016.806.681-53; em pagamento de sua meação, parte ideal de cr$ 450.000,00,
+        na qualificação de cr$ 900.000,00, sobre o imóvel constante da presente matrícula.
+        """
+        amarilda = """
+        R-02-5.213 - PARTILHA. coube à herdeira filha Amarilda Jorge da Cruz,
+        CPF nº 016.806.681-53; em pagamento de sua herança, parte ideal de cr$ 150.000,00,
+        na avaliação de cr$ 900.000,00, sobre o imóvel constante da presente matrícula.
+        """
+        ivone = """
+        R-03-5.213 - PARTILHA. coube à herdeira filha Ivone Aparecida Jorge,
+        CPF nº 016.806.681-53; em pagamento de sua herança, parte ideal de cr$ 150.000,00,
+        na avaliação de cr$ 900.000,00, sobre o imóvel constante da presente matrícula.
+        """
+        maria = """
+        R-04-5.213 - PARTILHA. coube à herdeira filha Maria José Jorge Alves,
+        CPF nº 016.806.681-53; em pagamento de sua herança, parte ideal de cr$ 150.000,00,
+        na avaliação de cr$ 900.000,00, sobre o imóvel constante da presente matrícula.
+        """
+        venda_jales = """
+        R-06-5.213 - COMPRA E VENDA. Nos termos da escritura; Jales de Almeida Silvério,
+        CIC nº 008.283.351-68, adquiriu por compra feita a Amarilda Jorge da Cruz Vaz;
+        parte ideal de cr$ 150.000,00 na avaliação de cr$ 900.000,00 sobre o imóvel.
+        """
+        venda_jose_pedro = """
+        R-08-5.213 - COMPRA E VENDA. escritura lavrada pelo Tabelião local, no Lº 294,
+        fl. 141, José Daniel da Silva Filho, brasileiro, comerciante, portador da CI nº
+        546.989 e do CPF nº 169.250.761-34 e Pedro Daniel da Silva Sobrinho, brasileiro,
+        divorciado, CPF nº 134.820.091-04; adquiriu por compra feita a Pedro Jorge Pinto;
+        parte correspondente a cr$ 450.000,00, na avaliação de cr$ 900.000,00.
+        """
+        venda_jaci_maria = """
+        R-11-5.213 - COMPRA E VENDA. uma parte ideal de Cr$ 150.000,00, na avaliação de
+        Cr$900.000,00, sobre o imóvel objeto da presente matrícula foi adquirido por
+        JACI MOREIRA DE ARANTES, CPF nº 052.260.401-30; por compra feita a MARIA JOSÉ
+        JORGE ALVES FERNANDES.
+        """
+        venda_jaci_ivone = """
+        R-12-5.213 - COMPRA E VENDA. uma parte ideal de Cr$ 150.000,00, na avaliação de
+        Cr$900.000,00, sobre o imóvel objeto da presente matrícula foi adquirido por
+        JACI MOREIRA DE ARANTES, CPF nº 052.260.401-30; por compra feita a Ivone Aparecida
+        Jorge de Souza.
+        """
+        atos = [
+            meacao,
+            amarilda,
+            ivone,
+            maria,
+            venda_jales,
+            venda_jose_pedro,
+            venda_jaci_maria,
+            venda_jaci_ivone,
+        ]
+
+        resultado = calcular_cadeia_dominial(
+            [SimpleNamespace(descricao=ato) for ato in atos],
+            cabecalho + "\n".join(atos),
+        )
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {
+                "José Daniel da Silva Filho": "25%",
+                "Pedro Daniel da Silva Sobrinho": "25%",
+                "Jales de Almeida Silvério": "16,66%",
+                "JACI MOREIRA DE ARANTES": "33,34%",
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
