@@ -93,7 +93,7 @@ body.auth-pending > .app-body {
 .login-card .btn { width: 100%; justify-content: center; height: 46px; margin-top: 2px; }
 .login-erro { min-height: 18px; color: #b91c1c; font-size: .8rem; text-align: center; }
 
-.navbar-user { display: flex; align-items: center; gap: 12px; color: #64748b; font-size: .8rem; font-weight: 700; }
+.navbar-user { display: flex; align-items: center; gap: 12px; color: #64748b; font-size: .8rem; font-weight: 700; flex: 0 0 auto; }
 .navbar-user button { border: 0; background: transparent; color: #2563eb; font: inherit; cursor: pointer; }
 .perfil-logado { padding:4px 8px; border-radius:999px; background:#e8f0ff; color:#1d4ed8; font-size:.64rem; letter-spacing:.4px; }
 
@@ -311,13 +311,14 @@ body.auth-pending > .app-body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: relative;
+  gap: 14px;
 }
 
 .navbar-brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 0 0 auto;
 }
 
 .btn-sidebar {
@@ -350,10 +351,10 @@ body.auth-pending > .app-body {
 }
 
 .navbar-saudacao {
-  position: absolute;
-  left: 50%;
-  max-width: min(46vw, 620px);
-  transform: translateX(-50%);
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 620px;
+  margin-inline: auto;
   overflow: hidden;
   color: #172033;
   font-size: .86rem;
