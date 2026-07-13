@@ -50,7 +50,7 @@ function atualizarSaudacaoUsuario(dados) {
     saudacao.textContent = '';
     const destaque = document.createElement('strong');
     destaque.textContent = primeiroNome(dados.nome || dados.usuario);
-    saudacao.append('Bem-vindo, bom dia e ótimo trabalho, ', destaque);
+    saudacao.append('Bem Vindo, bom dia e ótimo trabalho, ', destaque, '!');
 }
 
 function abrirAplicacao(dados) {

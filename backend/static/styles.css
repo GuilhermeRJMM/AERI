@@ -358,7 +358,8 @@ body.auth-pending > .app-body {
   color: #172033;
   font-size: .86rem;
   font-weight: 700;
-  text-align: center;
+  text-align: justify;
+  text-align-last: center;
   text-overflow: ellipsis;
   white-space: nowrap;
   pointer-events: none;
