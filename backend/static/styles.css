@@ -311,6 +311,7 @@ body.auth-pending > .app-body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
 }
 
 .navbar-brand {
@@ -346,6 +347,26 @@ body.auth-pending > .app-body {
   font-size: 1.4rem;
   color: var(--primary-color);
   letter-spacing: -0.5px;
+}
+
+.navbar-saudacao {
+  position: absolute;
+  left: 50%;
+  max-width: min(46vw, 620px);
+  transform: translateX(-50%);
+  overflow: hidden;
+  color: #172033;
+  font-size: .86rem;
+  font-weight: 700;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.navbar-saudacao strong {
+  color: var(--primary-color);
+  font-weight: 800;
 }
 
 .cartorio-info {
@@ -871,6 +892,7 @@ body.sidebar-recolhida .nav-item {
   body.sidebar-recolhida .nav-item { justify-content: flex-start; padding-inline: 14px; }
 
   .navbar-content { padding-inline: 14px; }
+  .navbar-saudacao { display: none; }
   .navbar-user { gap: 8px; }
   #usuario-logado { display: none; }
   .status-onr-texto { display:none; }

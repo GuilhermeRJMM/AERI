@@ -33,8 +33,24 @@ function aplicarPermissoesSidebar(dados) {
 
 function abrirLogin() {
     document.body.classList.add('auth-pending');
+    const saudacao = document.getElementById('saudacao-usuario');
+    if (saudacao) saudacao.textContent = '';
     document.getElementById('login-aeri').classList.add('aberto');
     window.setTimeout(() => document.getElementById('login-usuario').focus(), 80);
+}
+
+function primeiroNome(valor) {
+    const nome = String(valor || '').trim().split(/\s+/)[0] || 'Usuário';
+    return nome.charAt(0).toLocaleUpperCase('pt-BR') + nome.slice(1).toLocaleLowerCase('pt-BR');
+}
+
+function atualizarSaudacaoUsuario(dados) {
+    const saudacao = document.getElementById('saudacao-usuario');
+    if (!saudacao) return;
+    saudacao.textContent = '';
+    const destaque = document.createElement('strong');
+    destaque.textContent = primeiroNome(dados.nome || dados.usuario);
+    saudacao.append('Bem-vindo, bom dia e ótimo trabalho, ', destaque);
 }
 
 function abrirAplicacao(dados) {
@@ -43,6 +59,7 @@ function abrirAplicacao(dados) {
     window.aeriPermissoes = dados.permissoes || {};
     document.getElementById('usuario-logado').textContent = dados.nome || dados.usuario;
     document.getElementById('perfil-logado').textContent = dados.perfil;
+    atualizarSaudacaoUsuario(dados);
     aplicarPermissoesSidebar(dados);
     document.getElementById('login-aeri').classList.remove('aberto');
     document.body.classList.remove('auth-pending');
