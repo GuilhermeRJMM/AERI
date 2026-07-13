@@ -224,7 +224,21 @@ def extrair_pessoas(texto_bloco):
 def extrair_proprietario_inicial(texto_cabecalho):
     m = re.search(r'PROPRIET[AÁ]RI[OA]S?\s*:\s*(.*?)(?=\bORIGEM\b|\bT[IÍ]TULO AQUISITIVO\b|\bREGISTRO ANTERIOR\b|\bO referido [ée] verdade\b|\*NOTA\b|\bProtocolo\b|\bMATR[IÍ]CULA\b)', texto_cabecalho, re.I | re.DOTALL)
     if m:
-        return extrair_pessoas(m.group(1).strip())
+        proprietarios = extrair_pessoas(m.group(1).strip())
+        cabecalho_limpo = limpar_nome(texto_cabecalho)
+        bloco_limpo = limpar_nome(m.group(1))
+        proprietario_singular = (
+            re.search(r'PROPRIETARI[OA]\s*:', cabecalho_limpo)
+            and not re.search(r'PROPRIETARI[OA]S\s*:', cabecalho_limpo)
+        )
+        conjuge_qualificacao = (
+            "CASAD" in bloco_limpo
+            and "SOB O REGIME" in bloco_limpo
+            and " COM " in bloco_limpo
+        )
+        if proprietario_singular and conjuge_qualificacao and proprietarios:
+            return proprietarios[:1]
+        return proprietarios
     return []
 
 def extrair_retificacoes_cpf(texto):

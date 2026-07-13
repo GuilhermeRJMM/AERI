@@ -67,18 +67,14 @@ class TesteProprietarios(unittest.TestCase):
 
         resultado = calcular_cadeia_dominial([], cabecalho)
 
+        self.assertEqual(len(resultado), 1)
         self.assertEqual(
             resultado,
             [
                 {
                     "nome": "Rodrigo Lafayette de Godoy",
                     "cpf": "805.212.901-04",
-                    "proporcao": "50%",
-                },
-                {
-                    "nome": "Letícia Borges Mendanha de Godoy",
-                    "cpf": "991.849.401-82",
-                    "proporcao": "50%",
+                    "proporcao": "100%",
                 },
             ],
         )
