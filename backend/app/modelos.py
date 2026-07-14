@@ -10,5 +10,7 @@ class Ato(BaseModel):
     # O Vercel (Python 3.9) exige 'Optional' em vez de 'str | None'
     cancelado_por: Optional[str] = None
     cancela_atos: list[str] = Field(default_factory=list)
+    tipo_onus: Optional[str] = None
+    grau_onus: Optional[str] = None
     
     impacta_resultado: bool = False

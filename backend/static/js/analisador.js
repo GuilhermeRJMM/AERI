@@ -41,6 +41,12 @@ function classeCategoria(categoria) {
     return {'ÔNUS':'badge-red', 'RESTRIÇÃO':'badge-orange', 'PUBLICIDADE':'badge-blue', 'CANCELAMENTO':'badge-green'}[categoria] || 'badge-gray';
 }
 
+function detalheOnus(ato) {
+    if (ato.categoria !== 'ÔNUS' || !ato.tipo_onus) return '';
+    const grau = ato.grau_onus ? ` - ${ato.grau_onus}` : '';
+    return `<div class="status-ato">Tipo: <strong>${escaparHtml(ato.tipo_onus + grau)}</strong></div>`;
+}
+
 function genero(nome) {
     return nome.trim().split(/\s+/)[0].toLowerCase().endsWith('a') ? 'inscrita' : 'inscrito';
 }
@@ -61,6 +67,7 @@ function renderizarAtos(dados) {
                 <div class="badge ${classeCategoria(ato.categoria)}">${escaparHtml(ato.categoria)}</div>
             </div>
             <div class="texto">${escaparHtml(resumo(ato, dados.atos))}</div>
+            ${detalheOnus(ato)}
             <div class="status-ato">Status: <strong>${escaparHtml(ato.status)}</strong></div>
         </div>`).join('');
 }

@@ -92,9 +92,97 @@ PALAVRAS_PUBLICIDADE_FORTE = [
     "RESTRIÇÕES URBANÍSTICAS", "RESTRIÇÃO URBANÍSTICA",
 ]
 
+TIPOS_ONUS = [
+    ("TRASLADO DE HIPOTECA", "HIPOTECA"),
+    ("CEDULA RURAL HIPOTECARIA", "HIPOTECA"),
+    ("CEDULA HIPOTECARIA", "HIPOTECA"),
+    ("CEDULAS HIPOTECARIAS", "HIPOTECA"),
+    ("GARANTIA HIPOTECARIA", "HIPOTECA"),
+    ("HIPOTECA", "HIPOTECA"),
+    ("ALIENACAO FIDUCIARIA", "ALIENAÇÃO FIDUCIÁRIA"),
+    ("ANTICRESE", "ANTICRESE"),
+    ("ARRESTO E SEQUESTRO", "ARRESTO E SEQUESTRO"),
+    ("ASSUNCAO DE DIVIDA", "ASSUNÇÃO DE DÍVIDA"),
+    ("ASSUNCAO DE OBRIGACOES", "ASSUNÇÃO DE OBRIGAÇÕES"),
+    ("ASSUNCAO DE OBRIGACAO", "ASSUNÇÃO DE OBRIGAÇÃO"),
+    ("CAUCAO", "CAUÇÃO"),
+    ("FIDEICOMISSO", "FIDEICOMISSO"),
+    ("COMPROMISSO DE COMPRA E VENDA", "COMPROMISSO DE COMPRA E VENDA"),
+    ("CONCESSAO DE DIREITO", "CONCESSÃO DE DIREITO"),
+    ("CONCESSAO DE USO", "CONCESSÃO DE USO"),
+    ("ABERTURA DE CREDITO", "ABERTURA DE CRÉDITO"),
+    ("CEDULA DE PRODUTO RURAL", "CÉDULA DE PRODUTO RURAL"),
+    ("CEDULA DE CREDITO", "CÉDULA DE CRÉDITO"),
+    ("CEDULA RURAL", "CÉDULA RURAL"),
+    ("DEBENTURES", "DEBENTURES"),
+    ("EMPRESTIMOS POR OBRIGACOES", "EMPRÉSTIMOS POR OBRIGAÇÕES"),
+    ("DIREITO DE SUPERFICIE", "DIREITO DE SUPERFÍCIE"),
+    ("ENFITEUSE", "ENFITEUSE"),
+    ("USUFRUTO", "USUFRUTO"),
+    ("NOTA DE CREDITO", "NOTA DE CRÉDITO"),
+    ("UTILIZACAO COMPULSORIA", "UTILIZAÇÃO COMPULSÓRIA"),
+    ("PENHORA", "PENHORA"),
+    ("PENHOR", "PENHOR"),
+    ("RENDAS CONSTITUIDAS", "RENDAS CONSTITUÍDAS"),
+    ("RENOVACAO SIMPLIFICADA", "RENOVAÇÃO SIMPLIFICADA"),
+    ("SERVIDAO", "SERVIDÃO"),
+    ("SUB-ROGACAO", "SUB-ROGAÇÃO"),
+    ("TERMO DE SECURITIZACAO", "TERMO DE SECURITIZAÇÃO"),
+]
+
 
 def _sem_acentos(texto):
     return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
+
+def identificar_tipo_onus(texto):
+    texto_sem_acentos = _sem_acentos(texto.upper())
+    texto_sem_acentos = re.sub(r"\s+", " ", texto_sem_acentos)
+
+    for padrao, tipo in TIPOS_ONUS:
+        if padrao in texto_sem_acentos:
+            return tipo
+
+    return None
+
+def extrair_grau_hipoteca(texto):
+    texto_sem_acentos = _sem_acentos(texto.upper()).upper()
+    texto_sem_acentos = re.sub(r"\s+", " ", texto_sem_acentos)
+
+    grau_numerico = re.search(r"\b(\d{1,2})\s*[OA]?\s*GRAU\b", texto_sem_acentos)
+    if grau_numerico:
+        return int(grau_numerico.group(1))
+
+    ordinais = {
+        "PRIMEIR": 1,
+        "SEGUND": 2,
+        "TERCEIR": 3,
+        "QUART": 4,
+        "QUINT": 5,
+        "SEXT": 6,
+        "SETIM": 7,
+        "OITAV": 8,
+        "NON": 9,
+        "DECIM": 10,
+    }
+
+    grau_extenso = re.search(
+        r"\b(PRIMEIR[AO]|SEGUND[AO]|TERCEIR[AO]|QUART[AO]|QUINT[AO]|SEXT[AO]|SETIM[AO]|OITAV[AO]|NON[AO]|DECIM[AO])\s+GRAU\b",
+        texto_sem_acentos,
+    )
+    if not grau_extenso:
+        grau_extenso = re.search(
+            r"\b(PRIMEIR[AO]|SEGUND[AO]|TERCEIR[AO]|QUART[AO]|QUINT[AO]|SEXT[AO]|SETIM[AO]|OITAV[AO]|NON[AO]|DECIM[AO])(?:\s+E\s+ESPECIAL)?\s+HIPOTECA\b",
+            texto_sem_acentos,
+        )
+
+    if grau_extenso:
+        radical = grau_extenso.group(1)[:-1]
+        return ordinais.get(radical)
+
+    return None
+
+def formatar_grau_onus(grau):
+    return f"{grau}º grau" if grau else None
 
 def classificar(texto):
     texto = texto.upper()
