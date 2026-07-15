@@ -8,6 +8,40 @@ def valores_por_rotulo(itens, rotulo):
 
 
 class TesteDadosImovel(unittest.TestCase):
+    def test_caracterizacao_posterior_substitui_dados_fisicos_e_preserva_numero(self):
+        texto = """
+        MATRÍCULA 10.597. IMÓVEL: Rua Dr. Pedro Nunes, 1266, nesta cidade,
+        constituído de um prédio residencial e terreno com a área de 280,00m²;
+        lado esquerdo confrontando com o lote 17 e fundos com o lote 19;
+        desmembrado do lote 34 da quadra 08. PROPRIETÁRIA: Proprietária Exemplo.
+        AV.02-10.597 - RECONSTRUÇÃO DE PRÉDIO. Prédio com área construída de 47,95m²,
+        acréscimo com área construída de 59,69m², passando a ter a área total de 107,64m².
+        AV.13-10.597 - CARACTERIZAÇÃO DO IMÓVEL. O imóvel assim se caracteriza:
+        Lote n.º 08, Quadra 102, constituído de um prédio residencial com a área construída
+        de 107,64m², situado na Rua Dr. Pedro Nunes, Centro, nesta cidade, com área de
+        280,00m², dividindo na frente com a citada rua; fundos com o lote n.º 06;
+        lateral direita com o lote n.º 09; e lateral esquerda com os lotes n.os 07 e 07-A.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        identificacao = {item["rotulo"]: item["valor"] for item in resultado["identificacao"]}
+        self.assertEqual(identificacao["Lote"], "08")
+        self.assertEqual(identificacao["Quadra"], "102")
+        self.assertEqual(identificacao["Rua"], "Rua Dr. Pedro Nunes")
+        self.assertEqual(identificacao["Número"], "1266")
+        self.assertEqual(identificacao["Setor"], "Centro")
+        self.assertEqual(valores_por_rotulo(resultado["areas"], "Área"), ["280 m²"])
+        self.assertEqual(valores_por_rotulo(resultado["areas"], "Área Construída"), ["107,64 m²"])
+        self.assertEqual(
+            [(item["rotulo"], item["valor"], item["origem"]) for item in resultado["confrontacoes"]],
+            [
+                ("Lado Direito", "Lote 09", "AV.13"),
+                ("Lado Esquerdo", "Lotes 07 e 07-A", "AV.13"),
+                ("Fundos", "Lote 06", "AV.13"),
+            ],
+        )
+
     def test_endereco_preserva_rua_e_setor_composto_do_cabecalho(self):
         texto = """
         IMÓVEL: Lote n.º 04, da Quadra 58, com área de 513,37m², situado na Rua 9,

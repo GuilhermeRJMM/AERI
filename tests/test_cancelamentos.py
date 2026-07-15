@@ -150,6 +150,18 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(categoria, "IGNORAR")
         self.assertFalse(impacta)
 
+    def test_retificacao_de_cpf_nao_herda_onus_mencionado(self):
+        texto = """
+        AV.19-10.597 - RETIFICAÇÃO DE CPF/MF EX-OFFICIO. Para constar que ao se
+        efetuar o R.17 houve equívoco, sendo certo que a PENHORA registrada se
+        refere aos direitos creditórios do negócio registrado no R.16.
+        """
+
+        categoria, impacta = classificar(texto)
+
+        self.assertEqual(categoria, "IGNORAR")
+        self.assertFalse(impacta)
+
     def test_sobrenome_assuncao_em_inventario_nao_cria_onus(self):
         texto = """
         R.05-31.465 - INVENTÁRIO/PARTILHA. ADQUIRENTES: 1)- Valdomiro Avelino

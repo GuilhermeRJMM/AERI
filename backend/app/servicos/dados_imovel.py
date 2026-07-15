@@ -37,6 +37,11 @@ def _adicionar_unico(lista: list[dict], item: dict) -> None:
         lista.append(item)
 
 
+def _substituir_por_rotulo(lista: list[dict], item: dict) -> None:
+    lista[:] = [existente for existente in lista if existente.get("rotulo") != item.get("rotulo")]
+    lista.append(item)
+
+
 def _descricao_ato(ato) -> str:
     return ato.descricao if hasattr(ato, "descricao") else str(ato.get("descricao", ""))
 
@@ -105,7 +110,7 @@ def _extrair_lotes(segmento: str) -> Optional[str]:
     return f"Lotes {' e '.join(identificadores)}"
 
 
-def _extrair_confrontacoes(descricao: str) -> list[dict]:
+def _extrair_confrontacoes(descricao: str, origem: str = "Cabeçalho") -> list[dict]:
     marcadores = []
     padroes = (
         ("Frente", r"\b(?:pela\s+|de\s+|na\s+)?frente\b"),
@@ -126,13 +131,13 @@ def _extrair_confrontacoes(descricao: str) -> list[dict]:
             confrontacoes[rotulo] = lote
 
     return [
-        {"rotulo": rotulo, "valor": confrontacoes[rotulo], "origem": "Cabeçalho"}
+        {"rotulo": rotulo, "valor": confrontacoes[rotulo], "origem": origem}
         for rotulo, _ in padroes
         if rotulo in confrontacoes
     ]
 
 
-def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str]]:
+def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
     tipo_logradouro = r"(?:Rua|Avenida|Av[.]?|Alameda|Travessa|Praça|Rodovia|Estrada|Viela)"
     logradouro = re.search(
         rf"\bsituad[oa]\s+(?:na|no)\s+({tipo_logradouro}\b[^,;]+)",
@@ -143,6 +148,7 @@ def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str]]:
         logradouro = re.match(rf"\s*({tipo_logradouro}\b[^,;]+)", descricao, re.IGNORECASE)
 
     rua = _compactar(logradouro.group(1)) if logradouro else None
+    numero = None
     setor = None
     if logradouro:
         trecho_seguinte = descricao[logradouro.end():]
@@ -153,9 +159,29 @@ def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str]]:
             re.IGNORECASE,
         )
         if localizacao:
-            candidato = _compactar(localizacao.group(1))
-            if re.search(r"\b(?:Vila|Setor|Jardim|Bairro|Residencial|Parque)\b", candidato, re.IGNORECASE):
+            partes = [_compactar(parte) for parte in localizacao.group(1).split(",")]
+            partes = [parte for parte in partes if parte]
+            if partes:
+                numero_encontrado = re.fullmatch(
+                    r"(?:n(?:[.º°o]|os|s)*\s*)?(\d[\d.]*)",
+                    partes[0],
+                    re.IGNORECASE,
+                )
+                if numero_encontrado:
+                    numero = numero_encontrado.group(1)
+                    partes = partes[1:]
+            candidato = ", ".join(partes)
+            if re.search(r"\b(?:Vila|Setor|Jardim|Bairro|Residencial|Parque|Centro)\b", candidato, re.IGNORECASE):
                 setor = candidato
+
+        if not numero:
+            numero_encontrado = re.match(
+                r"\s*,\s*(?:n(?:[.º°o]|os|s)*\s*)?(\d[\d.]*)\b",
+                trecho_seguinte,
+                re.IGNORECASE,
+            )
+            if numero_encontrado:
+                numero = numero_encontrado.group(1)
 
     if not setor:
         localizacao = re.search(
@@ -166,7 +192,25 @@ def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str]]:
         if localizacao:
             setor = _compactar(localizacao.group(1))
 
-    return rua, setor
+    return rua, numero, setor
+
+
+def _extrair_area_construida(texto: str, normalizado: str) -> Optional[str]:
+    if "RECONSTRUCAO" in normalizado:
+        totais = re.findall(r"área\s+total\s+de\s*([\d.,]+)\s*m[²2]", texto, re.IGNORECASE)
+        if totais:
+            valor = _valor_decimal(totais[-1])
+            return f"{_formatar_numero(valor, 2)} m²" if valor is not None else None
+
+    construidas = re.findall(
+        r"área(?:\s+total)?\s+constru[íi]da\s+de\s*([\d.,]+)\s*m[²2]",
+        texto,
+        re.IGNORECASE,
+    )
+    if construidas:
+        valor = _valor_decimal(construidas[-1])
+        return f"{_formatar_numero(valor, 2)} m²" if valor is not None else None
+    return None
 
 
 def _percentual_numerico(texto: str) -> float:
@@ -201,9 +245,11 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
     if quadra:
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Quadra", "valor": quadra.group(1), "origem": "Cabeçalho"})
 
-    rua, setor = _extrair_endereco(descricao)
+    rua, numero, setor = _extrair_endereco(descricao)
     if rua:
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Rua", "valor": rua, "origem": "Cabeçalho"})
+    if numero:
+        _adicionar_unico(resultado["identificacao"], {"rotulo": "Número", "valor": numero, "origem": "Cabeçalho"})
     if setor:
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Setor", "valor": setor, "origem": "Cabeçalho"})
 
@@ -243,6 +289,40 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
         codigo = _codigo_ato(ato)
         normalizado = _sem_acentos(descricao_ato)
 
+        if "CARACTERIZACAO DO IMOVEL" in normalizado:
+            bloco_atual = re.search(
+                r"assim\s+se\s+caracteriza\s*:\s*(.*)",
+                descricao_ato,
+                re.IGNORECASE | re.DOTALL,
+            )
+            caracterizacao = bloco_atual.group(1) if bloco_atual else descricao_ato
+
+            lote_atual = re.search(r"\bLote(?:\s+de\s+terras)?\s+n?[.º°o\s]*([\w\-/]+)", caracterizacao, re.IGNORECASE)
+            quadra_atual = re.search(r"\bQuadra\s+n?[.º°o\s]*([\w\-/]+)", caracterizacao, re.IGNORECASE)
+            if lote_atual:
+                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Lote", "valor": lote_atual.group(1), "origem": codigo})
+            if quadra_atual:
+                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Quadra", "valor": quadra_atual.group(1), "origem": codigo})
+
+            rua_atual, numero_atual, setor_atual = _extrair_endereco(caracterizacao)
+            if rua_atual:
+                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Rua", "valor": rua_atual, "origem": codigo})
+            if numero_atual:
+                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Número", "valor": numero_atual, "origem": codigo})
+            if setor_atual:
+                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Setor", "valor": setor_atual, "origem": codigo})
+
+            confrontacoes_atuais = _extrair_confrontacoes(caracterizacao, codigo)
+            if confrontacoes_atuais:
+                resultado["confrontacoes"] = confrontacoes_atuais
+
+            area_atual = _extrair_area_registral(caracterizacao, False)
+            if area_atual:
+                _substituir_por_rotulo(resultado["areas"], {"rotulo": "Área", "valor": area_atual, "origem": codigo})
+            construida_atual = _extrair_area_construida(caracterizacao, normalizado)
+            if construida_atual:
+                _substituir_por_rotulo(resultado["areas"], {"rotulo": "Área Construída", "valor": construida_atual, "origem": codigo})
+
         if "FICA ENCERRADA" in normalizado or "FICA ENCERRADO" in normalizado:
             sucessora = re.search(r"matriculad[oa]\s+sob\s+o\s+n?[.º°o\s]*([\d.]+)", descricao_ato, re.IGNORECASE)
             resultado["situacao"] = {"status": "ENCERRADA", "origem": codigo}
@@ -255,15 +335,13 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
             })
 
         if "EDIFICACAO" in normalizado or "CONSTRUCAO" in normalizado:
-            construida = re.search(r"área\s+construída\s+de\s*([\d.,]+)\s*m[²2]", descricao_ato, re.IGNORECASE)
+            construida = _extrair_area_construida(descricao_ato, normalizado)
             if construida:
-                valor = _valor_decimal(construida.group(1))
-                if valor is not None:
-                    _adicionar_unico(resultado["areas"], {
-                        "rotulo": "Área Construída",
-                        "valor": f"{_formatar_numero(valor, 2)} m²",
-                        "origem": codigo,
-                    })
+                _substituir_por_rotulo(resultado["areas"], {
+                    "rotulo": "Área Construída",
+                    "valor": construida,
+                    "origem": codigo,
+                })
 
         if "CCIR" in normalizado or "CERTIFICADO DE CADASTRO DE IMOVEL RURAL" in normalizado:
             codigo_rural = re.search(r"código\s+do\s+imóvel\s+rural\s*:\s*([\d.\-/]+)", descricao_ato, re.IGNORECASE)
@@ -326,6 +404,8 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
             mensagem = f"Área documental: {diferenca.group(1)} ha; representação gráfica: {diferenca.group(2)} ha."
             _adicionar_unico(resultado["divergencias"], {"rotulo": "Divergência de área", "valor": mensagem, "origem": codigo})
 
+    ordem_identificacao = {"Matrícula": 0, "Lote": 1, "Quadra": 2, "Rua": 3, "Número": 4, "Setor": 5, "Denominação": 6}
+    resultado["identificacao"].sort(key=lambda item: ordem_identificacao.get(item["rotulo"], 7))
     ordem_areas = {"Área": 0, "Área Construída": 1}
     resultado["areas"].sort(key=lambda item: ordem_areas.get(item["rotulo"], 2))
 

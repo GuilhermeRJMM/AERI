@@ -189,6 +189,12 @@ def classificar(texto, regras_aprendidas=None):
     texto_sem_acentos = _sem_acentos(texto)
     texto_sem_acentos_compacto = re.sub(r"\s+", " ", texto_sem_acentos)
 
+    # A retificação de CPF pode repetir o conteúdo do ato corrigido. O título
+    # do ato prevalece para que menções a penhora ou garantia não criem ônus.
+    indice_retificacao_cpf = texto_sem_acentos_compacto.find("RETIFICACAO DE CPF")
+    if 0 <= indice_retificacao_cpf < 240:
+        return ("IGNORAR", False)
+
     # Aditivo que apenas retifica/ratifica condiÃ§Ãµes da dÃ­vida, como
     # vencimento e forma de pagamento, nÃ£o constitui novo Ã´nus. A garantia
     # anterior continua sendo controlada pelo ato original jÃ¡ registrado.
