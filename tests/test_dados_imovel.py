@@ -46,7 +46,7 @@ class TesteDadosImovel(unittest.TestCase):
         self.assertEqual(resultado["resultado"], "POSITIVA PARA ÔNUS")
         self.assertEqual(resultado["imovel"]["situacao"]["status"], "ENCERRADA")
         self.assertEqual(resultado["imovel"]["situacao"]["matricula_sucessora"], "3.432")
-        self.assertEqual(valores_por_rotulo(resultado["imovel"]["areas"], "Área registral"), ["633,5 m²"])
+        self.assertEqual(valores_por_rotulo(resultado["imovel"]["areas"], "Área"), ["633,5 m²"])
         self.assertEqual(
             resultado["proprietarios_atuais"],
             [{"nome": "Companhia de Habitação Exemplo", "cpf": "01.274.240/0001-47", "proporcao": "100%"}],
@@ -67,7 +67,12 @@ class TesteDadosImovel(unittest.TestCase):
         self.assertEqual(resultado["resultado"], "NEGATIVA PARA ÔNUS")
         self.assertEqual(valores_por_rotulo(resultado["imovel"]["identificacao"], "Lote"), ["03"])
         self.assertEqual(valores_por_rotulo(resultado["imovel"]["identificacao"], "Quadra"), ["58"])
-        self.assertEqual(valores_por_rotulo(resultado["imovel"]["areas"], "Área construída"), ["41,48 m²"])
+        self.assertEqual(valores_por_rotulo(resultado["imovel"]["areas"], "Área Construída"), ["41,48 m²"])
+        self.assertFalse(valores_por_rotulo(resultado["imovel"]["identificacao"], "Descrição registral"))
+        self.assertEqual(
+            [item["rotulo"] for item in resultado["imovel"]["areas"][:2]],
+            ["Área", "Área Construída"],
+        )
 
     def test_matricula_10148_corrige_partilha_e_preserva_areas_por_fonte(self):
         texto = """
@@ -95,7 +100,7 @@ class TesteDadosImovel(unittest.TestCase):
             {item["nome"]: item["proporcao"] for item in resultado["proprietarios_atuais"]},
             {"Gislaine Ribeiro Ázara de Camargos": "50%", "Angelica Ribeiro Camargos": "50%"},
         )
-        self.assertEqual(valores_por_rotulo(resultado["imovel"]["areas"], "Área registral"), ["92,9885 ha"])
+        self.assertEqual(valores_por_rotulo(resultado["imovel"]["areas"], "Área"), ["92,9885 ha"])
         self.assertEqual(valores_por_rotulo(resultado["imovel"]["areas"], "Área no CCIR"), ["92,9 ha"])
         self.assertEqual(valores_por_rotulo(resultado["imovel"]["areas"], "Área declarada no CAR"), ["369,1061 ha"])
         self.assertEqual(len(resultado["imovel"]["divergencias"]), 1)

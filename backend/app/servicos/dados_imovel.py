@@ -153,13 +153,6 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
         "alertas": [],
     }
 
-    if descricao:
-        _adicionar_unico(resultado["identificacao"], {
-            "rotulo": "Descrição registral",
-            "valor": descricao[:900],
-            "origem": "Cabeçalho",
-        })
-
     matricula = re.search(r"MATR[ÍI]CULA\s+n?[.º°o\s]*([\d.]+)", cabecalho, re.IGNORECASE)
     if matricula:
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Matrícula", "valor": matricula.group(1), "origem": "Cabeçalho"})
@@ -184,7 +177,7 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
 
     area_registral = _extrair_area_registral(cabecalho, rural)
     if area_registral:
-        _adicionar_unico(resultado["areas"], {"rotulo": "Área registral", "valor": area_registral, "origem": "Cabeçalho"})
+        _adicionar_unico(resultado["areas"], {"rotulo": "Área", "valor": area_registral, "origem": "Cabeçalho"})
 
     cadastro_municipal = re.search(
         r"Cadastrad[oa]\s+na\s+Prefeitura\s+sob\s+o\s+n?[.º°o\s]*(.*?)(?=\bPROPRIET[ÁA]RI[OA]S?\s*:|\Z)",
@@ -224,7 +217,7 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
                 valor = _valor_decimal(construida.group(1))
                 if valor is not None:
                     _adicionar_unico(resultado["areas"], {
-                        "rotulo": "Área construída",
+                        "rotulo": "Área Construída",
                         "valor": f"{_formatar_numero(valor, 2)} m²",
                         "origem": codigo,
                     })
@@ -289,6 +282,9 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
         if diferenca:
             mensagem = f"Área documental: {diferenca.group(1)} ha; representação gráfica: {diferenca.group(2)} ha."
             _adicionar_unico(resultado["divergencias"], {"rotulo": "Divergência de área", "valor": mensagem, "origem": codigo})
+
+    ordem_areas = {"Área": 0, "Área Construída": 1}
+    resultado["areas"].sort(key=lambda item: ordem_areas.get(item["rotulo"], 2))
 
     try:
         total_titularidade = sum(_percentual_numerico(item["proporcao"]) for item in proprietarios)
