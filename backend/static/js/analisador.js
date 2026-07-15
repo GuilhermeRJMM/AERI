@@ -101,7 +101,7 @@ function renderizarGrupoImovel(titulo, itens) {
                     <div class="imovel-linha ${item.rotulo === 'Descrição registral' ? 'imovel-linha-ampla' : ''}">
                         <span>${escaparHtml(item.rotulo)}</span>
                         <strong>${escaparHtml(item.valor)}</strong>
-                        <small>${escaparHtml(item.origem)}</small>
+                        ${item.origem && item.origem !== 'Cabeçalho' ? `<small>${escaparHtml(item.origem)}</small>` : ''}
                     </div>`).join('')}
             </div>
         </section>`;
@@ -125,11 +125,12 @@ function renderizarImovel(imovel) {
         <div class="imovel-painel">
             <div class="imovel-resumo">
                 <div class="imovel-resumo-item"><span>Situação</span><strong class="imovel-situacao ${situacao.status === 'ENCERRADA' ? 'encerrada' : ''}">${escaparHtml(situacao.status)}</strong><small>${escaparHtml(situacao.origem)}</small></div>
-                <div class="imovel-resumo-item"><span>Tipo</span><strong>${escaparHtml(imovel.tipo || 'NÃO IDENTIFICADO')}</strong><small>Cabeçalho</small></div>
+                <div class="imovel-resumo-item"><span>Tipo</span><strong>${escaparHtml(imovel.tipo || 'NÃO IDENTIFICADO')}</strong></div>
                 ${sucessora}
             </div>
             ${alertas ? `<div class="imovel-alertas">${alertas}</div>` : ''}
             ${renderizarGrupoImovel('Identificação', imovel.identificacao)}
+            ${renderizarGrupoImovel('Confrontações', imovel.confrontacoes)}
             ${renderizarGrupoImovel('Áreas', imovel.areas)}
             ${renderizarGrupoImovel('Cadastros', imovel.cadastros)}
             ${renderizarGrupoImovel('Restrições e dados ambientais', imovel.restricoes)}

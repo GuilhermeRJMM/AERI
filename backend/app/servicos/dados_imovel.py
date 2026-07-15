@@ -87,6 +87,51 @@ def _extrair_bloco_imovel(texto: str) -> tuple[str, str]:
     return cabecalho, _compactar(bloco.group(1)) if bloco else ""
 
 
+def _extrair_lotes(segmento: str) -> Optional[str]:
+    lote = re.search(
+        r"\blotes?(?:\s+de\s+terras)?\s*"
+        r"(?:n(?:[.º°o]|os|s)*\s*)?"
+        r"(\d+[A-Za-z]?(?:[-/]\w+)?(?:\s*(?:,|e)\s*\d+[A-Za-z]?(?:[-/]\w+)?)*)",
+        segmento,
+        re.IGNORECASE,
+    )
+    if not lote:
+        return None
+
+    identificadores = [item.strip() for item in re.split(r"\s*(?:,|\be\b)\s*", lote.group(1), flags=re.IGNORECASE)]
+    identificadores = [item for item in identificadores if item]
+    if len(identificadores) == 1:
+        return f"Lote {identificadores[0]}"
+    return f"Lotes {' e '.join(identificadores)}"
+
+
+def _extrair_confrontacoes(descricao: str) -> list[dict]:
+    marcadores = []
+    padroes = (
+        ("Frente", r"\b(?:pela\s+|de\s+|na\s+)?frente\b"),
+        ("Lado Direito", r"\b(?:lado\s+direito|direita)\b"),
+        ("Lado Esquerdo", r"\b(?:lado\s+esquerdo|esquerda)\b"),
+        ("Fundos", r"\b(?:fundos|fundo)\b"),
+    )
+    for rotulo, padrao in padroes:
+        for ocorrencia in re.finditer(padrao, descricao, re.IGNORECASE):
+            marcadores.append((ocorrencia.start(), ocorrencia.end(), rotulo))
+
+    marcadores.sort(key=lambda item: item[0])
+    confrontacoes = {}
+    for indice, (_, fim, rotulo) in enumerate(marcadores):
+        limite = marcadores[indice + 1][0] if indice + 1 < len(marcadores) else len(descricao)
+        lote = _extrair_lotes(descricao[fim:limite])
+        if lote and rotulo not in confrontacoes:
+            confrontacoes[rotulo] = lote
+
+    return [
+        {"rotulo": rotulo, "valor": confrontacoes[rotulo], "origem": "Cabeçalho"}
+        for rotulo, _ in padroes
+        if rotulo in confrontacoes
+    ]
+
+
 def _percentual_numerico(texto: str) -> float:
     return float(str(texto).replace("%", "").replace(".", "").replace(",", "."))
 
@@ -100,6 +145,7 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
         "situacao": {"status": "ATIVA", "origem": "Matrícula"},
         "tipo": "RURAL" if rural else "URBANO",
         "identificacao": [],
+        "confrontacoes": [],
         "areas": [],
         "cadastros": [],
         "restricoes": [],
@@ -124,6 +170,8 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Lote", "valor": lote.group(1), "origem": "Cabeçalho"})
     if quadra:
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Quadra", "valor": quadra.group(1), "origem": "Cabeçalho"})
+
+    resultado["confrontacoes"] = _extrair_confrontacoes(descricao)
 
     if rural:
         denominacao = re.search(r"\b((?:Fazendas?|Sítio)\s+.*?)(?=,\s*(?:neste|situad[oa]|constituíd[oa]))", descricao, re.IGNORECASE)

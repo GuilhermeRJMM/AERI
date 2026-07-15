@@ -8,6 +8,26 @@ def valores_por_rotulo(itens, rotulo):
 
 
 class TesteDadosImovel(unittest.TestCase):
+    def test_confrontacoes_exibem_somente_os_lotes(self):
+        texto = """
+        MATRÍCULA 29.460. IMÓVEL: Lote n.º 08, da quadra 12, com a área de 360,00m²,
+        confrontando pela frente com o lote nº 21; pelo lado direito com o lote 09-A;
+        pelo lado esquerdo com o lote de terras n.º 07 e pelos fundos com os lotes 15 e 16.
+        PROPRIETÁRIO: Proprietário Exemplo, CPF 111.111.111-11.
+        """
+
+        resultado = analisar_matricula(texto)
+
+        self.assertEqual(
+            resultado["imovel"]["confrontacoes"],
+            [
+                {"rotulo": "Frente", "valor": "Lote 21", "origem": "Cabeçalho"},
+                {"rotulo": "Lado Direito", "valor": "Lote 09-A", "origem": "Cabeçalho"},
+                {"rotulo": "Lado Esquerdo", "valor": "Lote 07", "origem": "Cabeçalho"},
+                {"rotulo": "Fundos", "valor": "Lotes 15 e 16", "origem": "Cabeçalho"},
+            ],
+        )
+
     def test_matricula_1560_reconhece_hipoteca_encerramento_e_representante(self):
         texto = """
         MATRÍCULA 1.560. IMÓVEL: Lote n.º 4, da quadra 87, Avenida 101,
