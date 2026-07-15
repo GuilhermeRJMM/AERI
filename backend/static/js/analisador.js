@@ -3,6 +3,7 @@ import {requisicaoAeri} from './api.js';
 
 const ICONE_PROCESSAR = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>Processar Matrícula';
 const ICONE_COPIAR = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>Copiar';
+const ICONE_APRENDER = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 
 function resumo(ato, todosAtos) {
     if (ato.status === 'CANCELADO') {
@@ -90,6 +91,81 @@ function renderizarProprietarios(proprietarios) {
         </div>`;
 }
 
+function renderizarGrupoImovel(titulo, itens) {
+    if (!itens?.length) return '';
+    return `
+        <section class="imovel-grupo">
+            <h3>${escaparHtml(titulo)}</h3>
+            <div class="imovel-lista">
+                ${itens.map(item => `
+                    <div class="imovel-linha ${item.rotulo === 'Descrição registral' ? 'imovel-linha-ampla' : ''}">
+                        <span>${escaparHtml(item.rotulo)}</span>
+                        <strong>${escaparHtml(item.valor)}</strong>
+                        <small>${escaparHtml(item.origem)}</small>
+                    </div>`).join('')}
+            </div>
+        </section>`;
+}
+
+function renderizarImovel(imovel) {
+    if (!imovel) {
+        return '<div class="imovel-vazio">Dados do imóvel não identificados.</div>';
+    }
+    const situacao = imovel.situacao || {status:'ATIVA', origem:'Matrícula'};
+    const sucessora = situacao.matricula_sucessora
+        ? `<div class="imovel-resumo-item"><span>Matrícula sucessora</span><strong>${escaparHtml(situacao.matricula_sucessora)}</strong><small>${escaparHtml(situacao.origem)}</small></div>`
+        : '';
+    const alertas = (imovel.alertas || []).map(alerta => `
+        <div class="imovel-alerta">
+            <div><strong>${escaparHtml(alerta.tipo)}</strong><span>${escaparHtml(alerta.mensagem)}</span></div>
+            <small>${escaparHtml(alerta.origem)}</small>
+        </div>`).join('');
+
+    return `
+        <div class="imovel-painel">
+            <div class="imovel-resumo">
+                <div class="imovel-resumo-item"><span>Situação</span><strong class="imovel-situacao ${situacao.status === 'ENCERRADA' ? 'encerrada' : ''}">${escaparHtml(situacao.status)}</strong><small>${escaparHtml(situacao.origem)}</small></div>
+                <div class="imovel-resumo-item"><span>Tipo</span><strong>${escaparHtml(imovel.tipo || 'NÃO IDENTIFICADO')}</strong><small>Cabeçalho</small></div>
+                ${sucessora}
+            </div>
+            ${alertas ? `<div class="imovel-alertas">${alertas}</div>` : ''}
+            ${renderizarGrupoImovel('Identificação', imovel.identificacao)}
+            ${renderizarGrupoImovel('Áreas', imovel.areas)}
+            ${renderizarGrupoImovel('Cadastros', imovel.cadastros)}
+            ${renderizarGrupoImovel('Restrições e dados ambientais', imovel.restricoes)}
+            ${renderizarGrupoImovel('Divergências', imovel.divergencias)}
+        </div>`;
+}
+
+function renderizarAprendizado() {
+    return `
+        <div class="aprendizado-painel">
+            <div class="aprendizado-cabecalho">
+                <div>
+                    <span class="eyebrow">APRENDIZADO SEM IA</span>
+                    <h3>Correção de regra</h3>
+                </div>
+                <span class="aprendizado-status">Revisão obrigatória</span>
+            </div>
+            <div class="aprendizado-form">
+                <label><span>Termo encontrado</span><input id="aprendizado-expressao" maxlength="120" placeholder="Ex.: afetação patrimonial"></label>
+                <label><span>Classificação correta</span><select id="aprendizado-categoria">
+                    <option value="ÔNUS">Ônus</option>
+                    <option value="RESTRIÇÃO">Restrição</option>
+                    <option value="PUBLICIDADE">Publicidade</option>
+                    <option value="CANCELAMENTO">Cancelamento</option>
+                    <option value="IGNORAR">Ignorar</option>
+                </select></label>
+                <label><span>Tipo de ônus</span><input id="aprendizado-tipo-onus" maxlength="80" placeholder="Ex.: hipoteca, usufruto, alienação fiduciária"></label>
+                <label class="aprendizado-full"><span>Justificativa</span><textarea id="aprendizado-justificativa" maxlength="500"></textarea></label>
+                <div class="aprendizado-acoes">
+                    <span id="aprendizado-retorno" aria-live="polite"></span>
+                    <button type="button" class="btn btn-primary" data-acao="enviar-aprendizado">${ICONE_APRENDER}Enviar sugestão</button>
+                </div>
+            </div>
+        </div>`;
+}
+
 function renderizarResultado(dados) {
     let cor = '#16a34a';
     let fundo = '#f0fdf4';
@@ -103,10 +179,14 @@ function renderizarResultado(dados) {
             </div>
             <div class="tabs-container">
                 <button class="tab-btn active" data-tab="tab-atos">Atos Registrais (${dados.atos.length})</button>
+                <button class="tab-btn" data-tab="tab-imovel">Imóvel</button>
                 <button class="tab-btn" data-tab="tab-prop">Proprietários (${proprietarios.length})</button>
+                <button class="tab-btn" data-tab="tab-aprendizado">Aprendizado</button>
             </div>
             <div id="tab-atos" class="tab-content active"><div class="cards">${renderizarAtos(dados)}</div></div>
+            <div id="tab-imovel" class="tab-content">${renderizarImovel(dados.imovel)}</div>
             <div id="tab-prop" class="tab-content" style="padding:16px">${renderizarProprietarios(proprietarios)}</div>
+            <div id="tab-aprendizado" class="tab-content" style="padding:16px">${renderizarAprendizado()}</div>
         </div>`;
     document.getElementById('modal-resultado').classList.add('aberta');
 }
@@ -123,11 +203,38 @@ function copiarCadeia(botao) {
     });
 }
 
-function tratarAcaoResultado(evento) {
+async function enviarSugestaoAprendizado(botao) {
+    const painel = botao.closest('.aprendizado-painel');
+    const retorno = painel.querySelector('#aprendizado-retorno');
+    const dados = {
+        expressao: painel.querySelector('#aprendizado-expressao').value.trim(),
+        categoria: painel.querySelector('#aprendizado-categoria').value,
+        tipo_onus: painel.querySelector('#aprendizado-tipo-onus').value.trim(),
+        justificativa: painel.querySelector('#aprendizado-justificativa').value.trim(),
+    };
+    botao.disabled = true;
+    retorno.textContent = 'Registrando...';
+    try {
+        const salvo = await requisicaoAeri('/analisar/aprendizado/sugestoes', {
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados),
+        });
+        retorno.textContent = salvo.status === 'APROVADA'
+            ? 'Regra já aprovada; ocorrência registrada.'
+            : `Sugestão registrada (${salvo.votos} ocorrência${salvo.votos === 1 ? '' : 's'}).`;
+        painel.querySelector('#aprendizado-justificativa').value = '';
+    } catch (erro) {
+        retorno.textContent = erro.message;
+    } finally {
+        botao.disabled = false;
+    }
+}
+
+async function tratarAcaoResultado(evento) {
     const botao = evento.target.closest('button');
     if (!botao) return;
     if (botao.dataset.tab) trocarAba(botao.dataset.tab);
     if (botao.dataset.acao === 'copiar-cadeia') copiarCadeia(botao);
+    if (botao.dataset.acao === 'enviar-aprendizado') await enviarSugestaoAprendizado(botao);
 }
 
 function fecharModal() {
