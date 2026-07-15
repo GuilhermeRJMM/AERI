@@ -184,7 +184,7 @@ def extrair_grau_hipoteca(texto):
 def formatar_grau_onus(grau):
     return f"{grau}º grau" if grau else None
 
-def classificar(texto):
+def classificar(texto, regras_aprendidas=None):
     texto = texto.upper()
     texto_sem_acentos = _sem_acentos(texto)
     texto_sem_acentos_compacto = re.sub(r"\s+", " ", texto_sem_acentos)
@@ -238,6 +238,8 @@ def classificar(texto):
             "DADO EM" in texto_sem_acentos_compacto
             or "DADA EM" in texto_sem_acentos_compacto
             or "EM HIPOTECA" in texto_sem_acentos_compacto
+            or re.search(r"\bEM\s+(?:\d{1,2}[AO]?\s+)?(?:E\s+ESPECIAL\s+)?HIPOTECA\b", texto_sem_acentos_compacto)
+            or "GARANTIAS HIPOTECARIA" in texto_sem_acentos_compacto
             or "GARANTIA HIPOTECARIA" in texto_sem_acentos_compacto
             or "CEDULA RURAL HIPOTECARIA" in texto_sem_acentos_compacto
             or "CEDULA HIPOTECARIA" in texto_sem_acentos_compacto
@@ -279,6 +281,18 @@ def classificar(texto):
             menor_indice = idx
             melhor_categoria = "PUBLICIDADE"
             melhor_impacta = False
+
+    for regra in regras_aprendidas or []:
+        chave = regra.get("expressao_normalizada") or regra.get("expressao")
+        if not chave:
+            continue
+        chave = _sem_acentos(str(chave).upper())
+        chave = re.sub(r"\s+", " ", chave).strip()
+        idx = texto_sem_acentos_compacto.find(chave)
+        if idx != -1 and idx < menor_indice:
+            menor_indice = idx
+            melhor_categoria = regra["categoria"]
+            melhor_impacta = bool(regra["impacta_resultado"])
 
     for chave, dados in REGRAS.items():
         idx = texto.find(chave)

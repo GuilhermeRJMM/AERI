@@ -90,11 +90,18 @@ def extrair_bloco(texto, tipo):
         m = re.search(r'ADQUIRENTE[S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO TÍTULO\b)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'DONAT[AÁ]RIO[S]?\s*:(.*?)(?=\bIM[ÓOÃ“]VEL\s*:|\bOBJETO\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
+        m = re.search(r'DONAT[AÁ]RI[OA]S?\s*:(.*?)(?=\bIM[ÓOÃ“]VEL\s*:|\bOBJETO\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(r'adquirido\s+(?:por|pel[oa])\s*:?\s*(.*?)(?=\bpor compra\b|\bpelo preço\b|\bem pagamento\b|\bpor doação\b)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip().rstrip(';, ')
+        if m:
+            bloco = re.split(
+                r'\bneste\s+ato\s+representad[oa]\b|\bdevidamente\s+representad[oa]\b',
+                m.group(1),
+                maxsplit=1,
+                flags=re.I,
+            )[0]
+            return bloco.strip().rstrip(';, ')
 
         m = re.search(r'coube\s+(?:a|ao|aos|à|às)\s+(.*?)(?=\bem pagamento\b|\ba totalidade\b|\bpor aquisi[çc][ãa]o\b|\bconforme\b)', texto, re.I | re.DOTALL)
         if m:
@@ -458,6 +465,12 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
             ("INVENTARIO" in descricao_limpa or "PARTILHA" in descricao_limpa)
             and ("MEACAO" in descricao_limpa or "MEEIR" in descricao_limpa)
         )
+        partilha_de_espolio_com_quinhao = (
+            ("INVENTARIO" in descricao_limpa or "PARTILHA" in descricao_limpa)
+            and "ESPOLIO" in descricao_limpa
+            and "TRANSMITENTE" in descricao_limpa
+            and percentual_ato < 99.0
+        )
         houve_debito = False
         
         if percentual_ato >= 99.0:
@@ -484,7 +497,18 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
         for a in adquirentes:
             chave_a = chave_para_incluir(a, estado)
             proporcao_adquirida = a["percentual"] if usar_percentual_individual else percent_por_adq
-            if partilha_meacao and not houve_debito and chave_a in estado:
+            ajustar_quinhao_existente = (
+                not houve_debito
+                and chave_a in estado
+                and (
+                    partilha_meacao
+                    or (
+                        partilha_de_espolio_com_quinhao
+                        and estado[chave_a]["proporcao"] >= 99.0
+                    )
+                )
+            )
+            if ajustar_quinhao_existente:
                 estado[chave_a]["nome"] = a["nome"]
                 estado[chave_a]["cpf_original"] = a["cpf"]
                 estado[chave_a]["proporcao"] = proporcao_adquirida

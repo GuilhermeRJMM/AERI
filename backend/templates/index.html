@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260709-pasta-intimacao">
+    <link rel="stylesheet" href="/static/styles.css?v=20260715-imovel">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -234,6 +234,13 @@
                             <tbody id="auditoria-tbody"></tbody>
                         </table></div>
                     </section>
+                    <div class="rotina-header auditoria-header"><div><span class="eyebrow">APRENDIZADO</span><h2>Regras pendentes</h2><p>Sugestões revisadas entram no motor determinístico do AERI.</p></div></div>
+                    <section class="rotina-painel">
+                        <div class="rotina-table-wrap"><table class="rotina-table aprendizado-table">
+                            <thead><tr><th>Termo</th><th>Categoria</th><th>Tipo</th><th>Ocorrências</th><th>Justificativa</th><th>Ações</th></tr></thead>
+                            <tbody id="aprendizado-tbody"></tbody>
+                        </table></div>
+                    </section>
                 </main>
             </div>
 
@@ -331,6 +338,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260710-limpa-cache"></script>
+    <script type="module" src="/static/js/app.js?v=20260715-imovel"></script>
 </body>
 </html>

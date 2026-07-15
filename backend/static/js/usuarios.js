@@ -2,6 +2,7 @@ import {requisicaoAeri} from './api.js';
 import {escaparHtml} from './util.js';
 
 let usuarios = [];
+let regrasAprendizado = [];
 const salvamentosUsuarios = new Map();
 const CARGOS = [
     ['ADMIN', 'ADM'],
@@ -81,13 +82,34 @@ function renderizarUsuarios() {
         </tr>`).join('') || '<tr><td colspan="7" class="rotina-vazio">Nenhum usuário encontrado.</td></tr>';
 }
 
+function renderizarAprendizado() {
+    const tbody = document.getElementById('aprendizado-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = regrasAprendizado.map(item => `
+        <tr>
+            <td><strong>${escaparHtml(item.expressao)}</strong><small>${escaparHtml(item.criado_por)}</small></td>
+            <td><span class="usuario-status ativo">${escaparHtml(item.categoria)}</span></td>
+            <td>${escaparHtml(item.tipo_onus || '—')}</td>
+            <td>${item.votos}</td>
+            <td>${escaparHtml(item.justificativa || '—')}</td>
+            <td><div class="rotina-row-actions">
+                <button data-acao-aprendizado="aprovar" data-regra="${item.id}" class="rotina-check">Aprovar</button>
+                <button data-acao-aprendizado="rejeitar" data-regra="${item.id}" class="perigo">Rejeitar</button>
+            </div></td>
+        </tr>`).join('') || '<tr><td colspan="6" class="rotina-vazio">Nenhuma regra pendente.</td></tr>';
+}
+
 export async function carregarUsuarios() {
     if (!cargoAdministrativo(document.body.dataset.perfil)) return;
-    const [lista, auditoria] = await Promise.all([
-        requisicaoAeri('/api/usuarios'), requisicaoAeri('/api/usuarios/auditoria'),
+    const [lista, auditoria, aprendizado] = await Promise.all([
+        requisicaoAeri('/api/usuarios'),
+        requisicaoAeri('/api/usuarios/auditoria'),
+        requisicaoAeri('/analisar/aprendizado/sugestoes?status=PENDENTE'),
     ]);
     usuarios = lista;
+    regrasAprendizado = aprendizado;
     renderizarUsuarios();
+    renderizarAprendizado();
     document.getElementById('auditoria-tbody').innerHTML = auditoria.map(item => `<tr>
         <td>${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(item.criada_em))}</td>
         <td>${escaparHtml(item.usuario || '—')}</td><td>${escaparHtml(item.acao)}</td>
@@ -190,6 +212,22 @@ async function acaoTabela(evento) {
     } catch (erro) { alert(erro.message); await carregarUsuarios(); }
 }
 
+async function acaoAprendizado(evento) {
+    const alvo = evento.target.closest('[data-acao-aprendizado]');
+    if (!alvo) return;
+    const acao = alvo.dataset.acaoAprendizado;
+    const regra = alvo.dataset.regra;
+    if (!regra || !['aprovar', 'rejeitar'].includes(acao)) return;
+    try {
+        await requisicaoAeri(`/analisar/aprendizado/sugestoes/${regra}/${acao}`, {method:'POST'});
+        regrasAprendizado = regrasAprendizado.filter(item => item.id !== regra);
+        renderizarAprendizado();
+    } catch (erro) {
+        alert(erro.message);
+        await carregarUsuarios();
+    }
+}
+
 export function abrirTrocaSenha(obrigatoria = false) {
     document.getElementById('btn-fechar-troca-senha').hidden = obrigatoria;
     document.getElementById('modal-trocar-senha').classList.add('aberta');
@@ -225,6 +263,7 @@ export function iniciarUsuarios() {
     document.getElementById('form-usuario').addEventListener('submit', salvarUsuario);
     document.getElementById('usuarios-tbody').addEventListener('change', acaoTabela);
     document.getElementById('usuarios-tbody').addEventListener('click', acaoTabela);
+    document.getElementById('aprendizado-tbody')?.addEventListener('click', acaoAprendizado);
     document.getElementById('form-trocar-senha').addEventListener('submit', trocarSenha);
     document.getElementById('btn-minha-senha').addEventListener('click', () => abrirTrocaSenha(false));
     document.getElementById('btn-fechar-troca-senha').addEventListener('click', () => exigirTrocaSenha(false));

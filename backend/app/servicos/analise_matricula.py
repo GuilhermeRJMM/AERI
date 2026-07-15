@@ -8,6 +8,8 @@ from backend.app.regras import (
     formatar_grau_onus,
     identificar_tipo_onus,
 )
+from backend.app.servicos.aprendizado_regras import identificar_tipo_onus_aprendido
+from backend.app.servicos.dados_imovel import extrair_dados_imovel
 
 
 def atualizar_grau_hipotecas(atos):
@@ -29,16 +31,22 @@ def atualizar_grau_hipotecas(atos):
             ato.grau_onus = formatar_grau_onus(max(1, grau_declarado - rebaixamentos))
 
 
-def analisar_matricula(texto: str) -> dict:
+def analisar_matricula(texto: str, regras_aprendidas: list[dict] | None = None) -> dict:
     atos = []
     for item in separar_atos(texto):
-        categoria, impacta = classificar(item["texto"])
+        categoria, impacta = classificar(item["texto"], regras_aprendidas=regras_aprendidas)
+        tipo_onus = None
+        if categoria == "ÔNUS":
+            tipo_onus = identificar_tipo_onus(item["texto"]) or identificar_tipo_onus_aprendido(
+                item["texto"],
+                regras_aprendidas,
+            )
         atos.append(
             Ato(
                 codigo=item["codigo"],
                 descricao=item["texto"],
                 categoria=categoria,
-                tipo_onus=identificar_tipo_onus(item["texto"]) if categoria == "ÔNUS" else None,
+                tipo_onus=tipo_onus,
                 grau_onus=None,
                 impacta_resultado=impacta,
             )
@@ -66,9 +74,12 @@ def analisar_matricula(texto: str) -> dict:
         if ato.categoria in categorias_permitidas
     ]
 
+    proprietarios_atuais = calcular_cadeia_dominial(atos, texto)
+
     return {
         "resultado": resultado_final,
         "publicidade": "COM PUBLICIDADE" if tem_publicidade else "SEM PUBLICIDADE",
         "atos": atos_filtrados,
-        "proprietarios_atuais": calcular_cadeia_dominial(atos, texto),
+        "proprietarios_atuais": proprietarios_atuais,
+        "imovel": extrair_dados_imovel(texto, atos, proprietarios_atuais),
     }
