@@ -132,6 +132,43 @@ def _extrair_confrontacoes(descricao: str) -> list[dict]:
     ]
 
 
+def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str]]:
+    tipo_logradouro = r"(?:Rua|Avenida|Av[.]?|Alameda|Travessa|Praça|Rodovia|Estrada|Viela)"
+    logradouro = re.search(
+        rf"\bsituad[oa]\s+(?:na|no)\s+({tipo_logradouro}\b[^,;]+)",
+        descricao,
+        re.IGNORECASE,
+    )
+    if not logradouro:
+        logradouro = re.match(rf"\s*({tipo_logradouro}\b[^,;]+)", descricao, re.IGNORECASE)
+
+    rua = _compactar(logradouro.group(1)) if logradouro else None
+    setor = None
+    if logradouro:
+        trecho_seguinte = descricao[logradouro.end():]
+        localizacao = re.match(
+            r"\s*,\s*(.*?)"
+            r"(?=,\s*(?:nesta|neste|com\b|lote\b|quadra\b|medindo\b|possuindo\b|constituíd[oa]\b)|[.;]|$)",
+            trecho_seguinte,
+            re.IGNORECASE,
+        )
+        if localizacao:
+            candidato = _compactar(localizacao.group(1))
+            if re.search(r"\b(?:Vila|Setor|Jardim|Bairro|Residencial|Parque)\b", candidato, re.IGNORECASE):
+                setor = candidato
+
+    if not setor:
+        localizacao = re.search(
+            r"\b((?:Vila\s+[^,;]+,\s*)?Setor\s+[^,;.]+)",
+            descricao,
+            re.IGNORECASE,
+        )
+        if localizacao:
+            setor = _compactar(localizacao.group(1))
+
+    return rua, setor
+
+
 def _percentual_numerico(texto: str) -> float:
     return float(str(texto).replace("%", "").replace(".", "").replace(",", "."))
 
@@ -163,6 +200,12 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Lote", "valor": lote.group(1), "origem": "Cabeçalho"})
     if quadra:
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Quadra", "valor": quadra.group(1), "origem": "Cabeçalho"})
+
+    rua, setor = _extrair_endereco(descricao)
+    if rua:
+        _adicionar_unico(resultado["identificacao"], {"rotulo": "Rua", "valor": rua, "origem": "Cabeçalho"})
+    if setor:
+        _adicionar_unico(resultado["identificacao"], {"rotulo": "Setor", "valor": setor, "origem": "Cabeçalho"})
 
     resultado["confrontacoes"] = _extrair_confrontacoes(descricao)
 

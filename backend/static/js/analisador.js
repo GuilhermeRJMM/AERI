@@ -143,7 +143,7 @@ function renderizarAprendizado() {
         <div class="aprendizado-painel">
             <div class="aprendizado-cabecalho">
                 <div>
-                    <span class="eyebrow">APRENDIZADO SEM IA</span>
+                    <span class="eyebrow">APRENDIZADO</span>
                     <h3>Correção de regra</h3>
                 </div>
                 <span class="aprendizado-status">Revisão obrigatória</span>

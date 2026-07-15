@@ -8,6 +8,23 @@ def valores_por_rotulo(itens, rotulo):
 
 
 class TesteDadosImovel(unittest.TestCase):
+    def test_endereco_preserva_rua_e_setor_composto_do_cabecalho(self):
+        texto = """
+        IMÓVEL: Lote n.º 04, da Quadra 58, com área de 513,37m², situado na Rua 9,
+        Vila Cordeiro, Setor Oeste, nesta cidade, com as seguintes medidas e confrontações:
+        dividindo na frente com a citada rua; nos fundos com o lote n.º 17; na lateral
+        direita com o lote n.º 05; e na lateral esquerda com o lote n.º 03.
+        PROPRIETÁRIA: Proprietária Exemplo.
+        """
+
+        resultado = analisar_matricula(texto)
+
+        self.assertEqual(valores_por_rotulo(resultado["imovel"]["identificacao"], "Rua"), ["Rua 9"])
+        self.assertEqual(
+            valores_por_rotulo(resultado["imovel"]["identificacao"], "Setor"),
+            ["Vila Cordeiro, Setor Oeste"],
+        )
+
     def test_confrontacoes_exibem_somente_os_lotes(self):
         texto = """
         MATRÍCULA 29.460. IMÓVEL: Lote n.º 08, da quadra 12, com a área de 360,00m²,
