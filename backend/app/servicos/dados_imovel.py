@@ -28,7 +28,9 @@ def _valor_decimal(texto: str) -> Optional[float]:
 
 def _formatar_numero(valor: float, casas: int = 4) -> str:
     texto = f"{valor:.{casas}f}".rstrip("0").rstrip(".")
-    return texto.replace(".", ",")
+    inteiro, separador, decimal = texto.partition(".")
+    inteiro = f"{int(inteiro):,}".replace(",", ".")
+    return f"{inteiro},{decimal}" if separador else inteiro
 
 
 def _adicionar_unico(lista: list[dict], item: dict) -> None:
@@ -93,24 +95,47 @@ def _extrair_bloco_imovel(texto: str) -> tuple[str, str]:
 
 
 def _extrair_lotes(segmento: str) -> Optional[str]:
-    lote = re.search(
+    padrao = re.compile(
         r"\blotes?(?:\s+de\s+terras)?\s*"
         r"(?:n(?:[.º°o]|os|s)*\s*)?"
-        r"(\d+[A-Za-z]?(?:[-/]\w+)?(?:\s*(?:,|e)\s*\d+[A-Za-z]?(?:[-/]\w+)?)*)",
-        segmento,
+        r"(?P<lotes>\d+[A-Za-z]?(?:[-/]\w+)?(?:\s*(?:,|e)\s*\d+[A-Za-z]?(?:[-/]\w+)?)*)"
+        r"(?:\s+da\s+quadra\s+(?:n(?:[.º°o]|os|s)*\s*)?(?P<quadra>[\w\-/]+))?",
         re.IGNORECASE,
     )
-    if not lote:
+    confrontantes = []
+    for lote in padrao.finditer(segmento):
+        identificadores = [
+            item.strip()
+            for item in re.split(r"\s*(?:,|\be\b)\s*", lote.group("lotes"), flags=re.IGNORECASE)
+            if item.strip()
+        ]
+        quadra = lote.group("quadra")
+        confrontantes.extend((identificador, quadra) for identificador in identificadores)
+
+    if not confrontantes:
         return None
 
-    identificadores = [item.strip() for item in re.split(r"\s*(?:,|\be\b)\s*", lote.group(1), flags=re.IGNORECASE)]
-    identificadores = [item for item in identificadores if item]
-    if len(identificadores) == 1:
-        return f"Lote {identificadores[0]}"
-    return f"Lotes {' e '.join(identificadores)}"
+    unicos = []
+    for confrontante in confrontantes:
+        if confrontante not in unicos:
+            unicos.append(confrontante)
+
+    quadras = {quadra for _, quadra in unicos}
+    if len(quadras) == 1:
+        quadra = next(iter(quadras))
+        lotes = [identificador for identificador, _ in unicos]
+        lista = lotes[0] if len(lotes) == 1 else f"{', '.join(lotes[:-1])} e {lotes[-1]}"
+        prefixo = "Lote" if len(lotes) == 1 else "Lotes"
+        complemento = f" da Quadra {quadra}" if quadra else ""
+        return f"{prefixo} {lista}{complemento}"
+
+    partes = []
+    for identificador, quadra in unicos:
+        partes.append(f"Lote {identificador}" + (f" da Quadra {quadra}" if quadra else ""))
+    return "; ".join(partes)
 
 
-def _extrair_confrontacoes(descricao: str, origem: str = "Cabeçalho") -> list[dict]:
+def _extrair_confrontacoes(descricao: str, origem: str = "Cabeçalho", rua: Optional[str] = None) -> list[dict]:
     marcadores = []
     padroes = (
         ("Frente", r"\b(?:pela\s+|de\s+|na\s+)?frente\b"),
@@ -126,9 +151,16 @@ def _extrair_confrontacoes(descricao: str, origem: str = "Cabeçalho") -> list[d
     confrontacoes = {}
     for indice, (_, fim, rotulo) in enumerate(marcadores):
         limite = marcadores[indice + 1][0] if indice + 1 < len(marcadores) else len(descricao)
-        lote = _extrair_lotes(descricao[fim:limite])
-        if lote and rotulo not in confrontacoes:
-            confrontacoes[rotulo] = lote
+        segmento = descricao[fim:limite]
+        alvo = _extrair_lotes(segmento)
+        if not alvo and rotulo == "Frente" and rua and "RUA" in _sem_acentos(segmento):
+            alvo = rua
+        if not alvo:
+            curso_agua = re.search(r"\b(Córrego\s+[^;,.]+)", segmento, re.IGNORECASE)
+            if curso_agua:
+                alvo = _compactar(curso_agua.group(1))
+        if alvo and rotulo not in confrontacoes:
+            confrontacoes[rotulo] = alvo
 
     return [
         {"rotulo": rotulo, "valor": confrontacoes[rotulo], "origem": origem}
@@ -219,8 +251,8 @@ def _percentual_numerico(texto: str) -> float:
 
 def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> dict:
     cabecalho, descricao = _extrair_bloco_imovel(texto)
-    cabecalho_normalizado = _sem_acentos(cabecalho)
-    rural = any(termo in cabecalho_normalizado for termo in ("FAZENDA", "SITIO", "INCRA", "HECTARE"))
+    descricao_normalizada = _sem_acentos(descricao)
+    rural = any(termo in descricao_normalizada for termo in ("FAZENDA", "SITIO", "INCRA", "HECTARE"))
 
     resultado = {
         "situacao": {"status": "ATIVA", "origem": "Matrícula"},
@@ -234,7 +266,10 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
         "alertas": [],
     }
 
-    matricula = re.search(r"MATR[ÍI]CULA\s+n?[.º°o\s]*([\d.]+)", cabecalho, re.IGNORECASE)
+    antes_imovel = re.split(r"IM[ÓO]VEL\s*:", cabecalho, maxsplit=1, flags=re.IGNORECASE)[0]
+    matricula = re.search(r"MATR[ÍI]CULA\s+n?[.º°o\s]*([\d.]+)", antes_imovel, re.IGNORECASE)
+    if not matricula:
+        matricula = re.search(r"(?:^|\n)[ \t-]*(?:R|AV)[.\-]\s*\d+[.\-]\s*([\d.]+)", texto, re.IGNORECASE)
     if matricula:
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Matrícula", "valor": matricula.group(1), "origem": "Cabeçalho"})
 
@@ -253,7 +288,7 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
     if setor:
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Setor", "valor": setor, "origem": "Cabeçalho"})
 
-    resultado["confrontacoes"] = _extrair_confrontacoes(descricao)
+    resultado["confrontacoes"] = _extrair_confrontacoes(descricao, rua=rua)
 
     if rural:
         denominacao = re.search(r"\b((?:Fazendas?|Sítio)\s+.*?)(?=,\s*(?:neste|situad[oa]|constituíd[oa]))", descricao, re.IGNORECASE)
@@ -269,7 +304,8 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
         _adicionar_unico(resultado["areas"], {"rotulo": "Área", "valor": area_registral, "origem": "Cabeçalho"})
 
     cadastro_municipal = re.search(
-        r"Cadastrad[oa]\s+na\s+Prefeitura\s+sob\s+o\s+n?[.º°o\s]*(.*?)(?=\bPROPRIET[ÁA]RI[OA]S?\s*:|\Z)",
+        r"Cadastrad[oa]\s+na\s+Prefeitura(?:\s+Municipal)?\s+sob\s+o\s+n?[.º°o\s]*(.*?)"
+        r"(?=\bORIGEM\s*:|\bPROPRIET[ÁA]RI[OA]S?\s*:|\Z)",
         cabecalho,
         re.IGNORECASE | re.DOTALL,
     )
@@ -312,7 +348,7 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
             if setor_atual:
                 _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Setor", "valor": setor_atual, "origem": codigo})
 
-            confrontacoes_atuais = _extrair_confrontacoes(caracterizacao, codigo)
+            confrontacoes_atuais = _extrair_confrontacoes(caracterizacao, codigo, rua_atual or rua)
             if confrontacoes_atuais:
                 resultado["confrontacoes"] = confrontacoes_atuais
 
@@ -322,6 +358,22 @@ def extrair_dados_imovel(texto: str, atos: list, proprietarios: list[dict]) -> d
             construida_atual = _extrair_area_construida(caracterizacao, normalizado)
             if construida_atual:
                 _substituir_por_rotulo(resultado["areas"], {"rotulo": "Área Construída", "valor": construida_atual, "origem": codigo})
+
+        if "DESIGNACAO CADASTRAL DO IMOVEL" in normalizado:
+            designacao = re.search(
+                r"códigos?\s+cadastrais?.*?:\s*(.*?)(?=\.\s*DOU\s+FÉ|\bDOU\s+FÉ|$)",
+                descricao_ato,
+                re.IGNORECASE | re.DOTALL,
+            )
+            if designacao:
+                codigos = re.findall(r"\b\d[\d.]*\b", designacao.group(1))
+                if codigos:
+                    lista_codigos = codigos[0] if len(codigos) == 1 else f"{', '.join(codigos[:-1])} e {codigos[-1]}"
+                    _substituir_por_rotulo(resultado["cadastros"], {
+                        "rotulo": "Cadastro municipal",
+                        "valor": f"CCI {lista_codigos}",
+                        "origem": codigo,
+                    })
 
         if "FICA ENCERRADA" in normalizado or "FICA ENCERRADO" in normalizado:
             sucessora = re.search(r"matriculad[oa]\s+sob\s+o\s+n?[.º°o\s]*([\d.]+)", descricao_ato, re.IGNORECASE)

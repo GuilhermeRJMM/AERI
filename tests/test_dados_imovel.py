@@ -8,6 +8,45 @@ def valores_por_rotulo(itens, rotulo):
 
 
 class TesteDadosImovel(unittest.TestCase):
+    def test_matricula_aberta_sem_numero_explicito_usa_primeiro_ato_e_dados_urbanos_atuais(self):
+        texto = """
+        IMÓVEL: Uma casa de residência situada na Rua Paraíba, n.º 128, nesta cidade,
+        com terreno de frente para a rua e fundos com um córrego; cadastrado na Prefeitura
+        sob o n.º 1/9-C. ORIGEM: R-05 da Matrícula 7.898. PROPRIETÁRIOS: Proprietários diversos,
+        alguns residentes em fazenda neste Município.
+        R-01-29.774 - INVENTÁRIO/PARTILHA. IMÓVEL: 2,53% do imóvel descrito na matrícula.
+        AV.04-29.774 - ATUALIZAÇÃO DE DESIGNAÇÃO CADASTRAL DO IMÓVEL. O imóvel atualmente
+        possui os seguintes códigos cadastrais na Prefeitura Municipal: CCI n.os 9.168,
+        9.174 e 129.287. DOU FÉ.
+        AV.05-29.774 - CARACTERIZAÇÃO DO IMÓVEL. O imóvel assim se caracteriza: Lote n.º 09,
+        da Quadra 01, situado na Rua Paraíba, n.º 128, Centro, com área de 10.142,00m²,
+        sendo: frente com a citada rua; fundos com o Córrego Maria Lucinda; lateral direita
+        com o lote n.º 01 da quadra 02; e lateral esquerda com o lote 08 da quadra 01,
+        o lote 07 da quadra 01 e o lote 06 da quadra 01.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        identificacao = {item["rotulo"]: item["valor"] for item in resultado["identificacao"]}
+        self.assertEqual(identificacao["Matrícula"], "29.774")
+        self.assertEqual(identificacao["Lote"], "09")
+        self.assertEqual(identificacao["Quadra"], "01")
+        self.assertEqual(resultado["tipo"], "URBANO")
+        self.assertEqual(valores_por_rotulo(resultado["areas"], "Área"), ["10.142 m²"])
+        self.assertEqual(
+            [(item["rotulo"], item["valor"]) for item in resultado["confrontacoes"]],
+            [
+                ("Frente", "Rua Paraíba"),
+                ("Lado Direito", "Lote 01 da Quadra 02"),
+                ("Lado Esquerdo", "Lotes 08, 07 e 06 da Quadra 01"),
+                ("Fundos", "Córrego Maria Lucinda"),
+            ],
+        )
+        self.assertEqual(
+            [(item["valor"], item["origem"]) for item in resultado["cadastros"]],
+            [("CCI 9.168, 9.174 e 129.287", "AV.04")],
+        )
+
     def test_caracterizacao_posterior_substitui_dados_fisicos_e_preserva_numero(self):
         texto = """
         MATRÍCULA 10.597. IMÓVEL: Rua Dr. Pedro Nunes, 1266, nesta cidade,
@@ -36,6 +75,7 @@ class TesteDadosImovel(unittest.TestCase):
         self.assertEqual(
             [(item["rotulo"], item["valor"], item["origem"]) for item in resultado["confrontacoes"]],
             [
+                ("Frente", "Rua Dr. Pedro Nunes", "AV.13"),
                 ("Lado Direito", "Lote 09", "AV.13"),
                 ("Lado Esquerdo", "Lotes 07 e 07-A", "AV.13"),
                 ("Fundos", "Lote 06", "AV.13"),
