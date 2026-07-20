@@ -112,8 +112,11 @@ function renderizarImovel(imovel) {
         return '<div class="imovel-vazio">Dados do imóvel não identificados.</div>';
     }
     const situacao = imovel.situacao || {status:'ATIVA', origem:'Matrícula'};
-    const sucessora = situacao.matricula_sucessora
-        ? `<div class="imovel-resumo-item"><span>Matrícula sucessora</span><strong>${escaparHtml(situacao.matricula_sucessora)}</strong><small>${escaparHtml(situacao.origem)}</small></div>`
+    const matriculasSucessoras = Array.isArray(situacao.matriculas_sucessoras)
+        ? situacao.matriculas_sucessoras
+        : (situacao.matricula_sucessora ? [situacao.matricula_sucessora] : []);
+    const sucessora = matriculasSucessoras.length
+        ? `<div class="imovel-resumo-item"><span>${matriculasSucessoras.length > 1 ? 'Matrículas sucessoras' : 'Matrícula sucessora'}</span><strong>${escaparHtml(matriculasSucessoras.join(', '))}</strong><small>${escaparHtml(situacao.origem)}</small></div>`
         : '';
     const alertas = (imovel.alertas || []).map(alerta => `
         <div class="imovel-alerta">
@@ -124,7 +127,7 @@ function renderizarImovel(imovel) {
     return `
         <div class="imovel-painel">
             <div class="imovel-resumo">
-                <div class="imovel-resumo-item"><span>Situação</span><strong class="imovel-situacao ${situacao.status === 'ENCERRADA' ? 'encerrada' : ''}">${escaparHtml(situacao.status)}</strong><small>${escaparHtml(situacao.origem)}</small></div>
+                <div class="imovel-resumo-item"><span>Situação</span><strong class="imovel-situacao ${situacao.status !== 'ATIVA' ? 'encerrada' : ''}">${escaparHtml(situacao.status)}</strong><small>${escaparHtml(situacao.origem)}</small></div>
                 <div class="imovel-resumo-item"><span>Tipo</span><strong>${escaparHtml(imovel.tipo || 'NÃO IDENTIFICADO')}</strong></div>
                 ${sucessora}
             </div>

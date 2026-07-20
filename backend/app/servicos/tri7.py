@@ -2,7 +2,6 @@ import json
 import os
 import re
 import threading
-import time
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -55,29 +54,38 @@ class ConfiguracaoTri7:
     usuario: str
     senha: str
     timeout: int = TIMEOUT_PADRAO
+    access_token: str = ""
 
     @classmethod
     def do_ambiente(cls) -> "ConfiguracaoTri7":
         base_url = os.getenv("TRI7_API_BASE_URL", "https://morrinhos-010-api.tri7-gsti.com.br").strip().rstrip("/")
         usuario = os.getenv("TRI7_API_USERNAME", "").strip()
         senha = os.getenv("TRI7_API_PASSWORD", "")
+        # Tokens JWT não contêm espaços. Removê-los aqui também tolera
+        # quebras de linha ou espaços introduzidos ao copiar e colar o token.
+        access_token = "".join(os.getenv("TRI7_API_ACCESS_TOKEN", "").split())
         try:
             timeout = max(3, min(int(os.getenv("TRI7_API_TIMEOUT_SECONDS", str(TIMEOUT_PADRAO))), 60))
         except ValueError:
             timeout = TIMEOUT_PADRAO
         if not base_url.startswith("https://"):
             raise ConfiguracaoTri7Invalida("A URL da Tri7 deve usar HTTPS.")
-        if not usuario or not senha:
+        if not access_token and (not usuario or not senha):
             raise ConfiguracaoTri7Invalida("A integração com a Tri7 não está configurada.")
-        return cls(base_url=base_url, usuario=usuario, senha=senha, timeout=timeout)
+        return cls(
+            base_url=base_url,
+            usuario=usuario,
+            senha=senha,
+            timeout=timeout,
+            access_token=access_token,
+        )
 
 
 class ClienteTri7:
     def __init__(self, configuracao: ConfiguracaoTri7 | None = None, abridor=urlopen):
         self.configuracao = configuracao or ConfiguracaoTri7.do_ambiente()
         self._abridor = abridor
-        self._token = ""
-        self._token_valido_ate = 0.0
+        self._token = self.configuracao.access_token
         self._trava_token = threading.Lock()
 
     def _ler_json(self, requisicao: UrlRequest) -> tuple[int, object]:
@@ -101,6 +109,8 @@ class ClienteTri7:
             raise RespostaTri7Invalida("A Tri7 retornou uma resposta inválida.") from erro
 
     def _autenticar(self) -> str:
+        if not self.configuracao.usuario or not self.configuracao.senha:
+            raise AutenticacaoTri7Falhou("O token da Tri7 expirou e não há credenciais para renová-lo.")
         corpo = json.dumps({"username": self.configuracao.usuario, "password": self.configuracao.senha}).encode("utf-8")
         requisicao = UrlRequest(
             f"{self.configuracao.base_url}/api/v1/users/login",
@@ -113,12 +123,11 @@ class ClienteTri7:
         if status < 200 or status >= 300 or not isinstance(token, str) or not token:
             raise AutenticacaoTri7Falhou("Não foi possível autenticar na Tri7.")
         self._token = token
-        self._token_valido_ate = time.monotonic() + 240
         return token
 
     def _obter_token(self, forcar: bool = False) -> str:
         with self._trava_token:
-            if not forcar and self._token and time.monotonic() < self._token_valido_ate:
+            if not forcar and self._token:
                 return self._token
             return self._autenticar()
 

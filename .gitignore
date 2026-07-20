@@ -5,3 +5,6 @@ tmp/
 .env.*
 !.env.example
 .vercel/
+output/relatorios/
+output/planilhas/
+output/pdf/Relatorio_Final_Auditoria_AERI_*.pdf

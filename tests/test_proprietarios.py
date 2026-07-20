@@ -1,15 +1,163 @@
 import unittest
 from types import SimpleNamespace
 
+from backend.app.parser import separar_atos
 from backend.app.proprietarios import (
     calcular_cadeia_dominial,
     extrair_bloco,
     extrair_indicacao_titularidade,
     extrair_pessoas,
+    extrair_proprietario_inicial,
+    parse_percent,
 )
 
 
 class TesteProprietarios(unittest.TestCase):
+    def test_cabecalho_nao_e_cortado_por_referencia_ao_r01(self):
+        texto = """
+        MATRÍCULA 900. IMÓVEL: Lote 1. Título anterior R.01 da matrícula de origem.
+        PROPRIETÁRIO: Pessoa Inicial, CPF 004.338.341-61.
+        R.01-900 - COMPRA E VENDA. ADQUIRENTE: Pessoa Atual, CPF 111.222.333-44.
+        IMÓVEL: A totalidade do imóvel.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(len(resultado), 1)
+        self.assertEqual(resultado[0]["cpf"], "111.222.333-44")
+
+    def test_aceita_erro_historico_proprietario_com_o_acentuado(self):
+        pessoas = extrair_proprietario_inicial(
+            "Próprietários: Pessoa Exemplo, CPF 004.338.341-61. O referido é verdade."
+        )
+
+        self.assertEqual(len(pessoas), 1)
+        self.assertEqual(pessoas[0]["cpf"], "004.338.341-61")
+
+    def test_aceita_erro_ocr_proprietarios_sem_p_inicial(self):
+        pessoas = extrair_proprietario_inicial(
+            "Roprietários: Pessoa Exemplo, CPF 004.338.341-61. Título aquisitivo: anterior."
+        )
+
+        self.assertEqual(len(pessoas), 1)
+        self.assertEqual(pessoas[0]["cpf"], "004.338.341-61")
+
+    def test_aceita_ponto_e_virgula_apos_rotulo_proprietario(self):
+        pessoas = extrair_proprietario_inicial(
+            "PROPRIETÁRIO; Pessoa Exemplo, CPF 004.338.341-61. Título aquisitivo: anterior."
+        )
+
+        self.assertEqual(len(pessoas), 1)
+
+    def test_extrai_venderam_arrematante_e_usucapiao(self):
+        casos = (
+            (
+                "Os proprietários venderam o imóvel para Pessoa Compradora, CPF 111.222.333-44, "
+                "pelo valor de R$100.000,00.",
+                "111.222.333-44",
+            ),
+            (
+                "ARREMATAÇÃO. ARREMATANTE: Pessoa Arrematante, CPF 222.333.444-55. DOU FÉ.",
+                "222.333.444-55",
+            ),
+            (
+                "USUCAPIÃO. O domínio foi declarado em favor de: Pessoa Usucapiente, "
+                "CPF 333.444.555-66. DOU FÉ.",
+                "333.444.555-66",
+            ),
+        )
+
+        for texto, documento in casos:
+            with self.subTest(documento=documento):
+                pessoas = extrair_pessoas(extrair_bloco(texto, "ADQUIRENTE"))
+                self.assertEqual(len(pessoas), 1)
+                self.assertEqual(pessoas[0]["cpf"], documento)
+
+    def test_extrai_usucapientes_da_acao_promovida_em_desfavor(self):
+        texto = (
+            "R.02 - USUCAPIÃO. Sentença que julgou procedente a ação de usucapião "
+            "promovida por Pessoa Usucapiente, CPF 333.444.555-66 e sua mulher "
+            "Segunda Usucapiente, CPF 444.555.666-77, ambos brasileiros, em desfavor "
+            "dos proprietários anteriores, conferindo-lhes o domínio do imóvel."
+        )
+
+        pessoas = extrair_pessoas(extrair_bloco(texto, "ADQUIRENTE"))
+
+        self.assertEqual([pessoa["cpf"] for pessoa in pessoas], ["333.444.555-66", "444.555.666-77"])
+
+    def test_extrai_comprador_com_rotulo_explicito(self):
+        texto = (
+            "R.01 - COMPRA E VENDA. COMPRADOR: Pessoa Compradora, brasileira, "
+            "CPF 111.222.333-44. IMÓVEL: A totalidade do imóvel."
+        )
+
+        pessoas = extrair_pessoas(extrair_bloco(texto, "ADQUIRENTE"))
+
+        self.assertEqual(len(pessoas), 1)
+        self.assertEqual(pessoas[0]["cpf"], "111.222.333-44")
+
+    def test_percentual_explicito_prevalece_sobre_valor_de_avaliacao(self):
+        self.assertEqual(
+            parse_percent(
+                "IMÓVEL: parte ideal de 50% do imóvel, na avaliação de R$700.000,10."
+            ),
+            50.0,
+        )
+
+    def test_razao_monetaria_impossivel_nao_gera_percentual_acima_de_cem(self):
+        self.assertEqual(
+            parse_percent("parte ideal de R$50.000,00, na avaliação de R$1,00"),
+            100.0,
+        )
+
+    def test_mesmo_cpf_prevalece_sobre_variacao_do_nome(self):
+        texto = """
+        MATRÍCULA 906. IMÓVEL: Lote 1.
+        PROPRIETÁRIO: José da Silva Neto, CPF 004.338.341-61.
+        R.01-906 - COMPRA E VENDA. TRANSMITENTE: J. da Silva, CPF 004.338.341-61.
+        ADQUIRENTE: Pessoa Compradora, CPF 111.222.333-44.
+        IMÓVEL: parte correspondente a 50%.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            {item["cpf"]: item["proporcao"] for item in resultado},
+            {"004.338.341-61": "50%", "111.222.333-44": "50%"},
+        )
+
+    def test_transmissao_parcial_debita_unico_proprietario_mesmo_sem_rotulo_transmitente(self):
+        texto = """
+        MATRÍCULA 907. IMÓVEL: Lote 1.
+        PROPRIETÁRIO: Pessoa Inicial, CPF 004.338.341-61.
+        R.01-907 - COMPRA E VENDA. ADQUIRENTE: Pessoa Compradora, CPF 111.222.333-44.
+        IMÓVEL: parte correspondente a 35%.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            {item["cpf"]: item["proporcao"] for item in resultado},
+            {"004.338.341-61": "65%", "111.222.333-44": "35%"},
+        )
+
+    def test_proprietario_inicial_no_fim_do_cabecalho(self):
+        texto = """
+        MATRÍCULA 900. IMÓVEL: Lote n.º 01, Quadra 02, com área de 300m².
+        PROPRIETÁRIO: João da Silva, brasileiro, inscrito no CPF sob o n.º 004.338.341-61.
+        AV.01-900 - CÓDIGO DE ENDEREÇAMENTO POSTAL. O imóvel possui CEP n.º 75.650-000.
+        """
+
+        resultado = calcular_cadeia_dominial([], texto)
+
+        self.assertEqual(
+            resultado,
+            [{"nome": "João da Silva", "cpf": "004.338.341-61", "proporcao": "100%"}],
+        )
+
     def test_separa_esposa_expressamente_adquirente(self):
         descricao = """
         R.01-12.000 - Nos termos da escritura pública de compra e venda, o imóvel objeto
@@ -527,6 +675,20 @@ class TesteProprietarios(unittest.TestCase):
                 "Comprador Novo": "30%",
             },
         )
+
+    def test_mencao_parcial_a_titularidade_nao_substitui_cadeia(self):
+        texto = """
+        AV.10 - INDICAÇÃO DE TITULARIDADE. O ato anterior menciona percentual
+        de 6%, mas não contém tabela de co-proprietários.
+        """
+
+        resultado = calcular_cadeia_dominial(
+            [SimpleNamespace(descricao=texto)],
+            "MATRÍCULA 10. PROPRIETÁRIO: Pessoa Inicial, CPF 004.338.341-61." + texto,
+        )
+
+        self.assertEqual(resultado[0]["cpf"], "004.338.341-61")
+        self.assertEqual(resultado[0]["proporcao"], "100%")
 
 
 if __name__ == "__main__":

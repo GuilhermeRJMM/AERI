@@ -44,9 +44,49 @@ class TesteClienteTri7(unittest.TestCase):
                 normalizar_numero_matricula(valor)
 
     def test_credenciais_sao_obrigatorias_no_ambiente(self):
-        with patch.dict(os.environ, {"TRI7_API_USERNAME": "", "TRI7_API_PASSWORD": ""}, clear=False):
+        with patch.dict(
+            os.environ,
+            {"TRI7_API_USERNAME": "", "TRI7_API_PASSWORD": "", "TRI7_API_ACCESS_TOKEN": ""},
+            clear=False,
+        ):
             with self.assertRaises(ConfiguracaoTri7Invalida):
                 ConfiguracaoTri7.do_ambiente()
+
+    def test_normaliza_espacos_introduzidos_ao_copiar_token(self):
+        with patch.dict(
+            os.environ,
+            {
+                "TRI7_API_BASE_URL": "https://tri7.example",
+                "TRI7_API_USERNAME": "",
+                "TRI7_API_PASSWORD": "",
+                "TRI7_API_ACCESS_TOKEN": "parte-1. parte-2.\nparte-3",
+            },
+            clear=False,
+        ):
+            configuracao = ConfiguracaoTri7.do_ambiente()
+
+        self.assertEqual(configuracao.access_token, "parte-1.parte-2.parte-3")
+
+    def test_token_inicial_dispensa_novo_login(self):
+        requisicoes = []
+
+        def abrir(requisicao, timeout):
+            requisicoes.append(requisicao)
+            self.assertFalse(requisicao.full_url.endswith("/api/v1/users/login"))
+            self.assertEqual(requisicao.headers["Authorization"], "Bearer token-inicial")
+            return RespostaFalsa({"numero_matricula": 1, "texto": "MATRÍCULA 1. R.01 - VENDA."})
+
+        configuracao = ConfiguracaoTri7(
+            "https://tri7.example",
+            "",
+            "",
+            timeout=5,
+            access_token="token-inicial",
+        )
+        resultado = ClienteTri7(configuracao, abridor=abrir).buscar_texto_matricula(1)
+
+        self.assertEqual(resultado["numero_matricula"], "1")
+        self.assertEqual(len(requisicoes), 1)
 
     def test_autentica_no_backend_e_busca_texto(self):
         requisicoes = []

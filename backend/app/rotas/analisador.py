@@ -81,7 +81,11 @@ def analisar_por_numero(
         raise HTTPException(status_code=503, detail=str(erro)) from erro
     except ErroTri7 as erro:
         raise HTTPException(status_code=502, detail=str(erro)) from erro
-    resultado = analisar_matricula(matricula["texto"], regras_aprendidas=_regras_aprovadas())
+    resultado = analisar_matricula(
+        matricula["texto"],
+        regras_aprendidas=_regras_aprovadas(),
+        numero_matricula=matricula["numero_matricula"],
+    )
     resultado["numero_matricula"] = matricula["numero_matricula"]
     resultado["origem"] = "TRI7"
     registrar_auditoria(request, "consultar_e_analisar_matricula_tri7", "sucesso", usuario, numero)

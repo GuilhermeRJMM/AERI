@@ -2,6 +2,8 @@ import re
 import unicodedata
 import math
 
+from backend.app.parser import separar_atos
+
 def limpar_nome(nome):
     nome = ''.join(c for c in unicodedata.normalize('NFD', nome) if unicodedata.category(c) != 'Mn')
     nome = nome.upper().strip()
@@ -38,6 +40,20 @@ def parse_valor_monetario(texto):
         return None
 
 def parse_percent(texto):
+    # Percentual declarado no título prevalece sobre valores monetários.
+    # Sem essa prioridade, "parte ideal de 50% ... avaliação de 700.000,10"
+    # era interpretada incorretamente como 50 / 700.000,10.
+    percentual_explicito = re.search(
+        r'(?:IM[ÓOÃÕ]VEL\s*:\s*(?:equivalente\s+a\s*)?'
+        r'|proporção\s+de\s*'
+        r'|parte\s+(?:ideal\s+)?(?:correspondente\s+a\s*|de\s*)?)'
+        r'(\d+(?:,\d+)?)\s*%',
+        texto,
+        re.IGNORECASE,
+    )
+    if percentual_explicito:
+        return float(percentual_explicito.group(1).replace(',', '.'))
+
     m_valor = re.search(
         r'parte\s+(?:ideal|correspondente\s+a)\s+(?:de\s*)?(?:[A-Z]{1,3}\$?\s*)?([\d\.,]+).*?'
         r'na\s+(?:avalia\S*|qualifica\S*)\s+de\s*(?:[A-Z]{1,3}\$?\s*)?([\d\.,]+)',
@@ -47,7 +63,7 @@ def parse_percent(texto):
     if m_valor:
         parte = parse_valor_monetario(m_valor.group(1))
         total = parse_valor_monetario(m_valor.group(2))
-        if parte is not None and total:
+        if parte is not None and total and 0 <= parte <= total:
             return (parte / total) * 100.0
 
     m0 = re.search(r'IM[ÓOÃ“]VEL\s*:\s*(?:equivalente\s+a\s*)?(\d+(?:,\d+)?)%', texto, re.IGNORECASE)
@@ -69,10 +85,39 @@ def parse_percent(texto):
 
 def extrair_bloco(texto, tipo):
     if tipo == "ADQUIRENTE":
-        m = re.search(r'\bvendeu\s+.*?\bpara\s+(.*?)(?=\bpelo valor\b|\bpelo preÃ§o\b|;|\.\s*Dou|\.\s*O referido|\Z)', texto, re.I | re.DOTALL)
+        m = re.search(
+            r'\b(?:ADQUIRENTES?|OUTORGADOS?|DONAT[ÁA]RI[OA]S?|ADJUDICANTES?|'
+            r'ARREMATANTES?|COMPRADOR(?:ES)?)\s*:\s*(.*?)'
+            r'(?=\b(?:IM[ÓO]VEL|OBJETO|ORIGEM|FORMA\s+DO\s+T[ÍI]TULO|'
+            r'TRANSMITENTES?|OUTORGANTES?|DOADORES?)\s*:|\*NOTA|\bDOU\s+F[ÉE]\b|\Z)',
+            texto,
+            re.I | re.DOTALL,
+        )
+        if m: return m.group(1).strip().rstrip(';, ')
+
+        m = re.search(r'\bvend(?:eu|eram)\s+.*?\bpara\s+(.*?)(?=\bpelo valor\b|\bpelo preço\b|;|\.\s*Dou|\.\s*O referido|\Z)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(r'\badjudicante\s*:\s*(.*?)(?=\*NOTA|;|\.\s*Dou|\.\s*DOU|\Z)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
+
+        m = re.search(r'\barrematante\s*:\s*(.*?)(?=\*NOTA|\bCOTAÇÃO\b|;|\.\s*Dou|\.\s*DOU|\Z)', texto, re.I | re.DOTALL)
+        if m: return m.group(1).strip().rstrip(';, ')
+
+        m = re.search(
+            r'\b(?:domínio|imóvel|matrícula)\s+foi\s+declarad[oa]\s+(?:em|a)\s+favor\s+de\s*:?\s*'
+            r'(.*?)(?=\*NOTA|\bCOTAÇÃO\b|\.\s*Dou|\.\s*DOU|\Z)',
+            texto,
+            re.I | re.DOTALL,
+        )
+        if m: return m.group(1).strip().rstrip(';, ')
+
+        m = re.search(
+            r'\bação\s+de\s+usucapião\s+promovida\s+por\s+(.*?)'
+            r'(?=\s+em\s+desfavor\b|\s+contra\b|\*NOTA|\bCOTAÇÃO\b|\.\s*Dou|\.\s*DOU|\Z)',
+            texto,
+            re.I | re.DOTALL,
+        )
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(r';\s*(.*?)(?=,?\s*adquiriu\s+por\s+compra\b)', texto, re.I | re.DOTALL)
@@ -154,17 +199,18 @@ def extrair_pessoas(texto_bloco):
 
     # Em atos com casal, cada cônjuge pode ter nome e CPF próprios no mesmo bloco.
     # Se não separarmos aqui, a limpeza abaixo remove o segundo cônjuge inteiro.
-    partes_conjuges = re.split(
-        r'\s+e\s+(?:seu|sua)\s+(?:c[oô]njuge|mulher|marido|esposa)\s+',
-        texto_bloco,
-        flags=re.I
-    )
+    partes_numeradas = re.split(r'(?:^|\s+|;)\s*(?:\d{1,3}|[IVX]+)\)\-?\s*', texto_bloco)
+    partes_numeradas = [p.strip() for p in partes_numeradas if p.strip()]
 
-    if len(partes_conjuges) > 1:
-        partes = [p.strip() for p in partes_conjuges if p.strip()]
+    if len(partes_numeradas) > 1:
+        partes = partes_numeradas
     else:
-        partes = re.split(r'(?:^|\s+|;)\s*(?:\d{1,3}|[IVX]+)\)\-?\s*', texto_bloco)
-        partes = [p.strip() for p in partes if p.strip()]
+        partes_conjuges = re.split(
+            r'\s+e\s+(?:seu|sua)\s+(?:c[oô]njuge|mulher|marido|esposa)\s+',
+            texto_bloco,
+            flags=re.I
+        )
+        partes = [p.strip() for p in partes_conjuges if p.strip()]
         partes = [re.sub(r'\s+e\s+d[oa]\s+CPF', ' CPF', p, flags=re.I) for p in partes]
         partes_sem_ponto_virgula = []
 
@@ -229,14 +275,14 @@ def extrair_pessoas(texto_bloco):
     return pessoas
 
 def extrair_proprietario_inicial(texto_cabecalho):
-    m = re.search(r'PROPRIET[AÁ]RI[OA]S?\s*:\s*(.*?)(?=\bORIGEM\b|\bT[IÍ]TULO AQUISITIVO\b|\bREGISTRO ANTERIOR\b|\bO referido [ée] verdade\b|\*NOTA\b|\bProtocolo\b|\bMATR[IÍ]CULA\b)', texto_cabecalho, re.I | re.DOTALL)
+    m = re.search(r'(?:P?R[OÓ]PRIET)[AÁ]RI[OA]S?\s*[:;]\s*(.*?)(?=\bORIGEM\b|\bT[IÍ]TULO AQUISITIVO\b|\bREGISTRO ANTERIOR\b|\bO referido [ée] verdade\b|\*NOTA\b|\bProtocolo\b|\bMATR[IÍ]CULA\b|\Z)', texto_cabecalho, re.I | re.DOTALL)
     if m:
         proprietarios = extrair_pessoas(m.group(1).strip())
         cabecalho_limpo = limpar_nome(texto_cabecalho)
         bloco_limpo = limpar_nome(m.group(1))
         proprietario_singular = (
-            re.search(r'PROPRIETARI[OA]\s*:', cabecalho_limpo)
-            and not re.search(r'PROPRIETARI[OA]S\s*:', cabecalho_limpo)
+            re.search(r'P?ROPRIETARI[OA]\s*:', cabecalho_limpo)
+            and not re.search(r'P?ROPRIETARI[OA]S\s*:', cabecalho_limpo)
         )
         conjuge_qualificacao = (
             "CASAD" in bloco_limpo
@@ -362,6 +408,21 @@ def encontrar_chave_no_estado(pessoa, estado):
     chave_pessoa = padronizar_chave(pessoa["cpf"], pessoa["nome"])
     nome_pessoa = pessoa["nome"]
 
+    documento = re.sub(r'\D', '', pessoa.get("cpf", ""))
+    if len(documento) >= 9:
+        chaves_mesmo_documento = [
+            chave
+            for chave, dados in estado.items()
+            if re.sub(r'\D', '', dados.get("cpf_original", "")) == documento
+        ]
+        for chave in chaves_mesmo_documento:
+            if nomes_compativeis(estado[chave]["nome"], nome_pessoa):
+                return chave
+        # Documento repetido entre pessoas distintas aparece em matrículas
+        # históricas; só é conclusivo quando identifica um único titular.
+        if len(chaves_mesmo_documento) == 1:
+            return chaves_mesmo_documento[0]
+
     if chave_pessoa in estado and nomes_compativeis(estado[chave_pessoa]["nome"], nome_pessoa):
         return chave_pessoa
 
@@ -375,8 +436,12 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
     estado = {}
     
     if texto_integral:
-        partes = re.split(r'(?:R|AV)[\.\-]\s*0*1\b', texto_integral, maxsplit=1, flags=re.I)
-        cabecalho = partes[0]
+        atos_separados = separar_atos(texto_integral)
+        if atos_separados:
+            inicio_primeiro_ato = texto_integral.find(atos_separados[0]["texto"])
+            cabecalho = texto_integral[:inicio_primeiro_ato] if inicio_primeiro_ato >= 0 else texto_integral
+        else:
+            cabecalho = texto_integral
         
         iniciais = extrair_proprietario_inicial(cabecalho)
         if iniciais:
@@ -388,11 +453,13 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
     atos_transmissao = [
         "VENDA E COMPRA", "COMPRA E VENDA", "INVENTÁRIO", "PARTILHA",
         "SOBREPARTILHA", "DOAÇÃO", "REFORMA AGRÁRIA", "TÍTULO DE DOMÍNIO",
+        "USUCAPIÃO", "ARREMATAÇÃO", "DAÇÃO", "INTEGRALIZAÇÃO", "PERMUTA",
     ]
     
     for ato in atos:
         indicados = extrair_indicacao_titularidade(ato.descricao)
-        if indicados:
+        total_indicado = sum(item["percentual"] for item in indicados)
+        if indicados and abs(total_indicado - 100.0) <= 0.2:
             estado.clear()
             for indicado in indicados:
                 chave = chave_para_incluir(indicado, estado)
@@ -476,23 +543,31 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
         if percentual_ato >= 99.0:
             estado.clear()
         else:
+            chaves_debito = []
             if transmitentes:
-                chaves_debito = []
                 for t in transmitentes:
                     chave_encontrada = encontrar_chave_no_estado(t, estado)
                     if chave_encontrada and chave_encontrada not in chaves_debito:
                         chaves_debito.append(chave_encontrada)
 
-                if chaves_debito:
-                    percent_por_transm = percentual_ato / len(chaves_debito)
-                    for chave_estado in chaves_debito:
-                        if chave_estado not in estado:
-                            continue
-                        estado[chave_estado]["proporcao"] -= percent_por_transm
-                        estado[chave_estado].pop("proporcao_texto", None)
-                        if estado[chave_estado]["proporcao"] < 0.01:
-                            del estado[chave_estado]
-                        houve_debito = True
+            elif (
+                len(estado) == 1
+                and not any(termo in descricao_limpa for termo in ("PARTILHA", "INVENTARIO", "DOACAO"))
+            ):
+                unica_chave = next(iter(estado))
+                if estado[unica_chave]["proporcao"] + 0.1 >= percentual_ato:
+                    chaves_debito = [unica_chave]
+
+            if chaves_debito:
+                percent_por_transm = percentual_ato / len(chaves_debito)
+                for chave_estado in chaves_debito:
+                    if chave_estado not in estado:
+                        continue
+                    estado[chave_estado]["proporcao"] -= percent_por_transm
+                    estado[chave_estado].pop("proporcao_texto", None)
+                    if estado[chave_estado]["proporcao"] < 0.01:
+                        del estado[chave_estado]
+                    houve_debito = True
         
         for a in adquirentes:
             chave_a = chave_para_incluir(a, estado)

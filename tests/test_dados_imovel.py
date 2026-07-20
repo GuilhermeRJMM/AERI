@@ -8,6 +8,76 @@ def valores_por_rotulo(itens, rotulo):
 
 
 class TesteDadosImovel(unittest.TestCase):
+    def test_area_construida_com_total_de_apos_rotulo(self):
+        texto = (
+            "IMÓVEL: Lote n.º 1, com área de 200,00m².\n"
+            "AV.01-1 - Data: 01.01.2025. EDIFICAÇÃO. Foi edificada uma construção de uso misto, "
+            "com área construída total de 147,08m². DOU FÉ."
+        )
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertIn(
+            {"rotulo": "Área Construída", "valor": "147,08 m²", "origem": "AV.01"},
+            resultado["areas"],
+        )
+
+    def test_car_corrige_zero_usado_no_lugar_da_letra_o_na_uf(self):
+        texto = (
+            "IMÓVEL: Fazenda Teste, com área de 10,00 ha.\n"
+            "AV.01-1 - Data: 01.01.2025. CADASTRO AMBIENTAL RURAL. O imóvel foi inscrito no CAR sob o "
+            "n.º de registro G0-5213806-E772.4DAD.A6BC.46EA.A559.FF65.4370.A9BF, "
+            "cadastrado em 29.11.2016. DOU FÉ."
+        )
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertIn(
+            {
+                "rotulo": "CAR",
+                "valor": "GO-5213806-E772.4DAD.A6BC.46EA.A559.FF65.4370.A9BF",
+                "origem": "AV.01",
+            },
+            resultado["cadastros"],
+        )
+
+    def test_area_total_do_terreno_urbano(self):
+        texto = """
+        MATRÍCULA 703. IMÓVEL: Rua Exemplo, n.º 10, com área total de 312,00m²,
+        contendo uma casa com área total construída de 109,85m².
+        PROPRIETÁRIO: Pessoa Exemplo. ORIGEM: Matrícula anterior.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(valores_por_rotulo(resultado["areas"], "Área"), ["312 m²"])
+
+    def test_designacao_cadastral_singular_inclui_cci_da_averbacao(self):
+        texto = """
+        IMÓVEL: Lote n.º 27-B, da Quadra 66, com área de 125,10m², situado na
+        Rua Novara, Jardim Romano, nesta cidade. PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-39.000 - CÓDIGO DE ENDEREÇAMENTO POSTAL. O imóvel possui o
+        CEP n.º 75.656-118. DOU FÉ.
+        AV.02-39.000 - DESIGNAÇÃO CADASTRAL DO IMÓVEL. O imóvel objeto da
+        presente matrícula possui o seguinte código cadastral na Prefeitura
+        Municipal: CCI n.º 139.796xxx.xxxxxx.xxx. DOU FÉ.
+        AV.03-39.000 - EDIFICAÇÃO. Foi edificada uma casa residencial com
+        82,37m² de área construída. DOU FÉ.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(
+            valores_por_rotulo(resultado["cadastros"], "Cadastro municipal"),
+            ["CCI 139.796"],
+        )
+        self.assertEqual(
+            [item["origem"] for item in resultado["cadastros"] if item["rotulo"] == "Cadastro municipal"],
+            ["AV.02"],
+        )
+        self.assertEqual(valores_por_rotulo(resultado["cadastros"], "CEP"), ["75.656-118"])
+        self.assertEqual(valores_por_rotulo(resultado["areas"], "Área Construída"), ["82,37 m²"])
+
     def test_matricula_aberta_sem_numero_explicito_usa_primeiro_ato_e_dados_urbanos_atuais(self):
         texto = """
         IMÓVEL: Uma casa de residência situada na Rua Paraíba, n.º 128, nesta cidade,
@@ -99,6 +169,21 @@ class TesteDadosImovel(unittest.TestCase):
             ["Vila Cordeiro, Setor Oeste"],
         )
 
+    def test_endereco_remove_prefixo_do_loteamento_antes_do_setor(self):
+        texto = """
+        MATRÍCULA 15.000. IMÓVEL: Lote n.º 10, da Quadra 20, com área de 300,00m²,
+        situado na Rua 8, do loteamento Setor Aeroporto II, nesta cidade.
+        PROPRIETÁRIO: Proprietário Exemplo, CPF 111.111.111-11.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(valores_por_rotulo(resultado["identificacao"], "Rua"), ["Rua 8"])
+        self.assertEqual(
+            valores_por_rotulo(resultado["identificacao"], "Setor"),
+            ["Setor Aeroporto II"],
+        )
+
     def test_confrontacoes_exibem_somente_os_lotes(self):
         texto = """
         MATRÍCULA 29.460. IMÓVEL: Lote n.º 08, da quadra 12, com a área de 360,00m²,
@@ -142,6 +227,88 @@ class TesteDadosImovel(unittest.TestCase):
             resultado["proprietarios_atuais"],
             [{"nome": "Companhia de Habitação Exemplo", "cpf": "01.274.240/0001-47", "proporcao": "100%"}],
         )
+
+    def test_desmembramento_integral_em_duas_glebas_encerra_matricula(self):
+        texto = """
+        MATRÍCULA 1. IMÓVEL: Fazenda Exemplo, com área de 273,3400ha.
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.08-1 - DESMEMBRAMENTO E MATRÍCULA. Averba-se o desmembramento do imóvel
+        matriculado em duas glebas de terras, contendo a primeira a área de 176,5400ha,
+        que foi matriculada sob o n.º 12.015, e a segunda a área de 96,8000ha,
+        matriculada sob o n.º 12.016.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(
+            resultado["situacao"],
+            {
+                "status": "ENCERRADA",
+                "origem": "AV.08",
+                "matriculas_sucessoras": ["12.015", "12.016"],
+            },
+        )
+
+    def test_desmembramento_parcial_com_remanescente_nao_encerra_matricula(self):
+        texto = """
+        MATRÍCULA 500. IMÓVEL: Fazenda Exemplo, com área de 100ha.
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-500 - DESMEMBRAMENTO. Foi destacada uma área de 20ha, matriculada sob
+        o n.º 12.500, permanecendo a área remanescente nesta matrícula.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(resultado["situacao"]["status"], "ATIVA")
+
+    def test_redacao_encerrada_a_presente_matricula_reconhece_encerramento(self):
+        texto = """
+        MATRÍCULA 700. IMÓVEL: Lote n.º 01, Quadra 02, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo. ORIGEM: Matrícula anterior.
+        AV.02-700 - ABERTURA DE NOVA MATRÍCULA. O imóvel foi matriculado sob o
+        n.º 12.700, sendo encerrada a presente matrícula.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(resultado["situacao"]["status"], "ENCERRADA")
+        self.assertEqual(resultado["situacao"]["origem"], "AV.02")
+        self.assertEqual(resultado["situacao"]["matricula_sucessora"], "12.700")
+
+    def test_redacao_encerra_se_a_presente_matricula_reconhece_encerramento(self):
+        texto = """
+        MATRÍCULA 701. IMÓVEL: Lote n.º 02, Quadra 02, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo. ORIGEM: Matrícula anterior.
+        AV.03-701 - REMEMBRAMENTO. O imóvel foi matriculado sob o n.º 12.701.
+        Encerra-se a presente matrícula.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(resultado["situacao"]["status"], "ENCERRADA")
+        self.assertEqual(resultado["situacao"]["matricula_sucessora"], "12.701")
+
+    def test_formatos_historicos_de_area_cci_ccir_e_cep_de_parte(self):
+        texto = """
+        MATRÍCULA 702. IMÓVEL: Fazenda Exemplo, com a área de 273,34,00 hectares.
+        PROPRIETÁRIO: Pessoa Exemplo. ORIGEM: Matrícula anterior.
+        AV.01-702 - EDIFICAÇÃO. Casa com a área construída, de 40,00m².
+        R.02-702 - COMPRA E VENDA. *Designação cadastral do imóvel:
+        CCI n.º 100.001 e 100.002. DOU FÉ.
+        AV.03-702 - ATUALIZAÇÃO DO CCIR. Código do Imóvel Rural 936.120.031.330-0,
+        área total de 273,3400ha. DOU FÉ.
+        AV.04-702 - QUALIFICAÇÃO DA PARTE. A sociedade possui sede na Rua Exemplo,
+        CEP n.º 75.650-000. DOU FÉ.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(valores_por_rotulo(resultado["areas"], "Área"), ["273,34 ha"])
+        self.assertEqual(valores_por_rotulo(resultado["areas"], "Área Construída"), ["40 m²"])
+        self.assertEqual(valores_por_rotulo(resultado["cadastros"], "Cadastro municipal"), ["CCI 100.001 e 100.002"])
+        self.assertEqual(valores_por_rotulo(resultado["cadastros"], "CCIR / código rural"), ["936.120.031.330-0"])
+        self.assertEqual(valores_por_rotulo(resultado["areas"], "Área no CCIR"), ["273,34 ha"])
+        self.assertEqual(valores_por_rotulo(resultado["cadastros"], "CEP"), [])
 
     def test_matricula_8148_extrai_lote_area_e_edificacao(self):
         texto = """
@@ -238,6 +405,399 @@ class TesteDadosImovel(unittest.TestCase):
             [{"nome": "Maria Lucia Fernandes da Silva", "cpf": "333.288.701-72", "proporcao": "100%"}],
         )
         self.assertEqual(valores_por_rotulo(resultado["imovel"]["restricoes"], "Cláusula restritiva"), ["Prazo declarado de 05 anos"])
+
+    def test_cabecalho_antigo_sem_rotulo_imovel_extrai_lote_e_quadra(self):
+        texto = """
+        MATRÍCULA - 186. Rua 1-A, da Quadra 5, do Setor Aeroporto, nesta cidade,
+        constituído do Lote nº 04, com área de 559,00m².
+        PROPRIETÁRIO: Pessoa Exemplo, CPF 004.338.341-61.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(valores_por_rotulo(resultado["identificacao"], "Lote"), ["04"])
+        self.assertEqual(valores_por_rotulo(resultado["identificacao"], "Quadra"), ["5"])
+        self.assertEqual(valores_por_rotulo(resultado["areas"], "Área"), ["559 m²"])
+
+    def test_area_rural_em_metros_quadrados_com_separadores_de_milhar(self):
+        texto = """
+        MATRÍCULA 127. IMÓVEL: Fazenda Santa Rosa, um quinhão de terras,
+        com a área de 1.477.100m². PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(resultado["tipo"], "RURAL")
+        self.assertEqual(valores_por_rotulo(resultado["areas"], "Área"), ["1.477.100 m²"])
+
+    def test_desmembramento_historico_com_lista_plural_de_sucessoras(self):
+        texto = """
+        MATRÍCULA 229. IMÓVEL: Fazenda Exemplo, com área de 207,4439ha.
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.08-229 - DESMEMBRAMENTO. Desmembramento do imóvel matriculado em três
+        glebas de terras, matriculados sob os n.ºs 13.422; 13.423 e 13.424,
+        fls. 211, 212 e 213 do Lº 2-BD, deste Registro.
+        """
+
+        situacao = analisar_matricula(texto)["imovel"]["situacao"]
+
+        self.assertEqual(situacao["status"], "ENCERRADA")
+        self.assertEqual(situacao["matriculas_sucessoras"], ["13.422", "13.423", "13.424"])
+
+    def test_desmembramento_historico_com_n_singular_antes_da_lista(self):
+        texto = """
+        MATRÍCULA 13.161. IMÓVEL: Fazenda Exemplo, com área de 227,4800ha.
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.04-13.161 - DESMEMBRAMENTO E MATRÍCULA. Averba-se o desmembramento do
+        imóvel matriculado em duas glebas de terras, com as áreas de 145,20,00ha e
+        82,28,00ha, que foram matriculadas sob n.º 13.234 e 13.235, fls. 276 e 277
+        deste livro.
+        """
+
+        situacao = analisar_matricula(texto)["imovel"]["situacao"]
+
+        self.assertEqual(situacao["status"], "ENCERRADA")
+        self.assertEqual(situacao["matriculas_sucessoras"], ["13.234", "13.235"])
+
+    def test_formatos_historicos_de_cci_car_e_cep_mascarado(self):
+        texto = """
+        MATRÍCULA 800. IMÓVEL: Fazenda Exemplo, com área de 10ha.
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-800 - CADASTRO MUNICIPAL. Cadastro Municipal nº CCI-56.
+        AV.02-800 - INSCRIÇÃO NO CAR. Imóvel inscrito no Cadastro Ambiental Rural -
+        CAR sob o nº de registro: GO- 5209101-B139.4AB6.FBD3.4033.
+        AV.03-800 - CÓDIGO DE ENDEREÇAMENTO POSTAL. O imóvel possui o seguinte
+        CEP nº XX.XXX-XXXXX.XXX-XXX75656-190.
+        """
+
+        cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+
+        self.assertEqual(valores_por_rotulo(cadastros, "Cadastro municipal"), ["CCI 56"])
+        self.assertEqual(valores_por_rotulo(cadastros, "CAR"), ["GO-5209101-B139.4AB6.FBD3.4033"])
+        self.assertEqual(valores_por_rotulo(cadastros, "CEP"), ["75.656-190"])
+
+    def test_cci_em_nota_com_numero_colado_ao_simbolo_ordinal(self):
+        texto = """
+        MATRÍCULA 25.914. IMÓVEL: Lote 1, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        R.01-25.914 - COMPRA E VENDA. *NOTA: Constou na escritura a designação
+        cadastral do imóvel: CCI n.º130423. DOU FÉ.
+        """
+
+        cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+
+        self.assertEqual(valores_por_rotulo(cadastros, "Cadastro municipal"), ["CCI 130423"])
+
+    def test_cci_mascarado_e_apresentado_sem_perder_a_mascara(self):
+        texto = """
+        MATRÍCULA 29.856. IMÓVEL: Lote 1, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.05-29.856 - DESIGNACÃO CADASTRAL DO IMÓVEL. O imóvel possui o seguinte
+        código cadastral: CCI n.º1908xxx.xxxxxx.xxx. DOU FÉ.
+        """
+
+        cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+
+        self.assertEqual(
+            valores_por_rotulo(cadastros, "Cadastro municipal"),
+            ["CCI 1908xxx.xxxxxx.xxx"],
+        )
+
+    def test_car_com_espacos_e_blocos_separados_por_ponto(self):
+        texto = """
+        MATRÍCULA 21.062. IMÓVEL: Fazenda Exemplo, com área de 10ha.
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.05-21.062 - INSCRIÇÃO NO CAR. Cadastro Ambiental Rural sob o código
+        GO - 5213806 - 8D89. 1B2E. C939. 49FE. B818. F888. 56A5. 485A. DOU FÉ.
+        """
+
+        cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+
+        self.assertEqual(
+            valores_por_rotulo(cadastros, "CAR"),
+            ["GO-5213806-8D89.1B2E.C939.49FE.B818.F888.56A5.485A"],
+        )
+
+    def test_car_continuo_apos_rotulo_cadastro_ambiental_rural(self):
+        texto = """
+        MATRÍCULA 30.425. IMÓVEL: Fazenda Exemplo, com área de 10ha.
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-30.425 - INSCRIÇÃO NO CAR. Cadastro Ambiental Rural n.º
+        GO-5213806-6F01D8F1B8594924AB6D65E0663CE9CF originalmente averbado na origem.
+        """
+
+        cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+
+        self.assertEqual(
+            valores_por_rotulo(cadastros, "CAR"),
+            ["GO-5213806-6F01D8F1B8594924AB6D65E0663CE9CF"],
+        )
+
+    def test_car_historico_com_sufixo_de_31_caracteres(self):
+        texto = """
+        MATRÍCULA 33.411. IMÓVEL: Fazenda Exemplo, com área de 10ha.
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-33.411 - TRASLADO/INSCRIÇÃO NO CAR. Cadastro Ambiental Rural - CAR
+        GO-5213806-86F2514FC0634A19BF1BD89F2A8CECE, datado de 13.06.2014.
+        """
+
+        cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+
+        self.assertEqual(
+            valores_por_rotulo(cadastros, "CAR"),
+            ["GO-5213806-86F2514FC0634A19BF1BD89F2A8CECE"],
+        )
+
+    def test_cep_com_ponto_no_lugar_do_hifen(self):
+        texto = """
+        MATRÍCULA 15.849. IMÓVEL: Lote 1, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-15.849 - CÓDIGO DE ENDEREÇAMENTO POSTAL. O imóvel possui o seguinte
+        CEP n.º 75.656.098. DOU FÉ.
+        """
+
+        cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+
+        self.assertEqual(valores_por_rotulo(cadastros, "CEP"), ["75.656-098"])
+
+    def test_cep_reconstituido_de_mascara_intercalada(self):
+        texto = """
+        MATRÍCULA 20.449. IMÓVEL: Lote 1, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-20.449 - CÓDIGO DE ENDEREÇAMENTO POSTAL. O imóvel possui o seguinte
+        CEP n.º 75.654xx.xxx-xxxxx.xxx-xxx-210. DOU FÉ.
+        """
+
+        cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+
+        self.assertEqual(valores_por_rotulo(cadastros, "CEP"), ["75.654-210"])
+
+    def test_usa_ultima_ocorrencia_de_cep_no_ato(self):
+        texto = """
+        MATRÍCULA 34.634. IMÓVEL: Lote 1, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-34.634 - CÓDIGO DE ENDEREÇAMENTO POSTAL. Consulta de CEP emitida
+        pelo site dos Correios, nos termos do Provimento n.º 149/2023, para constar
+        que o imóvel possui CEP n.º 75650-348. DOU FÉ.
+        """
+
+        cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+
+        self.assertEqual(valores_por_rotulo(cadastros, "CEP"), ["75.650-348"])
+
+    def test_area_construida_antes_do_rotulo_com_virgula(self):
+        texto = """
+        MATRÍCULA 13.017. IMÓVEL: Lote 1, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-13.017 - EDIFICAÇÃO. Casa residencial com 82,37m², de área construída.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área Construída"), ["82,37 m²"])
+
+    def test_area_construida_com_dois_pontos_apos_de(self):
+        texto = """
+        MATRÍCULA 15.385. IMÓVEL: Lote 1, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-15.385 - EDIFICAÇÃO. Casa com área construída de: 46,50m².
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área Construída"), ["46,5 m²"])
+
+    def test_area_construida_sem_m_antes_do_simbolo_quadrado(self):
+        texto = """
+        MATRÍCULA 34.428. IMÓVEL: Lote 1, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-34.428 - EDIFICAÇÃO. Casa residencial com 110,20² de área construída.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área Construída"), ["110,2 m²"])
+
+    def test_area_construida_sem_unidade_em_ato_de_edificacao(self):
+        texto = """
+        MATRÍCULA 15.857. IMÓVEL: Lote 1, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-15.857 - EDIFICAÇÃO. Casa residencial com a área construída de 42,10.
+        O referido é verdade e dou fé.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área Construída"), ["42,1 m²"])
+
+    def test_area_construida_com_valor_por_extenso_entre_unidade_e_rotulo(self):
+        texto = """
+        MATRÍCULA 22.279. IMÓVEL: Lote 1, com área de 500m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-22.279 - EDIFICAÇÃO. Casa com 427,31m² (quatrocentos e vinte e sete
+        metros e trinta e um centímetros quadrados) de área construída.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área Construída"), ["427,31 m²"])
+
+    def test_area_construida_com_mascara_em_texto_extenso(self):
+        ruido = "descrição complementar " * 600
+        texto = f"""
+        MATRÍCULA 36.271. IMÓVEL: Lote 1, com área de 500m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-36.271 - EDIFICAÇÃO. {ruido} Casa com 82,37xxxx m², de área construída.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área Construída"), ["82,37 m²"])
+
+    def test_area_registral_historica_sem_acento(self):
+        texto = """
+        MATRÍCULA 13.868. IMÓVEL: Lote n.º 1, Quadra 2, com AREA DE 510,00M².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área"), ["510 m²"])
+
+    def test_area_registral_com_crase_e_tres_grupos_decimais(self):
+        texto = """
+        MATRÍCULA 13.145. IMÓVEL: Uma gleba de terras de campo com àrea de
+        04,84,00ha, situada na zona rural. PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área"), ["4,84 ha"])
+
+    def test_area_urbana_com_crase_e_tres_grupos_decimais(self):
+        texto = """
+        MATRÍCULA 29.049. IMÓVEL: Lote industrial com àrea de 1,141,35m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área"), ["1.141,35 m²"])
+
+    def test_area_rural_historica_com_quatro_casas_no_ultimo_grupo(self):
+        texto = """
+        MATRÍCULA 13.148. IMÓVEL: Gleba rural com a área de 00,65,4074ha,
+        ou 6.540,74m². PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área"), ["0,6541 ha"])
+
+    def test_area_com_virgula_sobrando_antes_da_unidade(self):
+        texto = """
+        MATRÍCULA 25.849. IMÓVEL: Lote urbano com a área de 193,61,m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área"), ["193,61 m²"])
+
+    def test_unidade_ha_digitada_com_acento(self):
+        texto = """
+        MATRÍCULA 19.417. IMÓVEL: Glebas rurais cadastradas no INCRA com a área
+        de 203,2 há. PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área"), ["203,2 ha"])
+
+    def test_demolicao_remove_area_construida_anterior(self):
+        texto = """
+        MATRÍCULA 801. IMÓVEL: Lote nº 1, Quadra 2, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-801 - EDIFICAÇÃO. Casa com 80m² de área construída.
+        AV.02-801 - DEMOLIÇÃO. A casa, que possuía 80m² de área construída,
+        foi demolida.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área Construída"), [])
+
+    def test_certidao_de_salto_na_numeracao_nao_e_matricula_ativa(self):
+        texto = """
+        CERTIFICO A OCORRÊNCIA DE SALTO NA NUMERAÇÃO SEQUENCIAL DE MATRÍCULAS,
+        as quais deixaram de serem abertas, à época, sob os números de ordem
+        13.486 a 13.845; razão porque não existem características de imóveis
+        nesta Serventia sob os referidos números.
+        """
+
+        resultado = analisar_matricula(texto, numero_matricula="13500")["imovel"]
+
+        self.assertEqual(
+            resultado["situacao"],
+            {"status": "INEXISTENTE", "origem": "Certidão de salto de numeração"},
+        )
+        self.assertEqual(valores_por_rotulo(resultado["identificacao"], "Matrícula"), ["13.500"])
+
+    def test_area_rural_identificada_por_ibra_e_hectares_abreviados(self):
+        texto = """
+        MATRÍCULA 802. IMÓVEL: Quinhão de terras. IBRA nº 22.04.013-02145;
+        com a área de 47,1ha. PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        imovel = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(imovel["tipo"], "RURAL")
+        self.assertEqual(valores_por_rotulo(imovel["areas"], "Área"), ["47,1 ha"])
+
+    def test_area_rural_historica_com_hectares_e_ares_sem_centiares(self):
+        texto = """
+        MATRÍCULA 805. IMÓVEL: Fazenda Exemplo, com a área
+        806 (oitocentos e seis) hectares e 90 (noventa) ares.
+        PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área"), ["806,9 ha"])
+
+    def test_area_construida_por_extenso_e_totalizacao_de_acrescimo(self):
+        texto = """
+        MATRÍCULA 803. IMÓVEL: Lote 1, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-803 - EDIFICAÇÃO. Casa com a área construída de 47 metros quadrados.
+        AV.02-803 - ACRÉSCIMO. Área construída antiga de 47m² e acréscimo de
+        58m², totalizando uma área de 105m².
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área Construída"), ["105 m²"])
+
+    def test_encerramento_ex_officio_e_formatos_alternativos_car_ccir(self):
+        texto = """
+        MATRÍCULA 804. IMÓVEL: Fazenda Exemplo, com área de 10ha.
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.01-804 - ATUALIZAÇÃO DO CCIR. Código do Imóvel Rural nº
+        000.043.313.360-9; nº do CCIR: 12363256095.
+        AV.02-804 - INSCRIÇÃO NO CAR. O imóvel foi inscrito no CAR sob o nº de
+        GO-5213806-18D2.BC96.B2A1.45D1.8E37.F44D.95A6.3165.
+        AV.03-804 - ENCERRAMENTO DE MATRÍCULA. Procede-se para constar o encerramento
+        da presente matrícula, estando o imóvel matriculado sob o nº 18.948.
+        """
+
+        imovel = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(imovel["situacao"]["status"], "ENCERRADA")
+        self.assertEqual(valores_por_rotulo(imovel["cadastros"], "CCIR / código rural"), ["000.043.313.360-9"])
+        self.assertEqual(
+            valores_por_rotulo(imovel["cadastros"], "CAR"),
+            ["GO-5213806-18D2.BC96.B2A1.45D1.8E37.F44D.95A6.3165"],
+        )
 
 
 if __name__ == "__main__":

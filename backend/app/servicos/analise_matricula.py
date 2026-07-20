@@ -31,7 +31,11 @@ def atualizar_grau_hipotecas(atos):
             ato.grau_onus = formatar_grau_onus(max(1, grau_declarado - rebaixamentos))
 
 
-def analisar_matricula(texto: str, regras_aprendidas: list[dict] | None = None) -> dict:
+def analisar_matricula(
+    texto: str,
+    regras_aprendidas: list[dict] | None = None,
+    numero_matricula: str | None = None,
+) -> dict:
     atos = []
     for item in separar_atos(texto):
         categoria, impacta = classificar(item["texto"], regras_aprendidas=regras_aprendidas)
@@ -81,5 +85,10 @@ def analisar_matricula(texto: str, regras_aprendidas: list[dict] | None = None) 
         "publicidade": "COM PUBLICIDADE" if tem_publicidade else "SEM PUBLICIDADE",
         "atos": atos_filtrados,
         "proprietarios_atuais": proprietarios_atuais,
-        "imovel": extrair_dados_imovel(texto, atos, proprietarios_atuais),
+        "imovel": extrair_dados_imovel(
+            texto,
+            atos,
+            proprietarios_atuais,
+            numero_matricula=numero_matricula,
+        ),
     }
