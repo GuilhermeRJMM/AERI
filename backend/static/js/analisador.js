@@ -1,7 +1,7 @@
 import {escaparHtml} from './util.js';
 import {requisicaoAeri} from './api.js';
 
-const ICONE_PROCESSAR = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>Processar Matrícula';
+const ICONE_PROCESSAR = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4v7"/><path d="m4 4 7 7"/><path d="M20 13v7h-7"/><path d="m20 20-7-7"/></svg>Buscar e processar';
 const ICONE_COPIAR = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>Copiar';
 const ICONE_APRENDER = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 
@@ -176,7 +176,7 @@ function renderizarResultado(dados) {
     document.getElementById('modal-conteudo').innerHTML = `
         <div class="resultado fade-in">
             <div class="topo" style="border-left:5px solid ${cor};background-color:${fundo}">
-                <h2>${escaparHtml(dados.resultado)}</h2><div class="sub-status">${escaparHtml(dados.publicidade)}</div>
+                <div><span class="resultado-matricula">MATRÍCULA ${escaparHtml(dados.numero_matricula || '')}</span><h2>${escaparHtml(dados.resultado)}</h2></div><div class="sub-status">${escaparHtml(dados.publicidade)}</div>
             </div>
             <div class="tabs-container">
                 <button class="tab-btn active" data-tab="tab-atos">Atos Registrais (${dados.atos.length})</button>
@@ -242,29 +242,38 @@ function fecharModal() {
     document.getElementById('modal-resultado').classList.remove('aberta');
 }
 
-async function analisar() {
-    const texto = document.getElementById('texto').value;
-    if (!texto.trim()) return;
+async function analisar(evento) {
+    evento?.preventDefault();
+    const campo = document.getElementById('numero-matricula');
+    const erroBusca = document.getElementById('erro-busca-matricula');
+    const numeroMatricula = campo.value.trim();
+    if (!numeroMatricula || !campo.reportValidity()) return;
     const botao = document.getElementById('btn-analisar');
-    botao.textContent = 'Processando...';
+    botao.textContent = 'Buscando na Tri7...';
+    botao.disabled = true;
     botao.style.opacity = '0.7';
+    erroBusca.textContent = '';
     try {
-        renderizarResultado(await requisicaoAeri('/analisar', {
-            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({texto}),
+        renderizarResultado(await requisicaoAeri('/analisar/matricula', {
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({numero_matricula: numeroMatricula}),
         }));
-    } catch {
-        alert('Erro ao processar a matrícula.');
+    } catch (erro) {
+        erroBusca.textContent = erro.message;
+        campo.focus();
     } finally {
         botao.innerHTML = ICONE_PROCESSAR;
+        botao.disabled = false;
         botao.style.opacity = '1';
     }
 }
 
 export function iniciarAnalisador() {
-    document.getElementById('btn-analisar').addEventListener('click', analisar);
+    document.getElementById('form-busca-matricula').addEventListener('submit', analisar);
     document.getElementById('btn-limpar').addEventListener('click', () => {
-        document.getElementById('texto').value = '';
+        document.getElementById('numero-matricula').value = '';
+        document.getElementById('erro-busca-matricula').textContent = '';
         fecharModal();
+        document.getElementById('numero-matricula').focus();
     });
     document.getElementById('btn-fechar-resultado').addEventListener('click', fecharModal);
     document.getElementById('modal-resultado').addEventListener('click', evento => {

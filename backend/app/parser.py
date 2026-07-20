@@ -1,25 +1,57 @@
 import re
 
-def separar_atos(texto):
-    # Agora exige que o R/AV esteja no início de uma linha ou do texto
-    # Ignora os traços "---" e espaços que os escreventes colocam antes
-    padrao = r'(?:^|\n)[ \t\-]*((?:R|AV)[\.\-]\s*\d+[\.\-].*?)(?=(?:\n[ \t\-]*(?:R|AV)[\.\-]\s*\d+[\.\-])|\Z)'
-    
-    encontrados = re.findall(padrao, texto, flags=re.DOTALL | re.IGNORECASE)
 
+PADRAO_CABECALHO_ATO = re.compile(
+    r"(?:^|\n)[ \t\-–—]*"
+    r"(?P<tipo>R|AV)\s*[.\-]\s*(?P<numero>[0-9OIL]+)"
+    r"(?P<separador>[ \t]*[.\-–—:][ \t]*|[ \t]*,[ \t]*|[ \t]+(?=\S))",
+    flags=re.IGNORECASE,
+)
+
+
+def _cabecalhos_validos(texto: str) -> list[re.Match]:
+    encontrados = list(PADRAO_CABECALHO_ATO.finditer(texto))
+    validos = []
+    ordinais_usados = set()
+
+    for cabecalho in encontrados:
+        ordinal = int(_normalizar_numero(cabecalho.group("numero")))
+        if ordinal in ordinais_usados:
+            # Um número de ordem registral não pode existir simultaneamente
+            # como R e AV. Repetições no corpo são referências internas.
+            continue
+        separador = cabecalho.group("separador").strip()
+        if separador == ",":
+            proximo_ordinal = max(ordinais_usados, default=0) + 1
+            if ordinal != proximo_ordinal:
+                # Vírgulas são aceitas em cabeçalhos históricos, mas não em
+                # listas como "R.030, R.050" ou referências fora de sequência.
+                continue
+        validos.append(cabecalho)
+        ordinais_usados.add(ordinal)
+
+    return validos
+
+
+def _normalizar_numero(valor: str) -> str:
+    return valor.upper().translate(str.maketrans({"O": "0", "I": "1", "L": "1"}))
+
+
+def separar_atos(texto):
+    # O Tri7 preserva formatos históricos como "R.01 -", "AV-02-",
+    # "R.03 descrição" e, em alguns livros, "R.01, descrição".
+    cabecalhos = _cabecalhos_validos(texto)
     atos = []
 
-    for bloco in encontrados:
-        codigo_match = re.search(r'((?:R|AV)[\.\-]\s*\d+)', bloco, re.IGNORECASE)
-        
-        if codigo_match:
-            codigo = codigo_match.group(1).upper().replace('-', '.').replace(' ', '')
-        else:
-            codigo = "SEM_CODIGO"
-
-        atos.append({
-            "codigo": codigo,
-            "texto": bloco.strip()
-        })
+    for indice, cabecalho in enumerate(cabecalhos):
+        inicio = cabecalho.start("tipo")
+        fim = cabecalhos[indice + 1].start("tipo") if indice + 1 < len(cabecalhos) else len(texto)
+        bloco = texto[inicio:fim].strip()
+        atos.append(
+            {
+                "codigo": f"{cabecalho.group('tipo').upper()}.{_normalizar_numero(cabecalho.group('numero'))}",
+                "texto": bloco,
+            }
+        )
 
     return atos

@@ -9,8 +9,8 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260720-tema-sync">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css?v=20260720-sync-rgi">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
 
@@ -129,22 +129,31 @@
 
                     <div class="hero">
                         <h1>Analisador Eletrônico do Registro de Imóveis</h1>
-                        <p>Cole o texto integral da matrícula para qualificar os atos e extrair a cadeia dominial simultaneamente.</p>
+                        <p>Informe o número da matrícula. O AERI busca o texto na Tri7 e realiza a análise completa automaticamente.</p>
                     </div>
 
                     <div class="section-input-row">
                         <div class="input-glass">
-                            <textarea id="texto" placeholder="Cole aqui a matrícula completa (Ex: MATRÍCULA 100... R.01... AV.02...)..."></textarea>
+                            <form id="form-busca-matricula" class="matricula-search-form">
+                                <label for="numero-matricula">Número da matrícula</label>
+                                <div class="matricula-search-row">
+                                    <span class="matricula-search-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+                                    <input id="numero-matricula" name="numero_matricula" type="text" inputmode="numeric" autocomplete="off" maxlength="14" pattern="[0-9. ]{1,14}" placeholder="Ex.: 10.148" required autofocus>
+                                    <button class="btn btn-primary" id="btn-analisar" type="submit">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4v7"/><path d="m4 4 7 7"/><path d="M20 13v7h-7"/><path d="m20 20-7-7"/></svg>
+                                        Buscar e processar
+                                    </button>
+                                </div>
+                                <div class="matricula-search-footer">
+                                    <span id="erro-busca-matricula" class="matricula-search-error" role="alert" aria-live="polite"></span>
+                                    <span class="matricula-search-source">Consulta segura diretamente na Tri7</span>
+                                </div>
+                            </form>
 
-                            <div class="action-bar">
-                                <button class="btn btn-clear" id="btn-limpar">
+                            <div class="action-bar matricula-clear-bar">
+                                <button class="btn btn-clear" id="btn-limpar" type="button">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                     Limpar
-                                </button>
-
-                                <button class="btn btn-primary" id="btn-analisar">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                                    Processar Matrícula
                                 </button>
                             </div>
                         </div>
@@ -338,6 +347,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260715-endereco"></script>
+    <script type="module" src="/static/js/app.js?v=20260720-busca-tri7"></script>
 </body>
 </html>

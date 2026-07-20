@@ -6,6 +6,14 @@ from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_c
 from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
 from backend.app.servicos.analise_matricula import analisar_matricula
+from backend.app.servicos.tri7 import (
+    ConfiguracaoTri7Invalida,
+    ErroTri7,
+    MatriculaTri7NaoEncontrada,
+    MatriculaTri7SemTexto,
+    cliente_tri7,
+    normalizar_numero_matricula,
+)
 from backend.app.servicos.aprendizado_regras import (
     validar_id_regra,
     validar_sugestao_aprendizado,
@@ -52,6 +60,31 @@ def analisar(dados: dict, request: Request, usuario: str = Depends(exigir_permis
         raise HTTPException(status_code=413, detail="A matrícula excede o limite permitido.")
     resultado = analisar_matricula(texto, regras_aprendidas=_regras_aprovadas())
     registrar_auditoria(request, "analisar_matricula", "sucesso", usuario)
+    return resultado
+
+
+@router.post("/analisar/matricula", dependencies=[Depends(proteger_csrf)])
+def analisar_por_numero(
+    dados: dict,
+    request: Request,
+    usuario: str = Depends(exigir_permissao("processar_matricula")),
+):
+    try:
+        numero = normalizar_numero_matricula(dados.get("numero_matricula"))
+    except ValueError as erro:
+        raise HTTPException(status_code=422, detail=str(erro)) from erro
+    try:
+        matricula = cliente_tri7().buscar_texto_matricula(numero)
+    except (MatriculaTri7NaoEncontrada, MatriculaTri7SemTexto) as erro:
+        raise HTTPException(status_code=404, detail=str(erro)) from erro
+    except ConfiguracaoTri7Invalida as erro:
+        raise HTTPException(status_code=503, detail=str(erro)) from erro
+    except ErroTri7 as erro:
+        raise HTTPException(status_code=502, detail=str(erro)) from erro
+    resultado = analisar_matricula(matricula["texto"], regras_aprendidas=_regras_aprovadas())
+    resultado["numero_matricula"] = matricula["numero_matricula"]
+    resultado["origem"] = "TRI7"
+    registrar_auditoria(request, "consultar_e_analisar_matricula_tri7", "sucesso", usuario, numero)
     return resultado
 
 
