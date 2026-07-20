@@ -1,16 +1,28 @@
-/* --- AERI - ESTILO VISUAL MODERNO (GLASSMORPHISM & GRID) --- */
+/* --- AERI - TEMA SYNC DARK --- */
 :root {
-  --bg-gradient: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
-  --glass-bg: rgba(255, 255, 255, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  --bg-gradient:
+    radial-gradient(circle at 18% -8%, rgba(16, 185, 129, 0.16), transparent 31%),
+    radial-gradient(circle at 86% 8%, rgba(37, 99, 235, 0.14), transparent 28%),
+    linear-gradient(145deg, #0f172a 0%, #101827 54%, #111827 100%);
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 20px 55px rgba(2, 6, 23, 0.32);
 
-  --primary-color: #2563eb;
-  --primary-hover: #1d4ed8;
-  --text-main: #1e293b;
-  --text-muted: #64748b;
+  --primary-color: #10b981;
+  --primary-hover: #34d399;
+  --accent-green: #10b981;
+  --accent-green-hover: #34d399;
+  --accent-indigo: #4f46e5;
+  --accent-blue: #2563eb;
+  --text-main: #f7f8ff;
+  --text-muted: #95a1b8;
+  --text-soft: #c8cfdd;
+  --sidebar-bg: #111827;
+  --surface-bg: rgba(255, 255, 255, 0.035);
+  --surface-bg-strong: #1c2638;
+  --surface-bg-soft: rgba(255, 255, 255, 0.045);
 
-  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-bg: rgba(24, 34, 53, 0.92);
 }
 
 * {
@@ -1477,4 +1489,522 @@ body.sidebar-recolhida .nav-item {
   .aprendizado-full, .aprendizado-acoes { grid-column:1; }
   .aprendizado-acoes { align-items:stretch; flex-direction:column; }
   .aprendizado-acoes .btn { width:100%; justify-content:center; }
+}
+
+/* =====================================================================
+   TEMA SYNC — camada final de acabamento visual
+   Paleta extraída das telas de referência: navy profundo, índigo/roxo,
+   verde de ação e superfícies translúcidas.
+   ===================================================================== */
+body {
+  background: var(--bg-gradient);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 78% 12%, rgba(65, 216, 143, 0.08), transparent 25%),
+    radial-gradient(circle at 45% 72%, rgba(37, 99, 235, 0.12), transparent 34%);
+}
+
+.navbar {
+  background: rgba(7, 11, 26, 0.92);
+  border-bottom: 1px solid rgba(139, 152, 178, 0.17);
+  box-shadow: 0 16px 46px rgba(2, 6, 23, 0.24);
+}
+
+.navbar-content {
+  min-height: 70px;
+  padding-block: 14px;
+}
+
+.logo-text {
+  color: #ffffff;
+  text-shadow: 0 0 18px rgba(16, 185, 129, 0.34);
+}
+
+.logo-text::before {
+  content: "▣";
+  margin-right: 9px;
+  color: var(--primary-hover);
+  font-size: 1rem;
+  vertical-align: 2px;
+}
+
+.btn-sidebar,
+.navbar-user .status-onr,
+.perfil-logado,
+.cartorio-info {
+  border-color: rgba(139, 152, 178, 0.2);
+  background: rgba(25, 35, 54, 0.82);
+  color: var(--text-soft);
+}
+
+.btn-sidebar {
+  color: var(--primary-hover);
+}
+
+.btn-sidebar:hover,
+.navbar-user .status-onr:hover {
+  border-color: rgba(16, 185, 129, 0.42);
+  background: rgba(38, 49, 75, 0.95);
+}
+
+.navbar-user,
+.navbar-saudacao,
+.status-onr-painel > p,
+.status-onr-cabecalho span {
+  color: var(--text-muted);
+}
+
+.navbar-saudacao strong,
+.navbar-user button,
+.status-onr-painel a,
+.eyebrow {
+  color: var(--primary-hover);
+}
+
+.perfil-logado {
+  color: var(--accent-green);
+  background: rgba(65, 216, 143, 0.11);
+}
+
+.status-onr-painel,
+.modal-box,
+.login-card {
+  border: 1px solid rgba(139, 152, 178, 0.18);
+  background: rgba(22, 31, 49, 0.98);
+  color: var(--text-soft);
+}
+
+.status-onr-cabecalho strong,
+.login-card h1,
+.rotina-form-header h2,
+.aprendizado-cabecalho h3 {
+  color: var(--text-main);
+}
+
+.status-onr-painel .status-onr-evento,
+.status-onr-painel ul,
+.status-onr-configuracao,
+.login-card input,
+.rotina-form input,
+.rotina-form select,
+.rotina-check-form input,
+.aprendizado-form input,
+.aprendizado-form select,
+.aprendizado-form textarea,
+.usuario-perfil-select {
+  border-color: rgba(139, 152, 178, 0.18);
+  background: rgba(12, 18, 32, 0.72);
+  color: var(--text-main);
+}
+
+.login-aeri,
+.splash-aeri {
+  background:
+    radial-gradient(circle at 50% 36%, rgba(16, 185, 129, 0.16), transparent 34%),
+    radial-gradient(circle at 82% 18%, rgba(37, 99, 235, 0.13), transparent 32%),
+    linear-gradient(145deg, #070b1a 0%, #101827 58%, #172033 100%);
+}
+
+.splash-glow {
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.splash-progress {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.splash-progress span {
+  background: linear-gradient(90deg, var(--accent-green), var(--primary-hover));
+}
+
+.splash-skip {
+  border-color: rgba(139, 152, 178, 0.25);
+  color: var(--text-main);
+  background: rgba(25, 35, 54, 0.72);
+}
+
+.sidebar {
+  top: 71px;
+  height: calc(100vh - 71px);
+  background:
+    linear-gradient(180deg, rgba(17, 24, 39, 0.98) 0%, rgba(12, 18, 32, 0.98) 58%, #070b1a 100%);
+  border-right: 1px solid rgba(139, 152, 178, 0.13);
+  box-shadow: 24px 0 58px rgba(2, 6, 23, 0.28);
+}
+
+.sidebar-label {
+  color: #6f7d98;
+}
+
+.nav-item {
+  color: #96a2b8;
+  border: 1px solid transparent;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.055);
+  color: #f6f8ff;
+}
+
+.nav-item.active {
+  background: rgba(65, 216, 143, 0.12);
+  border-color: rgba(65, 216, 143, 0.28);
+  color: var(--accent-green);
+  box-shadow: inset 0 0 0 1px rgba(65, 216, 143, 0.04);
+}
+
+.sidebar-logo {
+  border-top-color: rgba(139, 152, 178, 0.14);
+}
+
+.sidebar-backdrop {
+  inset: 71px 0 0;
+  background: rgba(2, 6, 23, 0.64);
+}
+
+.page-content {
+  background:
+    linear-gradient(180deg, rgba(19, 27, 45, 0.94) 0%, rgba(18, 26, 43, 0.88) 100%);
+}
+
+.layout {
+  margin-top: 34px;
+}
+
+.hero,
+.rotina-header {
+  text-align: left;
+}
+
+.hero h1,
+.rotina-header h1,
+.auditoria-header h2,
+.page-placeholder h2 {
+  color: var(--text-main);
+}
+
+.hero p,
+.rotina-header p,
+.page-placeholder p,
+.login-card > p,
+.rotina-form-header p,
+.aprendizado-acoes span {
+  color: var(--text-muted);
+}
+
+.section-input-row {
+  justify-content: flex-start;
+}
+
+.section-input-row .input-glass {
+  max-width: 900px;
+}
+
+.input-glass,
+.resultado,
+.page-placeholder,
+.incra-upload-card,
+.incra-resumo div,
+.incra-toolbar,
+.incra-table-wrap,
+.rotina-resumo-card,
+.rotina-painel,
+.perfis-resumo > div,
+.aprendizado-painel,
+.cadeia-texto-bloco {
+  border-color: rgba(139, 152, 178, 0.18);
+  background: var(--surface-bg);
+  box-shadow: var(--glass-shadow);
+}
+
+.input-glass:focus-within {
+  box-shadow:
+    0 22px 60px rgba(2, 6, 23, 0.36),
+    0 0 0 2px rgba(16, 185, 129, 0.26);
+}
+
+textarea,
+.incra-dropzone,
+.rotina-busca,
+.senha-gerada button,
+.btn-copiar,
+.rotina-row-actions button,
+.rotina-folder-btn,
+.rotina-btn-secondary,
+.incra-filtro,
+.incra-acoes button,
+.usuario-atribuicoes {
+  border-color: rgba(139, 152, 178, 0.2);
+  background: rgba(12, 18, 32, 0.68);
+  color: var(--text-main);
+}
+
+textarea {
+  caret-color: var(--accent-green);
+}
+
+textarea:focus,
+.login-card input:focus,
+.rotina-form input:focus,
+.rotina-form select:focus,
+.rotina-check-form input:focus,
+.aprendizado-form input:focus,
+.aprendizado-form select:focus,
+.aprendizado-form textarea:focus {
+  border-color: var(--primary-hover);
+  background: rgba(9, 14, 26, 0.86);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+}
+
+textarea::placeholder,
+input::placeholder {
+  color: #6f7d98;
+}
+
+@keyframes btnPulse {
+  0%, 100% { box-shadow: 0 10px 26px rgba(16, 185, 129, 0.24); }
+  50% { box-shadow: 0 10px 32px rgba(16, 185, 129, 0.42); }
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 14px 30px rgba(16, 185, 129, 0.28);
+}
+
+#btn-nova-intimacao,
+#btn-login,
+.incra-processar {
+  background: linear-gradient(135deg, var(--accent-green), var(--accent-green-hover));
+  color: #082015;
+  font-weight: 800;
+  animation: none;
+}
+
+#btn-nova-intimacao:hover,
+#btn-login:hover,
+.incra-processar:hover {
+  box-shadow: 0 14px 30px rgba(65, 216, 143, 0.26);
+}
+
+.btn-clear,
+.rotina-btn-secondary,
+.incra-filtro,
+.incra-acoes button,
+.btn-copiar {
+  color: var(--text-soft);
+}
+
+.btn-clear:hover,
+.rotina-btn-secondary:hover,
+.incra-filtro:hover,
+.incra-acoes button:hover,
+.btn-copiar:hover,
+.rotina-row-actions button:hover,
+.rotina-folder-btn.ativo:hover {
+  border-color: rgba(103, 87, 242, 0.48);
+  background: rgba(37, 99, 235, 0.14);
+  color: #ffffff;
+}
+
+.tabs-container,
+.cadeia-texto-header,
+.rotina-toolbar,
+.rotina-form-header,
+.aprendizado-cabecalho {
+  border-color: rgba(139, 152, 178, 0.16);
+  background: rgba(12, 18, 32, 0.48);
+}
+
+.tab-btn {
+  color: var(--text-muted);
+}
+
+.tab-btn.active,
+.incra-filtro.active {
+  color: #ffffff;
+  background: rgba(37, 99, 235, 0.22);
+  border-color: rgba(37, 99, 235, 0.45);
+}
+
+.card,
+.imovel-resumo,
+.imovel-linha,
+.imovel-alerta,
+.incra-loading,
+.rotina-table,
+.aprendizado-painel {
+  background: rgba(13, 20, 35, 0.64);
+}
+
+.card {
+  border-color: rgba(139, 152, 178, 0.14);
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.18);
+}
+
+.card:hover {
+  box-shadow: 0 16px 34px rgba(2, 6, 23, 0.28);
+}
+
+.card-cancelado {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.codigo,
+.texto,
+.status-ato strong,
+.imovel-resumo-item strong,
+.imovel-linha strong,
+.incra-resumo strong,
+.rotina-resumo-card strong,
+.rotina-protocolo,
+.perfis-resumo strong,
+.cadeia-texto-pre {
+  color: var(--text-main);
+}
+
+.sub-status,
+.status-ato,
+.imovel-resumo-item span,
+.imovel-linha span,
+.imovel-resumo-item small,
+.imovel-linha small,
+.incra-table th,
+.incra-table td,
+.rotina-table th,
+.rotina-table td,
+.rotina-table td small,
+.perfis-resumo span,
+.usuario-atribuicoes legend,
+.rotina-total,
+.incra-loading {
+  color: var(--text-muted);
+}
+
+.imovel-resumo,
+.imovel-resumo-item,
+.imovel-linha,
+.imovel-lista,
+.rotina-table th,
+.rotina-table td,
+.incra-table th,
+.incra-table td {
+  border-color: rgba(139, 152, 178, 0.13);
+}
+
+.rotina-table th,
+.incra-table th {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.rotina-table tbody tr:hover,
+.incra-table tbody tr:hover {
+  background: rgba(16, 185, 129, 0.055);
+}
+
+.modal-overlay {
+  background: rgba(2, 6, 23, 0.76);
+}
+
+.modal-fechar {
+  border-color: rgba(139, 152, 178, 0.2);
+  background: rgba(12, 18, 32, 0.92);
+  color: var(--text-soft);
+}
+
+.modal-fechar:hover {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.badge-red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.4);
+}
+.badge-orange,
+.aprendizado-status {
+  background: rgba(251, 146, 60, 0.13);
+  color: #fdba74;
+  border-color: rgba(251, 146, 60, 0.35);
+}
+.badge-blue {
+  background: rgba(37, 99, 235, 0.16);
+  color: #bfdbfe;
+  border-color: rgba(37, 99, 235, 0.4);
+}
+.badge-green,
+.usuario-status.ativo {
+  background: rgba(65, 216, 143, 0.14);
+  color: #86efac;
+  border-color: rgba(65, 216, 143, 0.36);
+}
+.badge-gray,
+.usuario-status.inativo {
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.incra-dropzone:hover,
+.incra-dropzone.com-arquivo {
+  border-color: var(--primary-hover);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.incra-upload-icon,
+.placeholder-icon {
+  color: var(--primary-hover);
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.rotina-row-actions .rotina-check,
+.rotina-folder-btn.ativo {
+  color: var(--accent-green);
+  border-color: rgba(65, 216, 143, 0.32);
+  background: rgba(65, 216, 143, 0.09);
+}
+
+.rotina-row-actions .perigo,
+.login-erro,
+.incra-erro {
+  color: #fca5a5;
+}
+
+.incra-erro {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.aviso-status-onr-atencao {
+  color: #fde68a;
+  background: rgba(234, 179, 8, 0.12);
+  border-color: rgba(234, 179, 8, 0.28);
+}
+
+.aviso-status-onr-indisponivel {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.28);
+}
+
+@media (max-width: 720px) {
+  .sidebar {
+    top: 71px;
+  }
+
+  .status-onr-painel {
+    top: 76px;
+  }
 }
