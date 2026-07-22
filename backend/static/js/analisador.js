@@ -190,7 +190,9 @@ function renderizarResultado(dados) {
             <div id="tab-imovel" class="tab-content">${renderizarImovel(dados.imovel)}</div>
             <div id="tab-prop" class="tab-content" style="padding:16px">${renderizarProprietarios(proprietarios)}</div>
         </div>`;
-    document.getElementById('modal-resultado').classList.add('aberta');
+    const modal = document.getElementById('modal-resultado');
+    modal.classList.add('aberta');
+    modal.setAttribute('aria-hidden', 'false');
 }
 
 function trocarAba(tabId) {
@@ -240,7 +242,9 @@ async function tratarAcaoResultado(evento) {
 }
 
 function fecharModal() {
-    document.getElementById('modal-resultado').classList.remove('aberta');
+    const modal = document.getElementById('modal-resultado');
+    modal.classList.remove('aberta');
+    modal.setAttribute('aria-hidden', 'true');
 }
 
 async function analisar(evento) {
@@ -276,9 +280,14 @@ export function iniciarAnalisador() {
         fecharModal();
         document.getElementById('numero-matricula').focus();
     });
-    document.getElementById('btn-fechar-resultado').addEventListener('click', fecharModal);
-    document.getElementById('modal-resultado').addEventListener('click', evento => {
-        if (evento.target.id === 'modal-resultado') fecharModal();
+    const modal = document.getElementById('modal-resultado');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.addEventListener('click', evento => {
+        if (evento.target.closest('#btn-fechar-resultado') || evento.target === modal) {
+            evento.preventDefault();
+            evento.stopPropagation();
+            fecharModal();
+        }
     });
     document.getElementById('modal-conteudo').addEventListener('click', tratarAcaoResultado);
     document.addEventListener('keydown', evento => { if (evento.key === 'Escape') fecharModal(); });

@@ -607,11 +607,11 @@ def extrair_dados_imovel(
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Quadra", "valor": quadra, "origem": "Cabeçalho"})
 
     rua, numero, setor = _extrair_endereco(descricao)
-    if rua:
+    if rua and not rural:
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Rua", "valor": rua, "origem": "Cabeçalho"})
-    if numero:
+    if numero and not rural:
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Número", "valor": numero, "origem": "Cabeçalho"})
-    if setor:
+    if setor and not rural:
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Setor", "valor": setor, "origem": "Cabeçalho"})
 
     resultado["confrontacoes"] = _extrair_confrontacoes(descricao, rua=rua)
@@ -620,7 +620,7 @@ def extrair_dados_imovel(
         denominacao = _extrair_denominacao_rural(descricao)
         if denominacao:
             _adicionar_unico(resultado["identificacao"], {
-                "rotulo": "Denominação",
+                "rotulo": "Nome",
                 "valor": denominacao,
                 "origem": "Cabeçalho",
             })
@@ -692,11 +692,11 @@ def extrair_dados_imovel(
                 _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Quadra", "valor": quadra_atual, "origem": codigo})
 
             rua_atual, numero_atual, setor_atual = _extrair_endereco(caracterizacao)
-            if rua_atual:
+            if rua_atual and not rural:
                 _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Rua", "valor": rua_atual, "origem": codigo})
-            if numero_atual:
+            if numero_atual and not rural:
                 _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Número", "valor": numero_atual, "origem": codigo})
-            if setor_atual:
+            if setor_atual and not rural:
                 _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Setor", "valor": setor_atual, "origem": codigo})
 
             confrontacoes_atuais = _extrair_confrontacoes(caracterizacao, codigo, rua_atual or rua)
@@ -934,7 +934,13 @@ def extrair_dados_imovel(
             "origem": "Texto registral",
         })
 
-    ordem_identificacao = {"Matrícula": 0, "Lote": 1, "Quadra": 2, "Rua": 3, "Número": 4, "Setor": 5, "Denominação": 6}
+    if rural:
+        resultado["identificacao"] = [
+            item for item in resultado["identificacao"]
+            if item["rotulo"] not in {"Rua", "Número", "Setor"}
+        ]
+
+    ordem_identificacao = {"Matrícula": 0, "Nome": 1, "Lote": 2, "Quadra": 3, "Rua": 4, "Número": 5, "Setor": 6}
     resultado["identificacao"].sort(key=lambda item: ordem_identificacao.get(item["rotulo"], 7))
     ordem_areas = {"Área": 0, "Área Construída": 1}
     resultado["areas"].sort(key=lambda item: ordem_areas.get(item["rotulo"], 2))

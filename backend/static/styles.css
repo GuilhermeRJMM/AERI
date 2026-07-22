@@ -2067,6 +2067,14 @@ input::placeholder {
   scrollbar-gutter: stable;
 }
 
+/* A regra genérica dos cards torna os filhos relativos. O botão precisa
+   recuperar sticky/z-index para não ficar coberto pelo conteúdo do resultado. */
+#modal-resultado .modal-fechar {
+  position: sticky;
+  top: 12px;
+  z-index: 30;
+}
+
 .input-glass::after,
 .resultado::after,
 .page-placeholder::after,

@@ -854,7 +854,23 @@ class TesteDadosImovel(unittest.TestCase):
             with self.subTest(descricao=descricao):
                 texto = f"MATRÍCULA 807. IMÓVEL: {descricao}. PROPRIETÁRIO: Pessoa Exemplo."
                 identificacao = analisar_matricula(texto)["imovel"]["identificacao"]
-                self.assertEqual(valores_por_rotulo(identificacao, "Denominação"), [esperado])
+                self.assertEqual(valores_por_rotulo(identificacao, "Nome"), [esperado])
+
+    def test_imovel_rural_exibe_nome_sem_endereco_urbano(self):
+        texto = """
+        MATRÍCULA 39.802. IMÓVEL: Fazenda Santa Maria, situada na Rua Rural 1,
+        n.º 75, Setor Rural, neste Município, com área de 10ha.
+        PROPRIETÁRIO: Pessoa Exemplo, CPF 111.222.333-44.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+        identificacao = resultado["identificacao"]
+
+        self.assertEqual(resultado["tipo"], "RURAL")
+        self.assertEqual(valores_por_rotulo(identificacao, "Nome"), ["Fazenda Santa Maria"])
+        self.assertFalse(valores_por_rotulo(identificacao, "Rua"))
+        self.assertFalse(valores_por_rotulo(identificacao, "Número"))
+        self.assertFalse(valores_por_rotulo(identificacao, "Setor"))
 
     def test_incra_moderno_por_codigo_do_imovel_rural_no_cabecalho(self):
         texto = """

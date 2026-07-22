@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260722-centralizado">
+    <link rel="stylesheet" href="/static/styles.css?v=20260722-modal-fechar">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -258,7 +258,7 @@
 
     <div id="modal-resultado" class="modal-overlay">
         <div class="modal-box">
-            <button class="modal-fechar" id="btn-fechar-resultado">&times;</button>
+            <button class="modal-fechar" id="btn-fechar-resultado" type="button" aria-label="Fechar resultado">&times;</button>
             <div id="modal-conteudo"></div>
         </div>
     </div>
