@@ -417,7 +417,29 @@ class TesteDadosImovel(unittest.TestCase):
 
         self.assertEqual(valores_por_rotulo(resultado["identificacao"], "Lote"), ["04"])
         self.assertEqual(valores_por_rotulo(resultado["identificacao"], "Quadra"), ["5"])
+        self.assertEqual(valores_por_rotulo(resultado["identificacao"], "Rua"), ["Rua 1-A"])
         self.assertEqual(valores_por_rotulo(resultado["areas"], "Área"), ["559 m²"])
+
+    def test_endereco_embutido_na_descricao_historica(self):
+        casos = (
+            ("J. América. Avenida B. O lote de terras n.º 4", "Avenida B"),
+            ("Cordeiro, margem esquerda da Rodovia BR-153, neste Município", "Rodovia BR-153"),
+            ("Trevo de confluência da Avenida José do Nascimento, lado descendente", "Avenida José do Nascimento"),
+        )
+        for descricao, esperado in casos:
+            with self.subTest(descricao=descricao):
+                texto = f"MATRÍCULA 910. IMÓVEL: {descricao}. PROPRIETÁRIO: Pessoa Exemplo."
+                identificacao = analisar_matricula(texto)["imovel"]["identificacao"]
+                self.assertEqual(valores_por_rotulo(identificacao, "Rua"), [esperado])
+
+    def test_quadra_generica_sem_numero_nao_gera_valor_de(self):
+        texto = """
+        MATRÍCULA 911. IMÓVEL: Ruas 1-A, 22 e 203-A, constituído de uma quadra
+        de terreno com área de 20.000m². PROPRIETÁRIO: Pessoa Exemplo.
+        """
+        identificacao = analisar_matricula(texto)["imovel"]["identificacao"]
+        self.assertEqual(valores_por_rotulo(identificacao, "Rua"), ["Ruas 1-A"])
+        self.assertEqual(valores_por_rotulo(identificacao, "Quadra"), [])
 
     def test_area_rural_em_metros_quadrados_com_separadores_de_milhar(self):
         texto = """
@@ -798,6 +820,75 @@ class TesteDadosImovel(unittest.TestCase):
             valores_por_rotulo(imovel["cadastros"], "CAR"),
             ["GO-5213806-18D2.BC96.B2A1.45D1.8E37.F44D.95A6.3165"],
         )
+
+    def test_endereco_historico_com_numero_por_extenso_beco_e_jardim(self):
+        texto = """
+        MATRÍCULA 805. IMÓVEL: Beco da Fileta, número 60, Jardim América,
+        nesta cidade, com área de 300m². PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        identificacao = analisar_matricula(texto)["imovel"]["identificacao"]
+
+        self.assertEqual(valores_por_rotulo(identificacao, "Rua"), ["Beco da Fileta"])
+        self.assertEqual(valores_por_rotulo(identificacao, "Número"), ["60"])
+        self.assertEqual(valores_por_rotulo(identificacao, "Setor"), ["Jardim América"])
+
+    def test_loteamento_sem_prefixo_setor_e_sem_aspas(self):
+        texto = """
+        MATRÍCULA 806. IMÓVEL: Lote 1 da Quadra 2, situado na Rua 06,
+        do loteamento Vinícius Cândido, nesta cidade. PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        identificacao = analisar_matricula(texto)["imovel"]["identificacao"]
+
+        self.assertEqual(valores_por_rotulo(identificacao, "Setor"), ["Vinícius Cândido"])
+
+    def test_denominacao_rural_prioriza_fazenda_e_descarta_especie_generica(self):
+        casos = (
+            ("Um sítio com casa, situado na Fazenda Serra, neste Município", "Fazenda Serra"),
+            ("Fazenda Tamboril, desmembrada da Fazenda Serra", "Fazenda Tamboril"),
+            ("Fazenda Três Barras e Vinagre, com área de 10ha", "Fazenda Três Barras e Vinagre"),
+            ("Chácara São José, zona rural, com área de 2ha", "Chácara São José"),
+        )
+        for descricao, esperado in casos:
+            with self.subTest(descricao=descricao):
+                texto = f"MATRÍCULA 807. IMÓVEL: {descricao}. PROPRIETÁRIO: Pessoa Exemplo."
+                identificacao = analisar_matricula(texto)["imovel"]["identificacao"]
+                self.assertEqual(valores_por_rotulo(identificacao, "Denominação"), [esperado])
+
+    def test_incra_moderno_por_codigo_do_imovel_rural_no_cabecalho(self):
+        texto = """
+        MATRÍCULA 808. IMÓVEL: Fazenda Bom Jardim, com área de 10ha. O imóvel
+        encontra-se cadastrado no INCRA/SNCR conforme CCIR; código do imóvel rural:
+        999.999.999.999-9. PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+
+        self.assertEqual(valores_por_rotulo(cadastros, "INCRA"), ["999.999.999.999-9"])
+
+    def test_incra_historico_seguido_de_virgula(self):
+        texto = """
+        MATRICULA 369. IMOVEL: Fazenda Cordeiro, com area de 8.160,00m2.
+        Cadastrado no INCRA sob o n. 936.120.019.232, com 0,8ha, modulo 30,0.
+        PROPRIETARIO: Pessoa Exemplo.
+        """
+
+        cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+
+        self.assertEqual(valores_por_rotulo(cadastros, "INCRA"), ["936.120.019.232"])
+
+    def test_vila_isolada_e_extraida_como_setor(self):
+        texto = """
+        MATRÍCULA 809. IMÓVEL: Rua 8, Vila São Pedro, nesta Cidade,
+        constituído de um prédio e lote nº 3, quadra 33, com área de 518m².
+        PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        identificacao = analisar_matricula(texto)["imovel"]["identificacao"]
+
+        self.assertEqual(valores_por_rotulo(identificacao, "Rua"), ["Rua 8"])
+        self.assertEqual(valores_por_rotulo(identificacao, "Setor"), ["Vila São Pedro"])
 
 
 if __name__ == "__main__":

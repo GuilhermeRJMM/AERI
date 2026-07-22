@@ -3,7 +3,7 @@ import re
 
 PADRAO_CABECALHO_ATO = re.compile(
     r"(?:^|\n)[ \t\-–—]*"
-    r"(?P<tipo>R|AV)\s*[.\-]\s*(?P<numero>[0-9OIL]+)"
+    r"(?P<tipo>R|AV)\s*(?P<marcador>[.\-]?)\s*(?P<numero>[0-9OIL]+)"
     r"(?P<separador>[ \t]*[.\-–—:][ \t]*|[ \t]*,[ \t]*|[ \t]+(?=\S))",
     flags=re.IGNORECASE,
 )
@@ -21,6 +21,10 @@ def _cabecalhos_validos(texto: str) -> list[re.Match]:
             # como R e AV. Repetições no corpo são referências internas.
             continue
         separador = cabecalho.group("separador").strip()
+        if not cabecalho.group("marcador") and separador not in {"-", "–", "—"}:
+            # A grafia histórica sem ponto após R/AV só é cabeçalho quando
+            # mantém o hífen seguinte: "R12-27" ou "AV11-27".
+            continue
         if separador == ",":
             proximo_ordinal = max(ordinais_usados, default=0) + 1
             if ordinal != proximo_ordinal:

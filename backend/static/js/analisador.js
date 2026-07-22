@@ -185,12 +185,10 @@ function renderizarResultado(dados) {
                 <button class="tab-btn active" data-tab="tab-atos">Atos Registrais (${dados.atos.length})</button>
                 <button class="tab-btn" data-tab="tab-imovel">Imóvel</button>
                 <button class="tab-btn" data-tab="tab-prop">Proprietários (${proprietarios.length})</button>
-                <button class="tab-btn" data-tab="tab-aprendizado">Aprendizado</button>
             </div>
             <div id="tab-atos" class="tab-content active"><div class="cards">${renderizarAtos(dados)}</div></div>
             <div id="tab-imovel" class="tab-content">${renderizarImovel(dados.imovel)}</div>
             <div id="tab-prop" class="tab-content" style="padding:16px">${renderizarProprietarios(proprietarios)}</div>
-            <div id="tab-aprendizado" class="tab-content" style="padding:16px">${renderizarAprendizado()}</div>
         </div>`;
     document.getElementById('modal-resultado').classList.add('aberta');
 }

@@ -121,6 +121,18 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(categoria, "ÔNUS")
         self.assertTrue(impacta)
 
+    def test_hipoteca_com_grau_por_extenso_e_numerico_entre_parenteses(self):
+        texto = """
+        R.08-93 - Título: Contrato Particular de Compra e Venda, Mútuo com
+        Obrigações e Hipoteca. Objeto da garantia: Em primeira (1ª) e especial
+        hipoteca, sem concorrência, o imóvel objeto da presente matrícula.
+        """
+
+        categoria, impacta = classificar(texto)
+
+        self.assertEqual(categoria, "ÔNUS")
+        self.assertTrue(impacta)
+
     def test_compra_e_venda_com_titulo_de_hipoteca_sem_constituicao_expressa_ignora(self):
         texto = """
         R.04-12.011 - Nos termos do Contrato Particular de Compra e Venda e mútuo
@@ -143,6 +155,19 @@ class TesteCancelamentos(unittest.TestCase):
         seus termos, as cláusulas, itens e demais condições estabelecidas na
         cédula aditada, inclusive as garantias nela constituídas, não
         expressamente alteradas pelo aditivo.
+        """
+
+        categoria, impacta = classificar(texto)
+
+        self.assertEqual(categoria, "IGNORAR")
+        self.assertFalse(impacta)
+
+    def test_aditivo_de_alteracao_de_prazo_sem_nova_garantia_nao_cria_onus(self):
+        texto = """
+        AV.49-287 - ALTERAÇÕES NO PRAZO DE VENCIMENTO E NA FORMA DE PAGAMENTO.
+        Procede-se nos termos do Aditivo de Re-Ratificação à Cédula Rural
+        Pignoratícia e Hipotecária para constar que o vencimento do R.46 foi
+        prorrogado. Permanecem as demais cláusulas.
         """
 
         categoria, impacta = classificar(texto)
@@ -225,6 +250,304 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(penhora.status, "CANCELADO")
         self.assertEqual(penhora.cancelado_por, "R.07")
         self.assertEqual(adjudicacao.cancela_atos, ["R.03"])
+
+    def test_erro_de_referencia_nao_cancela_outro_cancelamento(self):
+        hipoteca = ato("R.02", "R.02-49 - HIPOTECA do imóvel.")
+        cancelamento_antigo = ato("AV.03", "AV.03-49 - CANCELAMENTO da hipoteca do R.02.")
+        usufruto = ato("R.14", "R.14-49 - USUFRUTO VITALÍCIO em favor de duas pessoas.")
+        cancelamento_usufruto = ato(
+            "AV.15",
+            "AV.15-49 - CANCELAMENTO DE USUFRUTO. Fica cancelado o usufruto constante do R.03 desta matrícula.",
+        )
+
+        aplicar_cancelamentos([hipoteca, cancelamento_antigo, usufruto, cancelamento_usufruto])
+
+        self.assertEqual(cancelamento_antigo.status, "ATIVO")
+        self.assertEqual(usufruto.status, "CANCELADO")
+        self.assertEqual(cancelamento_usufruto.cancela_atos, ["R.14"])
+
+    def test_referencia_de_outra_matricula_nao_cancela_ato_local_e_abreviada_cancela(self):
+        hipoteca_23 = ato("R.23", "R.23-27 - Objeto da garantia: em hipoteca, o imóvel.")
+        hipoteca_39 = ato("R.39", "R.39-27 - Objeto da garantia: em hipoteca, o imóvel.")
+        cancelamento = ato(
+            "AV.46",
+            "AV.46-27 - CANCELAMENTO. Os R.23-31 e 39-27 ficam cancelados.",
+        )
+
+        aplicar_cancelamentos([hipoteca_23, hipoteca_39, cancelamento])
+
+        self.assertEqual(hipoteca_23.status, "ATIVO")
+        self.assertEqual(hipoteca_39.status, "CANCELADO")
+        self.assertEqual(cancelamento.cancela_atos, ["R.39"])
+
+    def test_referencia_a_numero_de_livro_nao_e_tratada_como_codigo_de_ato(self):
+        hipoteca = ato("R.03", "R.03-45 - HIPOTECA atual.")
+        cancelamento = ato(
+            "AV.07",
+            "AV.07-45 - CANCELAMENTO do registro R-3.390, fls. 153 do Livro 9-E.",
+        )
+
+        aplicar_cancelamentos([hipoteca, cancelamento])
+
+        self.assertEqual(hipoteca.status, "ATIVO")
+        self.assertEqual(cancelamento.cancela_atos, [])
+
+    def test_exclusao_integral_da_garantia_cancela_onus_indicado(self):
+        hipoteca = ato("R.13", "R.13-71 - Objeto da garantia: em hipoteca, o imóvel.")
+        exclusao = ato(
+            "AV.14",
+            "AV.14-71 - EXCLUSÃO DE BENS VINCULADOS. Fica excluído da garantia hipotecária o R.13 supra.",
+        )
+
+        aplicar_cancelamentos([hipoteca, exclusao])
+
+        self.assertEqual(exclusao.categoria, "CANCELAMENTO")
+        self.assertEqual(hipoteca.status, "CANCELADO")
+
+    def test_prorrogacao_sem_nova_constituicao_nao_cria_onus(self):
+        categoria, impacta = classificar(
+            "AV.21-27 - PRORROGAÇÃO DE PRAZO E RETIFICAÇÃO DA DENOMINAÇÃO DA CÉDULA. "
+            "O vencimento do R.19 fica prorrogado e a cédula passa a denominar-se Cédula Rural Hipotecária."
+        )
+
+        self.assertEqual(categoria, "IGNORAR")
+        self.assertFalse(impacta)
+
+    def test_liberacao_do_imovel_vinculado_cancela_hipoteca(self):
+        hipoteca = ato("R.09", "R.09-150 - Objeto da garantia: em hipoteca, o imóvel.")
+        liberacao = ato(
+            "AV.11",
+            "AV.11-150 - LIBERAÇÃO DO IMÓVEL VINCULADO. O imóvel constante do R.09 "
+            "é liberado da garantia e a cédula passa a ser apenas pignoratícia.",
+        )
+
+        aplicar_cancelamentos([hipoteca, liberacao])
+
+        self.assertEqual(liberacao.categoria, "CANCELAMENTO")
+        self.assertEqual(hipoteca.status, "CANCELADO")
+
+    def test_desvinculacao_integral_cancela_garantias_referidas(self):
+        hipoteca = ato("AV.04", "AV.04-233 - Objeto da garantia: em hipoteca, o imóvel.")
+        desvinculacao = ato(
+            "AV.05",
+            "AV.05-233 - DESVINCULAÇÃO DE IMÓVEL, GARANTIA HIPOTECÁRIA. Em virtude "
+            "da garantia objeto da AV.04, o imóvel ficou desvinculado de qualquer garantia.",
+        )
+
+        aplicar_cancelamentos([hipoteca, desvinculacao])
+
+        self.assertEqual(desvinculacao.categoria, "CANCELAMENTO")
+        self.assertEqual(hipoteca.status, "CANCELADO")
+
+    def test_cancelamento_de_assuncao_cancela_garantias_originarias_referidas(self):
+        antiga_1 = ato("AV.01", "AV.01-233 - Objeto da garantia: em hipoteca, o imóvel.")
+        antiga_2 = ato("R.02", "R.02-233 - Objeto da garantia: em hipoteca, o imóvel.")
+        assuncao = ato(
+            "AV.04",
+            "AV.04-233 - CONFISSÃO E ASSUNÇÃO DE DÍVIDAS COM GARANTIA HIPOTECÁRIA. "
+            "A dívida constante da AV.01 e do R.02 foi assumida com garantia sobre o imóvel.",
+        )
+        desvinculacao = ato(
+            "AV.05",
+            "AV.05-233 - DESVINCULAÇÃO DE IMÓVEL. O imóvel objeto da garantia da AV.04 "
+            "ficou desvinculado de qualquer garantia.",
+        )
+
+        aplicar_cancelamentos([antiga_1, antiga_2, assuncao, desvinculacao])
+
+        self.assertEqual([antiga_1.status, antiga_2.status, assuncao.status], ["CANCELADO"] * 3)
+        self.assertEqual(desvinculacao.cancela_atos, ["AV.04", "AV.01", "R.02"])
+
+    def test_insercao_de_qualificacao_nao_repete_alienacao_fiduciaria(self):
+        categoria, impacta = classificar(
+            "AV.05-165 - INSERÇÃO DE DADOS DE QUALIFICAÇÃO PESSOAL, EX-OFFICIO. "
+            "Conforme Contrato de Mútuo com Alienação Fiduciária, a proprietária "
+            "é inscrita no CPF sob o número indicado."
+        )
+
+        self.assertEqual(categoria, "IGNORAR")
+        self.assertFalse(impacta)
+
+    def test_vinculo_historico_com_cedulas_hipotecarias_e_onus(self):
+        categoria, impacta = classificar(
+            "AV.01-56 - O imóvel está vinculado ao banco pelas cédulas rurais "
+            "pignoratícias e hipotecárias inscritas sob os números indicados."
+        )
+
+        self.assertEqual(categoria, "ÔNUS")
+        self.assertTrue(impacta)
+
+    def test_cancelamento_parcial_de_registros_legados_mantem_vinculo_ativo(self):
+        vinculo = ato(
+            "AV.01",
+            "AV.01-297 - O imóvel está vinculado pelas cédulas hipotecárias, "
+            "inscritas sob os n.ºs 2.321, 3.895 e 3.920, fls. 10, Livro 9-D.",
+        )
+        parcial = ato(
+            "AV.03",
+            "AV.03-297 - CANCELAMENTO. Fica cancelado o registro 2.321, constante da AV.01.",
+        )
+
+        aplicar_cancelamentos([vinculo, parcial])
+
+        self.assertEqual(vinculo.status, "ATIVO")
+        self.assertEqual(parcial.cancela_atos, ["AV.01"])
+
+    def test_ultimo_cancelamento_dos_registros_legados_extingue_vinculo(self):
+        vinculo = ato(
+            "AV.01",
+            "AV.01-56 - O imóvel está vinculado pelas cédulas hipotecárias, "
+            "inscritas sob os n.ºs 3.072, 3.327 e 3.578, fls. 10, Livro 9-E.",
+        )
+        parcial = ato("AV.02", "AV.02-56 - CANCELAMENTO do registro 3.072, constante da AV.01.")
+        final = ato("AV.03", "AV.03-56 - CANCELAMENTO dos registros 3.327 e 3.578, constantes da AV.01.")
+
+        aplicar_cancelamentos([vinculo, parcial, final])
+
+        self.assertEqual(vinculo.status, "CANCELADO")
+        self.assertEqual(vinculo.cancelado_por, "AV.03")
+        self.assertEqual(final.cancela_atos, ["AV.01"])
+
+    def test_quitacao_do_pacto_comissorio_cancela_publicidade(self):
+        pacto = ato("AV.17", "AV.17-27 - PACTO COMISSÓRIO que vincula o imóvel.")
+        quitacao = ato(
+            "AV.18",
+            "AV.18-27 - QUITAÇÃO DE PROMISSÓRIA E PACTO COMISSÓRIO. "
+            "Autoriza o seu desvinculamento, bem como o pacto objeto da AV.17.",
+        )
+
+        aplicar_cancelamentos([pacto, quitacao])
+
+        self.assertEqual(quitacao.categoria, "CANCELAMENTO")
+        self.assertEqual(pacto.status, "CANCELADO")
+
+    def test_levantamento_de_penhora_prevalece_sobre_mencao_ao_gravame(self):
+        categoria, impacta = classificar(
+            "AV.06 - LEVANTAMENTO DE PENHORA. Fica cancelado o R.04 em virtude da quitação."
+        )
+        self.assertEqual((categoria, impacta), ("CANCELAMENTO", False))
+
+    def test_liberacao_ou_substituicao_nao_cria_nova_hipoteca(self):
+        textos = (
+            "AV.25 - LIBERAÇÃO DE HIPOTECA. Procede-se para liberar o imóvel do R.22.",
+            "AV.10 - SUBSTITUIÇÃO DE BENS VINCULADOS. Foi liberado do gravame hipotecário o R.08.",
+            "AV.03 - Por aditivo, ficou excluído da AV.01 o registro hipotecário indicado.",
+        )
+        for texto in textos:
+            with self.subTest(texto=texto):
+                self.assertEqual(classificar(texto), ("CANCELAMENTO", False))
+
+    def test_hipoteca_historica_sem_titulo_padronizado_e_onus(self):
+        categoria, impacta = classificar(
+            "AV.01 - O imóvel constante da presente matrícula foi hipotecado pelos "
+            "proprietários ao Banco do Brasil, conforme cédulas rurais hipotecárias."
+        )
+        self.assertEqual(categoria, "ÔNUS")
+        self.assertTrue(impacta)
+
+    def test_registro_de_penhora_prevalece_sobre_mencao_a_execucao(self):
+        categoria, impacta = classificar(
+            "R.07 - Nos autos da ação de execução, procedo ao registro da Penhora "
+            "do imóvel para assegurar o pagamento da dívida."
+        )
+        self.assertEqual(categoria, "ÔNUS")
+        self.assertTrue(impacta)
+
+    def test_retificacao_ex_officio_nao_repete_garantia(self):
+        categoria, impacta = classificar(
+            "AV.74 - RETIFICAÇÃO EX-OFFICIO. Corrige-se o objeto das garantias "
+            "hipotecárias dos R.48 e R.49, que corresponde a 1.306,80ha."
+        )
+        self.assertEqual((categoria, impacta), ("IGNORAR", False))
+
+    def test_alienacao_fiduciaria_superveniente_e_onus(self):
+        categoria, impacta = classificar(
+            "R.105 - ALIENAÇÃO FIDUCIÁRIA SUPERVENIENTE. PROPRIETÁRIO/FIDUCIANTE: "
+            "Pessoa Exemplo. CREDOR/FIDUCIÁRIO: Banco Exemplo."
+        )
+        self.assertEqual((categoria, impacta), ("ÔNUS", True))
+
+    def test_reserva_de_usufruto_em_doacao_e_onus(self):
+        categoria, impacta = classificar(
+            "R.04 - DOAÇÃO. A doadora reserva para si o direito ao usufruto "
+            "vitalício sobre a totalidade do imóvel doado."
+        )
+        self.assertEqual((categoria, impacta), ("ÔNUS", True))
+
+    def test_redacoes_historicas_de_cancelamento(self):
+        textos = (
+            "AV.05 - PERMUTA DE BENS APENHADOS. O imóvel foi substituído na garantia.",
+            "AV.35 - LIBERAÇÃO DE BENS APENHADOS. Fica liberado o imóvel do R.32.",
+            "AV.43 - SUBSTITUIÇÃO DE GARANTIA. Fica liberado do gravame o R.26.",
+            "R.08 - DESISTÊNCIA DE USUFRUTO. A usufrutuária renuncia ao R.04.",
+            "AV.07 - RENÚNCIA DE USUFRUTO. Os usufrutuários renunciaram ao R.04.",
+        )
+        for texto in textos:
+            with self.subTest(texto=texto):
+                self.assertEqual(classificar(texto), ("CANCELAMENTO", False))
+
+    def test_procedido_ao_registro_da_penhora_e_onus(self):
+        categoria, impacta = classificar(
+            "R.09 - Nos autos da execução, foi procedido ao Registro da penhora "
+            "do imóvel constante da presente matrícula."
+        )
+        self.assertEqual((categoria, impacta), ("ÔNUS", True))
+
+    def test_hipoteca_historica_abreviada_e_onus(self):
+        textos = (
+            "AV.01 - Hipoteca. Ditos bens já se acham vinculados ao banco pela CRPH.",
+            "AV.01 - Hipotecas. Ditos bens já se acham hipotecados em 1º grau pela CRH.",
+        )
+        for texto in textos:
+            with self.subTest(texto=texto):
+                self.assertEqual(classificar(texto), ("ÔNUS", True))
+
+    def test_mutuo_ou_confissao_com_garantia_hipotecaria_e_onus(self):
+        textos = (
+            "R.09 - Mútuo com Obrigações e Hipoteca. Objeto da garantia: "
+            "em 1ª e especial hipoteca, o imóvel desta matrícula.",
+            "AV.02 - Confissão de dívidas com garantia pignoratícia e hipotecária.",
+        )
+        for texto in textos:
+            with self.subTest(texto=texto):
+                self.assertEqual(classificar(texto), ("ÔNUS", True))
+
+    def test_alteracao_financeira_sem_nova_garantia_nao_e_onus(self):
+        categoria, impacta = classificar(
+            "AV.13 - ALTERAÇÃO DE ENCARGOS FINANCEIROS. O prazo do R.11 foi prorrogado."
+        )
+        self.assertEqual((categoria, impacta), ("IGNORAR", False))
+
+    def test_liberacao_e_permuta_de_bens_vinculados_cancelam_onus(self):
+        textos = (
+            "AV.15 - Foram liberadas do gravame hipotecário os R.06 e R.09.",
+            "AV.122 - PERMUTA DE BENS VINCULADOS. Foi liberado da garantia o R.78.",
+            "AV.24 - PERMUTA DE BENS HIPOTECADOS. Foi liberado da garantia o imóvel do R.21.",
+            "AV.07 - É liberado da garantia o imóvel constante do R.03.",
+        )
+        for texto in textos:
+            with self.subTest(texto=texto):
+                self.assertEqual(classificar(texto), ("CANCELAMENTO", False))
+
+    def test_confissao_e_assuncao_com_garantias_e_onus(self):
+        texto = (
+            "AV.04 - CONFISSÃO E ASSUNÇÃO DE DÍVIDAS COM GARANTIAS PIGNORATÍCIA "
+            "E HIPOTECÁRIA. Os assuntores assumiram a dívida garantida pelo imóvel."
+        )
+        self.assertEqual(classificar(texto), ("ÔNUS", True))
+
+    def test_alteracao_de_credor_e_comissao_nao_criam_onus(self):
+        textos = (
+            "AV.19 - ALTERAÇÃO DE CREDOR. A credora do contrato de abertura de crédito foi incorporada.",
+            "AV.10 - COMISSÃO DE PERMANÊNCIA. Retifica-se cláusula do contrato com hipoteca.",
+        )
+        for texto in textos:
+            with self.subTest(texto=texto):
+                self.assertEqual(classificar(texto), ("IGNORAR", False))
+
+    def test_imovel_ja_hipotecado_em_abertura_historica_e_onus(self):
+        texto = "AV.01 - O imóvel objeto da presente matrícula está hipotecado à Caixa Econômica."
+        self.assertEqual(classificar(texto), ("ÔNUS", True))
 
 
 if __name__ == "__main__":

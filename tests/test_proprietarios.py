@@ -8,6 +8,7 @@ from backend.app.proprietarios import (
     extrair_indicacao_titularidade,
     extrair_pessoas,
     extrair_proprietario_inicial,
+    nomes_compativeis,
     parse_percent,
 )
 
@@ -127,6 +128,29 @@ class TesteProprietarios(unittest.TestCase):
             {item["cpf"]: item["proporcao"] for item in resultado},
             {"004.338.341-61": "50%", "111.222.333-44": "50%"},
         )
+
+    def test_pai_e_filho_nao_sao_o_mesmo_titular(self):
+        self.assertFalse(
+            nomes_compativeis("José Carlos da Silva", "José Carlos da Silva Filho")
+        )
+
+    def test_alteracao_de_nome_por_casamento_evitar_titular_duplicado(self):
+        texto = """
+        MATRÍCULA 908. IMÓVEL: Lote 1.
+        PROPRIETÁRIOS: Luzia Agostinha da Silva, CPF 004.338.341-61; e
+        Outra Pessoa, CPF 555.666.777-88.
+        AV.01-908 - ALTERAÇÃO DO NOME POR CASAMENTO. Averba-se a alteração do
+        nome da proprietária para Luzia Agostinha da Silva Souza, que passou a
+        adotar depois de haver contraído matrimônio.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        por_nome = {item["nome"]: item["proporcao"] for item in resultado}
+        self.assertEqual(len(resultado), 2)
+        self.assertEqual(por_nome["Luzia Agostinha da Silva Souza"], "50%")
+        self.assertEqual(por_nome["Outra Pessoa"], "50%")
 
     def test_transmissao_parcial_debita_unico_proprietario_mesmo_sem_rotulo_transmitente(self):
         texto = """
@@ -689,6 +713,369 @@ class TesteProprietarios(unittest.TestCase):
 
         self.assertEqual(resultado[0]["cpf"], "004.338.341-61")
         self.assertEqual(resultado[0]["proporcao"], "100%")
+
+    def test_percentual_com_cifrao_antes_do_numero(self):
+        self.assertEqual(
+            parse_percent("coube à herdeira parte ideal de R$14% do imóvel"),
+            14.0,
+        )
+
+    def test_percentual_de_multiplas_partes_por_valor(self):
+        self.assertEqual(
+            parse_percent(
+                "três partes ideais de Cr$12.000,00 cada uma, na avaliação de Cr$72.000,00"
+            ),
+            50.0,
+        )
+
+    def test_percentual_soma_partes_ideais_com_valores_diferentes(self):
+        texto = """
+        adquiriu três partes ideais, sendo a primeira de Cr$200.000,00,
+        a segunda de Cr$200.000,00 e a terceira de Cr$83.439,75,
+        todas na avaliação de Cr$4.000.000,00.
+        """
+        self.assertAlmostEqual(parse_percent(texto), 12.08599375)
+
+    def test_percentual_ignora_denominador_intermediario_da_parte(self):
+        texto = """
+        a primeira de Cr$116.560,25, na parte ideal de Cr$2.000.000,00;
+        a segunda de Cr$397.599,57 na parte ideal de Cr$2.000.000,00;
+        e a terceira de Cr$90.362,40 na parte ideal de Cr$2.000.000,00,
+        todas na avaliação de Cr$4.000.000,00.
+        """
+        self.assertAlmostEqual(parse_percent(texto), 15.1130555)
+
+    def test_percentual_soma_uma_e_outra_parte(self):
+        texto = """
+        duas partes ideais, sendo uma de Cr$94.880,52 e a outra Cr$31.626,84,
+        ambas na avaliação de Cr$4.000.000,00.
+        """
+        self.assertAlmostEqual(parse_percent(texto), 3.162684)
+
+    def test_percentual_soma_partes_repetidas_apos_primeira_avaliacao(self):
+        texto = """
+        parte ideal de Cr$465.892,12, remanescente da parte ideal de
+        Cr$2.000.000,00, na avaliação de Cr$4.000.000,00; e parte ideal de
+        Cr$200.000,00, na avaliação de Cr$4.000.000,00; e parte ideal de
+        Cr$180.725,19, da parte ideal de Cr$2.000.000,00, na avaliação de
+        Cr$4.000.000,00.
+        """
+        self.assertAlmostEqual(parse_percent(texto), 21.16543275)
+
+    def test_percentual_por_valor_correspondente_em_moeda_convertida(self):
+        texto = """
+        uma parte de terras que corresponde o valor de Cz$180,72,
+        na avaliação de Cz$4.000,00.
+        """
+        self.assertAlmostEqual(parse_percent(texto), 4.518)
+
+    def test_percentual_fracao_avaliada_com_ordem_invertida(self):
+        self.assertEqual(
+            parse_percent(
+                "imóvel avaliado por Cr$460.000,00, uma fração ideal de Cr$57.500,00"
+            ),
+            12.5,
+        )
+
+    def test_fracao_do_objeto_prevalece_sobre_percentual_final_dos_compradores(self):
+        texto = """
+        OBJETO: A parte ideal de 1/3 do imóvel total desta matrícula.
+        Com a aquisição os dois adquirentes passaram a ser os únicos proprietários,
+        na proporção de 50% para cada um.
+        """
+        self.assertAlmostEqual(parse_percent(texto), 100.0 / 3.0)
+
+    def test_percentual_de_fracao_interna_com_ocr_monetario_historico(self):
+        texto = """
+        parte ideal de Cr$1.000.000,00 (um milhão), na avaliação de
+        Cr$5.500,000, 00 na parte ideal de Cr$54.000.000,00 na avaliação de
+        Cr$72.000.000,00, sobre o imóvel.
+        """
+        self.assertAlmostEqual(parse_percent(texto), 100.0 / 5.5 * 0.75)
+
+    def test_percentual_de_fracao_interna_com_zero_duplicado_no_ocr(self):
+        texto = """
+        parte ideal de Cr$4.500.000,00, na avaliação de Cr$5.5000.000,00,
+        na parte ideal de Cr$54.000.000,00, na avaliação de Cr$72.000.000,00.
+        """
+        self.assertAlmostEqual(parse_percent(texto), 4.5 / 5.5 * 75.0)
+
+    def test_declaracao_de_unicos_proprietarios_consolida_adquirentes(self):
+        texto = """
+        MATRÍCULA 909. PROPRIETÁRIA: Pessoa Vendedora, CPF 004.338.341-61.
+        R.01-909 - COMPRA E VENDA. TRANSMITENTE: Pessoa Vendedora,
+        CPF 004.338.341-61. ADQUIRENTES: Pessoa Um, CPF 111.222.333-44; e
+        Pessoa Dois, CPF 555.666.777-88. OBJETO: A parte ideal de 1/3 do imóvel.
+        Com a aquisição os adquirentes passaram a ser os únicos proprietários do
+        imóvel total, na proporção de 50% para cada um.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {"Pessoa Um": "50%", "Pessoa Dois": "50%"},
+        )
+
+    def test_percentual_solto_antes_de_do_imovel(self):
+        self.assertEqual(parse_percent("foi transferido 24,10% do imóvel objeto"), 24.1)
+
+    def test_percentual_com_extenso_entre_sinal_e_imovel(self):
+        self.assertEqual(parse_percent("50% (cinquenta por cento) do imóvel"), 50.0)
+
+    def test_fracao_monetaria_prevalece_sobre_usufruto_incidental(self):
+        texto = (
+            "parte ideal de CR$1.165.000,00 na avaliação de CR$6.400.000,00; "
+            "condições: 50% do imóvel está clausulado com usufruto"
+        )
+        self.assertAlmostEqual(parse_percent(texto), 18.203125)
+
+    def test_metade_do_imovel_equivale_a_cinquenta_por_cento(self):
+        self.assertEqual(parse_percent("a metade do imóvel objeto da matrícula"), 50.0)
+
+    def test_incorporacao_extrai_sociedade_e_socio_transmitente(self):
+        texto = """
+        R.47 - INCORPORAÇÃO DE BENS PARA INTEGRALIZAÇÃO DE CAPITAL. Para constar
+        que 24,10% do imóvel foi incorporado ao patrimônio da sociedade empresária
+        limitada AGROPECUÁRIA IRMÃOS CHIARI LTDA, inscrita no CNPJ/MF sob o n.º
+        17.644.020/0001-06, com sede nesta cidade, por integralização feita pelo
+        sócio José Renato Chiari, CPF/MF n.º 071.092.738-06, com plena anuência
+        de seu cônjuge. O Capital Social será alterado. DOU FÉ.
+        """
+
+        adquirentes = extrair_pessoas(extrair_bloco(texto, "ADQUIRENTE"))
+        transmitentes = extrair_pessoas(extrair_bloco(texto, "TRANSMITENTE"))
+
+        self.assertEqual(adquirentes[0]["nome"], "AGROPECUÁRIA IRMÃOS CHIARI LTDA")
+        self.assertEqual(adquirentes[0]["cpf"], "17.644.020/0001-06")
+        self.assertEqual(transmitentes[0]["nome"], "José Renato Chiari")
+        self.assertEqual(transmitentes[0]["cpf"], "071.092.738-06")
+
+    def test_partilha_integral_em_atos_consecutivos_substitui_proprietario_anterior(self):
+        cabecalho = "MATRÍCULA 210. PROPRIETÁRIO: Custódio Lopes de Souza, CPF 016.800.801-00."
+        partilha_1 = """
+        R.10-210 - Nos termos da Escritura Pública de Inventário e Partilha,
+        lavrada em 21 de março de 2014; coube à viúva meeira Luzia Rosa de Souza,
+        CPF 002.093.861-69, em pagamento de sua meação parte ideal de 50% do imóvel.
+        """
+        partilha_2 = """
+        R.11-210 - Nos termos da Escritura Pública de Inventário e Partilha,
+        lavrada em 21 de março de 2014; coube ao herdeiro Cleudson Rosa de Souza,
+        CPF 539.215.006-30, em pagamento de sua herança parte ideal de 50% do imóvel.
+        """
+
+        resultado = calcular_cadeia_dominial(
+            [SimpleNamespace(descricao=partilha_1), SimpleNamespace(descricao=partilha_2)],
+            cabecalho + partilha_1 + partilha_2,
+        )
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {"Luzia Rosa de Souza": "50%", "Cleudson Rosa de Souza": "50%"},
+        )
+
+    def test_formal_de_partilha_por_valores_consolida_cem_por_cento(self):
+        cabecalho = "MATRÍCULA 51. PROPRIETÁRIA: Odete Cândido de Castro, CPF 111.111.111-11."
+        atos = [
+            """R.03-51 - Formal de Partilha de 01 de abril de 2003 dos bens deixados por
+            Odete Cândido de Castro; coube ao herdeiro Gilmar Alves Cândido, CPF
+            161.050.111-68, parte ideal de R$19.317,52 na avaliação de R$73.150,00.""",
+            """R.04-51 - Formal de Partilha de 01 de abril de 2003 dos bens deixados por
+            Odete Cândido de Castro; coube ao herdeiro Silmar Alves Cândido, CPF
+            342.031.841-00, parte ideal de R$19.317,52 na avaliação de R$73.150,00.""",
+            """R.05-51 - Formal de Partilha de 01 de abril de 2003 dos bens deixados por
+            Odete Cândido de Castro; coube à herdeira Lusmar Alves Cândido, CPF
+            827.816.211-53, parte ideal de R$34.514,96 na avaliação de R$73.150,00.""",
+        ]
+
+        resultado = calcular_cadeia_dominial(
+            [SimpleNamespace(descricao=texto) for texto in atos],
+            cabecalho + "\n" + "\n".join(atos),
+        )
+
+        self.assertEqual(sum(float(item["proporcao"].replace(",", ".").rstrip("%")) for item in resultado), 100.0)
+        self.assertEqual({item["nome"] for item in resultado}, {
+            "Gilmar Alves Cândido", "Silmar Alves Cândido", "Lusmar Alves Cândido",
+        })
+
+    def test_partilha_historica_remove_qualificadores_separados_por_virgula(self):
+        texto = """
+        MATRÍCULA 789. PROPRIETÁRIO: Elias Gervásio Pereira, CPF 117.723.601-04.
+        R.05-789 - Formal de Partilha de 28 de junho de 2005; coube ao viúvo meeiro,
+        Elias Gervásio Pereira, CPF 117.723.601-04, em pagamento de sua meação 50% do imóvel.
+        R.06-789 - Formal de Partilha de 28 de junho de 2005; coube ao herdeiro filho
+        Elias Gervásio Pereira Júnior, em pagamento de sua herança 50% do imóvel.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {"Elias Gervásio Pereira": "50%", "Elias Gervásio Pereira Júnior": "50%"},
+        )
+
+    def test_proporcao_coletiva_divide_percentual_entre_nomes_do_grupo(self):
+        texto = """
+        MATRÍCULA 791. PROPRIETÁRIO: Pessoa Anterior, CPF 004.338.341-61.
+        R.04-791 - COMPRA E VENDA. O imóvel foi adquirido por Heloisa Maria Romano
+        de Melo, CPF 016.800.561-15; Gisele Maria Romano de Melo, CPF 217.012.101-34;
+        Cláudio Romano de Melo, CPF 136.977.451-34 e Silvio Romano de Melo, solteiro,
+        CPF 136.533.931-91; por compra feita ao proprietário anterior. O imóvel é
+        adquirido na seguinte proporção: à Heloisa Maria Romano de Melo, parte
+        correspondente a 50%; e à Gisele Maria Romano de Melo, Cláudio Romano de
+        Melo e Silvio Romano de Melo, parte correspondente a 50%. O referido é verdade.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(len(resultado), 4)
+        self.assertEqual(sum(float(item["proporcao"].replace(',', '.').rstrip('%')) for item in resultado), 100.0)
+        self.assertEqual(next(item["proporcao"] for item in resultado if item["nome"].startswith("Heloisa")), "50%")
+
+    def test_conjuge_apenas_qualificado_nao_e_adquirente_separado(self):
+        bloco = (
+            "2)- Éder Rodrigues da Silva, CPF 319.847.891-04, casado sob o regime "
+            "da comunhão universal de bens com Maria Francisca Santana e Rodrigues, "
+            "CPF 889.006.491-91, equivalente a 34,4769% do imóvel"
+        )
+
+        pessoas = extrair_pessoas(bloco)
+
+        self.assertEqual([pessoa["nome"] for pessoa in pessoas], ["Éder Rodrigues da Silva"])
+        self.assertEqual(pessoas[0]["percentual"], 34.4769)
+
+    def test_intervenientes_anuentes_nao_entram_como_adquirentes(self):
+        texto = (
+            "R.10 - COMPRA E VENDA. ADQUIRENTE: Danielle Corcelli Gomes, "
+            "CPF 003.393.721-41. INTERVENIENTES ANUENTES: José Alves Gomes, "
+            "CPF 016.984.351-34, e Terezinha Cândida Gomes, CPF 010.070.691-63. "
+            "IMÓVEL: 50% do imóvel."
+        )
+
+        pessoas = extrair_pessoas(extrair_bloco(texto, "ADQUIRENTE"))
+
+        self.assertEqual([pessoa["nome"] for pessoa in pessoas], ["Danielle Corcelli Gomes"])
+
+    def test_menores_coadquirentes_sao_separados_sem_incluir_representante(self):
+        bloco = (
+            "Diego Corcelli Gomes, menor impúbere, CI 4267870 e Danielle Corcelli "
+            "Gomes, menor púbere, CI 4267920, ambos estudantes; neste ato o primeiro "
+            "representado e a segunda assistida por Eliene Alves Gomes, CPF 491.306.921-72"
+        )
+
+        pessoas = extrair_pessoas(bloco)
+
+        self.assertEqual([pessoa["nome"] for pessoa in pessoas], ["Diego Corcelli Gomes", "Danielle Corcelli Gomes"])
+
+    def test_divorcio_com_outorgantes_reciprocos_preserva_coproprietario_estranho(self):
+        texto = """
+        MATRICULA 369. PROPRIETARIO: Pessoa Anterior, CPF 111.111.111-11.
+        R.03-369 - COMPRA E VENDA. O imovel foi adquirido por: 1) Jose Daniel da
+        Silva Filho, CPF 169.250.761-34; 2) Renato Antonio Fernandes, casado com
+        Miriam Bittes Fernandes, CPF 262.920.846-04, por compra feita ao proprietario
+        anterior, na proporcao de 50% para cada um.
+        R.05-369 - Escritura publica de DIVORCIO DIRETO E PARTILHA DE BENS.
+        Outorgantes e reciprocamente outorgados: Renato Antonio Fernandes e Miriam
+        Bittes Fernandes. Fica dissolvida a sociedade conjugal e 50% do imovel
+        fica pertencendo a Renato Antonio Fernandes, brasileiro, divorciado,
+        CPF 262.920.846-04. O referido e verdade.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {"Jose Daniel da Silva Filho": "50%", "Renato Antonio Fernandes": "50%"},
+        )
+        self.assertEqual(
+            next(item["cpf"] for item in resultado if item["nome"] == "Renato Antonio Fernandes"),
+            "262.920.846-04",
+        )
+
+    def test_retificacao_compacta_preserva_sete_proprietarios_e_documentos(self):
+        texto = """
+        MATRICULA 39.802. IMOVEL: Fazenda Exemplo.
+        PROPRIETARIOS: 1)- Osmar Tagliari, CPF 772.601.718-04, equivalente a 25%
+        do imovel descrito na matricula; 2)- Suely Tagliari, CPF 095.788.998-40,
+        equivalente a 25% do imovel descrito na matricula; 3)- Fabio de Almeida
+        Tagliari, CPF 222.963.888-25, equivalente a 12,5% do imovel descrito na
+        matricula; 4)- Fernanda de Almeida Tagliari, CPF 223.701.748-46,
+        equivalente a 12,5% do imovel descrito na matricula; 5)- Paulo de Morais
+        Tagliari Oliveira, CPF 423.074.468-42, equivalente a 10,42% do imovel;
+        6)- Rebeca de Morais Teruel Tagliari Oliveira, CPF 423.074.478-14,
+        equivalente a 6,25% do imovel; 7)- Paulo Donizete Oliveira,
+        CPF 073.223.588-05, equivalente a 4,16% do imovel. ORIGEM: Matricula 5.121.
+        AV.04-39.802 - RETIFICACAO E INDICACAO DE TITULARIDADE EX-OFFICIO.
+        CO-PROPRIETARIOPERCENTUAL (%)CORRESPONDENCIA NA AREA DO IMOVEL (EM HECTARES)
+        Osmar Tagliari25%11,6642haSuely Tagliari25%11,6642haFabio de Almeida
+        Tagliari12,50%5,8321haFernanda de Almeida Tagliari12,50%5,8321haPaulo
+        de Morais Tagliari Oliveira10,42%4,8616haRebeca de Morais Teruel Tagliari
+        Oliveira10,42%4,8616haPaulo Donizete Oliveira4,16%1,9410ha07 proprietarios100%46,6568ha
+        DOU FE.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(len(resultado), 7)
+        self.assertEqual(
+            sum(float(item["proporcao"].replace(",", ".").rstrip("%")) for item in resultado),
+            100.0,
+        )
+        rebeca = next(item for item in resultado if item["nome"].startswith("Rebeca"))
+        osmar = next(item for item in resultado if item["nome"] == "Osmar Tagliari")
+        self.assertEqual(rebeca["proporcao"], "10,42%")
+        self.assertEqual(osmar["cpf"], "772.601.718-04")
+
+    def test_percentual_sem_virgula_por_ocr_e_numeracao_sem_parentese(self):
+        bloco = (
+            "1- Valtemir Jose de Oliveira, CPF 333.266.571-53, parte correspondente "
+            "a 8562%; e 2-Laurentina Dias de Oliveira, CPF 291.965.661-91, parte "
+            "correspondente a 14,38%"
+        )
+
+        pessoas = extrair_pessoas(bloco)
+
+        self.assertEqual([item["nome"] for item in pessoas], [
+            "Valtemir Jose de Oliveira", "Laurentina Dias de Oliveira",
+        ])
+        self.assertEqual([item["percentual"] for item in pessoas], [85.62, 14.38])
+        self.assertEqual(parse_percent("parte correspondente a 8562% do imovel"), 85.62)
+
+    def test_coube_com_acento_agudo_incorreto_extrai_herdeira(self):
+        ato = (
+            "FORMAL DE PARTILHA. coube á herdeira filha Edelma Maria Cardoso, "
+            "CPF 307.511.441-34, em pagamento de sua heranca, parte ideal de 6,25%."
+        )
+
+        pessoas = extrair_pessoas(extrair_bloco(ato, "ADQUIRENTE"))
+
+        self.assertEqual(pessoas[0]["nome"], "Edelma Maria Cardoso")
+        self.assertEqual(pessoas[0]["cpf"], "307.511.441-34")
+
+    def test_partilha_residual_nao_reduz_adquirente_que_ja_consta_integral(self):
+        texto = """
+        MATRICULA 13.431. PROPRIETARIO: Jales Moreira da Silva, CPF 016.756.561-34.
+        R.03-13.431 - COMPRA E VENDA. Escritura lavrada pelo tabelionato local,
+        Carlos Humberto da Silva, CPF 278.142.031-04; adquiriu por compra feita a
+        Jales Moreira da Silva o imovel objeto da matricula.
+        R.10-13.431 - INVENTARIO/PARTILHA. TRANSMITENTE: O Espolio de Jales Moreira
+        da Silva, CPF 016.756.561-34. ADQUIRENTE: Carlos Humberto da Silva,
+        CPF 278.142.031-04. IMOVEL: A proporcao de 16,26% do imovel.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(resultado, [{
+            "nome": "Carlos Humberto da Silva",
+            "cpf": "278.142.031-04",
+            "proporcao": "100%",
+        }])
 
 
 if __name__ == "__main__":

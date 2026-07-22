@@ -230,16 +230,16 @@ body.auth-pending > .app-body {
 }
 
 .splash-logo {
-  width: 100%;
+  width: min(70vw, 360px);
   height: auto;
-  filter: drop-shadow(0 22px 38px rgba(11, 36, 84, 0.14));
+  filter: drop-shadow(0 22px 38px rgba(2, 6, 23, 0.38));
   animation: splashLogo 1s cubic-bezier(.2,.8,.2,1) both;
 }
 
 .splash-progress {
   width: min(180px, 42vw);
   height: 3px;
-  margin-top: -54px;
+  margin-top: 16px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(11, 36, 84, 0.12);
@@ -2058,6 +2058,15 @@ input::placeholder {
   -webkit-backdrop-filter: blur(20px);
 }
 
+/* Matrículas com muitos atos precisam rolar dentro do modal. A regra acima
+   mantém os demais cards recortados, mas não pode bloquear o resultado. */
+#modal-resultado .modal-box {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .input-glass::after,
 .resultado::after,
 .page-placeholder::after,
@@ -2232,6 +2241,11 @@ input::placeholder {
 .matricula-search-source { margin-left: auto; }
 .matricula-clear-bar { margin-top: 10px; justify-content: flex-start; }
 .resultado-matricula { display: block; margin-bottom: 5px; color: var(--primary-hover); font-size: .68rem; font-weight: 800; letter-spacing: .1em; }
+
+/* O analisador é a entrada principal do AERI: título, busca e ações no mesmo eixo. */
+#page-onus .hero { text-align: center; }
+#page-onus .section-input-row { justify-content: center; }
+#page-onus .matricula-clear-bar { justify-content: center; }
 
 @media (max-width: 620px) {
   .matricula-search-row { align-items: stretch; flex-wrap: wrap; padding: 14px; }

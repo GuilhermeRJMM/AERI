@@ -15,12 +15,12 @@ def _normalizar_localizacao(texto: str) -> str:
     valor = _compactar(texto)
     valor = re.sub(r"^(?:d[oa]s?|n[oa]s?|em)\s+", "", valor, flags=re.IGNORECASE)
     valor = re.sub(
-        r"^(?:loteamento|bairro)\s+(?:denominad[oa]\s+)?[\"'“”]?"
-        r"(?=(?:Vila|Setor|Jardim|Bairro|Residencial|Parque|Centro)\b)",
+        r"^(?:loteamento|bairro)\s+(?:denominad[oa]\s+)?[\"'“”]?",
         "",
         valor,
         flags=re.IGNORECASE,
     )
+    valor = re.sub(r"^Setor\s+(?=(?:Jardim|Bairro|Residencial|Parque)\b)", "", valor, flags=re.IGNORECASE)
     return _compactar(valor.strip("\"'“”"))
 
 
@@ -71,6 +71,8 @@ def _tem_encerramento_explicito(normalizado: str) -> bool:
         "FICA ENCERRADA" in normalizado
         or "FICA ENCERRADO" in normalizado
         or bool(re.search(r"\bENCERRAD[AO]\s+A\s+PRESENTE\s+MATRICULA\b", normalizado))
+        or bool(re.search(r"\bENCERRAD[AO]\s+PRESENTE\s+MATRICULA\b", normalizado))
+        or bool(re.search(r"\bCOM\s+O\s+QUE\s+(?:FICA\s+)?ENCERRAD[AO]\b", normalizado))
         or bool(re.search(r"\bENCERRA-SE\s+(?:A\s+)?(?:PRESENTE\s+)?MATRICULA\b", normalizado))
         or bool(re.search(r"\bENCERRAMENTO\s+DA\s+(?:PRESENTE\s+)?MATRICULA\b", normalizado))
     )
@@ -258,18 +260,42 @@ def _extrair_confrontacoes(descricao: str, origem: str = "Cabeçalho", rua: Opti
 
 
 def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
-    tipo_logradouro = r"(?:Rua|Avenida|Av[.]?|Alameda|Travessa|Praça|Rodovia|Estrada|Viela)"
+    tipo_logradouro = r"(?:Ruas?|Avenida|Avnida|Av[.]?|Alameda|Travessa|Praça|Rodovia|Estrada|Viela|Beco|Acesso)"
     logradouro = re.search(
-        rf"\bsituad[oa]\s+(?:na|no)\s+({tipo_logradouro}\b[^,;]+)",
+        rf"\bsituad[oa]\s+(?:na|no|à|ao|a)\s+({tipo_logradouro}\b[^,;]+)",
         descricao,
         re.IGNORECASE,
     )
     if not logradouro:
         logradouro = re.match(rf"\s*({tipo_logradouro}\b[^,;]+)", descricao, re.IGNORECASE)
+    if not logradouro:
+        atual = re.search(
+            rf"\batual\s+({tipo_logradouro}\b.*?)(?=,|;|\.\s+(?:O|Um|Uma|Lote|Imóvel|Constituíd[oa])\b|$)",
+            descricao,
+            re.IGNORECASE,
+        )
+        logradouro = atual
+    if not logradouro:
+        logradouro = re.search(
+            rf"\b({tipo_logradouro}\b.*?)(?=,|;|\.\s+(?:O|Um|Uma|Lote|Imóvel|Constituíd[oa])\b|$)",
+            descricao,
+            re.IGNORECASE,
+        )
 
     rua = _compactar(logradouro.group(1)) if logradouro else None
+    if rua:
+        rua = re.sub(r"^Avnida\b", "Avenida", rua, flags=re.IGNORECASE)
     numero = None
     setor = None
+    if rua:
+        numero_na_rua = re.search(
+            r"\s+(?:(?:n(?:[.º°o]|os|s)*)|número)\s*(\d[\d.]*)\s*$",
+            rua,
+            re.IGNORECASE,
+        )
+        if numero_na_rua:
+            numero = numero_na_rua.group(1)
+            rua = rua[:numero_na_rua.start()].strip(" ,")
     if logradouro:
         trecho_seguinte = descricao[logradouro.end():]
         localizacao = re.match(
@@ -283,20 +309,26 @@ def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str], Opt
             partes = [parte for parte in partes if parte]
             if partes:
                 numero_encontrado = re.fullmatch(
-                    r"(?:n(?:[.º°o]|os|s)*\s*)?(\d[\d.]*)",
+                    r"(?:(?:n(?:[.º°o]|os|s)*)|número)\s*(\d[\d.]*)|^(\d[\d.]*)$",
                     partes[0],
                     re.IGNORECASE,
                 )
                 if numero_encontrado:
-                    numero = numero_encontrado.group(1)
+                    numero = numero_encontrado.group(1) or numero_encontrado.group(2)
                     partes = partes[1:]
             candidato = _normalizar_localizacao(", ".join(partes))
-            if re.search(r"\b(?:Vila|Setor|Jardim|Bairro|Residencial|Parque|Centro)\b", candidato, re.IGNORECASE):
-                setor = candidato
+            localizacao_exata = re.search(
+                r"\b(Vila\s+[^,;.]+(?:,\s*(?:Setor|Jardim|Bairro|Residencial|Parque)\s+[^,;.]+)?|"
+                r"(?:Setor|Jardim|Bairro|Residencial|Parque)\s+[^,;.]+|Centro\b)",
+                candidato,
+                re.IGNORECASE,
+            )
+            if localizacao_exata:
+                setor = _normalizar_localizacao(localizacao_exata.group(1))
 
         if not numero:
             numero_encontrado = re.match(
-                r"\s*,\s*(?:n(?:[.º°o]|os|s)*\s*)?(\d[\d.]*)\b",
+                r"\s*,\s*(?:(?:n(?:[.º°o]|os|s)*)|número)?\s*(\d[\d.]*)\b",
                 trecho_seguinte,
                 re.IGNORECASE,
             )
@@ -304,15 +336,116 @@ def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str], Opt
                 numero = numero_encontrado.group(1)
 
     if not setor:
-        localizacao = re.search(
-            r"\b((?:Vila\s+[^,;]+,\s*)?Setor\s+[^,;.]+)",
+        for localizacao in re.finditer(
+            r"\b(Vila\s+[^,;.]+(?:,\s*(?:Setor|Jardim|Bairro|Residencial|Parque)\s+[^,;.]+)?|"
+            r"(?:Setor|Jardim|Bairro|Residencial|Parque)\s+[^,;.]+|Centro\b)",
+            descricao,
+            re.IGNORECASE,
+        ):
+            contexto = _sem_acentos(descricao[max(0, localizacao.start() - 28):localizacao.start()])
+            if re.search(r"(?:PREDIO|CASA|USO)\s+$", contexto):
+                continue
+            setor = _normalizar_localizacao(localizacao.group(1))
+            break
+
+    if logradouro and not numero:
+        trecho_endereco = descricao[logradouro.end():]
+        trecho_endereco = re.split(
+            r"\b(?:(?:constituíd[oa]|compost[oa]|formad[oa])\s+de|"
+            r"(?:nesta|neste)\s+cidade|com\s+(?:a\s+)?área|lote|quadra|medindo)\b",
+            trecho_endereco,
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0]
+        candidatos_numero = list(re.finditer(
+            r"(?:(?:n(?:[.º°o]|os|s)*)|número)\s*(\d[\d.]*)\b",
+            trecho_endereco,
+            re.IGNORECASE,
+        ))
+        for candidato_numero in reversed(candidatos_numero):
+            contexto = _sem_acentos(trecho_endereco[max(0, candidato_numero.start() - 35):candidato_numero.start()])
+            if re.search(
+                r"(?:REGISTRAD|CADASTRAD)[OA]\s+(?:NO\s+INCRA\s+|NA\s+PREFEITURA\s+)?"
+                r"SOB\s+O?\s*$",
+                contexto,
+            ):
+                continue
+            numero = candidato_numero.group(1)
+            break
+
+    if not numero:
+        numero_edificacao = re.search(
+            r"\b(?:casa|prédio|edificação)\b[^,;.]{0,80}?,\s*"
+            r"(?:(?:n(?:[.º°o]|os|s)*)|número)\s*(\d[\d.]*)\b",
             descricao,
             re.IGNORECASE,
         )
-        if localizacao:
-            setor = _normalizar_localizacao(localizacao.group(1))
+        if numero_edificacao:
+            numero = numero_edificacao.group(1)
+
+    if not setor:
+        loteamento = re.search(
+            r"\b(?:d[oa]\s+)?loteamento\s+(?:denominad[oa]\s+)?[\"'“”]?"
+            r"([^,;.\"'“”]+)",
+            descricao,
+            re.IGNORECASE,
+        )
+        if loteamento:
+            setor = _normalizar_localizacao(loteamento.group(1))
 
     return rua, numero, setor
+
+
+def _extrair_identificador_urbano(descricao: str, rotulo: str) -> Optional[str]:
+    complemento = r"(?:\s+de\s+terras)?" if rotulo.lower() == "lote" else ""
+    identificador = r"(?:[\w\-/]*\d[\w\-/]*|[A-Za-z])"
+    direto = re.search(
+        rf"\b{rotulo}{complemento}\s+(?:n?[.º°o\s]*)?(?P<id>{identificador})\b",
+        descricao,
+        re.IGNORECASE,
+    )
+    candidatos = [(direto.start(), direto.group("id"))] if direto else []
+    if rotulo.lower() == "lote":
+        historico = re.search(
+            rf"\bLote{complemento}\b.{{0,100}}?\b(?:de\s+)?n[.º°o\s]*(?P<id>{identificador})\b",
+            descricao,
+            re.IGNORECASE,
+        )
+        if historico:
+            candidatos.append((historico.start(), historico.group("id")))
+    return min(candidatos, default=(0, None), key=lambda item: item[0])[1]
+
+
+def _extrair_denominacao_rural(descricao: str) -> Optional[str]:
+    """Extrai o nome do imóvel rural, sem confundir a espécie com a descrição."""
+    candidatos = []
+    for encontrado in re.finditer(
+        r"\b(Fazendas?|Sítio|Chácara|Estância)\s+([^,;.]+)",
+        descricao,
+        re.IGNORECASE,
+    ):
+        especie = encontrado.group(1)
+        nome = _compactar(encontrado.group(2))
+        nome_normalizado = _sem_acentos(nome)
+        if re.match(
+            r"^(?:COM\b|CONTENDO\b|CONSTITUID[AO]\b|SITUAD[AO]\b|LOCALIZAD[AO]\b|"
+            r"FORMAD[AO]\b|DE\s+TERRAS?\b|DE\s+CULTURAS?\b)",
+            nome_normalizado,
+        ):
+            continue
+        candidatos.append((encontrado.start(), f"{especie} {nome}"))
+
+    if candidatos:
+        # "Um sítio com... situado na Fazenda X" deve resultar em "Fazenda X".
+        fazendas = [item for item in candidatos if _sem_acentos(item[1]).startswith("FAZENDA")]
+        return _compactar((fazendas or candidatos)[0][1])
+
+    lugar = re.search(
+        r"\blugar\s+denominad[oa]\s+[\"'“”]?([^,;.\"'“”]+)",
+        descricao,
+        re.IGNORECASE,
+    )
+    return _compactar(lugar.group(1)) if lugar else None
 
 
 def _extrair_area_construida(texto: str, normalizado: str) -> Optional[str]:
@@ -393,12 +526,12 @@ def _sucessoras_desmembramento_integral(texto: str, normalizado: str) -> list[st
     quantidade_texto = divisao.group(1)
     quantidade = int(quantidade_texto) if quantidade_texto.isdigit() else quantidades[quantidade_texto]
     encontradas = re.findall(
-        r"matriculad[oa]s?\s+sob\s+o\s+n?[.º°o\s]*([\d.]+)",
+        r"matr[ií]cul(?:ad[oa]s?|as?)\s+sob\s+(?:os?\s+)?[^\d]{0,20}(\d[\d.]*)",
         texto,
         re.IGNORECASE,
     )
     for lista in re.findall(
-        r"matriculad[oa]s\s+sob\s+(?:os?\s+)?n(?:[.º°o]|os|s)*\s*"
+        r"matr[ií]cul(?:ad[oa]s?|as?)\s+sob\s+(?:os?\s+)?[^\d]{0,20}"
         r"(.*?)(?=\bFLS?\b|\bDO\s+L[ºO]\b|\bDESTE\s+REGISTRO\b|\.\s+O\s+REFERIDO|$)",
         texto,
         re.IGNORECASE | re.DOTALL,
@@ -409,7 +542,7 @@ def _sucessoras_desmembramento_integral(texto: str, normalizado: str) -> list[st
         numero = numero.rstrip(".")
         if numero and numero not in sucessoras:
             sucessoras.append(numero)
-    return sucessoras if len(sucessoras) >= quantidade else []
+    return sucessoras[:quantidade] if len(sucessoras) >= quantidade else []
 
 
 def extrair_dados_imovel(
@@ -466,12 +599,12 @@ def extrair_dados_imovel(
     elif matricula:
         _adicionar_unico(resultado["identificacao"], {"rotulo": "Matrícula", "valor": matricula.group(1), "origem": "Cabeçalho"})
 
-    lote = re.search(r"\bLote(?:\s+de\s+terras)?\s+n?[.º°o\s]*([\w\-/]+)", descricao, re.IGNORECASE)
-    quadra = re.search(r"\bQuadra\s+n?[.º°o\s]*([\w\-/]+)", descricao, re.IGNORECASE)
+    lote = _extrair_identificador_urbano(descricao, "Lote")
+    quadra = _extrair_identificador_urbano(descricao, "Quadra")
     if lote:
-        _adicionar_unico(resultado["identificacao"], {"rotulo": "Lote", "valor": lote.group(1), "origem": "Cabeçalho"})
+        _adicionar_unico(resultado["identificacao"], {"rotulo": "Lote", "valor": lote, "origem": "Cabeçalho"})
     if quadra:
-        _adicionar_unico(resultado["identificacao"], {"rotulo": "Quadra", "valor": quadra.group(1), "origem": "Cabeçalho"})
+        _adicionar_unico(resultado["identificacao"], {"rotulo": "Quadra", "valor": quadra, "origem": "Cabeçalho"})
 
     rua, numero, setor = _extrair_endereco(descricao)
     if rua:
@@ -484,11 +617,11 @@ def extrair_dados_imovel(
     resultado["confrontacoes"] = _extrair_confrontacoes(descricao, rua=rua)
 
     if rural:
-        denominacao = re.search(r"\b((?:Fazendas?|Sítio)\s+.*?)(?=,\s*(?:neste|situad[oa]|constituíd[oa]))", descricao, re.IGNORECASE)
+        denominacao = _extrair_denominacao_rural(descricao)
         if denominacao:
             _adicionar_unico(resultado["identificacao"], {
                 "rotulo": "Denominação",
-                "valor": _compactar(denominacao.group(1)),
+                "valor": denominacao,
                 "origem": "Cabeçalho",
             })
 
@@ -509,9 +642,34 @@ def extrair_dados_imovel(
             "origem": "Cabeçalho",
         })
 
-    incra = re.search(r"INCRA[^\n;]*?sob\s+o\s+n?[.º°o\s]*([\d.\-/]+)", cabecalho, re.IGNORECASE)
-    if incra:
-        _adicionar_unico(resultado["cadastros"], {"rotulo": "INCRA", "valor": incra.group(1), "origem": "Cabeçalho"})
+    trecho_incra = re.search(
+        r"\bINCRA(?:/SNCR)?\b(.*?)(?=\bP?R[OÓ]PRIET[ÁA]RI[OA]S?\s*[:;]|"
+        r"\bT[ÍI]TULOS?\s+AQUISITIVOS?\s*[:;]|\Z)",
+        cabecalho,
+        re.IGNORECASE | re.DOTALL,
+    )
+    codigos_incra = []
+    if trecho_incra:
+        codigos_incra = re.findall(
+            r"(?<![\d.,])(?:\d{2}-\d{2}-\d{3}\.\d{5}|"
+            r"\d{3}\.\d{3}\.\d{3}\.\d{3}(?:-\d)?)(?![-.\d]|,\d)",
+            trecho_incra.group(1),
+        )
+    if not codigos_incra and trecho_incra:
+        codigo_rural = re.search(
+            r"código\s+do\s+imóvel\s+rural\s*[:;]?\s*([\d][\d.\-/]*)",
+            trecho_incra.group(1),
+            re.IGNORECASE,
+        )
+        if codigo_rural:
+            codigos_incra = [codigo_rural.group(1).rstrip(".")]
+    codigos_incra = list(dict.fromkeys(codigos_incra))
+    if codigos_incra:
+        _adicionar_unico(resultado["cadastros"], {
+            "rotulo": "INCRA",
+            "valor": ", ".join(codigos_incra),
+            "origem": "Cabeçalho",
+        })
 
     for ato in atos:
         descricao_ato = _descricao_ato(ato)
@@ -526,12 +684,12 @@ def extrair_dados_imovel(
             )
             caracterizacao = bloco_atual.group(1) if bloco_atual else descricao_ato
 
-            lote_atual = re.search(r"\bLote(?:\s+de\s+terras)?\s+n?[.º°o\s]*([\w\-/]+)", caracterizacao, re.IGNORECASE)
-            quadra_atual = re.search(r"\bQuadra\s+n?[.º°o\s]*([\w\-/]+)", caracterizacao, re.IGNORECASE)
+            lote_atual = _extrair_identificador_urbano(caracterizacao, "Lote")
+            quadra_atual = _extrair_identificador_urbano(caracterizacao, "Quadra")
             if lote_atual:
-                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Lote", "valor": lote_atual.group(1), "origem": codigo})
+                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Lote", "valor": lote_atual, "origem": codigo})
             if quadra_atual:
-                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Quadra", "valor": quadra_atual.group(1), "origem": codigo})
+                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Quadra", "valor": quadra_atual, "origem": codigo})
 
             rua_atual, numero_atual, setor_atual = _extrair_endereco(caracterizacao)
             if rua_atual:

@@ -49,6 +49,27 @@ R.O2 - COMPRA E VENDA.
 """
         self.assertEqual([ato["codigo"] for ato in separar_atos(texto)], ["AV.1", "R.02"])
 
+    def test_aceita_formato_historico_sem_ponto_entre_tipo_e_numero(self):
+        texto = """MATRÍCULA 27
+R10-27- HIPOTECA.
+AV11-27- LIBERAÇÃO DO GRAVAME.
+R12-27- COMPRA E VENDA.
+"""
+
+        self.assertEqual(
+            [ato["codigo"] for ato in separar_atos(texto)],
+            ["R.10", "AV.11", "R.12"],
+        )
+
+    def test_nao_confunde_referencia_sem_ponto_e_sem_hifen_com_cabecalho(self):
+        texto = """MATRÍCULA 27
+R.01 - COMPRA E VENDA.
+R12 desta matrícula é apenas uma referência no início da linha.
+AV.02 - RETIFICAÇÃO.
+"""
+
+        self.assertEqual([ato["codigo"] for ato in separar_atos(texto)], ["R.01", "AV.02"])
+
 
 if __name__ == "__main__":
     unittest.main()

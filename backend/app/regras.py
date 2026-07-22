@@ -77,7 +77,23 @@ PALAVRAS_CANCELAMENTO = [
     "FIQUE CANCELADA", "FIQUE CANCELADO", "BAIXA",
     "CANCELADA POR", "CANCELADO POR",
     "LIBERADO DO GRAVAME", "LIBERADA DO GRAVAME",
+    "LIBERADOS DO GRAVAME", "LIBERADAS DO GRAVAME",
     "LIBERAÇÃO DO GRAVAME",
+    "LIBERAÇÃO DA GARANTIA HIPOTECÁRIA",
+    "EXCLUSÃO DE BENS VINCULADOS",
+    "FICA EXCLUÍDO DA GARANTIA", "FICA EXCLUÍDA DA GARANTIA",
+    "PERMUTA DE BENS APENHORADOS",
+    "PERMUTA DE BENS APENHADOS",
+    "PERMUTA DE BENS VINCULADOS",
+    "PERMUTA DE BENS HIPOTECADOS",
+    "PERMUTA E LIBERAÇÃO DOS BENS APENHADOS",
+    "LIBERAÇÃO DE BENS APENHADOS",
+    "LIBERAÇÃO DO IMÓVEL VINCULADO",
+    "LIBERADO DA GARANTIA", "LIBERADA DA GARANTIA",
+    "DESVINCULAÇÃO DE IMÓVEL",
+    "DESVINCULADO DE QUALQUER GARANTIA", "DESVINCULADA DE QUALQUER GARANTIA",
+    "QUITAÇÃO DE PROMISSÓRIA E PACTO COMISSÓRIO",
+    "AUTORIZA O SEU DESVINCULAMENTO",
     "EXTINÇÃO DE DÍVIDA ORIGINÁRIA", "DÍVIDA ORIGINÁRIA FOI CONSIDERADA EXTINTA"
 ]
 
@@ -97,6 +113,7 @@ TIPOS_ONUS = [
     ("CEDULA RURAL HIPOTECARIA", "HIPOTECA"),
     ("CEDULA HIPOTECARIA", "HIPOTECA"),
     ("CEDULAS HIPOTECARIAS", "HIPOTECA"),
+    ("HIPOTECARIAS", "HIPOTECA"),
     ("GARANTIA HIPOTECARIA", "HIPOTECA"),
     ("HIPOTECA", "HIPOTECA"),
     ("ALIENACAO FIDUCIARIA", "ALIENAÇÃO FIDUCIÁRIA"),
@@ -186,13 +203,156 @@ def formatar_grau_onus(grau):
 
 def classificar(texto, regras_aprendidas=None):
     texto = texto.upper()
-    texto_sem_acentos = _sem_acentos(texto)
+    texto_sem_acentos = _sem_acentos(texto).upper()
     texto_sem_acentos_compacto = re.sub(r"\s+", " ", texto_sem_acentos)
 
     # A retificação de CPF pode repetir o conteúdo do ato corrigido. O título
     # do ato prevalece para que menções a penhora ou garantia não criem ônus.
     indice_retificacao_cpf = texto_sem_acentos_compacto.find("RETIFICACAO DE CPF")
     if 0 <= indice_retificacao_cpf < 240:
+        return ("IGNORAR", False)
+
+    titulo_ato = texto_sem_acentos_compacto[:240]
+    if any(marcador in titulo_ato for marcador in (
+        "INSERCAO DE DADOS DE QUALIFICACAO PESSOAL",
+        "ATUALIZACAO DE DADOS DE QUALIFICACAO PESSOAL",
+        "RETIFICACAO DE DADOS DE QUALIFICACAO PESSOAL",
+    )):
+        return ("IGNORAR", False)
+
+    cancelamentos_fortes = (
+        "LEVANTAMENTO DE PENHORA",
+        "LIBERACAO DE HIPOTECA",
+        "LIBERACAO DE BENS APENHADOS",
+        "PERMUTA DE BENS APENHADOS",
+        "PERMUTA DE BENS VINCULADOS",
+        "PERMUTA DE BENS HIPOTECADOS",
+        "PERMUTA E LIBERACAO DOS BENS APENHADOS",
+        "LIBERACAO DA GARANTIA HIPOTECARIA",
+        "LIBERADOS DO GRAVAME",
+        "LIBERADAS DO GRAVAME",
+        "E LIBERADO DA GARANTIA O IMOVEL",
+        "FOI LIBERADO DA GARANTIA O IMOVEL",
+        "SAO LIBERADOS DA GARANTIA OS IMOVEIS",
+        "LIBERADO DO GRAVAME",
+        "LIBERADA DO GRAVAME",
+        "FICOU EXCLUIDO DA AV",
+        "FICOU EXCLUIDA DA AV",
+    )
+    cancelamentos_por_titulo = (
+        "SUBSTITUICAO DE GARANTIA",
+        "DESISTENCIA DE USUFRUTO",
+        "RENUNCIA DE USUFRUTO",
+        "RENUNCIA DO USUFRUTO",
+        "RENUNCIA AO USUFRUTO",
+    )
+    if any(marcador in titulo_ato[:120] for marcador in cancelamentos_por_titulo):
+        return ("CANCELAMENTO", False)
+    if any(marcador in texto_sem_acentos_compacto for marcador in cancelamentos_fortes):
+        return ("CANCELAMENTO", False)
+
+    if "COMPRA E VENDA COM DESISTENCIA DE USUFRUTO" in texto_sem_acentos_compacto[:320]:
+        return ("CANCELAMENTO", False)
+
+    # Retificações de ofício apenas corrigem elementos de atos anteriores. O
+    # texto costuma repetir integralmente a garantia retificada, mas não há uma
+    # nova constituição de ônus.
+    if any(marcador in titulo_ato for marcador in (
+        "RETIFICACAO EX-OFFICIO",
+        "RETIFICACAO EX OFFICIO",
+        "RETIFICACAO EX-OFiCIO",
+    )):
+        return ("IGNORAR", False)
+
+    if any(marcador in titulo_ato for marcador in (
+        "ALTERACAO DE CREDOR",
+        "TRANSFERENCIA DE CREDITO",
+        "COMISSAO DE PERMANENCIA",
+        "ALTERACAO DO PRAZO DE VENCIMENTO",
+        "ALTERACAO DE PRAZO DE VENCIMENTO",
+        "ALTERACAO DO VENCIMENTO",
+        "AJUSTE, ALTERACAO DO PRAZO DE VENCIMENTO",
+        "CONFISSAO DA DIVIDA, ALTERACAO DO VENCIMENTO",
+    )):
+        return ("IGNORAR", False)
+
+    if "ALIENACAO FIDUCIARIA SUPERVENIENTE" in titulo_ato:
+        return ("ÔNUS", True)
+
+    if any(marcador in texto_sem_acentos_compacto for marcador in (
+        "RESERVA PARA SI O DIREITO AO USUFRUTO",
+        "RESERVA DE USUFRUTO",
+        "RESERVOU PARA SI O USUFRUTO",
+        "RESERVARAM PARA SI O DIREITO DO USUFRUTO",
+        "RESERVARAM PARA SI O USUFRUTO",
+    )) and not any(_sem_acentos(palavra) in texto_sem_acentos_compacto for palavra in PALAVRAS_CANCELAMENTO):
+        return ("ÔNUS", True)
+
+    if any(marcador in titulo_ato for marcador in (
+        "CONFISSAO DE DIVIDAS COM GARANTIA PIGNORATICIA E HIPOTECARIA",
+        "CONFISSAO DE DIVIDA COM GARANTIA PIGNORATICIA E HIPOTECARIA",
+        "CONFISSAO E ASSUNCAO DE DIVIDAS COM GARANTIAS PIGNORATICIA E HIPOTECARIA",
+        "CONFISSAO E ASSUNCAO DE DIVIDA COM GARANTIA PIGNORATICIA E HIPOTECARIA",
+    )):
+        return ("ÔNUS", True)
+
+    if re.search(
+        r"CONFISSAO\s+E\s+ASSUNCAO\s+DE\s+DIVIDAS?\s*,?\s+COM\s+"
+        r"GARANTIAS?\s+PIGNORATICIA\s+E\s+HIPOTECARIA",
+        titulo_ato,
+    ):
+        return ("ÔNUS", True)
+
+    if (
+        "HIPOTECA" in titulo_ato[:140]
+        and any(marcador in texto_sem_acentos_compacto for marcador in (
+            "JA SE ACHAM VINCULAD",
+            "SE ACHAM VINCULAD",
+            "JA SE ACHAM HIPOTECAD",
+            "CRPH",
+            "CRH.",
+        ))
+        and not any(_sem_acentos(palavra) in texto_sem_acentos_compacto for palavra in PALAVRAS_CANCELAMENTO)
+    ):
+        return ("ÔNUS", True)
+
+    if (
+        re.search(r"\bIMOVEL\b.{0,100}\bFOI\s+HIPOTECAD[OA]\b", texto_sem_acentos_compacto)
+        and not any(_sem_acentos(palavra) in texto_sem_acentos_compacto for palavra in PALAVRAS_CANCELAMENTO)
+    ):
+        return ("ÔNUS", True)
+
+    if re.search(
+        r"\b(?:PROCEDO|PROCEDE-SE)\s+AO\s+REGISTRO\s+DA\s+PENHORA\b|"
+        r"\bPROCEDID[OA]\s+AO\s+REGISTRO\s+DA\s+PENHORA\b|"
+        r"\bIMOVEL\b.{0,100}\bFOI\s+PENHORAD[OA]\b",
+        texto_sem_acentos_compacto,
+    ):
+        return ("ÔNUS", True)
+
+    if (
+        "VINCULAD" in texto_sem_acentos_compacto
+        and "CEDUL" in texto_sem_acentos_compacto
+        and "HIPOTEC" in texto_sem_acentos_compacto
+        and not any(_sem_acentos(palavra) in texto_sem_acentos_compacto for palavra in PALAVRAS_CANCELAMENTO)
+    ):
+        return ("ÔNUS", True)
+    if any(marcador in titulo_ato for marcador in (
+        "PRORROGACAO DE PRAZO",
+        "REPACTUACAO DA DIVIDA",
+        "RETIFICACAO DA DENOMINACAO DA CEDULA",
+        "ALTERACOES NO PRAZO DE VENCIMENTO",
+        "ALTERACAO NO PRAZO DE VENCIMENTO",
+        "ALTERACAO DO PRAZO DE VENCIMENTO",
+        "ALTERACAO DE ENCARGOS FINANCEIROS",
+        "INCORPORACAO AO PRINCIPAL E ALTERACAO DE ENCARGOS FINANCEIROS",
+    )) and not any(marcador in texto_sem_acentos_compacto for marcador in (
+        "OBJETO DA GARANTIA",
+        "OBJETOS DA GARANTIA",
+        "DADO EM GARANTIA",
+        "DADA EM GARANTIA",
+        "CONSTITUICAO DE GARANTIA",
+    )):
         return ("IGNORAR", False)
 
     # Aditivo que apenas retifica/ratifica condiÃ§Ãµes da dÃ­vida, como
@@ -212,6 +372,25 @@ def classificar(texto, regras_aprendidas=None):
             "DADO EM HIPOTECA",
             "DADA EM HIPOTECA",
             "PROPRIEDADE FIDUCIARIA",
+        ))
+    ):
+        return ("IGNORAR", False)
+
+    if (
+        "ADITIVO DE RE-RATIFICACAO" in texto_sem_acentos_compacto
+        and any(marcador in texto_sem_acentos_compacto for marcador in (
+            "ALTERACAO DE ENCARGOS",
+            "ALTERACOES NO PRAZO",
+            "FORMA DE PAGAMENTO",
+            "PRORROGADO",
+            "REPACTUACAO",
+        ))
+        and not any(marcador in texto_sem_acentos_compacto for marcador in (
+            "OBJETO DA GARANTIA",
+            "OBJETOS DA GARANTIA",
+            "DADO EM GARANTIA",
+            "DADA EM GARANTIA",
+            "CONSTITUICAO DE GARANTIA",
         ))
     ):
         return ("IGNORAR", False)
@@ -245,12 +424,25 @@ def classificar(texto, regras_aprendidas=None):
             or "DADA EM" in texto_sem_acentos_compacto
             or "EM HIPOTECA" in texto_sem_acentos_compacto
             or re.search(r"\bEM\s+(?:\d{1,2}[AO]?\s+)?(?:E\s+ESPECIAL\s+)?HIPOTECA\b", texto_sem_acentos_compacto)
+            or re.search(
+                r"\bEM\s+(?:PRIMEIR[AO]|SEGUND[AO]|TERCEIR[AO]|QUART[AO]|QUINT[AO]|"
+                r"SEXT[AO]|SETIM[AO]|OITAV[AO]|NON[AO]|DECIM[AO])"
+                r"(?:\s*\([^)]{1,12}\))?\s+(?:E\s+ESPECIAL\s+)?HIPOTECA\b",
+                texto_sem_acentos_compacto,
+            )
             or "GARANTIAS HIPOTECARIA" in texto_sem_acentos_compacto
             or "GARANTIA HIPOTECARIA" in texto_sem_acentos_compacto
+            or "OBJETO DA GARANTIA" in texto_sem_acentos_compacto
             or "CEDULA RURAL HIPOTECARIA" in texto_sem_acentos_compacto
             or "CEDULA HIPOTECARIA" in texto_sem_acentos_compacto
         )
     ):
+        return ("ÔNUS", True)
+
+    if re.search(
+        r"\bIMOVEL\b.{0,100}\b(?:ESTA|ACHA-SE|SE ACHA)\s+HIPOTECAD[OA]\b",
+        texto_sem_acentos_compacto,
+    ) and not any(_sem_acentos(palavra) in texto_sem_acentos_compacto for palavra in PALAVRAS_CANCELAMENTO):
         return ("ÔNUS", True)
 
     # A liberação parcial com substituição de garantia não cria novo ônus
