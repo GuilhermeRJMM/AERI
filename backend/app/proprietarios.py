@@ -1624,6 +1624,15 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                 )
                 if chave_extremada:
                     del estado[chave_extremada]
+                    if "REMANESCENTE" in descricao_normalizada and estado:
+                        total_remanescente = sum(
+                            dados["proporcao"] for dados in estado.values()
+                        )
+                        if total_remanescente > 0:
+                            fator_remanescente = 100.0 / total_remanescente
+                            for dados in estado.values():
+                                dados["proporcao"] *= fator_remanescente
+                                dados.pop("proporcao_texto", None)
             continue
 
         if (

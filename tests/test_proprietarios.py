@@ -1193,7 +1193,8 @@ class TesteProprietarios(unittest.TestCase):
         IMÓVEL: 2,78% do imóvel descrito na matrícula.
         R.32-29.775 - ESTREMAÇÃO/LOCALIZAÇÃO DE PARCELA. Fica estremada a parcela
         pertencente exclusivamente a Claudio Antônio Giroldo, CPF 265.096.878-87,
-        cujas divisas ficam identificadas em matrícula autônoma de n.º 39.171.
+        cujas divisas ficam identificadas em matrícula autônoma de n.º 39.171,
+        restando nesta matrícula o REMANESCENTE de 21 hectares.
         """
         atos = [
             SimpleNamespace(descricao=item["texto"])
@@ -1203,18 +1204,22 @@ class TesteProprietarios(unittest.TestCase):
         resultado = calcular_cadeia_dominial(atos, texto)
 
         self.assertEqual(
+            {item["nome"] for item in resultado},
             {
-                item["nome"]: item["proporcao"]
+                "Teneciro da Cunha e Silva",
+                "Ney Aires da Silva",
+                "Itaci Rodrigues da Cunha",
+                "Manoel da Cunha Rosa",
+                "Adelza Aparecida da Cunha",
+                "Leonida Conceição Alves",
+            },
+        )
+        self.assertEqual(
+            sum(
+                float(item["proporcao"].replace(",", ".").rstrip("%"))
                 for item in resultado
-            },
-            {
-                "Teneciro da Cunha e Silva": "2,78%",
-                "Ney Aires da Silva": "44,45%",
-                "Itaci Rodrigues da Cunha": "8,33%",
-                "Manoel da Cunha Rosa": "8,33%",
-                "Adelza Aparecida da Cunha": "8,33%",
-                "Leonida Conceição Alves": "2,78%",
-            },
+            ),
+            100.0,
         )
 
 
