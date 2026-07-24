@@ -276,7 +276,48 @@ def classificar(texto, regras_aprendidas=None):
     )):
         return ("IGNORAR", False)
 
+    if "INDICACAO GRAUS E CREDORES" in titulo_ato:
+        return ("IGNORAR", False)
+
+    nova_garantia_no_aditivo = bool(
+        re.search(
+            r"\b(?:INCLUID[AO]|ACRESCID[AO]|CONSTITUID[AO])\b.{0,100}\b"
+            r"(?:HIPOTECA|ALIENACAO FIDUCIARIA|GARANTIA)\b|"
+            r"\b(?:NOVA|NOVAS)\s+GARANTIAS?\b|"
+            r"\bPASSA\s+A\s+(?:INTEGRAR|CONSTITUIR)\s+(?:A\s+)?GARANTIA\b",
+            texto_sem_acentos_compacto,
+        )
+    )
+    if (
+        "ADITIVO" in titulo_ato
+        and "RATIFIC" in texto_sem_acentos_compacto
+        and any(marcador in texto_sem_acentos_compacto for marcador in (
+            "VENCIMENTO",
+            "FORMA DE PAGAMENTO",
+            "ENCARGOS FINANCEIROS",
+            "DATA DA PRIMEIRA PARCELA",
+        ))
+        and not nova_garantia_no_aditivo
+    ):
+        return ("IGNORAR", False)
+
+    if nova_garantia_no_aditivo:
+        return ("ÔNUS", True)
+
     if "ALIENACAO FIDUCIARIA SUPERVENIENTE" in titulo_ato:
+        return ("ÔNUS", True)
+
+    if re.search(
+        r"\bCOMPRA\s+E\s+VENDA\b.{0,260}\bMUTUO\s+COM\s+OBRIGACOES?\s+E\s+"
+        r"ALIENACAO\s+FIDUCIARIA\b",
+        texto_sem_acentos_compacto[:700],
+    ):
+        return ("ÔNUS", True)
+
+    if re.search(
+        r"\bFOI\s+INSTITUIDA\s+A\s+HIPOTECA\s+LEGAL\b",
+        texto_sem_acentos_compacto,
+    ):
         return ("ÔNUS", True)
 
     if any(marcador in texto_sem_acentos_compacto for marcador in (
@@ -440,7 +481,7 @@ def classificar(texto, regras_aprendidas=None):
         return ("ÔNUS", True)
 
     if re.search(
-        r"\bIMOVEL\b.{0,100}\b(?:ESTA|ACHA-SE|SE ACHA)\s+HIPOTECAD[OA]\b",
+        r"\bIMOVEL\b.{0,100}\b(?:ESTA|ACHA-SE|SE ACHA|ENCONTRA-SE)\s+HIPOTECAD[OA]\b",
         texto_sem_acentos_compacto,
     ) and not any(_sem_acentos(palavra) in texto_sem_acentos_compacto for palavra in PALAVRAS_CANCELAMENTO):
         return ("ÔNUS", True)

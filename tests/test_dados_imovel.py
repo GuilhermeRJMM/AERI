@@ -8,6 +8,83 @@ def valores_por_rotulo(itens, rotulo):
 
 
 class TesteDadosImovel(unittest.TestCase):
+    def test_area_urbana_com_ponto_de_milhar(self):
+        texto = (
+            "MATRÍCULA 39.630. IMÓVEL: Lote n.º 26, Quadra 36, com área de "
+            "1.152m², situado na Rua Rio Grande do Sul, Centro. "
+            "PROPRIETÁRIA: Pessoa Teste."
+        )
+
+        resultado = analisar_matricula(texto, numero_matricula="39630")["imovel"]
+
+        self.assertIn(
+            {"rotulo": "Área", "valor": "1.152 m²", "origem": "Cabeçalho"},
+            resultado["areas"],
+        )
+
+    def test_area_rural_com_e_entre_hectares_e_ares(self):
+        texto = (
+            "MATRÍCULA 17.971. IMÓVEL: Fazenda Formiga, com a área de "
+            "49 (quarenta e nove) hectares e 84 (oitenta e quatro) ares e "
+            "09 (zero nove centiares). PROPRIETÁRIO: Pessoa Teste."
+        )
+
+        resultado = analisar_matricula(texto, numero_matricula="17971")["imovel"]
+
+        self.assertIn(
+            {"rotulo": "Área", "valor": "49,8409 ha", "origem": "Cabeçalho"},
+            resultado["areas"],
+        )
+
+    def test_encerramento_ficando_em_consequencia(self):
+        texto = (
+            "MATRÍCULA 21. IMÓVEL: Fazenda Areias. PROPRIETÁRIO: Pessoa Teste.\n"
+            "AV.01-21. O imóvel foi unificado a outros, ficando em consequência "
+            "encerrada esta matrícula. DOU FÉ."
+        )
+
+        resultado = analisar_matricula(texto, numero_matricula="21")["imovel"]
+
+        self.assertEqual("ENCERRADA", resultado["situacao"]["status"])
+
+    def test_cci_para_antes_do_valor_da_obra(self):
+        texto = (
+            "MATRÍCULA 27.822. IMÓVEL: Lote 03, Quadra D, com área de 176,10m². "
+            "PROPRIETÁRIO: Pessoa Teste.\n"
+            "AV.03-27.822 - EDIFICAÇÃO. Designação cadastral do imóvel: "
+            "CCI n.º 132.622. Valor da obra: R$87.985,78. DOU FÉ."
+        )
+
+        resultado = analisar_matricula(texto, numero_matricula="27822")["imovel"]
+
+        self.assertIn(
+            {
+                "rotulo": "Cadastro municipal",
+                "valor": "CCI 132.622",
+                "origem": "AV.03",
+            },
+            resultado["cadastros"],
+        )
+
+    def test_cci_com_virgula_de_milhar_vira_um_codigo(self):
+        texto = (
+            "MATRÍCULA 18.450. IMÓVEL: Lote 13, Quadra S, com área de 250m². "
+            "PROPRIETÁRIO: Pessoa Teste.\n"
+            "AV.04-18.450 - DESIGNAÇÃO CADASTRAL DO IMÓVEL. O imóvel possui "
+            "o seguinte código cadastral: CCI n.º 123,152. DOU FÉ."
+        )
+
+        resultado = analisar_matricula(texto, numero_matricula="18450")["imovel"]
+
+        self.assertIn(
+            {
+                "rotulo": "Cadastro municipal",
+                "valor": "CCI 123.152",
+                "origem": "AV.04",
+            },
+            resultado["cadastros"],
+        )
+
     def test_area_construida_com_total_de_apos_rotulo(self):
         texto = (
             "IMÓVEL: Lote n.º 1, com área de 200,00m².\n"

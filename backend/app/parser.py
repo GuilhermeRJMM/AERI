@@ -41,9 +41,22 @@ def _normalizar_numero(valor: str) -> str:
     return valor.upper().translate(str.maketrans({"O": "0", "I": "1", "L": "1"}))
 
 
+def _normalizar_quebras_tri7(texto: str) -> str:
+    # Alguns retornos do Tri7 expõem o marcador interno da ficha imediatamente
+    # antes do ato seguinte: "RTIPO...FICHA«a».10-25.956". O "R" inicial é o
+    # tipo do ato e precisa ser preservado como início de uma nova linha.
+    return re.sub(
+        r"R(?:TIPO|IPO)[^\r\n]{0,100}?(?:«|Â«)+a(?:»|Â»)+",
+        "\nR",
+        texto,
+        flags=re.IGNORECASE,
+    )
+
+
 def separar_atos(texto):
     # O Tri7 preserva formatos históricos como "R.01 -", "AV-02-",
     # "R.03 descrição" e, em alguns livros, "R.01, descrição".
+    texto = _normalizar_quebras_tri7(texto)
     cabecalhos = _cabecalhos_validos(texto)
     atos = []
 

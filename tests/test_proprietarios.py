@@ -1078,5 +1078,145 @@ class TesteProprietarios(unittest.TestCase):
         }])
 
 
+    def test_descarta_fragmentos_de_endereco_como_pessoas(self):
+        pessoas = extrair_pessoas(
+            "José Cassio Afonso, CPF 053.825.608-70; "
+            "A, residente na Rua Exemplo; n.º 75, Setor Centro"
+        )
+
+        self.assertEqual(
+            pessoas,
+            [{"nome": "José Cassio Afonso", "cpf": "053.825.608-70"}],
+        )
+
+    def test_remove_marcador_interno_antes_do_nome(self):
+        pessoas = extrair_pessoas(
+            "+<qualificar_outorgados>1)-Joaquim Aparecido da Cunha, "
+            "CPF 484.970.531-68"
+        )
+
+        self.assertEqual(pessoas[0]["nome"], "Joaquim Aparecido da Cunha")
+
+    def test_dacao_integral_com_tomador_substitui_proprietario(self):
+        texto = """
+        MATRÍCULA 30.795. IMÓVEL: Lote 27, Quadra 02, com 250m².
+        PROPRIETÁRIA: Maria Letícia Romano, CPF 363.680.161-91.
+        R.02-30.795 - DAÇÃO EM PAGAMENTO.
+        TRANSMITENTE/DADORA: Maria Letícia Romano, CPF 363.680.161-91.
+        ADQUIRENTE/TOMADOR: Portfólio Desenvolvimento Imobiliário Ltda.,
+        CNPJ 05.974.994/0001-60. IMÓVEL: O objeto desta matrícula.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(resultado, [{
+            "nome": "Portfólio Desenvolvimento Imobiliário Ltda",
+            "cpf": "05.974.994/0001-60",
+            "proporcao": "100%",
+        }])
+
+    def test_inventario_historico_sem_acento_aplica_coube_a(self):
+        texto = """
+        MATRÍCULA 407. IMÓVEL: Lote urbano.
+        PROPRIETÁRIA: Maria Rosa de Jesus.
+        R.01-407 - Carta extraída dos autos de inventario judicial dos bens
+        deixados por falecimento de Maria Rosa de Jesus. Coube a Maria de Lourdes
+        Rosa, CPF 058.362.391, em pagamento de seu crédito, o imóvel constante
+        da presente matrícula.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(resultado, [{
+            "nome": "Maria de Lourdes Rosa",
+            "cpf": "058.362.391",
+            "proporcao": "100%",
+        }])
+
+    def test_livro_auxiliar_nao_cria_pessoa_espuria(self):
+        pessoas = extrair_pessoas(
+            "1)- Gabriel Justino Custódio, CPF 035.595.621-71, casado com "
+            "Rodrigo Moura Cruvinel, CPF 034.185.161-22, conforme pacto registrado "
+            "sob o n.º 12.561, Livro 03-Auxiliar, parte equivalente a 2,5% do imóvel; "
+            "2)- Jordana Justino Custódio, CPF 749.320.551-53, parte equivalente "
+            "a 2,5% do imóvel"
+        )
+
+        self.assertEqual(
+            [pessoa["nome"] for pessoa in pessoas],
+            ["Gabriel Justino Custódio", "Jordana Justino Custódio"],
+        )
+        self.assertEqual([pessoa["percentual"] for pessoa in pessoas], [2.5, 2.5])
+
+    def test_matricula_29775_preserva_seis_titulares_apos_partilhas_e_estremacao(self):
+        texto = """
+        MATRÍCULA 29.775. IMÓVEL: Área rural de 28 hectares.
+        PROPRIETÁRIOS: 1) Espólio de Joaquim da Cunha e Silva, que ainda possui
+        8,33% do imóvel; 2) Teneciro da Cunha e Silva, que possui 2,78% do imóvel;
+        3) Galdina Rodrigues da Cunha, casada com Otávio Gonçalves Dias, que possui
+        8,33% do imóvel; 4) José Leão da Cunha, CPF 016.534.901-87, que possui
+        8,33% do imóvel; 5) Leonídia Conceição Alves, que possui 2,78% do imóvel;
+        6) Cláudio Antônio Giroldo, CPF 265.096.878-87, que possui 25% do imóvel;
+        e, 7) Ney Aires da Silva, CPF 075.207.351-68, que possui 44,45% do imóvel.
+        *NOTA: abertura.
+        R.01-29.775 - INVENTÁRIO/PARTILHA. TRANSMITENTE: O Espólio de Joaquim da
+        Cunha e Silva. ADQUIRENTE: Adeliro Rodrigues da Cunha, CPF 709.241.601-95.
+        IMÓVEL: 8,33% do imóvel total descrito na matrícula.
+        R.06-29.775 - ADJUDICAÇÃO. TRANSMITENTE: Espólio de Adeliro Rodrigues da
+        Cunha, CPF 709.241.601-95. ADQUIRENTE: Itaci Rodrigues da Cunha,
+        CPF 044.370.711-15. IMÓVEL: 8,33% do imóvel total descrito na matrícula.
+        R.11-29.775 - ADJUDICAÇÃO. TRANSMITENTE: Espólio de José Leão da Cunha,
+        CPF 016.534.901-87. ADQUIRENTE: Manoel da Cunha Rosa, CPF 058.949.801-00.
+        IMÓVEL: 8,33% do imóvel total descrito na matrícula.
+        R.15-29.775 - INVENTÁRIO/PARTILHA. TRANSMITENTE: O Espólio de Otávio
+        Gonçalves Dias. ADQUIRENTE: Galdina Rodrigues Dias, CPF 129.880.141-91.
+        IMÓVEL: 50% da quota (8,33%), o que corresponde a 4,165% do imóvel.
+        R.16-29.775 - INVENTÁRIO/PARTILHA. TRANSMITENTE: O Espólio de Otávio
+        Gonçalves Dias. ADQUIRENTE: Laurita Dias da Silva, CPF 587.432.191-87.
+        IMÓVEL: 10% da quota (8,33%), o que corresponde a 0,833% do imóvel.
+        R.17-29.775 - INVENTÁRIO/PARTILHA. TRANSMITENTE: O Espólio de Otávio
+        Gonçalves Dias. ADQUIRENTE: Adelza Aparecida da Cunha, CPF 435.196.361-15.
+        IMÓVEL: 40% da quota (8,33%), o que corresponde a 3,332% do imóvel.
+        R.19-29.775 - INVENTÁRIO/PARTILHA. TRANSMITENTE: O Espólio de Galdina
+        Rodrigues Dias. ADQUIRENTE: Laurita Dias da Silva, CPF 587.432.191-87.
+        IMÓVEL: 20% da quota (4,165%), o que corresponde a 0,833% do imóvel.
+        R.20-29.775 - INVENTÁRIO/PARTILHA. TRANSMITENTE: O Espólio de Galdina
+        Rodrigues Dias. ADQUIRENTE: Adelza Aparecida da Cunha, CPF 435.196.361-15.
+        IMÓVEL: 80% da quota (4,165%), o que corresponde a 3,332% do imóvel.
+        R.22-29.775 - INVENTÁRIO/ADJUDICAÇÃO. TRANSMITENTE: O Espólio de João
+        Gabriel da Silva. ADQUIRENTE: Adelza Aparecida da Cunha,
+        CPF 435.196.361-15. IMÓVEL: 100% da quota (1,666%) do imóvel.
+        R.26-29.775 - ADJUDICAÇÃO. TRANSMITENTE: Espólio de José Elias Alves.
+        ADQUIRENTE: A viúva meeira Leonida Conceição Alves, CPF 486.269.021-15.
+        IMÓVEL: 2,78% do imóvel descrito na matrícula.
+        R.32-29.775 - ESTREMAÇÃO/LOCALIZAÇÃO DE PARCELA. Fica estremada a parcela
+        pertencente exclusivamente a Claudio Antônio Giroldo, CPF 265.096.878-87,
+        cujas divisas ficam identificadas em matrícula autônoma de n.º 39.171.
+        """
+        atos = [
+            SimpleNamespace(descricao=item["texto"])
+            for item in separar_atos(texto)
+        ]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            {
+                item["nome"]: item["proporcao"]
+                for item in resultado
+            },
+            {
+                "Teneciro da Cunha e Silva": "2,78%",
+                "Ney Aires da Silva": "44,45%",
+                "Itaci Rodrigues da Cunha": "8,33%",
+                "Manoel da Cunha Rosa": "8,33%",
+                "Adelza Aparecida da Cunha": "8,33%",
+                "Leonida Conceição Alves": "2,78%",
+            },
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

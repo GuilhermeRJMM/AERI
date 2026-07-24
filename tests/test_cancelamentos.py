@@ -550,5 +550,51 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(classificar(texto), ("ÔNUS", True))
 
 
+    def test_compra_e_venda_com_mutuo_e_alienacao_fiduciaria_e_onus(self):
+        texto = (
+            "R.05 - CONTRATO POR INSTRUMENTO PARTICULAR DE COMPRA E VENDA DE "
+            "UNIDADE ISOLADA E MÚTUO COM OBRIGAÇÕES E ALIENAÇÃO FIDUCIÁRIA. "
+            "O imóvel foi adquirido pelos compradores e devedores fiduciantes."
+        )
+        self.assertEqual(classificar(texto), ("ÔNUS", True))
+
+    def test_aditivo_financeiro_nao_cria_novo_onus(self):
+        texto = (
+            "AV.07 - TRASLADO/ADITIVO. Conforme Aditivo de Retificação e "
+            "Ratificação à Cédula Rural Hipotecária, altera-se o vencimento e "
+            "a forma de pagamento. Permanecem ratificadas as garantias anteriores."
+        )
+        self.assertEqual(classificar(texto), ("IGNORAR", False))
+
+    def test_aditivo_que_inclui_hipoteca_cria_onus(self):
+        texto = (
+            "AV.03 - ADITIVO DE RE-RATIFICAÇÃO. Foi retificado o grau e incluída "
+            "a hipoteca cedular de terceiro grau sobre o imóvel."
+        )
+        self.assertEqual(classificar(texto), ("ÔNUS", True))
+
+    def test_indicacao_de_graus_e_credores_nao_duplica_hipotecas(self):
+        texto = (
+            "AV.45 - INDICAÇÃO GRAUS E CREDORES. Indicam-se os graus atualizados "
+            "das hipotecas já constantes dos registros anteriores."
+        )
+        self.assertEqual(classificar(texto), ("IGNORAR", False))
+
+
+    def test_hipoteca_legal_historica_e_onus(self):
+        texto = (
+            "R.01 - Nos termos do mandado judicial, sobre o imóvel foi instituída "
+            "a Hipoteca legal de primeiro grau sem concorrência de terceiros."
+        )
+        self.assertEqual(classificar(texto), ("ÔNUS", True))
+
+    def test_traslado_informa_imovel_que_se_encontra_hipotecado(self):
+        texto = (
+            "AV.01 - HIPOTECA. O imóvel objeto da presente matrícula encontra-se "
+            "hipotecado em primeiro grau conforme registro da matrícula de origem."
+        )
+        self.assertEqual(classificar(texto), ("ÔNUS", True))
+
+
 if __name__ == "__main__":
     unittest.main()

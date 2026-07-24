@@ -71,5 +71,17 @@ AV.02 - RETIFICAÇÃO.
         self.assertEqual([ato["codigo"] for ato in separar_atos(texto)], ["R.01", "AV.02"])
 
 
+    def test_separa_ato_colado_apos_marcador_interno_da_tri7(self):
+        texto = (
+            "AV.09-25.956 - CANCELAMENTO DE ALIENAÇÃO FIDUCIÁRIA. DOU FÉ. "
+            "RTIPO•€¢ATO•€¢FICHAÂ«aÂ».10-25.956 - VENDA E COMPRA."
+        )
+
+        self.assertEqual(
+            [ato["codigo"] for ato in separar_atos(texto)],
+            ["AV.09", "R.10"],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

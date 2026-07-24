@@ -34,6 +34,9 @@ def _valor_decimal(texto: str) -> Optional[float]:
         # Nos textos registrais brasileiros, pontos repetidos separam milhares
         # (por exemplo, 1.477.100 m²), e não casas decimais.
         valor = valor.replace(".", "")
+    elif "." in valor and len(valor.rsplit(".", 1)[1]) == 3:
+        # Um único ponto seguido de três algarismos também representa milhar.
+        valor = valor.replace(".", "")
     try:
         return float(valor)
     except ValueError:
@@ -75,6 +78,11 @@ def _tem_encerramento_explicito(normalizado: str) -> bool:
         or bool(re.search(r"\bCOM\s+O\s+QUE\s+(?:FICA\s+)?ENCERRAD[AO]\b", normalizado))
         or bool(re.search(r"\bENCERRA-SE\s+(?:A\s+)?(?:PRESENTE\s+)?MATRICULA\b", normalizado))
         or bool(re.search(r"\bENCERRAMENTO\s+DA\s+(?:PRESENTE\s+)?MATRICULA\b", normalizado))
+        or bool(re.search(
+            r"\bFICANDO\s+(?:,?\s*EM\s+CONSEQUENCIA,?)?\s+ENCERRAD[AO]\s+"
+            r"(?:A\s+)?(?:PRESENTE\s+|ESTA\s+)?MATRICULA\b",
+            normalizado,
+        ))
     )
 
 
@@ -95,8 +103,8 @@ def _extrair_area_registral(cabecalho: str, rural: bool) -> Optional[str]:
             return f"{_formatar_numero(hectares)} ha"
 
         composta = re.search(
-            r"(?:área(?:\s+total)?(?:\s+de)?|com\s+(?:a\s+)?área(?:\s+total)?(?:\s+de)?)\s*(\d+)(?:\s*\([^)]*\))?\s*hectares?,\s*"
-            r"(\d+)(?:\s*\([^)]*\))?\s*ares?\s+e\s*(\d+)(?:\s*\([^)]*\))?\s*centiares?",
+            r"(?:área(?:\s+total)?(?:\s+de)?|com\s+(?:a\s+)?área(?:\s+total)?(?:\s+de)?)\s*(\d+)(?:\s*\([^)]*\))?\s*hectares?\s*(?:,|e)\s*"
+            r"(\d+)(?:\s*\([^)]*\))?\s*ares?\s+e\s*(\d+)(?:\s*\([^)]*\))?\s*(?:centiares?)?",
             cabecalho,
             re.IGNORECASE,
         )
@@ -712,21 +720,28 @@ def extrair_dados_imovel(
 
         if "DESIGNACAO CADASTRAL DO IMOVEL" in normalizado:
             designacao = re.search(
-                r"códigos?\s+cadastra(?:l|is)\b.*?:\s*(.*?)(?=\.\s*\*NOTA|\.\s*DOU\s+FÉ|\bDOU\s+FÉ|$)",
+                r"códigos?\s+cadastra(?:l|is)\b.*?:\s*(.*?)"
+                r"(?=\.\s*(?:\*NOTA|DOU\s+FÉ|VALOR\b|COTAÇÃO\b|PROTOCOLO\b)|\bDOU\s+FÉ|$)",
                 descricao_ato,
                 re.IGNORECASE | re.DOTALL,
             )
             if not designacao:
                 designacao = re.search(
-                    r"\bCCI\b\s*(.*?)(?=\.\s*\*NOTA|\.\s*DOU\s+FÉ|\bDOU\s+FÉ|$)",
+                    r"\bCCI\b\s*(.*?)"
+                    r"(?=\.\s*(?:\*NOTA|DOU\s+FÉ|VALOR\b|COTAÇÃO\b|PROTOCOLO\b)|\bDOU\s+FÉ|$)",
                     descricao_ato,
                     re.IGNORECASE | re.DOTALL,
-                )
+            )
             if designacao:
+                trecho_designacao = re.sub(
+                    r"(?<=\d),(?=\d{3}(?:\D|$))",
+                    ".",
+                    designacao.group(1),
+                )
                 mascarados = re.findall(
                     r"(?<![\dA-Za-z])(?=[\dXx.\-]*[Xx])"
                     r"[\dXx]+(?:\.[\dXx]+)+(?![\dA-Za-z])",
-                    designacao.group(1),
+                    trecho_designacao,
                 )
                 mascarados = [
                     (prefixo.group(1) if (prefixo := re.match(r"(\d{1,3}\.\d{3})(?=[Xx])", valor)) else valor)
@@ -736,7 +751,7 @@ def extrair_dados_imovel(
                     re.sub(r"\s+", "", valor).rstrip(".")
                     for valor in re.findall(
                         r"(?<!\d)(?:\d{1,3}(?:\.\s*\d{3})+|\d+)(?![\dA-Za-z])",
-                        designacao.group(1),
+                        trecho_designacao,
                     )
                 ]
                 codigos = [valor for valor in codigos if valor]
