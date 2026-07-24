@@ -51,9 +51,16 @@ def _formatar_numero(valor: float, casas: int = 4) -> str:
 
 
 def _adicionar_unico(lista: list[dict], item: dict) -> None:
-    chave = (item.get("rotulo"), item.get("valor"), item.get("origem"))
-    if chave not in {(x.get("rotulo"), x.get("valor"), x.get("origem")) for x in lista}:
-        lista.append(item)
+    chave = (item.get("rotulo"), item.get("valor"))
+    for existente in lista:
+        if (existente.get("rotulo"), existente.get("valor")) == chave:
+            # O mesmo dado pode ser repetido em diversos atos registrais. A
+            # origem mais recente confirma o valor, mas não deve criar outro
+            # card. Valores diferentes continuam preservados separadamente.
+            if item.get("origem"):
+                existente["origem"] = item["origem"]
+            return
+    lista.append(item)
 
 
 def _substituir_por_rotulo(lista: list[dict], item: dict) -> None:

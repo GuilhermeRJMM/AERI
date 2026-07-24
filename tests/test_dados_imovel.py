@@ -8,6 +8,33 @@ def valores_por_rotulo(itens, rotulo):
 
 
 class TesteDadosImovel(unittest.TestCase):
+    def test_deduplica_mesmo_dado_repetido_em_atos_diferentes(self):
+        texto = """
+        MATRÍCULA 29.775. IMÓVEL: Área rural de 28,0000ha.
+        R.06-29.775 - CCIR. Código do imóvel rural: 999.989.085.944-5;
+        área total: 28,0000ha.
+        R.11-29.775 - CCIR. Código do imóvel rural: 999.989.085.944-5;
+        área total: 28,0000ha.
+        R.15-29.775 - CCIR. Código do imóvel rural: 999.989.085.944-5;
+        área total: 27,5000ha.
+        """
+
+        imovel = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(
+            valores_por_rotulo(imovel["cadastros"], "CCIR / código rural"),
+            ["999.989.085.944-5"],
+        )
+        self.assertEqual(
+            valores_por_rotulo(imovel["areas"], "Área no CCIR"),
+            ["28 ha", "27,5 ha"],
+        )
+        area_repetida = next(
+            item for item in imovel["areas"]
+            if item["rotulo"] == "Área no CCIR" and item["valor"] == "28 ha"
+        )
+        self.assertEqual(area_repetida["origem"], "R.11")
+
     def test_area_urbana_com_ponto_de_milhar(self):
         texto = (
             "MATRÍCULA 39.630. IMÓVEL: Lote n.º 26, Quadra 36, com área de "
