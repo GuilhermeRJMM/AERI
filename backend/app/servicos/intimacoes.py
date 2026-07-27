@@ -1,6 +1,7 @@
 import re
 import unicodedata
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from fastapi import HTTPException
 
@@ -9,6 +10,7 @@ FASE_INICIAL = "INTIMACAO"
 FASE_EDITAL = "EDITAL"
 FASE_CONSOLIDACAO = "CONSOLIDACAO"
 FASES_INTIMACAO = {FASE_INICIAL, FASE_EDITAL, FASE_CONSOLIDACAO}
+VALOR_INICIAL_ONR = Decimal("530.07")
 
 
 def _texto_normalizado(valor: str) -> str:
@@ -38,6 +40,10 @@ def fase_por_andamento(nome_andamento: str, fase_atual: str | None = None) -> st
 
 
 def intimacao_json(registro: dict) -> dict:
+    valor_pago_registro = registro.get("valor_pago_onr")
+    valor_usado_registro = registro.get("valor_usado")
+    valor_pago = Decimal(str(VALOR_INICIAL_ONR if valor_pago_registro is None else valor_pago_registro))
+    valor_usado = Decimal(str(0 if valor_usado_registro is None else valor_usado_registro))
     return {
         "id": str(registro["id"]),
         "protocolo": registro["protocolo"],
@@ -52,6 +58,23 @@ def intimacao_json(registro: dict) -> dict:
         ),
         "historico": registro["historico"] or [],
         "fase": registro.get("fase"),
+        "protocoloRtd": registro.get("protocolo_rtd"),
+        "numeroOsTri7": registro.get("numero_os_tri7"),
+        "protocoloTri7": registro.get("protocolo_tri7"),
+        "certidaoDecursoPrazo": registro.get("certidao_decurso_prazo"),
+        "dataIntimacao": (
+            registro["data_intimacao"].isoformat()
+            if registro.get("data_intimacao")
+            else None
+        ),
+        "dataCertificacao": (
+            registro["data_certificacao"].isoformat()
+            if registro.get("data_certificacao")
+            else None
+        ),
+        "valorPagoOnr": float(valor_pago),
+        "valorUsado": float(valor_usado),
+        "saldoOs": float(valor_pago - valor_usado),
     }
 
 
@@ -82,3 +105,50 @@ def validar_novo_andamento(dados: dict | None) -> str | None:
     if not nome_andamento or len(nome_andamento) > 160:
         raise HTTPException(status_code=422, detail="Informe um novo andamento válido.")
     return nome_andamento
+
+
+def _validar_texto_opcional(dados: dict, campo: str, limite: int) -> str | None:
+    valor = str(dados.get(campo, "") or "").strip()
+    if len(valor) > limite:
+        raise HTTPException(status_code=422, detail=f"O campo {campo} excede o limite permitido.")
+    return valor or None
+
+
+def _validar_data_opcional(dados: dict, campo: str) -> date | None:
+    valor = str(dados.get(campo, "") or "").strip()
+    if not valor:
+        return None
+    try:
+        return date.fromisoformat(valor)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"A data informada em {campo} é inválida.") from exc
+
+
+def _validar_valor(dados: dict, campo: str, padrao: Decimal) -> Decimal:
+    valor = dados.get(campo, padrao)
+    if valor in (None, ""):
+        return padrao
+    try:
+        numero = Decimal(str(valor)).quantize(Decimal("0.01"))
+    except InvalidOperation as exc:
+        raise HTTPException(status_code=422, detail=f"O valor informado em {campo} é inválido.") from exc
+    if not numero.is_finite() or numero < 0:
+        raise HTTPException(status_code=422, detail=f"O valor informado em {campo} não pode ser negativo.")
+    return numero
+
+
+def validar_campos_fase_inicial(dados: dict) -> dict:
+    protocolo_rtd = re.sub(r"\D", "", str(dados.get("protocoloRtd", "") or ""))
+    if protocolo_rtd and len(protocolo_rtd) != 17:
+        raise HTTPException(status_code=422, detail="O protocolo RTD deve possuir 17 dígitos.")
+
+    return {
+        "protocolo_rtd": protocolo_rtd or None,
+        "numero_os_tri7": _validar_texto_opcional(dados, "numeroOsTri7", 40),
+        "protocolo_tri7": _validar_texto_opcional(dados, "protocoloTri7", 40),
+        "certidao_decurso_prazo": _validar_texto_opcional(dados, "certidaoDecursoPrazo", 160),
+        "data_intimacao": _validar_data_opcional(dados, "dataIntimacao"),
+        "data_certificacao": _validar_data_opcional(dados, "dataCertificacao"),
+        "valor_pago_onr": _validar_valor(dados, "valorPagoOnr", VALOR_INICIAL_ONR),
+        "valor_usado": _validar_valor(dados, "valorUsado", Decimal("0.00")),
+    }

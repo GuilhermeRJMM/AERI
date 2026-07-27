@@ -3,6 +3,7 @@ import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
 
 let intimacoes = [];
 const intimacoesPendentes = new Set();
+const detalhesAbertos = new Set();
 let intimacaoCheckId = null;
 let faseAtiva = 'INTIMACAO';
 const FASES_INTIMACAO = ['INTIMACAO', 'EDITAL', 'CONSOLIDACAO'];
@@ -59,6 +60,26 @@ function formatarDataRotina(data) {
     return new Intl.DateTimeFormat('pt-BR').format(new Date(`${data}T12:00:00`));
 }
 
+function formatarMoeda(valor) {
+    const numero = Number(valor);
+    if (!Number.isFinite(numero)) return '—';
+    return new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(numero);
+}
+
+function valorOuTraco(valor) {
+    return valor ? escaparHtml(valor) : '—';
+}
+
+function renderizarCabecalho() {
+    const titulos = [
+        'Situação', 'Protocolo', 'Credor', 'Devedor', 'Último Andamento',
+        'Data do Último Andamento', 'Última Conferência', 'Pasta', 'Ações',
+    ];
+    const tabela = document.querySelector('.rotina-table');
+    tabela.classList.remove('rotina-table-fase-inicial');
+    document.getElementById('rotina-cabecalho').innerHTML = titulos.map(titulo => `<th>${titulo}</th>`).join('');
+}
+
 function caminhoPastaIntimacao(protocolo) {
     const protocoloNormalizado = String(protocolo || '').trim().toUpperCase();
     return PASTAS_PROTOCOLOS[protocoloNormalizado] || `${PASTA_BASE_INTIMACOES}\\${protocoloNormalizado}`;
@@ -73,26 +94,66 @@ function botaoPastaIntimacao(item) {
     </button>`;
 }
 
+function acoesIntimacao(item, incluirDetalhes = false) {
+    const pendente = intimacoesPendentes.has(item.id);
+    const disponiveis = [
+        incluirDetalhes ? `<button class="rotina-detalhes-btn" data-acao="detalhes" data-id="${item.id}" aria-expanded="${detalhesAbertos.has(item.id)}">${detalhesAbertos.has(item.id) ? 'Fechar detalhes' : 'Detalhes'}</button>` : '',
+        pode('conferir_intimacoes') ? `<button class="rotina-check" data-acao="conferir" data-id="${item.id}" title="Registrar conferência de hoje" ${pendente ? 'disabled' : ''}>${pendente ? 'Salvando...' : '✓ Check'}</button>` : '',
+        pode('alterar_intimacoes') ? `<button data-acao="editar" data-id="${item.id}" title="Editar">Editar</button>` : '',
+        cargoAdministrativo() ? `<button class="perigo" data-acao="excluir" data-id="${item.id}" title="Excluir">Excluir</button>` : '',
+    ].filter(Boolean).join('');
+    return disponiveis ? `<div class="rotina-row-actions">${disponiveis}</div>` : '<span class="rotina-total">Somente leitura</span>';
+}
+
+function campoCard(rotulo, valor, classe = '') {
+    return `<div class="rotina-card-campo ${classe}">
+        <span>${rotulo}</span>
+        <strong>${valor}</strong>
+    </div>`;
+}
+
+function detalhesFaseInicial(item) {
+    return `<div class="rotina-intimacao-detalhes">
+        <section class="rotina-card-grade rotina-card-identificacao">
+            ${campoCard('Protocolo RTD', valorOuTraco(item.protocoloRtd))}
+            ${campoCard('N.º OS Tri7', valorOuTraco(item.numeroOsTri7))}
+            ${campoCard('Protocolo Tri7', valorOuTraco(item.protocoloTri7))}
+            ${campoCard('Certidão de Decurso de Prazo', valorOuTraco(item.certidaoDecursoPrazo), 'rotina-card-campo-largo')}
+            ${campoCard('Devedor', escaparHtml(item.devedor), 'rotina-card-campo-total')}
+        </section>
+        <section class="rotina-card-grade rotina-card-andamento">
+            ${campoCard('Data do Último Andamento', formatarDataRotina(item.ultimoAndamento))}
+            ${campoCard('Último Andamento', escaparHtml(item.nomeAndamento || 'Não informado'), 'rotina-card-campo-largo')}
+            ${campoCard('Data da Intimação', formatarDataRotina(item.dataIntimacao))}
+            ${campoCard('Dias Úteis Certificação', formatarDataRotina(item.dataCertificacao))}
+        </section>
+        <section class="rotina-card-financeiro">
+            ${campoCard('Valor pago pelo Cliente na ONR', formatarMoeda(item.valorPagoOnr))}
+            ${campoCard('Valor Usado', formatarMoeda(item.valorUsado))}
+            ${campoCard('Saldo na OS', formatarMoeda(item.saldoOs), 'rotina-card-saldo')}
+        </section>
+    </div>`;
+}
+
 function renderizarIntimacoes() {
     const tbody = document.getElementById('rotina-tbody');
+    renderizarCabecalho();
     document.querySelector('label[for="importar-intimacoes"]').hidden = !(pode('criar_intimacoes') && pode('alterar_intimacoes'));
     document.getElementById('btn-nova-intimacao').hidden = !pode('criar_intimacoes');
     const termo = document.getElementById('busca-intimacao').value.toLowerCase().trim();
     const daFase = intimacoes.filter(item => item.fase === faseAtiva);
-    const filtradas = daFase.filter(item => [item.protocolo, item.credor, item.devedor, item.nomeAndamento]
+    const filtradas = daFase.filter(item => [
+        item.protocolo, item.protocoloRtd, item.numeroOsTri7, item.protocoloTri7,
+        item.credor, item.devedor, item.nomeAndamento, item.certidaoDecursoPrazo,
+    ]
         .some(valor => String(valor || '').toLowerCase().includes(termo)))
         .sort((a, b) => situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo));
 
     tbody.innerHTML = filtradas.map(item => {
         const situacao = situacaoIntimacao(item);
-        const pendente = intimacoesPendentes.has(item.id);
-        const acoesDisponiveis = [
-            pode('conferir_intimacoes') ? `<button class="rotina-check" data-acao="conferir" data-id="${item.id}" title="Registrar conferência de hoje" ${pendente ? 'disabled' : ''}>${pendente ? 'Salvando...' : '✓ Check'}</button>` : '',
-            pode('alterar_intimacoes') ? `<button data-acao="editar" data-id="${item.id}" title="Editar">Editar</button>` : '',
-            cargoAdministrativo() ? `<button class="perigo" data-acao="excluir" data-id="${item.id}" title="Excluir">Excluir</button>` : '',
-        ].filter(Boolean).join('');
-        const acoes = acoesDisponiveis ? `<div class="rotina-row-actions">${acoesDisponiveis}</div>` : '<span class="rotina-total">Somente leitura</span>';
-        return `<tr class="rotina-row rotina-row-${situacao.classe}">
+        const inicial = faseAtiva === 'INTIMACAO';
+        const acoes = acoesIntimacao(item, inicial);
+        const linha = `<tr class="rotina-row rotina-row-${situacao.classe}">
             <td><span class="rotina-status ${situacao.classe}"><i></i>${situacao.rotulo}</span><small>${situacao.detalhe}</small></td>
             <td><strong class="rotina-protocolo">${escaparHtml(item.protocolo)}</strong></td>
             <td>${escaparHtml(item.credor)}</td>
@@ -103,6 +164,8 @@ function renderizarIntimacoes() {
             <td>${botaoPastaIntimacao(item)}</td>
             <td>${acoes}</td>
         </tr>`;
+        if (!inicial || !detalhesAbertos.has(item.id)) return linha;
+        return `${linha}<tr class="rotina-detalhes-row"><td colspan="9">${detalhesFaseInicial(item)}</td></tr>`;
     }).join('') || '<tr><td colspan="9" class="rotina-vazio">Nenhuma intimação cadastrada. Use “Nova intimação” ou importe sua planilha em CSV.</td></tr>';
 
     const contagens = {verde:0, amarelo:0, vermelho:0, cinza:0};
@@ -145,12 +208,21 @@ function abrirFormularioIntimacao() {
     document.getElementById('titulo-form-intimacao').textContent = 'Nova intimação';
     document.getElementById('intimacao-andamento').value = hojeLocal();
     document.getElementById('intimacao-fase').value = faseAtiva;
+    document.getElementById('intimacao-valor-pago').value = '530.07';
+    document.getElementById('intimacao-valor-usado').value = '0.00';
+    atualizarSaldoFormulario();
     document.getElementById('modal-intimacao').classList.add('aberta');
     document.getElementById('intimacao-protocolo').focus();
 }
 
 function fecharFormularioIntimacao() {
     document.getElementById('modal-intimacao').classList.remove('aberta');
+}
+
+function atualizarSaldoFormulario() {
+    const pago = Number(document.getElementById('intimacao-valor-pago').value || 0);
+    const usado = Number(document.getElementById('intimacao-valor-usado').value || 0);
+    document.getElementById('intimacao-saldo-os').value = formatarMoeda(pago - usado);
 }
 
 async function salvarIntimacao(evento) {
@@ -168,6 +240,14 @@ async function salvarIntimacao(evento) {
         nomeAndamento: document.getElementById('intimacao-nome-andamento').value.trim(),
         ultimoAndamento: document.getElementById('intimacao-andamento').value,
         fase: document.getElementById('intimacao-fase').value,
+        protocoloRtd: document.getElementById('intimacao-protocolo-rtd').value.trim(),
+        numeroOsTri7: document.getElementById('intimacao-os-tri7').value.trim(),
+        protocoloTri7: document.getElementById('intimacao-protocolo-tri7').value.trim(),
+        certidaoDecursoPrazo: document.getElementById('intimacao-certidao-decurso').value.trim(),
+        dataIntimacao: document.getElementById('intimacao-data-intimacao').value,
+        dataCertificacao: document.getElementById('intimacao-data-certificacao').value,
+        valorPagoOnr: document.getElementById('intimacao-valor-pago').value,
+        valorUsado: document.getElementById('intimacao-valor-usado').value,
     };
     try {
         botaoSalvar.disabled = true;
@@ -201,6 +281,15 @@ function editarIntimacao(id) {
     document.getElementById('intimacao-nome-andamento').value = item.nomeAndamento || 'Não informado';
     document.getElementById('intimacao-andamento').value = item.ultimoAndamento;
     document.getElementById('intimacao-fase').value = item.fase || 'INTIMACAO';
+    document.getElementById('intimacao-protocolo-rtd').value = item.protocoloRtd || '';
+    document.getElementById('intimacao-os-tri7').value = item.numeroOsTri7 || '';
+    document.getElementById('intimacao-protocolo-tri7').value = item.protocoloTri7 || '';
+    document.getElementById('intimacao-certidao-decurso').value = item.certidaoDecursoPrazo || '';
+    document.getElementById('intimacao-data-intimacao').value = item.dataIntimacao || '';
+    document.getElementById('intimacao-data-certificacao').value = item.dataCertificacao || '';
+    document.getElementById('intimacao-valor-pago').value = Number(item.valorPagoOnr ?? 530.07).toFixed(2);
+    document.getElementById('intimacao-valor-usado').value = Number(item.valorUsado ?? 0).toFixed(2);
+    atualizarSaldoFormulario();
     document.getElementById('titulo-form-intimacao').textContent = 'Editar intimação';
     document.getElementById('modal-intimacao').classList.add('aberta');
 }
@@ -351,6 +440,14 @@ function importarIntimacoesCsv(evento) {
                 nomeAndamento: nomeAndamento || 'Não informado',
                 ultimoAndamento:converterDataImportada(colunas[ia]),
                 fase: existente?.fase || faseAtiva,
+                protocoloRtd: existente?.protocoloRtd || '',
+                numeroOsTri7: existente?.numeroOsTri7 || '',
+                protocoloTri7: existente?.protocoloTri7 || '',
+                certidaoDecursoPrazo: existente?.certidaoDecursoPrazo || '',
+                dataIntimacao: existente?.dataIntimacao || '',
+                dataCertificacao: existente?.dataCertificacao || '',
+                valorPagoOnr: existente?.valorPagoOnr ?? 530.07,
+                valorUsado: existente?.valorUsado ?? 0,
             };
             if (item.credor && item.devedor && item.ultimoAndamento) registros.set(protocolo, {item, existente});
             else ignorados++;
@@ -380,8 +477,14 @@ function importarIntimacoesCsv(evento) {
 }
 
 function exportarIntimacoesCsv() {
-    const cabecalho = 'Protocolo;Credor;Devedor;Fase;Nome do Andamento;Data do Último Andamento;Última Conferência';
-    const linhas = intimacoes.map(item => [item.protocolo,item.credor,item.devedor,item.fase || '',item.nomeAndamento || 'Não informado',item.ultimoAndamento,item.ultimaConferencia || '']
+    const cabecalho = 'Protocolo ONR;Protocolo RTD;N.º OS Tri7;Saldo na OS;Protocolo Tri7;Certidão de Decurso de Prazo;Credor;Devedor;Fase;Último Andamento;Data do Último Andamento;Data da Intimação;Dias Úteis Certificação;Valor pago pelo Cliente na ONR;Valor Usado;Última Conferência';
+    const linhas = intimacoes.map(item => [
+        item.protocolo, item.protocoloRtd || '', item.numeroOsTri7 || '', item.saldoOs ?? '',
+        item.protocoloTri7 || '', item.certidaoDecursoPrazo || '', item.credor, item.devedor,
+        item.fase || '', item.nomeAndamento || 'Não informado', item.ultimoAndamento,
+        item.dataIntimacao || '', item.dataCertificacao || '', item.valorPagoOnr ?? '',
+        item.valorUsado ?? '', item.ultimaConferencia || '',
+    ]
         .map(valor => `"${String(valor).replace(/"/g,'""')}"`).join(';'));
     baixarArquivo('\uFEFF' + [cabecalho,...linhas].join('\n'), 'text/csv;charset=utf-8', `intimacoes-aeri-${hojeLocal()}.csv`);
 }
@@ -390,6 +493,11 @@ function tratarAcaoTabela(evento) {
     const botao = evento.target.closest('button[data-acao]');
     if (!botao) return;
     if (botao.dataset.acao === 'abrir-pasta') abrirPastaIntimacao(botao.dataset.protocolo);
+    if (botao.dataset.acao === 'detalhes') {
+        if (detalhesAbertos.has(botao.dataset.id)) detalhesAbertos.delete(botao.dataset.id);
+        else detalhesAbertos.add(botao.dataset.id);
+        renderizarIntimacoes();
+    }
     if (botao.dataset.acao === 'conferir') abrirCheckIntimacao(botao.dataset.id);
     if (botao.dataset.acao === 'editar') editarIntimacao(botao.dataset.id);
     if (botao.dataset.acao === 'excluir') excluirIntimacao(botao.dataset.id);
@@ -430,6 +538,11 @@ export function iniciarIntimacoes() {
         evento.target.value = evento.target.value.toUpperCase();
     });
     document.getElementById('form-intimacao').addEventListener('submit', salvarIntimacao);
+    document.getElementById('intimacao-valor-pago').addEventListener('input', atualizarSaldoFormulario);
+    document.getElementById('intimacao-valor-usado').addEventListener('input', atualizarSaldoFormulario);
+    document.getElementById('intimacao-protocolo-rtd').addEventListener('input', evento => {
+        evento.target.value = evento.target.value.replace(/\D/g, '').slice(0, 17);
+    });
     document.getElementById('rotina-tbody').addEventListener('click', tratarAcaoTabela);
     document.getElementById('importar-intimacoes').addEventListener('change', importarIntimacoesCsv);
     document.getElementById('btn-exportar-intimacoes').addEventListener('click', exportarIntimacoesCsv);

@@ -1368,6 +1368,45 @@ body.sidebar-recolhida .nav-item {
   border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden;
   background: rgba(255,255,255,.86); box-shadow: var(--glass-shadow); margin-bottom: 40px;
 }
+.rotina-card-grade {
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  border-bottom:1px solid rgba(139,152,178,.12);
+}
+.rotina-card-campo {
+  min-width:0;
+  padding:12px 14px;
+  border-right:1px solid rgba(139,152,178,.1);
+}
+.rotina-card-campo:last-child { border-right:0; }
+.rotina-card-campo-largo { grid-column:span 2; }
+.rotina-card-campo-total { grid-column:1 / -1; border-top:1px solid rgba(139,152,178,.1); }
+.rotina-card-campo span {
+  display:block;
+  margin-bottom:5px;
+  color:var(--text-muted);
+  font-size:.64rem;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.rotina-card-campo strong {
+  display:block;
+  overflow-wrap:anywhere;
+  color:var(--text-main);
+  font-size:.78rem;
+  line-height:1.35;
+}
+.rotina-card-andamento { grid-template-columns:1fr 1.35fr 1.35fr 1fr 1fr; }
+.rotina-card-financeiro {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  background:rgba(16,185,129,.035);
+}
+.rotina-card-saldo strong {
+  color:var(--accent-green);
+  font-size:.9rem;
+}
 .rotina-toolbar { display:flex; align-items:center; justify-content:space-between; gap:15px; padding:14px 16px; border-bottom:1px solid #e8eef6; }
 .rotina-busca {
   width:min(420px,100%); display:flex; align-items:center; gap:8px; padding:9px 12px;
@@ -1402,6 +1441,11 @@ body.sidebar-recolhida .nav-item {
   color:#64748b; font:600 .67rem "Outfit",sans-serif; cursor:pointer;
 }
 .rotina-row-actions .rotina-check { color:#15803d; border-color:#bbf7d0; background:#f0fdf4; }
+.rotina-row-actions .rotina-detalhes-btn {
+  color:#2563eb;
+  border-color:#bfdbfe;
+  background:#eff6ff;
+}
 .rotina-row-actions .perigo { color:#b91c1c; }
 .rotina-folder-btn {
   width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center;
@@ -1411,6 +1455,17 @@ body.sidebar-recolhida .nav-item {
 .rotina-folder-btn.ativo:hover { background:#dbeafe; color:#1d4ed8; }
 .rotina-folder-btn:disabled { opacity:.72; }
 .rotina-vazio { padding:48px !important; text-align:center; color:#94a3b8 !important; }
+.rotina-detalhes-row td { padding:0 !important; background:rgba(2,6,23,.18); }
+.rotina-intimacao-detalhes {
+  margin:0;
+  border-left:4px solid var(--accent-green);
+  background:rgba(12,18,32,.5);
+  animation:detalhesIntimacaoAbrir .18s ease-out;
+}
+@keyframes detalhesIntimacaoAbrir {
+  from { opacity:0; transform:translateY(-4px); }
+  to { opacity:1; transform:translateY(0); }
+}
 .rotina-modal { max-width:620px; padding:0 26px 25px; }
 .rotina-form-header { padding:26px 0 18px; border-bottom:1px solid #edf1f6; }
 .rotina-form-header h2 { color:var(--text-main); font-size:1.3rem; margin-bottom:5px; }
@@ -1429,6 +1484,26 @@ body.sidebar-recolhida .nav-item {
   outline:0; color:var(--text-main); font:400 .84rem "Outfit",sans-serif; background:#fff;
 }
 .rotina-form input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.rotina-form input[readonly] { cursor:not-allowed; opacity:.82; }
+.rotina-form-secao {
+  grid-column:span 2;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:15px;
+  margin:5px 0 0;
+  padding:18px;
+  border:1px solid rgba(139,152,178,.18);
+  border-radius:14px;
+}
+.rotina-form-secao legend {
+  padding:0 7px;
+  color:var(--accent-green);
+  font-size:.75rem;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.rotina-form-secao label { grid-column:auto !important; }
 .rotina-form-actions { grid-column:span 2; display:flex; justify-content:flex-end; gap:8px; padding-top:7px; }
 .rotina-check-modal { max-width:560px; }
 .rotina-check-escolha { display:flex; justify-content:flex-end; gap:10px; padding-top:22px; }
@@ -1445,6 +1520,8 @@ body.sidebar-recolhida .nav-item {
   .rotina-header { align-items:flex-start; flex-direction:column; }
   .rotina-header-actions { justify-content:flex-start; }
   .rotina-resumo { grid-template-columns:repeat(2,1fr); }
+  .rotina-card-grade { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .rotina-card-andamento { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media (max-width: 620px) {
   .rotina-resumo { grid-template-columns:1fr; }
@@ -1452,7 +1529,14 @@ body.sidebar-recolhida .nav-item {
   .rotina-toolbar { align-items:flex-start; flex-direction:column; }
   .rotina-form { grid-template-columns:1fr; }
   .rotina-form label, .rotina-form label:nth-of-type(2), .rotina-form label:nth-of-type(3), .rotina-form-actions { grid-column:1; }
+  .rotina-form-secao { grid-column:1; grid-template-columns:1fr; }
   .rotina-check-escolha { flex-direction:column-reverse; }
+  .rotina-card-grade,
+  .rotina-card-andamento,
+  .rotina-card-financeiro { grid-template-columns:1fr; }
+  .rotina-card-campo,
+  .rotina-card-campo-largo,
+  .rotina-card-campo-total { grid-column:1; border-right:0; border-bottom:1px solid rgba(139,152,178,.1); }
 }
 
 /* --- USUÁRIOS E PERMISSÕES --- */
@@ -2308,4 +2392,12 @@ input::placeholder {
   .matricula-search-row .btn { width: 100%; }
   .matricula-search-footer { flex-direction: column; gap: 4px; }
   .matricula-search-source { margin-left: 0; }
+}
+
+/* O formulário ampliado da Fase Inicial precisa permanecer rolável no modal. */
+.modal-box.rotina-modal {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }

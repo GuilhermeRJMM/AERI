@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260727-fases-intimacoes">
+    <link rel="stylesheet" href="/static/styles.css?v=20260727-detalhes-inicial">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -225,7 +225,7 @@
                         </div>
                         <div class="rotina-table-wrap">
                             <table class="rotina-table">
-                                <thead><tr><th>Situação</th><th>Protocolo</th><th>Credor</th><th>Devedor</th><th>Nome do andamento</th><th>Data do último andamento</th><th>Última conferência</th><th>Pasta</th><th>Ações</th></tr></thead>
+                                <thead><tr id="rotina-cabecalho"></tr></thead>
                                 <tbody id="rotina-tbody"></tbody>
                             </table>
                         </div>
@@ -294,6 +294,18 @@
                     <option value="EDITAL">Fase de Edital</option>
                     <option value="CONSOLIDACAO">Fase de Consolidação</option>
                 </select></label>
+                <fieldset class="rotina-form-secao">
+                    <legend>Dados da Fase Inicial - Intimação</legend>
+                    <label><span>Protocolo RTD</span><input id="intimacao-protocolo-rtd" maxlength="17" inputmode="numeric" pattern="[0-9]{17}" placeholder="20260708155369985"></label>
+                    <label><span>N.º OS Tri7</span><input id="intimacao-os-tri7" maxlength="40"></label>
+                    <label><span>Protocolo Tri7</span><input id="intimacao-protocolo-tri7" maxlength="40"></label>
+                    <label><span>Certidão de Decurso de Prazo</span><input id="intimacao-certidao-decurso" maxlength="160"></label>
+                    <label><span>Data da Intimação</span><input id="intimacao-data-intimacao" type="date"></label>
+                    <label><span>Dias Úteis Certificação</span><input id="intimacao-data-certificacao" type="date" readonly title="Será calculado automaticamente após a definição dos feriados e do resultado da intimação."></label>
+                    <label><span>Valor pago pelo cliente na ONR</span><input id="intimacao-valor-pago" type="number" min="0" step="0.01"></label>
+                    <label><span>Valor usado</span><input id="intimacao-valor-usado" type="number" min="0" step="0.01"></label>
+                    <label><span>Saldo na OS</span><input id="intimacao-saldo-os" type="text" readonly></label>
+                </fieldset>
                 <div class="rotina-form-actions">
                     <button type="button" class="rotina-btn-secondary" id="btn-cancelar-intimacao">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Salvar intimação</button>
@@ -363,6 +375,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260727-fases-intimacoes"></script>
+    <script type="module" src="/static/js/app.js?v=20260727-detalhes-inicial"></script>
 </body>
 </html>

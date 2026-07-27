@@ -1,6 +1,7 @@
 import re
 import unittest
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
 
@@ -37,12 +38,57 @@ class TesteIntimacoes(unittest.TestCase):
                 "ultima_conferencia": None,
                 "historico": [],
                 "fase": "EDITAL",
+                "protocolo_rtd": "20260708155369985",
+                "numero_os_tri7": "12345",
+                "protocolo_tri7": "TRI7-123",
+                "certidao_decurso_prazo": None,
+                "data_intimacao": date(2026, 7, 8),
+                "data_certificacao": None,
+                "valor_pago_onr": Decimal("530.07"),
+                "valor_usado": Decimal("100.00"),
             }
         )
 
         self.assertEqual("Prenotado", item["nomeAndamento"])
         self.assertEqual("2026-07-01", item["ultimoAndamento"])
         self.assertEqual("EDITAL", item["fase"])
+        self.assertEqual("20260708155369985", item["protocoloRtd"])
+        self.assertEqual("2026-07-08", item["dataIntimacao"])
+        self.assertEqual(430.07, item["saldoOs"])
+
+    def test_valida_campos_financeiros_e_protocolo_rtd(self):
+        campos = servico.validar_campos_fase_inicial(
+            {
+                "protocoloRtd": "20260708155369985",
+                "numeroOsTri7": "OS 500",
+                "valorPagoOnr": "530.07",
+                "valorUsado": "159.76",
+                "dataIntimacao": "2026-07-08",
+            }
+        )
+
+        self.assertEqual("20260708155369985", campos["protocolo_rtd"])
+        self.assertEqual(date(2026, 7, 8), campos["data_intimacao"])
+        self.assertEqual(Decimal("530.07"), campos["valor_pago_onr"])
+        self.assertEqual(Decimal("159.76"), campos["valor_usado"])
+
+    def test_campos_novos_usam_valores_iniciais_provisorios(self):
+        campos = servico.validar_campos_fase_inicial({})
+
+        self.assertEqual(Decimal("530.07"), campos["valor_pago_onr"])
+        self.assertEqual(Decimal("0.00"), campos["valor_usado"])
+        self.assertIsNone(campos["protocolo_rtd"])
+
+    def test_migracao_cria_colunas_da_fase_inicial(self):
+        caminho = Path(__file__).parents[1] / "backend/app/migrations/011_campos_fase_inicial_intimacoes.sql"
+        sql = caminho.read_text(encoding="utf-8")
+
+        for coluna in (
+            "protocolo_rtd", "numero_os_tri7", "protocolo_tri7",
+            "certidao_decurso_prazo", "data_intimacao", "data_certificacao",
+            "valor_pago_onr", "valor_usado",
+        ):
+            self.assertIn(coluna, sql)
 
     def test_classifica_fase_pelo_andamento(self):
         self.assertEqual(

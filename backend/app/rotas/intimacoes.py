@@ -11,6 +11,7 @@ from backend.app.database import conectar, preparar_banco
 from backend.app.servicos.intimacoes import (
     fase_por_andamento,
     intimacao_json,
+    validar_campos_fase_inicial,
     validar_intimacao,
     validar_novo_andamento,
 )
@@ -35,15 +36,24 @@ def listar_intimacoes(_usuario: str = Depends(exigir_permissao("ver_intimacoes")
 @router.post("", status_code=201, dependencies=[Depends(proteger_csrf)])
 def criar_intimacao(dados: dict, request: Request, usuario: str = Depends(exigir_permissao("criar_intimacoes"))):
     protocolo, credor, devedor, nome_andamento, andamento, fase = validar_intimacao(dados)
+    campos = validar_campos_fase_inicial(dados)
     identificador = uuid4()
     try:
         with conectar() as conexao:
             with conexao.cursor() as cursor:
                 cursor.execute(
                     """INSERT INTO intimacoes_aeri
-                    (id, protocolo, credor, devedor, nome_andamento, ultimo_andamento, fase)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *""",
-                    (identificador, protocolo, credor, devedor, nome_andamento, andamento, fase),
+                    (id, protocolo, credor, devedor, nome_andamento, ultimo_andamento, fase,
+                    protocolo_rtd, numero_os_tri7, protocolo_tri7, certidao_decurso_prazo,
+                    data_intimacao, data_certificacao, valor_pago_onr, valor_usado)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING *""",
+                    (
+                        identificador, protocolo, credor, devedor, nome_andamento, andamento, fase,
+                        campos["protocolo_rtd"], campos["numero_os_tri7"], campos["protocolo_tri7"],
+                        campos["certidao_decurso_prazo"], campos["data_intimacao"],
+                        campos["data_certificacao"], campos["valor_pago_onr"], campos["valor_usado"],
+                    ),
                 )
                 item = cursor.fetchone()
             conexao.commit()
@@ -56,14 +66,24 @@ def criar_intimacao(dados: dict, request: Request, usuario: str = Depends(exigir
 @router.put("/{identificador}", dependencies=[Depends(proteger_csrf)])
 def atualizar_intimacao(identificador: UUID, dados: dict, request: Request, usuario: str = Depends(exigir_permissao("alterar_intimacoes"))):
     protocolo, credor, devedor, nome_andamento, andamento, fase = validar_intimacao(dados)
+    campos = validar_campos_fase_inicial(dados)
     try:
         with conectar() as conexao:
             with conexao.cursor() as cursor:
                 cursor.execute(
                     """UPDATE intimacoes_aeri SET protocolo=%s, credor=%s, devedor=%s,
-                    nome_andamento=%s, ultimo_andamento=%s, fase=%s, atualizado_em=NOW()
+                    nome_andamento=%s, ultimo_andamento=%s, fase=%s, protocolo_rtd=%s,
+                    numero_os_tri7=%s, protocolo_tri7=%s, certidao_decurso_prazo=%s,
+                    data_intimacao=%s, data_certificacao=%s, valor_pago_onr=%s,
+                    valor_usado=%s, atualizado_em=NOW()
                     WHERE id=%s RETURNING *""",
-                    (protocolo, credor, devedor, nome_andamento, andamento, fase, identificador),
+                    (
+                        protocolo, credor, devedor, nome_andamento, andamento, fase,
+                        campos["protocolo_rtd"], campos["numero_os_tri7"], campos["protocolo_tri7"],
+                        campos["certidao_decurso_prazo"], campos["data_intimacao"],
+                        campos["data_certificacao"], campos["valor_pago_onr"],
+                        campos["valor_usado"], identificador,
+                    ),
                 )
                 item = cursor.fetchone()
             conexao.commit()
