@@ -13,6 +13,7 @@ def _compactar(texto: str) -> str:
 
 def _normalizar_localizacao(texto: str) -> str:
     valor = _compactar(texto)
+    valor = re.sub(r"[\"'“”‘’]", "", valor)
     valor = re.sub(r"^(?:d[oa]s?|n[oa]s?|em)\s+", "", valor, flags=re.IGNORECASE)
     valor = re.sub(
         r"^(?:loteamento|bairro)\s+(?:denominad[oa]\s+)?[\"'“”]?",
@@ -20,8 +21,95 @@ def _normalizar_localizacao(texto: str) -> str:
         valor,
         flags=re.IGNORECASE,
     )
+    valor = re.sub(
+        r"^(Setor|Bairro|Residencial)\s+\1\b",
+        r"\1",
+        valor,
+        flags=re.IGNORECASE,
+    )
+    valor = re.sub(
+        r"^(setor|bairro|residencial)\b",
+        lambda encontrado: encontrado.group(1).capitalize(),
+        valor,
+        flags=re.IGNORECASE,
+    )
     valor = re.sub(r"^Setor\s+(?=(?:Jardim|Bairro|Residencial|Parque)\b)", "", valor, flags=re.IGNORECASE)
     return _compactar(valor.strip("\"'“”"))
+
+
+def _normalizar_codigo_incra(valor: str) -> str:
+    digitos = re.sub(r"\D", "", valor or "")
+    if len(digitos) == 13:
+        return (
+            f"{digitos[:3]}.{digitos[3:6]}.{digitos[6:9]}."
+            f"{digitos[9:12]}-{digitos[12]}"
+        )
+    if len(digitos) == 12:
+        return (
+            f"{digitos[:3]}.{digitos[3:6]}.{digitos[6:9]}."
+            f"{digitos[9:12]}"
+        )
+    return _compactar(valor)
+
+
+def _extrair_codigos_cci(texto: str) -> list[str]:
+    """Lê um ou vários CCI próximos ao rótulo, tolerando resíduos da Tri7."""
+    codigos = []
+    for marcador in re.finditer(r"\bCCI(?:'s)?\b", texto, re.IGNORECASE):
+        trecho = texto[marcador.end():marcador.end() + 320]
+        trecho = re.split(
+            r"\b(?:PROPRIET[ÁA]RI[OA]S?|ORIGEM|DOU\s+F[ÉE]|COTAÇÃO|"
+            r"PROTOCOLO|SELO)\b",
+            trecho,
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0]
+        valores = re.findall(
+            r"(?<!\d)(?:\d{1,3}(?:\.\d{3})+|\d{3,})(?!\d)",
+            trecho,
+        )
+        for valor in valores:
+            valor = valor.rstrip(".")
+            if valor and valor not in codigos:
+                codigos.append(valor)
+    return codigos
+
+
+def _lista_textual(valores: list[str]) -> str:
+    if len(valores) == 1:
+        return valores[0]
+    return f"{', '.join(valores[:-1])} e {valores[-1]}"
+
+
+def _tipo_imovel_rural(descricao: str) -> bool:
+    """Classifica pelo núcleo da descrição, sem usar confrontantes como tipo."""
+    normalizado = _sem_acentos(descricao)
+    trecho_inicial = normalizado[:700]
+    rural_explicito = bool(re.search(
+        r"\b(?:ZONA\s+RURAL|PROPRIEDADE\s+RURAL|IMOVEL\s+RURAL|INCRA|IBRA|"
+        r"CCIR|ALQUEIRES?|HECTARES?)\b",
+        trecho_inicial,
+    )) or bool(re.search(r"\b\d[\d.,]*\s*HA\b", trecho_inicial))
+    urbano_explicito = bool(
+        re.search(r"\bLOTES?\b", trecho_inicial)
+        and re.search(r"\bQUADRAS?\b", trecho_inicial)
+        and (
+            re.search(
+                r"\bSITUAD[OA]\s+(?:NA|NO|A|AO)\s+"
+                r"(?:RUA|AVENIDA|AV\.?|ALAMEDA|TRAVESSA|PRACA|VIELA|BECO)\b",
+                trecho_inicial,
+            )
+            or re.search(r"\bNESTA\s+CIDADE\b", trecho_inicial)
+            or re.search(r"\bDISTRITO\s+DE\s+PEQUENAS\s+INDUSTRIAS\b", trecho_inicial)
+        )
+    )
+    if urbano_explicito and not rural_explicito:
+        return False
+    return rural_explicito or bool(re.match(
+        r"^(?:UM\s+SITIO\b|(?:AS?\s+)?FAZENDAS?\b|CHACARA\b|ESTANCIA\b|"
+        r"GLEBA\s+DE\s+TERRAS\b|LUGAR\s+DENOMINAD[OA]\b)",
+        trecho_inicial,
+    ))
 
 
 def _valor_decimal(texto: str) -> Optional[float]:
@@ -86,10 +174,11 @@ def _tem_encerramento_explicito(normalizado: str) -> bool:
         or bool(re.search(r"\bENCERRA-SE\s+(?:A\s+)?(?:PRESENTE\s+)?MATRICULA\b", normalizado))
         or bool(re.search(r"\bENCERRAMENTO\s+DA\s+(?:PRESENTE\s+)?MATRICULA\b", normalizado))
         or bool(re.search(
-            r"\bFICANDO\s+(?:,?\s*EM\s+CONSEQUENCIA,?)?\s+ENCERRAD[AO]\s+"
+            r"\bFICANDO\s+(?:,?\s*EM\s+CONSEQUENCIA,?)?\s+(?:E\s+)?ENCERRAD[AO]\s+"
             r"(?:A\s+)?(?:PRESENTE\s+|ESTA\s+)?MATRICULA\b",
             normalizado,
         ))
+        or bool(re.search(r"\bCANCELA-SE\s+A\s+(?:PRESENTE\s+)?MATRICULA\b", normalizado))
     )
 
 
@@ -300,6 +389,20 @@ def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str], Opt
     rua = _compactar(logradouro.group(1)) if logradouro else None
     if rua:
         rua = re.sub(r"^Avnida\b", "Avenida", rua, flags=re.IGNORECASE)
+        rua = re.sub(
+            r"^(Rua|Avenida|Alameda|Travessa|Praça|Rodovia|Estrada|Viela|Beco|Acesso)"
+            r"\s+\1\b",
+            r"\1",
+            rua,
+            flags=re.IGNORECASE,
+        )
+        rua = re.split(
+            r"\.\s*(?:Cadastrad[oa]\s+na\s+Prefeitura|"
+            r"Designa[çc][ãa]o\s+cadastral)",
+            rua,
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0].strip(" ,.;")
     numero = None
     setor = None
     if rua:
@@ -382,6 +485,12 @@ def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str], Opt
             if re.search(
                 r"(?:REGISTRAD|CADASTRAD)[OA]\s+(?:NO\s+INCRA\s+|NA\s+PREFEITURA\s+)?"
                 r"SOB\s+O?\s*$",
+                contexto,
+            ):
+                continue
+            if re.search(
+                r"(?:CCI|DESIGNACAO\s+CADASTRAL|"
+                r"CADASTRAD[OA]\s+NA\s+PREFEITURA)\s*$",
                 contexto,
             ):
                 continue
@@ -531,7 +640,8 @@ def _sucessoras_desmembramento_integral(texto: str, normalizado: str) -> list[st
         "DEZ": 10,
     }
     divisao = re.search(
-        r"DESMEMBRAMENTO\s+DO\s+IMOVEL\s+MATRICULADO\s+EM\s+"
+        r"DESMEMBRAMENTO\s+DO\s+IMOVEL(?:\s+OBJETO\s+DA\s+PRESENTE\s+MATRICULA"
+        r"|\s+MATRICULADO)?\s+EM\s+"
         r"(DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)\s+GLEBAS\b",
         normalizado,
     )
@@ -552,6 +662,21 @@ def _sucessoras_desmembramento_integral(texto: str, normalizado: str) -> list[st
         re.IGNORECASE | re.DOTALL,
     ):
         encontradas.extend(re.findall(r"\d+(?:\.\d+)+|\d{3,}", lista))
+    if len(encontradas) < quantidade:
+        encontradas.extend(re.findall(
+            r"MATRICULAD[AO]S?\s+SOB\s+(?:OS?\s+)?N[.\sO]*"
+            r"(\d[\d.]*)",
+            normalizado,
+        ))
+    if len(encontradas) < quantidade:
+        listas_normalizadas = re.findall(
+            r"MATRICULAD[AO]S?\s+SOB\s+(?:OS?\s+)?N[.\sO]*"
+            r"(.*?)(?=\bO\s+REFERIDO\b|\bDOU\s+FE\b|$)",
+            normalizado,
+            re.DOTALL,
+        )
+        for lista in listas_normalizadas:
+            encontradas.extend(re.findall(r"(?<!\d)\d{4,}(?:\.\d+)*(?!\d)", lista))
     sucessoras = []
     for numero in encontradas:
         numero = numero.rstrip(".")
@@ -567,11 +692,7 @@ def extrair_dados_imovel(
     numero_matricula: Optional[str] = None,
 ) -> dict:
     cabecalho, descricao = _extrair_bloco_imovel(texto)
-    descricao_normalizada = _sem_acentos(descricao)
-    rural = (
-        any(termo in descricao_normalizada for termo in ("FAZENDA", "SITIO", "INCRA", "IBRA", "HECTARE", "ALQUEIRE", "GLEBA", "ZONA RURAL"))
-        or bool(re.search(r"\bHA\b", descricao_normalizada))
-    )
+    rural = _tipo_imovel_rural(descricao)
 
     resultado = {
         "situacao": {"status": "ATIVA", "origem": "Matrícula"},
@@ -657,6 +778,56 @@ def extrair_dados_imovel(
             "origem": "Cabeçalho",
         })
 
+    cci_cabecalho = re.search(
+        r"(?:Cadastrad[oa]\s+na\s+Prefeitura|"
+        r"Designa[çc][ãa]o\s+cadastral\s+do\s+im[óo]vel\s+na\s+"
+        r"Prefeitura(?:\s+Municipal)?)"
+        r".{0,100}?\bCCI\s+n?[.º°o\s-]*([\d][\d.,/-]*)",
+        cabecalho,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if cci_cabecalho:
+        _adicionar_unico(resultado["cadastros"], {
+            "rotulo": "Cadastro municipal",
+            "valor": f"CCI {cci_cabecalho.group(1).rstrip('.,;')}",
+            "origem": "Cabeçalho",
+        })
+    else:
+        codigos_cci_cabecalho = _extrair_codigos_cci(cabecalho)
+        if codigos_cci_cabecalho:
+            _adicionar_unico(resultado["cadastros"], {
+                "rotulo": "Cadastro municipal",
+                "valor": f"CCI {_lista_textual(codigos_cci_cabecalho)}",
+                "origem": "Cabeçalho",
+            })
+
+    cep_cabecalho = re.search(
+        r"\bCEP\s+n?[.º°o\s-]*"
+        r"(?<!\d)(\d{2}[.\s]?\d{3}[-.\s]?\d{3})(?!\d)",
+        descricao,
+        re.IGNORECASE,
+    )
+    if cep_cabecalho:
+        digitos_cep = re.sub(r"\D", "", cep_cabecalho.group(1))
+        _adicionar_unico(resultado["cadastros"], {
+            "rotulo": "CEP",
+            "valor": f"{digitos_cep[:2]}.{digitos_cep[2:5]}-{digitos_cep[5:]}",
+            "origem": "Cabeçalho",
+        })
+
+    codigos_ccir_cabecalho = list(dict.fromkeys(re.findall(
+        r"c[óo]digo\s+do\s+im[óo]vel\s+rural\s*[:;]?\s*"
+        r"([\d][\d.\-/]*)",
+        cabecalho,
+        re.IGNORECASE,
+    )))
+    for codigo_ccir in codigos_ccir_cabecalho:
+        _adicionar_unico(resultado["cadastros"], {
+            "rotulo": "CCIR / código rural",
+            "valor": _normalizar_codigo_incra(codigo_ccir.rstrip(".")),
+            "origem": "Cabeçalho",
+        })
+
     trecho_incra = re.search(
         r"\bINCRA(?:/SNCR)?\b(.*?)(?=\bP?R[OÓ]PRIET[ÁA]RI[OA]S?\s*[:;]|"
         r"\bT[ÍI]TULOS?\s+AQUISITIVOS?\s*[:;]|\Z)",
@@ -671,13 +842,28 @@ def extrair_dados_imovel(
             trecho_incra.group(1),
         )
     if not codigos_incra and trecho_incra:
+        cadastrado_sob = re.search(
+            r"\bsob\s+o\s+n?[.º°o\s]*([\d][\d.\s-]{8,30})",
+            trecho_incra.group(1),
+            re.IGNORECASE,
+        )
+        if cadastrado_sob:
+            codigos_incra = [
+                _normalizar_codigo_incra(cadastrado_sob.group(1).rstrip(" .,;"))
+            ]
+    if not codigos_incra and trecho_incra:
         codigo_rural = re.search(
             r"código\s+do\s+imóvel\s+rural\s*[:;]?\s*([\d][\d.\-/]*)",
             trecho_incra.group(1),
             re.IGNORECASE,
         )
         if codigo_rural:
-            codigos_incra = [codigo_rural.group(1).rstrip(".")]
+            codigos_incra = [
+                _normalizar_codigo_incra(codigo_rural.group(1).rstrip("."))
+            ]
+    codigos_incra = [
+        _normalizar_codigo_incra(codigo) for codigo in codigos_incra
+    ]
     codigos_incra = list(dict.fromkeys(codigos_incra))
     if codigos_incra:
         _adicionar_unico(resultado["cadastros"], {
@@ -787,6 +973,18 @@ def extrair_dados_imovel(
                 _substituir_por_rotulo(resultado["cadastros"], {
                     "rotulo": "Cadastro municipal",
                     "valor": f"CCI {cci_generico.group(1)}",
+                    "origem": codigo,
+                })
+
+        if "CCI" in normalizado and not any(
+            item.get("origem") == codigo and "CCI" in str(item.get("valor", ""))
+            for item in resultado["cadastros"]
+        ):
+            codigos_cci_ato = _extrair_codigos_cci(descricao_ato)
+            if codigos_cci_ato:
+                _substituir_por_rotulo(resultado["cadastros"], {
+                    "rotulo": "Cadastro municipal",
+                    "valor": f"CCI {_lista_textual(codigos_cci_ato)}",
                     "origem": codigo,
                 })
 

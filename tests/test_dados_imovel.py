@@ -8,6 +8,105 @@ def valores_por_rotulo(itens, rotulo):
 
 
 class TesteDadosImovel(unittest.TestCase):
+    def test_cci_no_cabecalho_com_designacao_cadastral(self):
+        textos = (
+            (
+                "IMÓVEL: Lote n.º 26, Quadra 06, com 125m². "
+                "*Designação cadastral do imóvel na Prefeitura Municipal: "
+                "CCI n.º 126144. PROPRIETÁRIA: Maria da Silva."
+            ),
+            "CCI 126144",
+        ), (
+            "IMÓVEL: Lote urbano com 200m². "
+            "Cadastrado na Prefeitura CCI nº 127064. "
+            "PROPRIETÁRIO: João da Silva.",
+            "CCI 127064",
+        ), (
+            "IMÓVEL: Lote urbano com 200m². "
+            "*Designação cadastral do imóvel na Prefeitura Municipal - "
+            "CCI n.º 7.243 PROPRIETÁRIO: João da Silva.",
+            "CCI 7.243",
+        )
+
+        for texto, esperado in textos:
+            with self.subTest(esperado=esperado):
+                cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+                self.assertEqual(
+                    valores_por_rotulo(cadastros, "Cadastro municipal"),
+                    [esperado],
+                )
+
+    def test_setor_remove_aspas_soltas_e_prefixo_duplicado(self):
+        casos = (
+            (
+                'IMÓVEL: Lote 04, Quadra 114, situado na Rua 212, '
+                'Setor Setor Aeroporto.',
+                "Setor Aeroporto",
+            ),
+            (
+                'IMÓVEL: Lote 27, Quadra 04, situado na Avenida das Flores, '
+                'do residencial "Portal do Lago".',
+                "Residencial Portal do Lago",
+            ),
+        )
+
+        for texto, esperado in casos:
+            with self.subTest(esperado=esperado):
+                identificacao = analisar_matricula(texto)["imovel"]["identificacao"]
+                self.assertEqual(
+                    valores_por_rotulo(identificacao, "Setor"),
+                    [esperado],
+                )
+
+    def test_incra_historico_com_codigo_espacado_ou_continuo(self):
+        casos = (
+            (
+                "IMÓVEL: Fazenda Contendas, com 1.297,5 hectares. "
+                "Cadastrada no INCRA, sob o nº 936 120 016 233, com área total.",
+                "936.120.016.233",
+            ),
+            (
+                "IMÓVEL: Fazenda Serra, com 103 hectares. "
+                "Cadastrado no INCRA sob o n° 9361200162337; com área total.",
+                "936.120.016.233-7",
+            ),
+        )
+
+        for texto, esperado in casos:
+            with self.subTest(esperado=esperado):
+                cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+                self.assertEqual(
+                    valores_por_rotulo(cadastros, "INCRA"),
+                    [esperado],
+                )
+
+    def test_ccir_do_cabecalho_extrai_codigos_distintos(self):
+        texto = """
+        IMÓVEL: Fazenda Vera Cruz, com área de 2,4697ha.
+        Certificado de Cadastro de Imóvel Rural - CCIR:
+        1) código do imóvel rural: 999.962.897.760-7;
+        2) código do imóvel rural: 950.130.322.270-9.
+        PROPRIETÁRIA: Empresa Rural Ltda.
+        """
+
+        cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+
+        self.assertEqual(
+            valores_por_rotulo(cadastros, "CCIR / código rural"),
+            ["999.962.897.760-7", "950.130.322.270-9"],
+        )
+
+    def test_cci_nao_e_confundido_com_numero_predial(self):
+        texto = """
+        IMÓVEL: Área urbana confrontando com a estrada secundária
+        Morrinhos - Piracanjuba. Cadastrado na Prefeitura CCI nº 127064.
+        PROPRIETÁRIO: João da Silva.
+        """
+
+        identificacao = analisar_matricula(texto)["imovel"]["identificacao"]
+
+        self.assertEqual(valores_por_rotulo(identificacao, "Número"), [])
+
     def test_deduplica_mesmo_dado_repetido_em_atos_diferentes(self):
         texto = """
         MATRÍCULA 29.775. IMÓVEL: Área rural de 28,0000ha.
@@ -1009,6 +1108,131 @@ class TesteDadosImovel(unittest.TestCase):
 
         self.assertEqual(valores_por_rotulo(identificacao, "Rua"), ["Rua 8"])
         self.assertEqual(valores_por_rotulo(identificacao, "Setor"), ["Vila São Pedro"])
+
+    def test_fazenda_em_confrontacao_nao_transforma_lote_urbano_em_rural(self):
+        texto = """
+        MATRÍCULA 39.747. IMÓVEL: Lote n.º 12-A, da Quadra C, com área de
+        125,00m², situado na Rua CP-12, Setor Cordeiro 02, nesta cidade,
+        com Código de Endereçamento Postal - CEP n.º 75.652.744,
+        dividindo nos fundos com a Fazenda Cordeiro.
+        PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(resultado["tipo"], "URBANO")
+        self.assertEqual(valores_por_rotulo(resultado["identificacao"], "Rua"), ["Rua CP-12"])
+        self.assertEqual(
+            valores_por_rotulo(resultado["identificacao"], "Setor"),
+            ["Setor Cordeiro 02"],
+        )
+        self.assertEqual(valores_por_rotulo(resultado["cadastros"], "CEP"), ["75.652-744"])
+
+    def test_matricula_39302_e_urbana_e_nao_usa_confrontacao_como_nome(self):
+        texto = """
+        MATRÍCULA 39.302. IMÓVEL: Lote n.º 09, da Quadra C, com área de
+        125,00m², situado na Rua CP-12, Setor Cordeiro 02, nesta cidade,
+        dividindo na frente com a citada rua; nos fundos com a Fazenda
+        Cordeiro; na lateral direita com o lote n.º 09-A; e, na lateral
+        esquerda com o lote n.º 08. PROPRIETÁRIO: Hugo Lino Peixoto,
+        inscrito no CPF/MF sob o n.º 710.208.961-91.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+        identificacao = resultado["identificacao"]
+
+        self.assertEqual(resultado["tipo"], "URBANO")
+        self.assertEqual(valores_por_rotulo(identificacao, "Rua"), ["Rua CP-12"])
+        self.assertEqual(
+            valores_por_rotulo(identificacao, "Setor"),
+            ["Setor Cordeiro 02"],
+        )
+        self.assertEqual(valores_por_rotulo(identificacao, "Nome"), [])
+
+    def test_distrito_industrial_em_fazenda_e_urbano(self):
+        texto = """
+        MATRÍCULA 15.650. IMÓVEL: Via DPI-12, Distrito de Pequenas Indústrias
+        de Morrinhos, Fazenda Paraíso, neste Município, constituído do lote
+        n.º 08, da quadra 06, com área de 573,66m².
+        PROPRIETÁRIO: Município de Morrinhos.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(resultado["tipo"], "URBANO")
+
+    def test_remove_prefixo_duplicado_da_rua(self):
+        texto = """
+        MATRÍCULA 39.767. IMÓVEL: Lote 13, Quadra 123, situado na Rua Rua
+        Barão do Rio Branco, Setor Centro, nesta cidade, com área de 100m².
+        PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        identificacao = analisar_matricula(texto)["imovel"]["identificacao"]
+
+        self.assertEqual(
+            valores_por_rotulo(identificacao, "Rua"),
+            ["Rua Barão do Rio Branco"],
+        )
+
+    def test_cci_plural_e_residuo_da_tri7_no_cabecalho(self):
+        casos = (
+            ("CCI n.os 10.929 e 135.906", ["CCI 10.929 e 135.906"]),
+            (
+                "CCI n.º (vincular dos dados do imóvel)126298",
+                ["CCI 126298"],
+            ),
+            ("Cadastro Municipal CCI-127902", ["CCI 127902"]),
+        )
+        for trecho, esperado in casos:
+            with self.subTest(trecho=trecho):
+                texto = (
+                    "MATRÍCULA 810. IMÓVEL: Lote 1, Quadra 2, com área de 100m². "
+                    f"{trecho}. PROPRIETÁRIO: Pessoa Teste."
+                )
+                cadastros = analisar_matricula(texto)["imovel"]["cadastros"]
+                self.assertEqual(
+                    valores_por_rotulo(cadastros, "Cadastro municipal"),
+                    esperado,
+                )
+
+    def test_encerramento_com_em_consequencia_e_encerrada(self):
+        texto = """
+        MATRÍCULA 811. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa Teste.
+        AV.01-811 - O imóvel foi objeto de fusão, ficando em consequência e
+        encerrada esta matrícula. DOU FÉ.
+        """
+
+        self.assertEqual(
+            analisar_matricula(texto)["imovel"]["situacao"]["status"],
+            "ENCERRADA",
+        )
+
+    def test_cancela_se_a_matricula_reconhece_encerramento(self):
+        texto = """
+        MATRÍCULA 813. IMÓVEL: Fazenda Exemplo. PROPRIETÁRIO: Pessoa Teste.
+        AV.01-813 - CANCELAMENTO DA MATRÍCULA. Em razão da restauração das
+        matrículas de origem, cancela-se a presente matrícula. DOU FÉ.
+        """
+
+        self.assertEqual(
+            analisar_matricula(texto)["imovel"]["situacao"]["status"],
+            "ENCERRADA",
+        )
+
+    def test_desmembramento_do_imovel_objeto_em_glebas_encerra(self):
+        texto = """
+        MATRÍCULA 812. IMÓVEL: Fazenda Exemplo, com 20ha.
+        PROPRIETÁRIO: Pessoa Teste.
+        AV.01-812 - DESMEMBRAMENTO DO IMÓVEL OBJETO DA PRESENTE MATRÍCULA EM
+        DUAS GLEBAS. A primeira foi matriculada sob o n.º 20.001 e a segunda
+        foi matriculada sob o n.º 20.002. DOU FÉ.
+        """
+
+        self.assertEqual(
+            analisar_matricula(texto)["imovel"]["situacao"]["status"],
+            "ENCERRADA",
+        )
 
 
 if __name__ == "__main__":
