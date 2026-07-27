@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260722-modal-fechar">
+    <link rel="stylesheet" href="/static/styles.css?v=20260727-fases-intimacoes">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -205,6 +205,17 @@
                     <section class="rotina-resumo" id="rotina-resumo"></section>
 
                     <section class="rotina-painel">
+                        <div class="rotina-fases" id="rotina-fases" role="tablist" aria-label="Fases das intimações">
+                            <button type="button" class="rotina-fase-btn ativa" data-fase="INTIMACAO" role="tab" aria-selected="true">
+                                <span>Fase Inicial - Intimação</span><strong data-total-fase="INTIMACAO">0</strong>
+                            </button>
+                            <button type="button" class="rotina-fase-btn" data-fase="EDITAL" role="tab" aria-selected="false">
+                                <span>Fase de Edital</span><strong data-total-fase="EDITAL">0</strong>
+                            </button>
+                            <button type="button" class="rotina-fase-btn" data-fase="CONSOLIDACAO" role="tab" aria-selected="false">
+                                <span>Fase de Consolidação</span><strong data-total-fase="CONSOLIDACAO">0</strong>
+                            </button>
+                        </div>
                         <div class="rotina-toolbar">
                             <div class="rotina-busca">
                                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -278,6 +289,11 @@
                 <label><span>Nome do devedor</span><input id="intimacao-devedor" required maxlength="160"></label>
                 <label><span>Nome do último andamento</span><input id="intimacao-nome-andamento" required maxlength="160" placeholder="Ex.: Aguardando cumprimento"></label>
                 <label><span>Data do último andamento</span><input id="intimacao-andamento" type="date" required></label>
+                <label><span>Fase</span><select id="intimacao-fase" required>
+                    <option value="INTIMACAO">Fase Inicial - Intimação</option>
+                    <option value="EDITAL">Fase de Edital</option>
+                    <option value="CONSOLIDACAO">Fase de Consolidação</option>
+                </select></label>
                 <div class="rotina-form-actions">
                     <button type="button" class="rotina-btn-secondary" id="btn-cancelar-intimacao">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Salvar intimação</button>
@@ -347,6 +363,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260720-busca-tri7"></script>
+    <script type="module" src="/static/js/app.js?v=20260727-fases-intimacoes"></script>
 </body>
 </html>

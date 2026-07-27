@@ -9,6 +9,7 @@ from psycopg.types.json import Jsonb
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
 from backend.app.database import conectar, preparar_banco
 from backend.app.servicos.intimacoes import (
+    fase_por_andamento,
     intimacao_json,
     validar_intimacao,
     validar_novo_andamento,
@@ -33,16 +34,16 @@ def listar_intimacoes(_usuario: str = Depends(exigir_permissao("ver_intimacoes")
 
 @router.post("", status_code=201, dependencies=[Depends(proteger_csrf)])
 def criar_intimacao(dados: dict, request: Request, usuario: str = Depends(exigir_permissao("criar_intimacoes"))):
-    protocolo, credor, devedor, nome_andamento, andamento = validar_intimacao(dados)
+    protocolo, credor, devedor, nome_andamento, andamento, fase = validar_intimacao(dados)
     identificador = uuid4()
     try:
         with conectar() as conexao:
             with conexao.cursor() as cursor:
                 cursor.execute(
                     """INSERT INTO intimacoes_aeri
-                    (id, protocolo, credor, devedor, nome_andamento, ultimo_andamento)
-                    VALUES (%s, %s, %s, %s, %s, %s) RETURNING *""",
-                    (identificador, protocolo, credor, devedor, nome_andamento, andamento),
+                    (id, protocolo, credor, devedor, nome_andamento, ultimo_andamento, fase)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *""",
+                    (identificador, protocolo, credor, devedor, nome_andamento, andamento, fase),
                 )
                 item = cursor.fetchone()
             conexao.commit()
@@ -54,15 +55,15 @@ def criar_intimacao(dados: dict, request: Request, usuario: str = Depends(exigir
 
 @router.put("/{identificador}", dependencies=[Depends(proteger_csrf)])
 def atualizar_intimacao(identificador: UUID, dados: dict, request: Request, usuario: str = Depends(exigir_permissao("alterar_intimacoes"))):
-    protocolo, credor, devedor, nome_andamento, andamento = validar_intimacao(dados)
+    protocolo, credor, devedor, nome_andamento, andamento, fase = validar_intimacao(dados)
     try:
         with conectar() as conexao:
             with conexao.cursor() as cursor:
                 cursor.execute(
                     """UPDATE intimacoes_aeri SET protocolo=%s, credor=%s, devedor=%s,
-                    nome_andamento=%s, ultimo_andamento=%s, atualizado_em=NOW()
+                    nome_andamento=%s, ultimo_andamento=%s, fase=%s, atualizado_em=NOW()
                     WHERE id=%s RETURNING *""",
-                    (protocolo, credor, devedor, nome_andamento, andamento, identificador),
+                    (protocolo, credor, devedor, nome_andamento, andamento, fase, identificador),
                 )
                 item = cursor.fetchone()
             conexao.commit()
@@ -85,17 +86,18 @@ def conferir_intimacao(
     novo_andamento = validar_novo_andamento(dados)
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            cursor.execute("SELECT historico FROM intimacoes_aeri WHERE id=%s", (identificador,))
+            cursor.execute("SELECT historico, fase FROM intimacoes_aeri WHERE id=%s", (identificador,))
             atual = cursor.fetchone()
             if not atual:
                 raise HTTPException(status_code=404, detail="Intimação não encontrada.")
             historico = list(dict.fromkeys([*(atual["historico"] or []), hoje]))
             if novo_andamento:
+                fase = fase_por_andamento(novo_andamento, atual["fase"])
                 cursor.execute(
                     """UPDATE intimacoes_aeri SET ultima_conferencia=%s, historico=%s,
-                    nome_andamento=%s, ultimo_andamento=%s, atualizado_em=NOW()
+                    nome_andamento=%s, ultimo_andamento=%s, fase=%s, atualizado_em=NOW()
                     WHERE id=%s RETURNING *""",
-                    (hoje, Jsonb(historico), novo_andamento, hoje, identificador),
+                    (hoje, Jsonb(historico), novo_andamento, hoje, fase, identificador),
                 )
             else:
                 cursor.execute(

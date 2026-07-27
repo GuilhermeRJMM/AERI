@@ -4,6 +4,8 @@ import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
 let intimacoes = [];
 const intimacoesPendentes = new Set();
 let intimacaoCheckId = null;
+let faseAtiva = 'INTIMACAO';
+const FASES_INTIMACAO = ['INTIMACAO', 'EDITAL', 'CONSOLIDACAO'];
 const PASTA_BASE_INTIMACOES = 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\07 - 2026\\02 - Agua. pagamento (emolu informados)';
 const PASTAS_PROTOCOLOS = {
     IN01504624C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\01 - Abertos (pagos)\\IN01504624C',
@@ -45,6 +47,13 @@ function situacaoIntimacao(item) {
     return {classe:'cinza', rotulo:'Sem atividade', detalhe:`Sem check há ${dias} dias`, ordem:2};
 }
 
+function fasePorAndamento(nomeAndamento, faseAtual = 'INTIMACAO') {
+    const texto = String(nomeAndamento || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (texto.includes('consolida') || texto.includes('intimacao positiva')) return 'CONSOLIDACAO';
+    if (texto.includes('edital') && faseAtual !== 'CONSOLIDACAO') return 'EDITAL';
+    return FASES_INTIMACAO.includes(faseAtual) ? faseAtual : 'INTIMACAO';
+}
+
 function formatarDataRotina(data) {
     if (!data) return '—';
     return new Intl.DateTimeFormat('pt-BR').format(new Date(`${data}T12:00:00`));
@@ -69,7 +78,8 @@ function renderizarIntimacoes() {
     document.querySelector('label[for="importar-intimacoes"]').hidden = !(pode('criar_intimacoes') && pode('alterar_intimacoes'));
     document.getElementById('btn-nova-intimacao').hidden = !pode('criar_intimacoes');
     const termo = document.getElementById('busca-intimacao').value.toLowerCase().trim();
-    const filtradas = intimacoes.filter(item => [item.protocolo, item.credor, item.devedor, item.nomeAndamento]
+    const daFase = intimacoes.filter(item => item.fase === faseAtiva);
+    const filtradas = daFase.filter(item => [item.protocolo, item.credor, item.devedor, item.nomeAndamento]
         .some(valor => String(valor || '').toLowerCase().includes(termo)))
         .sort((a, b) => situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo));
 
@@ -96,12 +106,21 @@ function renderizarIntimacoes() {
     }).join('') || '<tr><td colspan="9" class="rotina-vazio">Nenhuma intimação cadastrada. Use “Nova intimação” ou importe sua planilha em CSV.</td></tr>';
 
     const contagens = {verde:0, amarelo:0, vermelho:0, cinza:0};
-    intimacoes.forEach(item => contagens[situacaoIntimacao(item).classe]++);
+    daFase.forEach(item => contagens[situacaoIntimacao(item).classe]++);
     document.getElementById('rotina-resumo').innerHTML = [
         ['verde','Conferidas hoje',contagens.verde], ['amarelo','Vencem hoje',contagens.amarelo],
         ['vermelho','Atrasadas',contagens.vermelho], ['cinza','Sem atividade',contagens.cinza],
     ].map(([classe, rotulo, valor]) => `<div class="rotina-resumo-card ${classe}"><span>${rotulo}</span><strong>${valor}</strong></div>`).join('');
-    document.getElementById('rotina-total').textContent = `${filtradas.length} de ${intimacoes.length} intimações`;
+    FASES_INTIMACAO.forEach(fase => {
+        const total = intimacoes.filter(item => item.fase === fase).length;
+        document.querySelector(`[data-total-fase="${fase}"]`).textContent = total;
+    });
+    document.querySelectorAll('.rotina-fase-btn').forEach(botao => {
+        const ativa = botao.dataset.fase === faseAtiva;
+        botao.classList.toggle('ativa', ativa);
+        botao.setAttribute('aria-selected', String(ativa));
+    });
+    document.getElementById('rotina-total').textContent = `${filtradas.length} de ${daFase.length} nesta fase`;
 }
 
 export async function carregarIntimacoes() {
@@ -125,6 +144,7 @@ function abrirFormularioIntimacao() {
     document.getElementById('intimacao-id').value = '';
     document.getElementById('titulo-form-intimacao').textContent = 'Nova intimação';
     document.getElementById('intimacao-andamento').value = hojeLocal();
+    document.getElementById('intimacao-fase').value = faseAtiva;
     document.getElementById('modal-intimacao').classList.add('aberta');
     document.getElementById('intimacao-protocolo').focus();
 }
@@ -147,6 +167,7 @@ async function salvarIntimacao(evento) {
         devedor: document.getElementById('intimacao-devedor').value.trim(),
         nomeAndamento: document.getElementById('intimacao-nome-andamento').value.trim(),
         ultimoAndamento: document.getElementById('intimacao-andamento').value,
+        fase: document.getElementById('intimacao-fase').value,
     };
     try {
         botaoSalvar.disabled = true;
@@ -179,6 +200,7 @@ function editarIntimacao(id) {
     document.getElementById('intimacao-devedor').value = item.devedor;
     document.getElementById('intimacao-nome-andamento').value = item.nomeAndamento || 'Não informado';
     document.getElementById('intimacao-andamento').value = item.ultimoAndamento;
+    document.getElementById('intimacao-fase').value = item.fase || 'INTIMACAO';
     document.getElementById('titulo-form-intimacao').textContent = 'Editar intimação';
     document.getElementById('modal-intimacao').classList.add('aberta');
 }
@@ -218,7 +240,11 @@ async function conferirIntimacao(id, novoAndamento = null) {
         ...anterior,
         ultimaConferencia: hoje,
         historico: [...new Set([...(anterior.historico || []), hoje])],
-        ...(novoAndamento ? {nomeAndamento: novoAndamento, ultimoAndamento: hoje} : {}),
+        ...(novoAndamento ? {
+            nomeAndamento: novoAndamento,
+            ultimoAndamento: hoje,
+            fase: fasePorAndamento(novoAndamento, anterior.fase),
+        } : {}),
     };
     fecharCheckIntimacao();
     renderizarIntimacoes();
@@ -324,6 +350,7 @@ function importarIntimacoesCsv(evento) {
                 devedor:id >= 0 ? (colunas[id] || '').trim() : (existente?.devedor || 'Não informado no relatório'),
                 nomeAndamento: nomeAndamento || 'Não informado',
                 ultimoAndamento:converterDataImportada(colunas[ia]),
+                fase: existente?.fase || faseAtiva,
             };
             if (item.credor && item.devedor && item.ultimoAndamento) registros.set(protocolo, {item, existente});
             else ignorados++;
@@ -353,8 +380,8 @@ function importarIntimacoesCsv(evento) {
 }
 
 function exportarIntimacoesCsv() {
-    const cabecalho = 'Protocolo;Credor;Devedor;Nome do Andamento;Data do Último Andamento;Última Conferência';
-    const linhas = intimacoes.map(item => [item.protocolo,item.credor,item.devedor,item.nomeAndamento || 'Não informado',item.ultimoAndamento,item.ultimaConferencia || '']
+    const cabecalho = 'Protocolo;Credor;Devedor;Fase;Nome do Andamento;Data do Último Andamento;Última Conferência';
+    const linhas = intimacoes.map(item => [item.protocolo,item.credor,item.devedor,item.fase || '',item.nomeAndamento || 'Não informado',item.ultimoAndamento,item.ultimaConferencia || '']
         .map(valor => `"${String(valor).replace(/"/g,'""')}"`).join(';'));
     baixarArquivo('\uFEFF' + [cabecalho,...linhas].join('\n'), 'text/csv;charset=utf-8', `intimacoes-aeri-${hojeLocal()}.csv`);
 }
@@ -370,6 +397,12 @@ function tratarAcaoTabela(evento) {
 
 export function iniciarIntimacoes() {
     document.getElementById('busca-intimacao').addEventListener('input', renderizarIntimacoes);
+    document.getElementById('rotina-fases').addEventListener('click', evento => {
+        const botao = evento.target.closest('button[data-fase]');
+        if (!botao) return;
+        faseAtiva = botao.dataset.fase;
+        renderizarIntimacoes();
+    });
     document.getElementById('btn-nova-intimacao').addEventListener('click', abrirFormularioIntimacao);
     document.getElementById('btn-fechar-intimacao').addEventListener('click', fecharFormularioIntimacao);
     document.getElementById('btn-cancelar-intimacao').addEventListener('click', fecharFormularioIntimacao);

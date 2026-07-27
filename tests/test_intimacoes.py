@@ -1,3 +1,4 @@
+import re
 import unittest
 from datetime import date
 from pathlib import Path
@@ -35,11 +36,62 @@ class TesteIntimacoes(unittest.TestCase):
                 "ultimo_andamento": date(2026, 7, 1),
                 "ultima_conferencia": None,
                 "historico": [],
+                "fase": "EDITAL",
             }
         )
 
         self.assertEqual("Prenotado", item["nomeAndamento"])
         self.assertEqual("2026-07-01", item["ultimoAndamento"])
+        self.assertEqual("EDITAL", item["fase"])
+
+    def test_classifica_fase_pelo_andamento(self):
+        self.assertEqual(
+            servico.FASE_EDITAL,
+            servico.fase_por_andamento("Aguardando pedido de Edital", servico.FASE_INICIAL),
+        )
+        self.assertEqual(
+            servico.FASE_CONSOLIDACAO,
+            servico.fase_por_andamento("Aguardando pedido de Consolidação", servico.FASE_INICIAL),
+        )
+        self.assertEqual(
+            servico.FASE_CONSOLIDACAO,
+            servico.fase_por_andamento("Intimação Positiva", servico.FASE_INICIAL),
+        )
+
+    def test_andamento_generico_preserva_fase_manual(self):
+        self.assertEqual(
+            servico.FASE_EDITAL,
+            servico.fase_por_andamento("Aguardando diligências RTD", servico.FASE_EDITAL),
+        )
+
+    def test_fase_de_consolidacao_nao_regride_por_edital(self):
+        self.assertEqual(
+            servico.FASE_CONSOLIDACAO,
+            servico.fase_por_andamento("Aguardando pedido de Edital", servico.FASE_CONSOLIDACAO),
+        )
+
+    def test_validacao_aceita_fase_manual_e_automatiza_avanco(self):
+        resultado = servico.validar_intimacao(
+            {
+                "protocolo": "IN01625306C",
+                "credor": "Credor",
+                "devedor": "Devedor",
+                "nomeAndamento": "Aguardando pedido de Edital",
+                "ultimoAndamento": "2026-07-27",
+                "fase": "INTIMACAO",
+            }
+        )
+
+        self.assertEqual(servico.FASE_EDITAL, resultado[5])
+
+    def test_migracao_classifica_protocolos_informados(self):
+        caminho = Path(__file__).parents[1] / "backend/app/migrations/010_fases_intimacoes.sql"
+        sql = caminho.read_text(encoding="utf-8")
+
+        protocolos = set(re.findall(r"'(IN\d{8}C)'", sql))
+        self.assertEqual(31, len(protocolos))
+        self.assertIn("IN01650919C", protocolos)
+        self.assertIn("IN01345616C", protocolos)
 
     def test_novo_andamento_e_opcional_na_conferencia(self):
         self.assertIsNone(servico.validar_novo_andamento(None))
