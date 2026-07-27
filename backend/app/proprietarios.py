@@ -394,12 +394,21 @@ def extrair_bloco(texto, tipo):
         m = re.search(r'adquirido\s+(?:por|pel[oa])\s*:?\s*(.*?)(?=\bpor compra\b|\bpelo preço\b|\bem pagamento\b|\bpor doação\b)', texto, re.I | re.DOTALL)
         if m:
             bloco = re.split(
-                r'\bneste\s+ato\s+representad[oa]\b|\bdevidamente\s+representad[oa]\b',
+                r'\bnest[ea]\s+ato\s+representad[oa]s?\b|\bdevidamente\s+representad[oa]s?\b',
                 m.group(1),
                 maxsplit=1,
                 flags=re.I,
             )[0]
             return bloco.strip().rstrip(';, ')
+
+        m = re.search(
+            r'\bfoi\s+partilhad[oa]\s+entre\s*:?\s*(.*?)'
+            r'(?=\*NOTA|\bDOU\s+F[ÉE]\b|\Z)',
+            texto,
+            re.I | re.DOTALL,
+        )
+        if m:
+            return m.group(1).strip().rstrip(';, ')
 
         m = re.search(
             r'coube\s+(?:a|ao|aos|à|às|á|ás)\s+(.*?)'
@@ -463,7 +472,7 @@ def extrair_bloco(texto, tipo):
         )
         if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'DOADOR(?:A|ES|AS)?\s*:(.*?)(?=\bINTERVENIENTE\s*:|\bDONAT[AÁ]RIO[S]?\s*:|\bOBJETO\s*:|\bIM[ÓOÃ“]VEL\s*:)', texto, re.I | re.DOTALL)
+        m = re.search(r'DOADOR(?:A|ES|AS)?\s*:(.*?)(?=\bINTERVENIENTE\s*:|\bDONAT[AÁ]RI[OA]S?\s*:|\bOBJETO\s*:|\bIM[ÓOÃ“]VEL\s*:)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(r'por compra feita(?:\s+feita)? (?:a|à|ao|aos|às)\s+(.*?)(?=\bpelo preço\b|\bpelo valor\b|;|\.\s*O referido)', texto, re.I | re.DOTALL)
@@ -508,6 +517,23 @@ def extrair_pessoas(texto_bloco):
         re.I | re.DOTALL
     )
 
+    # Escrituras antigas podem qualificar coletivamente uma lista de menores
+    # e informar documento apenas para o pai/representante. Nesse caso os
+    # nomes anteriores a "menores" são os adquirentes; o representante não é.
+    lista_menores = re.match(
+        r'^\s*(?P<nomes>[A-ZÀ-Ú][^;]{3,300}?)\s+menores?\s+'
+        r'(?:púberes?|impúberes?)\b',
+        texto_bloco,
+        re.I | re.DOTALL,
+    )
+    partes_coletivas = []
+    if lista_menores:
+        partes_coletivas = [
+            nome.strip(' ,;')
+            for nome in re.split(r'\s*,\s*|\s+e\s+', lista_menores.group("nomes"))
+            if len(nome.strip(' ,;').split()) >= 2
+        ]
+
     # Em atos com casal, cada cônjuge pode ter nome e CPF próprios no mesmo bloco.
     # Se não separarmos aqui, a limpeza abaixo remove o segundo cônjuge inteiro.
     partes_numeradas = re.split(
@@ -517,11 +543,14 @@ def extrair_pessoas(texto_bloco):
     )
     partes_numeradas = [p.strip() for p in partes_numeradas if p.strip()]
 
-    if len(partes_numeradas) > 1:
+    if len(partes_coletivas) > 1:
+        partes = partes_coletivas
+    elif len(partes_numeradas) > 1:
         partes = partes_numeradas
     else:
         partes_sem_ponto_virgula = re.split(
-            r';\s*(?:e\s*,?\s*)?(?=[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ]'
+            r';\s*(?:e\s*,?\s*)?(?=(?:(?:Dr|Dra|Doutor|Doutora)\.?\s+)?'
+            r'[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ]'
             r'[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇa-záàâãéèêíìîóòôõúùûç]+'
             r'(?:\s+[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ]'
             r'[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇa-záàâãéèêíìîóòôõúùûç]+){1,})',
@@ -627,6 +656,14 @@ def extrair_pessoas(texto_bloco):
         nome = re.sub(r'^(?:\+?\s*<[^>]+>\s*)+', '', nome)
         nome = re.sub(r'^\d+(?:\)\s*-?|-)\s*', '', nome)
         nome = re.sub(r'^(?:Dr\.?|Dra\.?|Doutor(?:a)?)\s+', '', nome, flags=re.I)
+        nome = re.sub(
+            r'^d[oa]\s+dom[ií]nio\s+(?:[uú]til|direto)\s+sobre\s+o\s+terreno'
+            r'(?:\s+descrito)?(?:\s+e\s+o\s+pr[eé]dio\s+residencial\s+nele\s+edificado)?'
+            r'\s+(?:[oa]\s+)?',
+            '',
+            nome,
+            flags=re.I,
+        )
         cpf = cpf_match.group(1).strip().rstrip('.,;') if cpf_match else "CPF/CNPJ NÃO INFORMADO"
 
         # Limpeza visual (remove estado civil e termo "pessoa jurídica")
