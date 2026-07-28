@@ -114,11 +114,16 @@ class TesteSeguranca(unittest.TestCase):
         raiz = Path(__file__).resolve().parent.parent
         configuracao = json.loads((raiz / "vercel.json").read_text(encoding="utf-8"))
         cabecalhos = {
-            item["key"].lower()
+            item["key"].lower(): item["value"]
             for grupo in configuracao.get("headers", [])
             for item in grupo.get("headers", [])
         }
         self.assertNotIn("x-frame-options", cabecalhos)
+        self.assertIn("content-security-policy", cabecalhos)
+        self.assertIn(
+            "frame-ancestors 'self' http://baseti.cri.local:3031",
+            cabecalhos["content-security-policy"],
+        )
 
     def test_middleware_libera_frame_apenas_para_sync_configurado(self):
         escopo = {

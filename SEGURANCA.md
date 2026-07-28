@@ -20,7 +20,7 @@
 - `AERI_ADMIN_USER`: usuário administrativo.
 - `AERI_ADMIN_PASSWORD`: senha forte usada somente para criar a conta administrativa inicial. Depois disso, a senha deve ser alterada pela opção **Alterar senha** do próprio AERI.
 - `AERI_ORIGIN`: origem exata de produção, por exemplo `https://aeri.vercel.app`, sem barra no final.
-- `SYNC_ORIGIN`: origem exata onde o SYNC está publicado, sem caminho ou barra no final. HTTPS é obrigatório para domínios públicos; HTTP é aceito somente para `.local`, localhost e IPs privados/loopback. O endereço interno real deve existir apenas na variável protegida do ambiente de produção. Quando configurada, essa é a única origem externa autorizada pelo `frame-ancestors` a incorporar o AERI.
+- `SYNC_ORIGIN`: origem exata onde o SYNC está publicado, sem caminho ou barra no final. HTTPS é obrigatório para domínios públicos; HTTP é aceito somente para `.local`, localhost e IPs privados/loopback. A origem autorizada também está declarada no cabeçalho CSP do `vercel.json`; as duas configurações devem permanecer iguais. Quando configurada, essa é a única origem externa autorizada pelo `frame-ancestors` a incorporar o AERI.
 - `AERI_AUDIT_RETENTION_DAYS`: retenção dos eventos de auditoria, entre 30 e 730 dias; padrão 180.
 
 Depois de alterar qualquer variável, é obrigatório fazer um novo deployment.
