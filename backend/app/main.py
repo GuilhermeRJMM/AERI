@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from backend.app.rotas import analisador, autenticacao, incra, intimacoes, status_onr, usuarios
+from backend.app.seguranca_web import politica_frame_ancestors
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -34,12 +35,12 @@ async def seguranca_http(request: Request, call_next):
         return JSONResponse({"detail": "Requisição excede o limite permitido."}, status_code=413)
     resposta = await call_next(request)
     resposta.headers["X-Content-Type-Options"] = "nosniff"
-    resposta.headers["X-Frame-Options"] = "DENY"
     resposta.headers["Referrer-Policy"] = "no-referrer"
     resposta.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
     resposta.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     resposta.headers["Content-Security-Policy"] = (
-        "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; "
+        "default-src 'self'; base-uri 'self'; form-action 'self'; "
+        f"frame-ancestors {politica_frame_ancestors()}; "
         "object-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self' data:; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com"

@@ -5,13 +5,13 @@
 - Senhas armazenadas com Argon2id e migração automática dos hashes PBKDF2 anteriores.
 - Senha administrativa com no mínimo 14 caracteres, maiúscula, minúscula, número e símbolo.
 - Sessões aleatórias e revogáveis persistidas no Postgres, com duração máxima de 8 horas e encerramento após 30 minutos de inatividade.
-- Cookie de sessão `__Host-`, `Secure`, `HttpOnly`, `SameSite=Strict` e restrito ao caminho raiz.
+- Cookie de sessão `__Host-`, `Secure`, `HttpOnly` e restrito ao caminho raiz. Usa `SameSite=Strict` por padrão e `SameSite=None` somente quando a incorporação pelo SYNC está configurada.
 - Token CSRF e validação de origem em todas as operações que alteram estado ou iniciam processamento.
 - Bloqueio por 15 minutos após cinco falhas de login para a mesma combinação de usuário e IP.
 - Auditoria de login, logout, análises e alterações de intimações sem armazenar senhas ou textos de matrículas.
 - Contas individuais com perfis `ADMIN`, `OPERADOR` e `CONSULTA`, bloqueio imediato e troca obrigatória de senha temporária.
 - Limite de 5 milhões de caracteres para matrícula, 15 MB para PDF e 16 MB por requisição.
-- Cabeçalhos CSP, HSTS, anti-iframe, `nosniff`, política de referência e política de permissões.
+- Cabeçalhos CSP, HSTS, `nosniff`, política de referência e política de permissões. A incorporação por iframe é bloqueada por padrão e pode ser liberada exclusivamente para a origem exata do SYNC.
 - Consultas SQL parametrizadas, timeout de conexão e segredos somente em variáveis de ambiente.
 
 ## Variáveis obrigatórias na Vercel
@@ -20,6 +20,7 @@
 - `AERI_ADMIN_USER`: usuário administrativo.
 - `AERI_ADMIN_PASSWORD`: senha forte usada somente para criar a conta administrativa inicial. Depois disso, a senha deve ser alterada pela opção **Alterar senha** do próprio AERI.
 - `AERI_ORIGIN`: origem exata de produção, por exemplo `https://aeri.vercel.app`, sem barra no final.
+- `SYNC_ORIGIN`: origem exata onde o SYNC está publicado, sem caminho ou barra no final. HTTPS é obrigatório para domínios públicos; HTTP é aceito somente para `.local`, localhost e IPs privados/loopback. O endereço interno real deve existir apenas na variável protegida do ambiente de produção. Quando configurada, essa é a única origem externa autorizada pelo `frame-ancestors` a incorporar o AERI.
 - `AERI_AUDIT_RETENTION_DAYS`: retenção dos eventos de auditoria, entre 30 e 730 dias; padrão 180.
 
 Depois de alterar qualquer variável, é obrigatório fazer um novo deployment.

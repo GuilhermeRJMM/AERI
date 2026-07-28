@@ -19,6 +19,7 @@ from backend.app.autenticacao import (
 from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import (
     ip_cliente,
+    politica_samesite_sessao,
     registrar_auditoria,
     registrar_auditoria_cursor,
     validar_origem,
@@ -74,7 +75,7 @@ def login(dados: dict, request: Request):
     })
     resposta.set_cookie(
         COOKIE_SESSAO, token, max_age=SESSAO_SEGUNDOS, httponly=True,
-        secure=True, samesite="strict", path="/",
+        secure=True, samesite=politica_samesite_sessao(), path="/",
     )
     return resposta
 
@@ -95,5 +96,10 @@ def logout(request: Request):
     revogar_sessao(request)
     registrar_auditoria(request, "logout", "sucesso", usuario)
     resposta = Response(status_code=204)
-    resposta.delete_cookie(COOKIE_SESSAO, path="/", secure=True, samesite="strict")
+    resposta.delete_cookie(
+        COOKIE_SESSAO,
+        path="/",
+        secure=True,
+        samesite=politica_samesite_sessao(),
+    )
     return resposta
