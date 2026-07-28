@@ -10,6 +10,7 @@ from fastapi import Request, Response
 from backend.app.autenticacao import hash_senha, permissoes_sessao, senha_forte, verificar_senha
 from backend.app.seguranca_web import (
     origem_sync_autorizada,
+    origens_sync_autorizadas,
     politica_frame_ancestors,
     politica_samesite_sessao,
 )
@@ -61,6 +62,7 @@ class TesteSeguranca(unittest.TestCase):
     def test_iframe_permanece_bloqueado_sem_origem_sync(self):
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("SYNC_ORIGIN", None)
+            os.environ.pop("SYNC_ORIGINS", None)
             self.assertIsNone(origem_sync_autorizada())
             self.assertEqual(politica_frame_ancestors(), "'none'")
             self.assertEqual(politica_samesite_sessao(), "strict")
@@ -79,6 +81,41 @@ class TesteSeguranca(unittest.TestCase):
                 "'self' https://sync.cartorio.example",
             )
             self.assertEqual(politica_samesite_sessao(), "none")
+
+    def test_libera_todos_os_ancestrais_internos_do_sync(self):
+        with patch.dict(
+            os.environ,
+            {
+                "SYNC_ORIGINS": (
+                    "http://baseti.cri.local:3031,"
+                    "http://localhost:3031"
+                )
+            },
+        ):
+            self.assertEqual(
+                origens_sync_autorizadas(),
+                (
+                    "http://baseti.cri.local:3031",
+                    "http://localhost:3031",
+                ),
+            )
+            self.assertEqual(
+                politica_frame_ancestors(),
+                "'self' http://baseti.cri.local:3031 http://localhost:3031",
+            )
+
+    def test_lista_de_origens_falha_fechada_se_um_item_for_invalido(self):
+        with patch.dict(
+            os.environ,
+            {
+                "SYNC_ORIGINS": (
+                    "http://sync.interno.local:3031,"
+                    "https://host.example/caminho"
+                )
+            },
+        ):
+            self.assertEqual(origens_sync_autorizadas(), ())
+            self.assertEqual(politica_frame_ancestors(), "'none'")
 
     def test_libera_http_somente_para_origem_interna_exata_do_sync(self):
         with patch.dict(
@@ -122,6 +159,10 @@ class TesteSeguranca(unittest.TestCase):
         self.assertIn("content-security-policy", cabecalhos)
         self.assertIn(
             "frame-ancestors 'self' http://baseti.cri.local:3031",
+            cabecalhos["content-security-policy"],
+        )
+        self.assertIn(
+            "http://localhost:3031",
             cabecalhos["content-security-policy"],
         )
 

@@ -22,16 +22,8 @@ def _host_http_interno(hostname: str) -> bool:
     return endereco.is_private or endereco.is_loopback
 
 
-def origem_sync_autorizada() -> str | None:
-    """Retorna a origem exata autorizada a incorporar o AERI.
-
-    A validação impede que uma variável de ambiente malformada injete novas
-    diretivas na CSP. Caminhos, credenciais, query string e fragmentos não são
-    aceitos porque ``frame-ancestors`` trabalha com origens, não com URLs.
-    HTTPS é obrigatório para domínios públicos; HTTP só é aceito em hosts
-    internos (``.local``, localhost ou endereços IP privados/loopback).
-    """
-    valor = os.getenv("SYNC_ORIGIN", "").strip().rstrip("/")
+def _normalizar_origem_sync(valor: str) -> str | None:
+    valor = valor.strip().rstrip("/")
     if not valor or any(caractere.isspace() for caractere in valor):
         return None
     partes = urlsplit(valor)
@@ -55,15 +47,40 @@ def origem_sync_autorizada() -> str | None:
     return f"{partes.scheme}://{partes.hostname.lower()}{porta}"
 
 
+def origens_sync_autorizadas() -> tuple[str, ...]:
+    """Retorna as origens exatas autorizadas a incorporar o AERI.
+
+    A validação impede que uma variável de ambiente malformada injete novas
+    diretivas na CSP. Caminhos, credenciais, query string e fragmentos não são
+    aceitos porque ``frame-ancestors`` trabalha com origens, não com URLs.
+    HTTPS é obrigatório para domínios públicos; HTTP só é aceito em hosts
+    internos (``.local``, localhost ou endereços IP privados/loopback).
+    """
+    bruto = os.getenv("SYNC_ORIGINS") or os.getenv("SYNC_ORIGIN", "")
+    valores = [valor for valor in bruto.split(",") if valor.strip()]
+    if not valores:
+        return ()
+    normalizadas = [_normalizar_origem_sync(valor) for valor in valores]
+    if any(origem is None for origem in normalizadas):
+        return ()
+    return tuple(dict.fromkeys(origem for origem in normalizadas if origem))
+
+
+def origem_sync_autorizada() -> str | None:
+    """Mantém compatibilidade retornando a primeira origem autorizada."""
+    origens = origens_sync_autorizadas()
+    return origens[0] if origens else None
+
+
 def politica_frame_ancestors() -> str:
-    origem_sync = origem_sync_autorizada()
-    return f"'self' {origem_sync}" if origem_sync else "'none'"
+    origens_sync = origens_sync_autorizadas()
+    return f"'self' {' '.join(origens_sync)}" if origens_sync else "'none'"
 
 
 def politica_samesite_sessao() -> str:
     # Cookies em iframe entre sites exigem SameSite=None e Secure. Quando a
     # incorporação não está configurada, preservamos a política Strict atual.
-    return "none" if origem_sync_autorizada() else "strict"
+    return "none" if origens_sync_autorizadas() else "strict"
 
 
 def ip_cliente(request: Request) -> str:
