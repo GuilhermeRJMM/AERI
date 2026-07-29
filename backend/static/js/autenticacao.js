@@ -17,6 +17,7 @@ function aplicarPermissoesSidebar(dados) {
     definirModuloVisivel('onus', admin || Boolean(permissoes.processar_matricula));
     definirModuloVisivel('incra', admin || Boolean(permissoes.processar_incra));
     definirModuloVisivel('rotina', admin || Boolean(permissoes.ver_intimacoes));
+    definirModuloVisivel('mapa-onr-robo', true);
     definirModuloVisivel('usuarios', admin);
 
     const ativo = document.querySelector('.nav-item.active');

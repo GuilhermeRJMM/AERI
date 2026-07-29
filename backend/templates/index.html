@@ -109,6 +109,14 @@
                     <span>Rotina - Intimação</span>
                 </div>
 
+                <div class="nav-item" data-page="mapa-onr-robo" title="MAPA ONR - ROBÔ" hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="4" y="7" width="16" height="13" rx="3"/>
+                        <path d="M9 7V5a3 3 0 0 1 6 0v2M8 13h.01M16 13h.01M9 17h6M2 12h2M20 12h2"/>
+                    </svg>
+                    <span>MAPA ONR - ROBÔ</span>
+                </div>
+
                 <div class="nav-item" id="nav-usuarios" data-page="usuarios" title="Usuários e Acessos" hidden>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
                     <span>Usuários e Acessos</span>
@@ -229,6 +237,54 @@
                                 <tbody id="rotina-tbody"></tbody>
                             </table>
                         </div>
+                    </section>
+                </main>
+            </div>
+
+            <div id="page-mapa-onr-robo" class="page">
+                <main class="layout mapa-robo-layout">
+                    <div class="mapa-robo-header">
+                        <div>
+                            <span class="eyebrow">CENTRAL EXPERIMENTAL</span>
+                            <h1>MAPA ONR - ROBÔ</h1>
+                            <p>Monitoramento de alta tecnologia para localizar movimentações no mapa e descobrir onde o Eduardo foi parar.</p>
+                        </div>
+                        <span class="mapa-robo-selo">MODO EDUARDO</span>
+                    </div>
+
+                    <section class="mapa-robo-grid">
+                        <div class="mapa-robo-console">
+                            <div class="mapa-robo-radar" aria-hidden="true">
+                                <span class="mapa-robo-varredura"></span>
+                                <span class="mapa-robo-ponto mapa-robo-ponto-onr"><i>ONR</i></span>
+                                <span class="mapa-robo-ponto mapa-robo-ponto-aeri"><i>AERI</i></span>
+                                <span class="mapa-robo-ponto mapa-robo-ponto-eduardo"><i>EDUARDO</i></span>
+                                <div class="mapa-robo-avatar">
+                                    <svg width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="4" y="7" width="16" height="13" rx="3"/>
+                                        <path d="M9 7V5a3 3 0 0 1 6 0v2M8.5 13h.01M15.5 13h.01M9 17h6M2 12h2M20 12h2"/>
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div class="mapa-robo-operacao">
+                                <span id="mapa-robo-status" class="mapa-robo-status">ROBÔ EM ESPERA</span>
+                                <h2 id="mapa-robo-mensagem">Pronto para iniciar a operação.</h2>
+                                <p id="mapa-robo-detalhe" aria-live="polite">Clique no botão para ativar o rastreamento cartorário mais avançado de Morrinhos.</p>
+                                <div class="mapa-robo-progresso" aria-hidden="true"><span id="mapa-robo-progresso-barra"></span></div>
+                                <button id="btn-mapa-robo" class="btn btn-primary mapa-robo-btn" type="button">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                                    <span>Iniciar varredura</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <aside class="mapa-robo-diagnostico" aria-label="Diagnóstico do robô">
+                            <div><span>SINAL DO EDUARDO</span><strong id="mapa-robo-sinal">Aguardando</strong><small>Última leitura do radar</small></div>
+                            <div><span>NÍVEL DE CAFÉ</span><strong id="mapa-robo-cafe">Indeterminado</strong><small>Combustível operacional</small></div>
+                            <div><span>PRODUTIVIDADE</span><strong id="mapa-robo-produtividade">Sob sigilo</strong><small>Dados protegidos pelo Eduardo</small></div>
+                            <div class="mapa-robo-aviso"><strong>Nota técnica</strong><p>Resultados sujeitos à confirmação presencial. O robô não se responsabiliza por pausas estratégicas perto da cafeteira.</p></div>
+                        </aside>
                     </section>
                 </main>
             </div>
@@ -375,6 +431,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260727-detalhes-inicial"></script>
+    <script type="module" src="/static/js/app.js?v=20260729-mapa-onr-robo"></script>
 </body>
 </html>

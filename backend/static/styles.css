@@ -2385,6 +2385,67 @@ input::placeholder {
 #page-onus .section-input-row { justify-content: center; }
 #page-onus .matricula-clear-bar { justify-content: center; }
 
+/* --- MAPA ONR - ROBÔ --- */
+.mapa-robo-layout { max-width: 1220px; margin-inline: auto; }
+.mapa-robo-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.mapa-robo-header h1 { margin: 6px 0 8px; color: var(--text-main); font-size: clamp(2rem, 4vw, 3.25rem); letter-spacing: -.055em; }
+.mapa-robo-header p { max-width: 720px; color: var(--text-muted); line-height: 1.65; }
+.mapa-robo-selo { flex: 0 0 auto; padding: 9px 13px; border: 1px solid rgba(65, 216, 143, .3); border-radius: 999px; background: rgba(65, 216, 143, .1); color: var(--accent-green); font-size: .7rem; font-weight: 800; letter-spacing: .12em; }
+.mapa-robo-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .75fr); gap: 22px; align-items: stretch; }
+.mapa-robo-console,
+.mapa-robo-diagnostico > div { border: 1px solid rgba(139, 152, 178, .18); background: rgba(12, 18, 32, .76); box-shadow: 0 24px 60px rgba(2, 6, 23, .28); }
+.mapa-robo-console { display: grid; grid-template-columns: minmax(290px, .95fr) minmax(280px, 1.05fr); min-height: 510px; overflow: hidden; border-radius: 22px; }
+.mapa-robo-radar { position: relative; display: grid; place-items: center; min-height: 390px; overflow: hidden; background: linear-gradient(rgba(65, 216, 143, .07) 1px, transparent 1px), linear-gradient(90deg, rgba(65, 216, 143, .07) 1px, transparent 1px), radial-gradient(circle, transparent 19%, rgba(65, 216, 143, .18) 20%, transparent 20.8%, transparent 39%, rgba(65, 216, 143, .16) 40%, transparent 40.8%, transparent 59%, rgba(65, 216, 143, .13) 60%, transparent 60.8%), radial-gradient(circle at 50% 50%, rgba(16, 185, 129, .13), rgba(6, 13, 27, .96) 68%); background-size: 32px 32px, 32px 32px, 100% 100%, 100% 100%; }
+.mapa-robo-radar::before,
+.mapa-robo-radar::after { content: ''; position: absolute; background: rgba(65, 216, 143, .2); }
+.mapa-robo-radar::before { width: 1px; height: 100%; }
+.mapa-robo-radar::after { width: 100%; height: 1px; }
+.mapa-robo-varredura { position: absolute; inset: 8%; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 78%, rgba(65, 216, 143, .08) 88%, rgba(65, 216, 143, .58) 100%); opacity: .28; }
+.mapa-robo-console.varrendo .mapa-robo-varredura { animation: mapaRoboRadar 1.35s linear infinite; opacity: 1; }
+.mapa-robo-avatar { position: relative; z-index: 2; display: grid; place-items: center; width: 118px; height: 118px; border: 1px solid rgba(65, 216, 143, .4); border-radius: 32px; background: rgba(13, 31, 46, .88); color: var(--accent-green); box-shadow: 0 0 0 12px rgba(65, 216, 143, .04), 0 20px 55px rgba(0, 0, 0, .34); }
+.mapa-robo-console.encontrado .mapa-robo-avatar { border-color: rgba(65, 216, 143, .8); box-shadow: 0 0 0 12px rgba(65, 216, 143, .08), 0 0 42px rgba(65, 216, 143, .26); }
+.mapa-robo-ponto { position: absolute; z-index: 3; width: 9px; height: 9px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 0 6px rgba(56, 189, 248, .1), 0 0 18px rgba(56, 189, 248, .6); }
+.mapa-robo-ponto i { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); color: #8b98b2; font-size: .57rem; font-style: normal; font-weight: 800; letter-spacing: .08em; }
+.mapa-robo-ponto-onr { top: 24%; left: 24%; }
+.mapa-robo-ponto-aeri { right: 22%; bottom: 23%; }
+.mapa-robo-ponto-eduardo { top: 25%; right: 21%; background: #fbbf24; box-shadow: 0 0 0 6px rgba(251, 191, 36, .1), 0 0 18px rgba(251, 191, 36, .7); }
+.mapa-robo-console:not(.encontrado) .mapa-robo-ponto-eduardo { opacity: .15; }
+.mapa-robo-operacao { display: flex; flex-direction: column; justify-content: center; padding: clamp(28px, 5vw, 52px); background: linear-gradient(145deg, rgba(28, 38, 60, .82), rgba(13, 20, 34, .94)); }
+.mapa-robo-status { align-self: flex-start; padding: 7px 10px; border-radius: 7px; background: rgba(96, 115, 148, .14); color: #aab5c8; font-size: .68rem; font-weight: 800; letter-spacing: .1em; }
+.mapa-robo-status.localizado { background: rgba(65, 216, 143, .12); color: var(--accent-green); }
+.mapa-robo-operacao h2 { margin: 20px 0 10px; color: var(--text-main); font-size: 1.8rem; }
+.mapa-robo-operacao p { min-height: 52px; color: var(--text-muted); line-height: 1.6; }
+.mapa-robo-progresso { height: 7px; margin: 28px 0 20px; overflow: hidden; border-radius: 99px; background: rgba(139, 152, 178, .13); }
+.mapa-robo-progresso span { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #38bdf8, var(--accent-green)); box-shadow: 0 0 18px rgba(65, 216, 143, .4); transition: width .12s linear; }
+.mapa-robo-btn { justify-content: center; width: 100%; }
+.mapa-robo-diagnostico { display: grid; gap: 14px; }
+.mapa-robo-diagnostico > div { display: flex; flex-direction: column; justify-content: center; min-height: 112px; padding: 20px 22px; border-radius: 16px; }
+.mapa-robo-diagnostico span { color: #73819c; font-size: .66rem; font-weight: 800; letter-spacing: .1em; }
+.mapa-robo-diagnostico strong { margin: 7px 0 3px; color: var(--text-main); font-size: 1.25rem; }
+.mapa-robo-diagnostico small { color: var(--text-muted); font-size: .72rem; }
+.mapa-robo-diagnostico .mapa-robo-aviso { background: linear-gradient(145deg, rgba(65, 216, 143, .1), rgba(12, 18, 32, .8)); }
+.mapa-robo-aviso strong { color: var(--accent-green); font-size: .82rem; }
+.mapa-robo-aviso p { margin: 3px 0 0; color: var(--text-muted); font-size: .78rem; line-height: 1.55; }
+@keyframes mapaRoboRadar { to { transform: rotate(360deg); } }
+
+@media (max-width: 980px) {
+  .mapa-robo-grid { grid-template-columns: 1fr; }
+  .mapa-robo-diagnostico { grid-template-columns: repeat(3, 1fr); }
+  .mapa-robo-aviso { grid-column: 1 / -1; }
+}
+
+@media (max-width: 720px) {
+  .mapa-robo-header { flex-direction: column; }
+  .mapa-robo-console { grid-template-columns: 1fr; }
+  .mapa-robo-radar { min-height: 330px; }
+  .mapa-robo-diagnostico { grid-template-columns: 1fr; }
+  .mapa-robo-aviso { grid-column: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mapa-robo-console.varrendo .mapa-robo-varredura { animation: none; }
+}
+
 @media (max-width: 620px) {
   .matricula-search-row { align-items: stretch; flex-wrap: wrap; padding: 14px; }
   .matricula-search-icon { align-items: center; }
