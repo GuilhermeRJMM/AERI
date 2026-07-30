@@ -98,6 +98,20 @@ class TesteTipoOnus(unittest.TestCase):
         )
         self.assertTrue(all(ato["status"] == "ATIVO" for ato in atos.values()))
 
+    def test_sequestro_do_imovel_configura_onus(self):
+        texto = """
+        AV.17-123 - SEQUESTRO DO IMÓVEL. Nos termos do mandado judicial,
+        procede-se ao sequestro do imóvel objeto desta matrícula.
+        """
+
+        resultado = analisar_matricula(texto)
+
+        self.assertEqual(resultado["resultado"], "POSITIVA PARA ÔNUS")
+        self.assertEqual(len(resultado["atos"]), 1)
+        self.assertEqual(resultado["atos"][0]["categoria"], "ÔNUS")
+        self.assertEqual(resultado["atos"][0]["tipo_onus"], "SEQUESTRO")
+        self.assertEqual(resultado["atos"][0]["status"], "ATIVO")
+
 
 if __name__ == "__main__":
     unittest.main()

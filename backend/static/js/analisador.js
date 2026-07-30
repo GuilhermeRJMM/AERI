@@ -155,44 +155,74 @@ function grupoGenerico(itens, rotulo) {
 }
 
 function gruposCompletosImovel(imovel) {
-    const identificacao = completarCamposImovel(imovel.identificacao, [
-        campoPorRotulos('Matrícula', 'Matrícula'),
+    const tipo = normalizarRotulo(imovel.tipo);
+    const rural = tipo === 'RURAL';
+    const urbano = tipo === 'URBANO';
+    const camposIdentificacao = [campoPorRotulos('Matrícula', 'Matrícula')];
+    if (!urbano) camposIdentificacao.push(
         campoPorRotulos('Nome / denominação', 'Nome', 'Denominação'),
+    );
+    if (!rural) camposIdentificacao.push(
         campoPorRotulos('Lote', 'Lote'),
         campoPorRotulos('Quadra', 'Quadra'),
         campoPorRotulos('Rua', 'Rua'),
         campoPorRotulos('Número', 'Número'),
         campoPorRotulos('Setor', 'Setor'),
-    ]);
+    );
+    const identificacaoPermitida = (Array.isArray(imovel.identificacao) ? imovel.identificacao : [])
+        .filter(item => {
+            const rotulo = normalizarRotulo(item.rotulo);
+            if (rural) return ['MATRICULA', 'NOME', 'DENOMINACAO'].includes(rotulo);
+            if (urbano) return !['NOME', 'DENOMINACAO'].includes(rotulo);
+            return true;
+        });
+    const identificacao = completarCamposImovel(identificacaoPermitida, camposIdentificacao);
     const confrontacoes = completarCamposImovel(imovel.confrontacoes, [
         campoPorRotulos('Frente', 'Frente'),
         campoPorRotulos('Lado direito', 'Lado direito'),
         campoPorRotulos('Lado esquerdo', 'Lado esquerdo'),
         campoPorRotulos('Fundos', 'Fundos'),
     ]);
-    const areas = completarCamposImovel(imovel.areas, [
+    const camposAreas = [
         campoPorRotulos('Área registral', 'Área'),
         campoPorRotulos('Área construída', 'Área construída'),
+    ];
+    if (!urbano) camposAreas.push(
         campoPorRotulos('Área no CCIR', 'Área no CCIR'),
         campoPorRotulos('Área declarada no CAR', 'Área declarada no CAR'),
-    ]);
-    const cadastros = completarCamposImovel(imovel.cadastros, [
-        {
-            rotulo: 'Cadastro municipal',
-            corresponde: item => normalizarRotulo(item.rotulo) === 'CADASTRO MUNICIPAL'
-                && !/\bCCI\b/i.test(String(item.valor || '')),
-        },
-        {
-            rotulo: 'CCI',
-            corresponde: item => normalizarRotulo(item.rotulo) === 'CCI'
-                || /\bCCI\b/i.test(String(item.valor || '')),
-        },
-        campoPorRotulos('CEP', 'CEP'),
+    );
+    const areasPermitidas = (Array.isArray(imovel.areas) ? imovel.areas : [])
+        .filter(item => !urbano || ![
+            'AREA NO CCIR',
+            'AREA DECLARADA NO CAR',
+        ].includes(normalizarRotulo(item.rotulo)));
+    const areas = completarCamposImovel(areasPermitidas, camposAreas);
+
+    const cadastroMunicipal = {
+        rotulo: 'Cadastro municipal / CCI',
+        corresponde: item => ['CADASTRO MUNICIPAL', 'CCI', 'CADASTRO MUNICIPAL / CCI']
+            .includes(normalizarRotulo(item.rotulo)) || /\bCCI\b/i.test(String(item.valor || '')),
+    };
+    const camposCadastros = [];
+    if (!rural) camposCadastros.push(cadastroMunicipal, campoPorRotulos('CEP', 'CEP'));
+    if (!urbano) camposCadastros.push(
         campoPorRotulos('CCIR / código rural', 'CCIR / código rural'),
         campoPorRotulos('INCRA', 'INCRA'),
         campoPorRotulos('CAR', 'CAR'),
         campoPorRotulos('Coordenadas do CAR', 'Coordenadas do CAR'),
+    );
+    const rotulosRurais = new Set([
+        'CCIR / CODIGO RURAL',
+        'INCRA',
+        'CAR',
+        'COORDENADAS DO CAR',
     ]);
+    const cadastrosPermitidos = (Array.isArray(imovel.cadastros) ? imovel.cadastros : [])
+        .filter(item => !urbano || !rotulosRurais.has(normalizarRotulo(item.rotulo)))
+        .map(item => cadastroMunicipal.corresponde(item)
+            ? {...item, rotulo: cadastroMunicipal.rotulo}
+            : item);
+    const cadastros = completarCamposImovel(cadastrosPermitidos, camposCadastros);
     const restricoes = grupoGenerico(imovel.restricoes, 'Restrições e dados ambientais');
     const divergencias = grupoGenerico(imovel.divergencias, 'Divergências');
     return {identificacao, confrontacoes, areas, cadastros, restricoes, divergencias};
