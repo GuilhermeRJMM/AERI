@@ -2,6 +2,7 @@ import re
 import unicodedata
 import math
 from difflib import SequenceMatcher
+from types import SimpleNamespace
 
 from backend.app.parser import separar_atos
 
@@ -128,6 +129,20 @@ def parse_percent(texto):
     )
     if fracao_objeto and int(fracao_objeto.group(2)) > 0:
         return int(fracao_objeto.group(1)) / int(fracao_objeto.group(2)) * 100.0
+
+    fracao_direta_imovel = re.search(
+        r'(?<!\d)(\d+)\s*/\s*(\d+)\s*'
+        r'(?:\([^)]{1,80}\)\s*)?(?:do|sobre\s+o)\s+im[óo]vel\s+'
+        r'(?:objeto|constante|descrito)\b',
+        texto,
+        re.I,
+    )
+    if fracao_direta_imovel and int(fracao_direta_imovel.group(2)) > 0:
+        return (
+            int(fracao_direta_imovel.group(1))
+            / int(fracao_direta_imovel.group(2))
+            * 100.0
+        )
 
     # Percentual declarado no título prevalece sobre valores monetários.
     # Sem essa prioridade, "parte ideal de 50% ... avaliação de 700.000,10"
@@ -272,6 +287,16 @@ def parse_percent(texto):
         if parte is not None and total and 0 <= parte <= total:
             return (parte / total) * 100.0
 
+    m_pagamento = re.search(
+        r'\bem\s+pagamento\b.{0,500}?'
+        r'(\d+(?:[,.]\d+)?)\s*%.{0,500}?'
+        r'\b(?:sobre|do)\s+(?:o\s+)?im[óo]vel\b',
+        texto,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if m_pagamento:
+        return parse_percentual_declarado(m_pagamento.group(1))
+
     m0 = re.search(r'IM[ÓOÃ“]VEL\s*:\s*(?:equivalente\s+a\s*)?(\d+(?:,\d+)?)%', texto, re.IGNORECASE)
     if m0: return parse_percentual_declarado(m0.group(1))
 
@@ -294,6 +319,24 @@ def parse_percent(texto):
 
 def extrair_bloco(texto, tipo):
     if tipo == "ADQUIRENTE":
+        # Nas divisões, a lista de "outorgados" pode reunir todos os
+        # condôminos apenas para qualificação. A cláusula "coube
+        # exclusivamente" é que identifica quem recebeu este quinhão.
+        if re.search(r'\bDIVIS[ÃA]O\b|\bDIVISÓRIA\b', texto, re.I):
+            m = re.search(
+                r'\bcoube\s+exclusivamente\s+(?:a|ao|aos|à|às)\s+'
+                r'(?:(?:cond[oô]min[oa]s?|meeir[oa]s?|herdeir[oa]s?)\s+)?(.*?)'
+                r'(?=\bo\s+quinh[ãa]o\b|\bem pagamento\b|\bem virtude\b|'
+                r',\s*(?:j[áa]\s+qualificad[oa]s?\s*,\s*)?'
+                r'(?:a\s+gleba|o\s+im[óo]vel|a\s+[áa]rea)\b|'
+                r',\s*no\s+valor\b|\bconforme\b|'
+                r'\.\s*(?:\*?\s*NOTA\b|O\s+referido|DOU\s+F[ÉE])|\Z)',
+                texto,
+                re.I | re.DOTALL,
+            )
+            if m:
+                return m.group(1).strip().rstrip(';, ')
+
         # Em divórcios antigos, "outorgantes e reciprocamente outorgados" nomeia
         # o casal inteiro, mas o próprio ato pode atribuir a fração a somente um
         # deles. A cláusula dispositiva prevalece sobre o rótulo genérico.
@@ -310,7 +353,9 @@ def extrair_bloco(texto, tipo):
                 return m.group(1).strip().rstrip(';, ')
 
         m = re.search(
-            r'\b(?:ADQUIRENTES?(?:/TOMADOR(?:ES)?)?|OUTORGADOS?|DONAT[ÁA]RI[OA]S?|ADJUDICANTES?|'
+            r'\b(?:ADQUIRENTES?(?:/(?:TOMADOR(?:ES)?|'
+            r'(?:PRIMEIR|SEGUND)[OA]S?\s+PERMUTANTES?))?|'
+            r'OUTORGADOS?|DONAT[ÁA]RI[OA]S?|ADJUDICANTES?|'
             r'ARREMATANTES?|COMPRADOR(?:ES)?)\s*:\s*(.*?)'
             r'(?=\b(?:IM[ÓO]VEL|OBJETO|ORIGEM|FORMA\s+DO\s+T[ÍI]TULO|'
             r'TRANSMITENTES?|OUTORGANTES?|DOADORES?|INTERVENIENTES?(?:\s+ANUENTES?)?)\s*:|'
@@ -338,12 +383,24 @@ def extrair_bloco(texto, tipo):
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(
-            r'\bação\s+de\s+usucapião\s+promovida\s+por\s+(.*?)'
+            r'\bação\s+de\s+usucapião\s*,?\s*promovida\s+por\s+(.*?)'
             r'(?=\s+em\s+desfavor\b|\s+contra\b|\*NOTA|\bCOTAÇÃO\b|\.\s*Dou|\.\s*DOU|\Z)',
             texto,
             re.I | re.DOTALL,
         )
         if m: return m.group(1).strip().rstrip(';, ')
+
+        # Alguns registros históricos omitem a preposição "por" antes da
+        # relação numerada dos compradores: "foi adquirido 1)- ...; 2)- ...".
+        m = re.search(
+            r'\bfoi\s+adquirid[oa]\s*:?\s*'
+            r'((?:\(?\d{1,3}\)?\s*[-)]\s*).*?)'
+            r'(?=\bpor\s+compra\s+feita\b)',
+            texto,
+            re.I | re.DOTALL,
+        )
+        if m:
+            return m.group(1).strip().rstrip(';, ')
 
         m = re.search(
             r'foi\s+incorporad[oa]\s+ao\s+patrim[oô]nio\s+d[oa]\s+(?:sociedade\s+empres[áa]ria\s+limitada\s+)?'
@@ -391,7 +448,7 @@ def extrair_bloco(texto, tipo):
         m = re.search(r'DONAT[AÁ]RI[OA]S?\s*:(.*?)(?=\bIM[ÓOÃ“]VEL\s*:|\bOBJETO\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'adquirido\s+(?:por|pel[oa])\s*:?\s*(.*?)(?=\bpor compra\b|\bpelo preço\b|\bem pagamento\b|\bpor doação\b)', texto, re.I | re.DOTALL)
+        m = re.search(r'adquirid[oa]\s+(?:por|pel[oa])\s*:?\s*(.*?)(?=\bpor compra\b|\bpelo preço\b|\bem pagamento\b|\bpor doação\b)', texto, re.I | re.DOTALL)
         if m:
             bloco = re.split(
                 r'\bnest[ea]\s+ato\s+representad[oa]s?\b|\bdevidamente\s+representad[oa]s?\b',
@@ -411,9 +468,21 @@ def extrair_bloco(texto, tipo):
             return m.group(1).strip().rstrip(';, ')
 
         m = re.search(
-            r'coube\s+(?:a|ao|aos|à|às|á|ás)\s+(.*?)'
+            r'\bpassou\s+a\s+pertencer\s+aos?\s+primeiros?\s+permutantes?\s+'
+            r'(.*?)(?=\bsendo\s+transmitentes?\b|\bpelo\s+valor\b|\bcondi[çc][õo]es\b|\Z)',
+            texto,
+            re.I | re.DOTALL,
+        )
+        if m:
+            return m.group(1).strip().rstrip(';, ')
+
+        m = re.search(
+            r'coube\s+(?:exclusivamente\s+)?(?:a|ao|aos|à|às|á|ás)\s+'
+            r'(?:(?:cond[oô]min[oa]s?|meeir[oa]s?|herdeir[oa]s?|'
+            r'arrematantes?)\s*:?\s+)?(.*?)'
             r'(?=\bem pagamento\b|\bem virtude\b|\bparte\s+ideal\b|\ba totalidade\b|'
-            r',\s*\d+(?:[,.]\d+)?\s*%|\bpor aquisi[çc][ãa]o\b|\bconforme\b)',
+            r'\bo quinh[ãa]o\b|,\s*\d+(?:[,.]\d+)?\s*%|\bpor aquisi[çc][ãa]o\b|\bconforme\b|'
+            r',\s*no\s+valor\b|;\s*o\s+im[óo]vel\b|\bcondi[çc][õo]es\b)',
             texto,
             re.I | re.DOTALL,
         )
@@ -437,6 +506,15 @@ def extrair_bloco(texto, tipo):
             return t
 
     elif tipo == "TRANSMITENTE":
+        m = re.search(
+            r'\bim[óo]vel\s+objeto\s+da\s+presente\s+matr[íi]cula\s+'
+            r'de\s+propriedade\s+de\s+(.*?)(?=,\s*avaliad[oa]\b)',
+            texto,
+            re.I | re.DOTALL,
+        )
+        if m:
+            return m.group(1).strip().rstrip(';, ')
+
         m = re.search(
             r'por\s+integraliza[çc][ãa]o\s+feita\s+pel[oa]\s+(?:s[oó]ci[oa]\s+)?'
             r'(.*?)(?=,\s*com\s+plena\s+anu[êe]ncia|\bO\s+Capital\s+Social\b|\*NOTA|\bDOU\s+F[ÉE]\b)',
@@ -465,8 +543,10 @@ def extrair_bloco(texto, tipo):
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(
-            r'TRANSMITENTE[S]?(?:/(?:DADOR(?:ES)?|DOADOR(?:ES)?))?\s*:(.*?)'
-            r'(?=\bADQUIRENTE[S]?(?:/TOMADOR(?:ES)?)?\s*:|\bIM[ÓO]VEL\s*:)',
+            r'TRANSMITENTE[S]?(?:/(?:DADOR(?:ES)?|DOADOR(?:ES)?|'
+            r'(?:PRIMEIR|SEGUND)[OA]S?\s+PERMUTANTES?))?\s*:(.*?)'
+            r'(?=\bADQUIRENTE[S]?(?:/(?:TOMADOR(?:ES)?|'
+            r'(?:PRIMEIR|SEGUND)[OA]S?\s+PERMUTANTES?))?\s*:|\bIM[ÓO]VEL\s*:)',
             texto,
             re.I | re.DOTALL,
         )
@@ -475,7 +555,13 @@ def extrair_bloco(texto, tipo):
         m = re.search(r'DOADOR(?:A|ES|AS)?\s*:(.*?)(?=\bINTERVENIENTE\s*:|\bDONAT[AÁ]RI[OA]S?\s*:|\bOBJETO\s*:|\bIM[ÓOÃ“]VEL\s*:)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'por compra feita(?:\s+feita)? (?:a|à|ao|aos|às)\s+(.*?)(?=\bpelo preço\b|\bpelo valor\b|;|\.\s*O referido)', texto, re.I | re.DOTALL)
+        m = re.search(
+            r'por\s+compra\s+feita(?:\s+feita)?\s+'
+            r'(?:(?:a|à|ao|aos|às)\s+)?'
+            r'(.*?)(?=\bpelo\s+preço\b|\bpelo\s+valor\b|;|\.\s*O\s+referido)',
+            texto,
+            re.I | re.DOTALL,
+        )
         if m: return m.group(1).strip().rstrip(';, ')
         
         m = re.search(
@@ -502,6 +588,22 @@ def extrair_bloco(texto, tipo):
 def extrair_pessoas(texto_bloco):
     pessoas = []
     if not texto_bloco: return pessoas
+    # Em traslados antigos, uma coproprietária pode aparecer sem documento
+    # próprio entre a qualificação do vendedor anterior e a do marido:
+    # ``... CPF. Vera Maria; filha de ... e seu marido Antônio, CPF ... e
+    # Iraci, CPF ...``. O marido é apenas qualificado; a pessoa antes de
+    # ``filha de`` é que integra a lista de transmitentes.
+    texto_bloco = re.sub(
+        r'(?:^|\.\s+)(?P<nome>[A-ZÀ-Ú][A-Za-zÀ-ú\s]{4,100})\s*;\s*'
+        r'filh[oa]\s+de\b.*?\be\s+(?:seu|sua)\s+'
+        r'(?:marido|mulher|c[oô]njuge)\s+[A-ZÀ-Ú].*?'
+        r'(?=\s+e\s+(?!(?:domiciliad|resident|casad|portador|brasileir|'
+        r'lavrador)\w*)[A-ZÀ-Ú][^;]{2,500}?\b'
+        r'(?:CPF|CIC|CNPJ|CGC)\b)',
+        lambda encontrado: f'; {encontrado.group("nome").strip()};',
+        texto_bloco,
+        flags=re.I | re.DOTALL,
+    )
     texto_bloco = re.split(
         r';\s*neste\s+ato\s+(?:o\s+primeiro|a\s+primeira|representad[oa]|assistid[oa])\b',
         texto_bloco,
@@ -534,11 +636,22 @@ def extrair_pessoas(texto_bloco):
             if len(nome.strip(' ,;').split()) >= 2
         ]
 
+    # Rótulos intermediários de inventário não pertencem ao nome e não devem
+    # impedir a separação de todos os itens numerados.
+    texto_bloco = re.sub(
+        r'\b(?:O\s+MEEIRO|A\s+MEEIRA|OS\s+HERDEIROS|AS\s+HERDEIRAS|'
+        r'HERDEIROS|HERDEIRAS)\s*:\s*(?=(?:\d{1,3}|[IVX]+)\))',
+        '',
+        texto_bloco,
+        flags=re.I,
+    )
+
     # Em atos com casal, cada cônjuge pode ter nome e CPF próprios no mesmo bloco.
     # Se não separarmos aqui, a limpeza abaixo remove o segundo cônjuge inteiro.
     partes_numeradas = re.split(
-        r'(?:^|\s+|;)\s*(?:\d{1,3}|[IVX]+)\)\s*-?\s*|'
-        r'(?:^|;)\s*(?:e\s+)?(?:\d{1,3}|[IVX]+)-\s*',
+        r'(?:^|\s+|;)\s*\(?(?:\d{1,3}|[IVX]+)\)\s*-?\s*|'
+        r'(?:^|;|,\s*e\s*,?)\s*(?:e\s*,?\s*)?'
+        r'(?:\d{1,3}|[IVX]+)-\s*',
         texto_bloco,
     )
     partes_numeradas = [p.strip() for p in partes_numeradas if p.strip()]
@@ -552,7 +665,8 @@ def extrair_pessoas(texto_bloco):
             r';\s*(?:e\s*,?\s*)?(?=(?:(?:Dr|Dra|Doutor|Doutora)\.?\s+)?'
             r'[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ]'
             r'[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇa-záàâãéèêíìîóòôõúùûç]+'
-            r'(?:\s+[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ]'
+            r'(?:\s+(?:(?:da|de|do|das|dos|e)\s+)?'
+            r'[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ]'
             r'[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇa-záàâãéèêíìîóòôõúùûç]+){1,})',
             texto_bloco,
         )
@@ -560,7 +674,8 @@ def extrair_pessoas(texto_bloco):
             partes = [p.strip() for p in partes_sem_ponto_virgula if p.strip()]
         else:
             partes_conjuges = re.split(
-                r'\s*,?\s*e\s+(?:seu|sua)\s+(?:c[oô]njuge|mulher|marido|esposa)\s+',
+                r'\s*,?\s*e\s*,?\s+(?:(?:seu|sua)\s+'
+                r'(?:c[oô]njuge|mulher|marido|espos[oa])|(?:seu|sua)\s*/\s*m)\s+',
                 texto_bloco,
                 flags=re.I,
             )
@@ -588,6 +703,22 @@ def extrair_pessoas(texto_bloco):
 
     partes_expandidas = []
     for parte in partes:
+        if not re.search(r'\b(?:CPF|CIC|CNPJ|CGC)\b', parte, re.I):
+            trecho_nomes = re.split(
+                r',\s*(?:j[áa]\s+qualificad[oa]s?\b|acima\s+qualificad[oa]s?\b)',
+                parte,
+                maxsplit=1,
+                flags=re.I,
+            )[0]
+            nomes_qualificados = re.split(
+                r'\s+e\s+(?=[A-ZÀ-Ú][A-Za-zÀ-ú]+(?:\s+[A-ZÀ-Ú][A-Za-zÀ-ú]+)+)',
+                trecho_nomes,
+            )
+            if len(nomes_qualificados) > 1:
+                partes_expandidas.extend(
+                    item.strip(" ,;") for item in nomes_qualificados if item.strip(" ,;")
+                )
+                continue
         subdivisoes = re.split(
             r'(?<!\bDr)(?<!\bDra)(?<!\bSr)(?<!\bSra)\.\s+'
             r'(?=[A-ZÀ-Ú][^,;]{2,100},\s*brasileir[oa])',
@@ -597,7 +728,8 @@ def extrair_pessoas(texto_bloco):
             expandidas = []
             for subdivisao in subdivisoes:
                 padrao_nova_pessoa = re.compile(
-                    r'\s+e\s+(?=[A-ZÀ-Ú][^,;]{2,100},[^;]{0,420}?\b(?:CPF|CIC|CNPJ|CGC)\b)'
+                    r'\s+e\s+(?!(?:CPF|CIC|CNPJ|CGC|RG|CI)\b)'
+                    r'(?=[A-ZÀ-Ú][^,;]{2,100},[^;]{0,420}?\b(?:CPF|CIC|CNPJ|CGC)\b)'
                 )
                 cortes = []
                 for separador in padrao_nova_pessoa.finditer(subdivisao):
@@ -605,6 +737,14 @@ def extrair_pessoas(texto_bloco):
                     # pessoa; Maria não é uma nova adquirente/proprietária.
                     if re.search(
                         r'filh[oa]\s+de\s+[^,;]{0,180}$',
+                        subdivisao[:separador.start()],
+                        re.I,
+                    ):
+                        continue
+                    # A denominação do cartório integra a referência da
+                    # certidão e nunca inicia uma nova pessoa qualificada.
+                    if re.search(
+                        r'\b(?:CART[ÓO]RIO\s+DE\s+)?REGISTRO\s+CIVIL\s*$',
                         subdivisao[:separador.start()],
                         re.I,
                     ):
@@ -639,23 +779,68 @@ def extrair_pessoas(texto_bloco):
         parte = re.sub(r'^\s*e\s*,\s*', '', parte, flags=re.I)
         parte = re.sub(r'^\s*(?:meeir[oa]|vi[úu]v[oa])\s*,\s*', '', parte, flags=re.I)
         parte = re.split(r';\s*neste\s+ato\b', parte, maxsplit=1, flags=re.I)[0]
-        nome_match = re.match(r'^([^,]+)', parte)
         
         # MEGA BRAIN: Agora aceita CNPJ, CGC e a barra "/" na leitura!
-        cpf_match = re.search(r'(?:CPF|CIC|CNPJ|CGC|MF)[^\d]*([\d\.\-\/]{9,20})', parte, re.I)
+        cpf_match = re.search(
+            r'(?:CPF|CIC|CNPJ|C\.?\s*G\.?\s*C\.?|MF)'
+            r'[^\d]*([\d\.\-\/]{9,20})',
+            parte,
+            re.I,
+        )
+        # O documento do inventariante/representante não pertence ao espólio.
+        if (
+            cpf_match
+            and re.match(
+                r'^\s*(?:\d{1,3}\s*(?:\)|-)\s*)?ESP[ÓO]LIO\b',
+                parte,
+                re.I,
+            )
+            and re.search(
+                r'\brepresentad[oa]\b',
+                parte[:cpf_match.start()],
+                re.I,
+            )
+        ):
+            cpf_match = None
         percentual_match = re.search(
-            r'(?:equivalente\s+a|na\s+propor[çc][ãa]o\s+de|parte\s+correspondente\s+a)'
+            r'(?:equivalente\s+a|(?:na|a)\s+propor[çc][ãa]o\s+de|'
+            r'parte\s+correspondente\s+a)'
             r'\s*(\d+(?:,\d+)?)%',
             parte,
             re.I,
         )
+        if not percentual_match and re.search(r'\bpertencente\s+(?:a|ao|à)\b', parte, re.I):
+            percentual_match = re.match(r'\s*(\d+(?:,\d+)?)\s*%', parte)
         percentual = parse_percentual_declarado(percentual_match.group(1)) if percentual_match else None
 
+        parte_nome = re.sub(
+            r'^\s*\d+(?:[,.]\d+)?\s*%\s+'
+            r'(?:(?:equivalente\s+a\s+[^,;]{1,100}?\s+)?'
+            r'(?:do\s+im[óo]vel\s+)?)?'
+            r'pertencente\s+(?:a|ao|à)\s+',
+            '',
+            parte,
+            flags=re.I,
+        )
+        nome_match = re.match(r'^([^,]+)', parte_nome)
         nome = nome_match.group(1).strip() if nome_match else "DESCONHECIDO"
-        nome = re.sub(r'^\d+(?:\)\s*-?|-)\s*', '', nome)
+        nome = re.sub(r'^\(?\d+(?:\)\s*-?|-)\s*', '', nome)
         nome = re.sub(r'^(?:\+?\s*<[^>]+>\s*)+', '', nome)
-        nome = re.sub(r'^\d+(?:\)\s*-?|-)\s*', '', nome)
+        nome = re.sub(r'^\(?\d+(?:\)\s*-?|-)\s*', '', nome)
         nome = re.sub(r'^(?:Dr\.?|Dra\.?|Doutor(?:a)?)\s+', '', nome, flags=re.I)
+        nome = re.sub(
+            r'^\d+(?:[,.]\d+)?\s*%\s+equivalente\s+a\s+[^,;]{1,100}?'
+            r'\bdo\s+im[óo]vel\s+pertencente\s+(?:a|ao|à)\s+',
+            '',
+            nome,
+            flags=re.I,
+        )
+        nome = re.sub(
+            r'^pessoa\s+jur[íi]dica\b.*?\bdenomina[çc][ãa]o\s+social\s+de\s+',
+            '',
+            nome,
+            flags=re.I,
+        )
         nome = re.sub(
             r'^d[oa]\s+dom[ií]nio\s+(?:[uú]til|direto)\s+sobre\s+o\s+terreno'
             r'(?:\s+descrito)?(?:\s+e\s+o\s+pr[eé]dio\s+residencial\s+nele\s+edificado)?'
@@ -670,6 +855,7 @@ def extrair_pessoas(texto_bloco):
         nome = re.sub(r'\s+e\s+(?:seu\s+c[oô]njuge|sua\s+mulher|seu\s+marido|sua\s+esposa).*', '', nome, flags=re.I)
         nome = re.sub(
             r'^(?:(?:e\s+)?(?:(?:a|o|as|os)\s+)?(?:meeir[oa]|vi[úu]v[oa]|'
+            r'cond[oô]min[oa]s?|'
             r'herdeir[oa]\s+e\s+cession[áa]ri[oa]|herdeir[oa]\s+(?:filh[oa]|net[oa])|'
             r'herdeir[oa]|cession[áa]ri[oa]|net[oa])\s*:?\s*)+',
             '', nome, flags=re.I,
@@ -677,6 +863,8 @@ def extrair_pessoas(texto_bloco):
         nome = re.sub(r'\s*,?\s*casad[oa].*', '', nome, flags=re.I)
         nome = re.sub(r'\s*,?\s*pessoa jur[íi]dica.*', '', nome, flags=re.I)
         nome = re.sub(r'\s+', ' ', nome)
+        nome = re.sub(r'(?:;\s*|\s+)e\s*$', '', nome, flags=re.I)
+        nome = re.sub(r'^s\s*:\s*', '', nome, flags=re.I)
         nome = nome.strip(' ,.()')
         
         if re.match(r'^(?:CPF|CNPJ|CIC|RG)\b', nome, re.I):
@@ -708,14 +896,173 @@ def extrair_pessoas(texto_bloco):
 
     return pessoas
 
+
+def enriquecer_documentos_adquirentes(adquirentes, texto):
+    """Recupera documentos da qualificação anterior à cláusula dispositiva."""
+    if not adquirentes:
+        return adquirentes
+
+    clausula = re.search(r'\bcoube\s+exclusivamente\b', texto, re.I)
+    prefixo = texto[:clausula.start()] if clausula else texto
+    qualificados = extrair_pessoas(prefixo[-5000:]) if clausula else []
+
+    for adquirente in adquirentes:
+        if re.sub(r'\D', '', adquirente.get("cpf", "")):
+            continue
+        nome = adquirente.get("nome", "").strip()
+        if not nome:
+            continue
+        ocorrencias = list(re.finditer(re.escape(nome), prefixo, re.I))
+        for ocorrencia in reversed(ocorrencias):
+            trecho = prefixo[ocorrencia.end():ocorrencia.end() + 650]
+            trecho = re.split(r';|\b\d{1,3}\s*\)\s*-?', trecho, maxsplit=1)[0]
+            documento = re.search(
+                r'\b(?:CPF|CIC|CNPJ|C\.?\s*G\.?\s*C\.?)(?:/MF)?'
+                r'[^\d]{0,40}([\d.\-/]{9,20})',
+                trecho,
+                re.I,
+            )
+            if not documento:
+                continue
+            antes_documento = trecho[:documento.start()]
+            if re.search(
+                r'\b(?:representad[oa]s?|assistid[oa]s?|anuentes?)\b',
+                antes_documento,
+                re.I,
+            ):
+                continue
+            adquirente["cpf"] = documento.group(1).rstrip(".,;")
+            break
+        if re.sub(r'\D', '', adquirente.get("cpf", "")):
+            continue
+        compativeis = [
+            qualificado
+            for qualificado in qualificados
+            if (
+                (
+                    nomes_compativeis(
+                        adquirente.get("nome", ""),
+                        qualificado.get("nome", ""),
+                    )
+                    or SequenceMatcher(
+                        None,
+                        limpar_nome(adquirente.get("nome", "")),
+                        limpar_nome(qualificado.get("nome", "")),
+                    ).ratio() >= 0.88
+                )
+                and re.sub(r'\D', '', qualificado.get("cpf", ""))
+            )
+        ]
+        if len(compativeis) == 1:
+            adquirente["cpf"] = compativeis[0]["cpf"]
+
+    sem_documento = [
+        item for item in adquirentes
+        if not re.sub(r'\D', '', item.get("cpf", ""))
+    ]
+    if sem_documento:
+        trecho_dispositivo = texto[clausula.start():] if clausula else texto
+        documentos_respectivos = re.search(
+            r'\b(?:CPF|CIC)(?:/MF)?\s+n[.º°o]*s?[.:]?\s*'
+            r'([\d.\-]{9,18})\s+e\s+([\d.\-]{9,18})'
+            r'.{0,80}?\brespectivamente\b',
+            trecho_dispositivo,
+            re.I | re.DOTALL,
+        )
+        if documentos_respectivos and len(adquirentes) == 2:
+            for adquirente, documento in zip(
+                adquirentes,
+                documentos_respectivos.groups(),
+            ):
+                adquirente["cpf"] = documento.rstrip(".,;")
+
+    return adquirentes
+
+
 def extrair_proprietario_inicial(texto_cabecalho):
-    m = re.search(r'(?:P?R[OÓ]PRIET)[AÁ]RI[OA]S?\s*[:;]\s*(.*?)(?=\bORIGEM\b|\bT[IÍ]TULO AQUISITIVO\b|\bREGISTRO ANTERIOR\b|\bO referido [ée] verdade\b|\*NOTA\b|\bProtocolo\b|\Z)', texto_cabecalho, re.I | re.DOTALL)
+    m = re.search(r'(?:(?:P?R[OÓ]PRIET)|PRORIET)[AÁ]RI[OA]S?\s*[:;]\s*(.*?)(?=\bORIGEM\b|\bT[IÍ]TULO AQUISITIVO\b|\bREGISTRO ANTERIOR\b|\bO referido [ée] verdade\b|\*NOTA\b|\bProtocolo\b|\Z)', texto_cabecalho, re.I | re.DOTALL)
     if m:
-        proprietarios = extrair_pessoas(m.group(1).strip())
+        bloco = m.group(1).strip()
+        proprietarios = []
+
+        # Em cabeçalhos plurais, cada item numerado representa um titular. O
+        # cônjuge que aparece dentro do mesmo item apenas qualifica o titular,
+        # salvo quando também recebe item próprio.
+        marcadores = list(re.finditer(
+            r'(?:^|;)\s*(?:e\s*,?\s*)?'
+            r'(?:\d{1,3}\s*\)\s*-?|\d{1,3}\s+-)\s*',
+            bloco,
+            re.I,
+        ))
+        if len(marcadores) >= 2:
+            for indice, marcador in enumerate(marcadores):
+                fim = marcadores[indice + 1].start() if indice + 1 < len(marcadores) else len(bloco)
+                parte = bloco[marcador.end():fim].strip(" ;")
+                pessoas_item = extrair_pessoas(parte)
+                if not pessoas_item:
+                    continue
+                titular = pessoas_item[0]
+                if not re.sub(r'\D', '', titular.get("cpf", "")) and re.search(
+                    r'\b(?:INSCRITOS|PORTADORES)\s+(?:NO|DO)\s+(?:CPF|CIC)\b',
+                    parte,
+                    re.I,
+                ):
+                    documento_compartilhado = re.search(
+                        r'(?:CPF|CIC)(?:/MF)?[^\d]{0,30}([\d.\-/]{9,20})',
+                        parte,
+                        re.I,
+                    )
+                    if documento_compartilhado:
+                        titular["cpf"] = documento_compartilhado.group(1).rstrip(".,;")
+                percentual_parenteses = re.search(
+                    r'\(\s*(\d+(?:[,.]\d+)?)\s*%\s*\)',
+                    parte,
+                    re.I,
+                )
+                if percentual_parenteses:
+                    titular["percentual"] = parse_percentual_declarado(
+                        percentual_parenteses.group(1)
+                    )
+                proprietarios.append(titular)
+
+        # Matrículas antigas frequentemente separam coproprietários somente por
+        # "(24,1202%). Nome seguinte", sem numeração nem ponto e vírgula.
+        if not proprietarios:
+            finais_percentuais = list(re.finditer(
+                r'\(\s*(\d+(?:[,.]\d+)?)\s*%\s*\)\s*[.;]?',
+                bloco,
+                re.I,
+            ))
+            if len(finais_percentuais) >= 2:
+                inicio = 0
+                for final in finais_percentuais:
+                    parte = bloco[inicio:final.end()].strip(" ;.")
+                    inicio = final.end()
+                    pessoas_item = extrair_pessoas(parte)
+                    if not pessoas_item:
+                        continue
+                    titular = pessoas_item[0]
+                    if not re.sub(r'\D', '', titular.get("cpf", "")) and re.search(
+                        r'\b(?:INSCRITOS|PORTADORES)\s+(?:NO|DO)\s+(?:CPF|CIC)\b',
+                        parte,
+                        re.I,
+                    ):
+                        documento_compartilhado = re.search(
+                            r'(?:CPF|CIC)(?:/MF)?[^\d]{0,30}([\d.\-/]{9,20})',
+                            parte,
+                            re.I,
+                        )
+                        if documento_compartilhado:
+                            titular["cpf"] = documento_compartilhado.group(1).rstrip(".,;")
+                    titular["percentual"] = parse_percentual_declarado(final.group(1))
+                    proprietarios.append(titular)
+
+        if not proprietarios:
+            proprietarios = extrair_pessoas(bloco)
         percentuais_declarados = re.findall(
             r'\bque\s+(?:ainda\s+)?possui\s+'
             r'(\d+(?:[,.]\d+)?)\s*%\s+do\s+im[óo]vel',
-            m.group(1),
+            bloco,
             re.I,
         )
         if len(percentuais_declarados) == len(proprietarios):
@@ -736,7 +1083,12 @@ def extrair_proprietario_inicial(texto_cabecalho):
             and "SOB O REGIME" in bloco_limpo
             and " COM " in bloco_limpo
         )
-        if proprietario_singular and conjuge_qualificacao and proprietarios:
+        if (
+            proprietario_singular
+            and conjuge_qualificacao
+            and proprietarios
+            and len(marcadores) < 2
+        ):
             return proprietarios[:1]
         return proprietarios
     return []
@@ -745,24 +1097,56 @@ def extrair_retificacoes_cpf(texto):
     if not re.search(r'RETIFICA[ÇC][ÃA]O', texto, re.I):
         return []
 
-    padrao = re.compile(
-        r'([A-ZÀ-Ú][A-ZÀ-Úa-zà-ú\s]+?)\s*,?\s*'
-        r'(?:permanece|est[áa])\s+inscrit[oa]\s+no\s+CPF(?:/MF)?\s+sob\s+o\s+n[.º°o]*\s*'
-        r'([\d.\-]{9,18})',
-        re.I
-    )
-
     pessoas = []
-    for nome, cpf in padrao.findall(texto):
-        nome = re.sub(r'^.*?\ba\s+saber\s*:\s*', '', nome, flags=re.I).strip(' ,.;:')
-        nome = re.sub(r'^e\s+(?:seu|sua)\s+c[oô]njuge\s+', '', nome, flags=re.I).strip()
-        pessoas.append({"nome": nome, "cpf": cpf.strip()})
+    padroes = (
+        re.compile(
+            r'(?i:\b(?:a|o)\s+(?:co-?)?propriet[áa]ri[oa]\s+)'
+            r'(?P<nome>[A-ZÀ-Ú][A-Za-zÀ-ú\s\'.-]{2,120}?)\s*,?\s*'
+            r'(?is:(?:permanece|est[áa]|[ée])\b.{0,320}?\binscrit[oa]\s+no\s+'
+            r'CPF(?:/MF)?\s+sob\s+o\s+n[.º°o]*\s*)'
+            r'(?P<cpf>[\d.\-]{9,18})'
+        ),
+        re.compile(
+            r'(?:^|[;:])\s*\d+(?:\.\d+)?\)-\s*'
+            r'(?P<nome>[A-ZÀ-Ú][A-Za-zÀ-ú\s\'.-]{2,120}?)\s*,?\s*'
+            r'(?is:(?:permanece|est[áa]|[ée])\b.{0,320}?\binscrit[oa]\s+no\s+'
+            r'CPF(?:/MF)?\s+sob\s+o\s+n[.º°o]*\s*)'
+            r'(?P<cpf>[\d.\-]{9,18})'
+        ),
+    )
+    vistos = set()
+    for padrao in padroes:
+        for encontrado in padrao.finditer(texto):
+            nome = re.sub(
+                r'^e\s+(?:seu|sua)\s+c[oô]njuge\s+',
+                '',
+                encontrado.group("nome"),
+                flags=re.I,
+            ).strip(' ,.;:')
+            cpf = encontrado.group("cpf").strip().rstrip(".,;")
+            chave = (limpar_nome(nome), re.sub(r'\D', '', cpf))
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            pessoas.append({"nome": nome, "cpf": cpf})
     return pessoas
 
 
 def extrair_alteracao_nome(texto):
-    if not re.search(r'ALTERA[ÇC][ÃA]O\s+(?:DO\s+)?NOME|ALTERA[ÇC][ÃA]O\s+DE\s+ESTADO\s+CIVIL', texto, re.I):
+    if not re.search(
+        r'ALTERA[ÇC][ÃA]O\s+(?:DO\s+)?NOME|ALTERA[ÇC][ÃA]O\s+DE\s+ESTADO\s+CIVIL|'
+        r'MUDAN[ÇC]A\s+DE\s+DENOMINA[ÇC][ÃA]O\s+SOCIAL',
+        texto,
+        re.I,
+    ):
         return ""
+    denominacao = re.search(
+        r'\bpassou\s+a\s+denominar-se\s+([^,;.]+)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if denominacao:
+        return denominacao.group(1).strip()
     encontrado = re.search(
         r'(?:altera[çc][ãa]o\s+d[oa]\s+nome|nome\s+d[oa]\s+propriet[áa]ri[oa])'
         r'.{0,180}?\bpara\s+([^,;.]+)',
@@ -770,6 +1154,26 @@ def extrair_alteracao_nome(texto):
         re.I | re.DOTALL,
     )
     return encontrado.group(1).strip() if encontrado else ""
+
+
+def extrair_retorno_status_quo_ante(texto):
+    if not re.search(r'\bSTATUS\s+QUO\s+ANTE\b', texto, re.I):
+        return []
+    retorno = re.search(
+        r'\bretorna\s+ao\s+STATUS\s+QUO\s+ANTE\b.*?'
+        r'\bpropriedade\s+d[ao]\s+(?:pessoa\s+jur[íi]dica\s+de\s+direito\s+privado\s+)?'
+        r'([^,;.]+).*?\b(?:CNPJ|CGC)(?:/MF)?\s+sob\s+o\s+n[.º°o]*\s*'
+        r'([\d.\-/]{9,20})',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if not retorno:
+        return []
+    return [{
+        "nome": retorno.group(1).strip(),
+        "cpf": retorno.group(2).strip().rstrip(".,;"),
+    }]
+
 
 def extrair_credor_consolidacao(texto):
     if not re.search(r'CONSOLIDA[ÇC][ÃA]O\s+DA\s+PROPRIEDADE', texto, re.I):
@@ -804,6 +1208,32 @@ def extrair_indicacao_titularidade(texto):
     inicio_tabela = limpar_nome(texto).find("ATOCO-PROPRIETARIO")
     if inicio_tabela >= 0:
         tabela = texto[inicio_tabela:]
+        com_decimal = []
+        padrao_decimal = re.compile(
+            r'(?P<atos>(?:R|AV)[.\-]?\d+'
+            r'(?:(?:\s*(?:E|,)\s*|\s+)(?:(?:R|AV)[.\-]?)?\d+)*)\s*'
+            r'(?P<nome>[A-ZÀ-Ý][A-Za-zÀ-ú\s\'.-]{2,180}?)\s*'
+            r'(?P<decimal>(?:0[,.]\d{4}|1(?:[,.]0{4})?))\s*'
+            r'(?P<percentual>\d{1,3}(?:[,.]\d{2})?)\s*%?\s*'
+            r'(?=\d+(?:[,.]\d+)?\s*ha)',
+            re.I | re.DOTALL,
+        )
+        for encontrado in padrao_decimal.finditer(tabela):
+            nome = re.sub(r'\s+', ' ', encontrado.group("nome")).strip(" \t|;-:")
+            nome = re.sub(r'^(?:Matr(?:[ií]cula)?\.?\s*)+', '', nome, flags=re.I)
+            percentual = float(encontrado.group("percentual").replace(',', '.'))
+            if nome and 0 < percentual <= 100:
+                com_decimal.append({
+                    "nome": nome,
+                    "cpf": "CPF/CNPJ NÃO INFORMADO",
+                    "percentual": percentual,
+                    "proporcao_texto": formatar_percentual_indicado(percentual),
+                })
+        if len(com_decimal) >= 2 and abs(
+            sum(item["percentual"] for item in com_decimal) - 100.0
+        ) <= 0.2:
+            return com_decimal
+
         compactos = []
         padrao_compacto = re.compile(
             r'(?P<atos>(?:R|AV)[.\-]?\d+'
@@ -824,6 +1254,7 @@ def extrair_indicacao_titularidade(texto):
             )[0]
             nome = re.sub(r'^.*?\bCO-?PROPRIET[ÁA]RIO\b', '', nome, flags=re.I | re.DOTALL)
             nome = re.sub(r'\b(?:EQUIV(?:AL[ÊE]NCIA)?|DECIMAL|PERCENTUAL).*$', '', nome, flags=re.I)
+            nome = re.sub(r'^(?:Matr(?:[ií]cula)?\.?\s*)+', '', nome, flags=re.I)
             nome = nome.strip(" \t|;-:")
             if not nome or limpar_nome(nome).startswith("TOTAL"):
                 continue
@@ -864,6 +1295,7 @@ def extrair_indicacao_titularidade(texto):
             tabela_compacta,
         ):
             nome = re.sub(r'\s+', ' ', encontrado.group('nome')).strip(' .;-')
+            nome = re.sub(r'^(?:Matr(?:[ií]cula)?\.?\s*)+', '', nome, flags=re.I)
             nome_limpo = limpar_nome(nome)
             if not nome or 'PROPRIETARIO' in nome_limpo or nome_limpo == 'TOTAL':
                 continue
@@ -913,7 +1345,13 @@ def extrair_indicacao_titularidade(texto):
             if parte.strip(" \t-")
         ]
         nome = colunas[-1] if colunas else antes_percentual
-        nome = re.sub(r'^(?:(?:e\s*)?(?:Matr[ií]cula|R\.?\s*\d+|AV\.?\s*\d+)[\s,.;/-]*)+', '', nome, flags=re.I).strip(" \t-")
+        nome = re.sub(
+            r'^(?:(?:e\s*)?(?:Matr(?:[ií]cula)?\.?|R\.?\s*\d+|AV\.?\s*\d+)'
+            r'[\s,.;/-]*)+',
+            '',
+            nome,
+            flags=re.I,
+        ).strip(" \t-")
         nome = re.sub(r'\s+', ' ', nome)
 
         if not nome or limpar_nome(nome).startswith("TOTAL"):
@@ -1046,7 +1484,7 @@ def _distribuicao_percentual_por_grupos(texto, adquirentes):
 
 
 def _distribuicao_percentual_por_areas(texto, adquirentes):
-    """Converte a divisão física declarada no próprio título em percentuais."""
+    """Lê a distribuição individual declarada ao final do próprio título."""
     trecho = re.search(
         r'adquirid[oa]\s+da\s+seguinte\s+maneira\s*:\s*(.*?)'
         r'(?=\bO\s+referido\b|\bDOU\s+F[ÉE]\b|\Z)',
@@ -1058,6 +1496,36 @@ def _distribuicao_percentual_por_areas(texto, adquirentes):
 
     texto_distribuicao = trecho.group(1)
     texto_busca = limpar_nome(texto_distribuicao)
+    percentuais = []
+    for indice, adquirente in enumerate(adquirentes):
+        nome = re.escape(limpar_nome(adquirente['nome']))
+        inicio = re.search(nome, texto_busca)
+        if not inicio:
+            percentuais = []
+            break
+        proximos = []
+        for outro in adquirentes[indice + 1:]:
+            encontrado = re.search(
+                re.escape(limpar_nome(outro['nome'])),
+                texto_busca[inicio.end():],
+            )
+            if encontrado:
+                proximos.append(encontrado.start())
+        fim = inicio.end() + min(proximos) if proximos else len(texto_distribuicao)
+        bloco = texto_distribuicao[inicio.end():fim]
+        percentual = re.search(r'(\d+(?:[.,]\d+)?)\s*%', bloco)
+        if not percentual:
+            percentuais = []
+            break
+        percentuais.append(
+            float(percentual.group(1).replace('.', '').replace(',', '.'))
+        )
+    if (
+        len(percentuais) == len(adquirentes)
+        and abs(sum(percentuais) - 100.0) <= 0.2
+    ):
+        return list(zip(adquirentes, percentuais))
+
     unidades = {
         'ALQUEIRE': r'alqueires?',
         'HECTARE': r'hectares?',
@@ -1166,8 +1634,11 @@ def _aplicar_desquite(ato, estado):
     ):
         return False
     partes = re.search(
-        r'autos\s+de\s+(?:partilha\s+amig[áa]vel|div[óo]rcio\s+direto).*?\bde\s+'
-        r'([^,;]+?)\s+e\s+([^,;]+?),\s+(?:do\s+Cart[óo]rio|pela\s+Escrivania)',
+        r'autos\s+de\s+(?:partilha\s+amig[áa]vel|div[óo]rcio\s+direto|'
+        r'conver(?:s|[çc])[ãa]o\s+de\s+separa[çc][ãa]o\s+judicial.*?em\s+div[óo]rcio)'
+        r'.*?\bde\s+'
+        r'([^,;]+?)\s+e\s+([^,;]+?)[,;]\s+'
+        r'(?:do\s+Cart[óo]rio|(?:pela\s+)?Escrivania)',
         ato,
         re.I | re.DOTALL,
     )
@@ -1422,7 +1893,114 @@ def _debitar_percentual(estado, chaves, percentual):
             del estado[chave]
     return debito_total - max(restante, 0.0)
 
+
+def _debitos_individualizados_por_percentual(texto, estado):
+    """Lê quanto cada coproprietário vendeu quando o título individualiza as quotas."""
+    trecho = re.search(
+        r'\b(?:o\s+im[óo]vel\s+)?(?:[ée]\s+)?vendid[oa]\s+'
+        r'da\s+seguinte\s+maneira\s*:\s*(.*?)'
+        r'(?=\bO\s+referido\b|\bDOU\s+F[ÉE]\b|\Z)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if not trecho:
+        return []
+
+    descricao = trecho.group(1)
+    resultados = []
+    for chave, dados in estado.items():
+        nome = dados.get("nome", "").strip()
+        if not nome:
+            continue
+        encontrado = re.search(re.escape(nome), descricao, re.I)
+        if not encontrado:
+            continue
+        proximo_item = re.search(
+            r';\s*(?:e\s*,?\s*)?\d{1,3}\s*\)',
+            descricao[encontrado.end():],
+            re.I,
+        )
+        fim = (
+            encontrado.end() + proximo_item.start()
+            if proximo_item else len(descricao)
+        )
+        bloco = descricao[encontrado.start():fim]
+        percentual = re.search(
+            r'\bvend(?:e|eu|em)\b.{0,100}?(\d+(?:[,.]\d+)?)\s*%',
+            bloco,
+            re.I | re.DOTALL,
+        )
+        if percentual:
+            resultados.append(
+                (chave, parse_percentual_declarado(percentual.group(1)))
+            )
+    return resultados
+
+
+PADRAO_SUBATO_REGISTRAL_REPETIDO = re.compile(
+    r'(?im)^[ \t-]*(?P<tipo>R|AV)\s*(?:[.\-]\s*)?'
+    r'(?P<numero>[0-9OIL]+)\s*-\s*\d[\d.]*\b'
+)
+
+
+def _expandir_subatos_repetidos_para_cadeia(atos):
+    """Separa lançamentos distintos que a fonte trouxe com o mesmo ordinal.
+
+    O parser global preserva apenas um ordinal por matrícula para não confundir
+    referências internas com atos. Alguns livros históricos, porém, realmente
+    repetem o mesmo cabeçalho (por exemplo, dois ``R.03-4.860`` consecutivos).
+    A cadeia precisa aplicar cada partilha, mas ônus e cancelamentos continuam
+    recebendo a lista original e não são afetados por esta tolerância.
+    """
+    expandidos = []
+    traducao_numerica = str.maketrans({"O": "0", "I": "1", "L": "1"})
+    for ato in atos:
+        descricao = str(getattr(ato, "descricao", ""))
+        encontrados = list(PADRAO_SUBATO_REGISTRAL_REPETIDO.finditer(descricao))
+        if len(encontrados) < 2:
+            expandidos.append(ato)
+            continue
+
+        primeiro = encontrados[0]
+        tipo = primeiro.group("tipo").upper()
+        numero = (
+            primeiro.group("numero").upper().translate(traducao_numerica).lstrip("0")
+            or "0"
+        )
+        repetidos = [
+            encontrado
+            for encontrado in encontrados
+            if (
+                encontrado.group("tipo").upper() == tipo
+                and (
+                    encontrado.group("numero")
+                    .upper()
+                    .translate(traducao_numerica)
+                    .lstrip("0")
+                    or "0"
+                )
+                == numero
+            )
+        ]
+        if len(repetidos) < 2:
+            expandidos.append(ato)
+            continue
+
+        for indice, encontrado in enumerate(repetidos):
+            inicio = encontrado.start("tipo")
+            fim = (
+                repetidos[indice + 1].start("tipo")
+                if indice + 1 < len(repetidos)
+                else len(descricao)
+            )
+            bloco = descricao[inicio:fim].strip()
+            if bloco:
+                expandidos.append(SimpleNamespace(descricao=bloco))
+    return expandidos
+
+
 def calcular_cadeia_dominial(atos, texto_integral=""):
+    atos = _expandir_subatos_repetidos_para_cadeia(atos)
     estado = {}
     
     if texto_integral:
@@ -1458,6 +2036,7 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
         "VENDA E COMPRA", "COMPRA E VENDA", "INVENTARIO", "PARTILHA",
         "SOBREPARTILHA", "DOACAO", "REFORMA AGRARIA", "TITULO DE DOMINIO",
         "USUCAPIAO", "ARREMATACAO", "DACAO", "INTEGRALIZACAO", "PERMUTA",
+        "DIVISAO",
     ]
     grupos_partilha = _grupos_partilha_integrais(atos)
     indices_agrupados = {
@@ -1476,7 +2055,36 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
             assinatura = _assinatura_partilha(descricoes[0]) or ''
             prefixo_autor = 'AUTOR DA HERANCA:'
             prefixo_espolio = 'ESPOLIO TRANSMITENTE:'
-            if assinatura.startswith((prefixo_autor, prefixo_espolio)):
+            percentuais_declarados = [
+                parse_percent(descricao) for descricao in descricoes
+            ]
+            percentuais_sobre_imovel = (
+                abs(sum(percentuais_declarados) - 100.0) <= 0.2
+                and all(
+                    (
+                        re.search(
+                            r'\bparte\s+(?:ideal|correspondente)\s+(?:a|de)\s*'
+                            r'\d+(?:[,.]\d+)?\s*%.{0,800}?'
+                            r'\b(?:sobre|do)\s+(?:o\s+)?im[óo]vel\b',
+                            descricao,
+                            re.I | re.DOTALL,
+                        )
+                        or re.search(
+                            r'\bparte\s+ideal\s+de\s*(?:[A-Z]{1,3}\$?\s*)?'
+                            r'[\d.,]+.{0,120}?\b(?:avalia[çc][ãa]o|avaliad[oa])'
+                            r'\s+(?:de|em)\s*(?:[A-Z]{1,3}\$?\s*)?[\d.,]+'
+                            r'.{0,180}?\b(?:no|sobre\s+o)\s+im[óo]vel\b',
+                            descricao,
+                            re.I | re.DOTALL,
+                        )
+                    )
+                    for descricao in descricoes
+                )
+            )
+            if (
+                not percentuais_sobre_imovel
+                and assinatura.startswith((prefixo_autor, prefixo_espolio))
+            ):
                 prefixo = (
                     prefixo_autor
                     if assinatura.startswith(prefixo_autor)
@@ -1490,7 +2098,11 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                     ),
                     None,
                 )
-            if not chave_substituida and assinatura.startswith(prefixo_espolio):
+            if (
+                not percentuais_sobre_imovel
+                and not chave_substituida
+                and assinatura.startswith(prefixo_espolio)
+            ):
                 quota = next(
                     (
                         parse_percentual_declarado(valor)
@@ -1536,7 +2148,7 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                     ]
                     if len(candidatos_por_nome_e_quota) == 1:
                         chave_substituida = candidatos_por_nome_e_quota[0]
-            if not chave_substituida:
+            if not percentuais_sobre_imovel and not chave_substituida:
                 meeiro = re.search(
                     r'coube\s+ao\s+vi[úu]vo\s+meeiro\s+([^,;]+)',
                     descricoes[0],
@@ -1569,12 +2181,40 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                     estado[chave]["proporcao"] += percentual_individual
             continue
 
+        titulares_retorno = extrair_retorno_status_quo_ante(ato.descricao)
+        if titulares_retorno:
+            estado.clear()
+            proporcao_retorno = 100.0 / len(titulares_retorno)
+            for titular in titulares_retorno:
+                chave = padronizar_chave(titular["cpf"], titular["nome"])
+                estado[chave] = {
+                    "nome": titular["nome"],
+                    "cpf_original": titular["cpf"],
+                    "proporcao": proporcao_retorno,
+                }
+            continue
+
         novo_nome = extrair_alteracao_nome(ato.descricao)
         if novo_nome:
             compativeis = [
                 chave for chave, dados in estado.items()
                 if nomes_compativeis(dados["nome"], novo_nome)
             ]
+            if not compativeis:
+                documento_alteracao = re.search(
+                    r'\b(?:CPF|CNPJ|CGC)(?:/MF)?\b[^\d]{0,30}([\d.\-/]{9,20})',
+                    ato.descricao,
+                    re.I,
+                )
+                documento_limpo = (
+                    re.sub(r'\D', '', documento_alteracao.group(1))
+                    if documento_alteracao else ""
+                )
+                if documento_limpo:
+                    compativeis = [
+                        chave for chave, dados in estado.items()
+                        if re.sub(r'\D', '', dados.get("cpf_original", "")) == documento_limpo
+                    ]
             if len(compativeis) == 1:
                 estado[compativeis[0]]["nome"] = novo_nome
 
@@ -1613,29 +2253,29 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
 
         retificados = extrair_retificacoes_cpf(ato.descricao)
         if retificados:
-            chaves_encontradas = []
             for pessoa in retificados:
                 nome_retificado = limpar_nome(pessoa["nome"])
+                chave_encontrada = None
                 for chave, dados in estado.items():
                     nome_atual = limpar_nome(dados["nome"])
-                    if nome_retificado == nome_atual or nome_retificado in nome_atual or nome_atual in nome_retificado:
-                        chaves_encontradas.append(chave)
+                    if (
+                        nome_retificado == nome_atual
+                        or nome_retificado in nome_atual
+                        or nome_atual in nome_retificado
+                        or nomes_compativeis(pessoa["nome"], dados["nome"])
+                    ):
+                        chave_encontrada = chave
                         break
-
-            chaves_encontradas = list(dict.fromkeys(chaves_encontradas))
-            if chaves_encontradas:
-                proporcao_total = sum(estado[chave]["proporcao"] for chave in chaves_encontradas)
-                for chave in chaves_encontradas:
-                    del estado[chave]
-
-                proporcao_individual = proporcao_total / len(retificados)
-                for pessoa in retificados:
-                    chave = padronizar_chave(pessoa["cpf"], pessoa["nome"])
-                    estado[chave] = {
-                        "nome": pessoa["nome"],
-                        "cpf_original": pessoa["cpf"],
-                        "proporcao": proporcao_individual
-                    }
+                if not chave_encontrada:
+                    continue
+                dados = estado.pop(chave_encontrada)
+                dados["cpf_original"] = pessoa["cpf"]
+                nova_chave = padronizar_chave(pessoa["cpf"], dados["nome"])
+                if nova_chave in estado:
+                    estado[nova_chave]["proporcao"] += dados["proporcao"]
+                    estado[nova_chave]["cpf_original"] = pessoa["cpf"]
+                else:
+                    estado[nova_chave] = dados
 
         if _aplicar_desquite(ato.descricao, estado):
             continue
@@ -1684,6 +2324,10 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
         bloco_transm = extrair_bloco(ato.descricao, "TRANSMITENTE")
         
         adquirentes = extrair_pessoas(bloco_adq)
+        adquirentes = enriquecer_documentos_adquirentes(
+            adquirentes,
+            ato.descricao,
+        )
         transmitentes = extrair_pessoas(bloco_transm)
         
         if not adquirentes:
@@ -1805,7 +2449,22 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                 estado_com_chaves,
                 r'vendid[oa]\s+da\s+seguinte\s+maneira\s*:',
             )
+            debitos_individualizados = _debitos_individualizados_por_percentual(
+                ato.descricao,
+                estado,
+            )
             if (
+                debitos_individualizados
+                and abs(
+                    sum(percentual for _, percentual in debitos_individualizados)
+                    - percentual_ato
+                ) <= 0.2
+            ):
+                for chave, percentual in debitos_individualizados:
+                    houve_debito = (
+                        _debitar_percentual(estado, [chave], percentual) > 0.0
+                    ) or houve_debito
+            elif (
                 debitos_por_valor
                 and abs(sum(percentual for _, percentual in debitos_por_valor) - percentual_ato) <= 0.2
             ):

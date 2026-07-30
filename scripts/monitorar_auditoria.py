@@ -16,9 +16,9 @@ def argumentos() -> argparse.Namespace:
     parser.add_argument(
         "--arquivo",
         type=Path,
-        default=RAIZ / "output" / "relatorios" / "auditoria_semantica_tri7-v2.csv",
+        default=RAIZ / "output" / "relatorios" / "auditoria_registral-v4.csv",
     )
-    parser.add_argument("--inicio", type=int, default=13_001)
+    parser.add_argument("--inicio", type=int, default=1)
     parser.add_argument("--fim", type=int, default=39_767)
     parser.add_argument("--intervalo", type=float, default=5.0)
     parser.add_argument("--uma-vez", action="store_true")
@@ -101,7 +101,16 @@ def main() -> int:
         )
         status = Counter(str(linha.get("status", "")) for linha in faixa.values())
         erros = sum(valor for chave, valor in status.items() if chave.startswith("ERRO"))
-        alertadas = sum(bool(str(linha.get("alertas", "")).strip()) for linha in faixa.values())
+        prioridades = Counter(
+            str(linha.get("prioridade_revisao", "")).strip() for linha in faixa.values()
+        )
+        alertadas = sum(
+            any(
+                str(linha.get(campo, "")).strip()
+                for campo in ("alertas_onus", "alertas_cadeia", "alertas_imovel", "alertas")
+            )
+            for linha in faixa.values()
+        )
         idade_arquivo = time.time() - args.arquivo.stat().st_mtime if args.arquivo.exists() else float("inf")
         situacao = "CONCLUÍDA" if processadas >= total else ("EM EXECUÇÃO" if idade_arquivo < 30 else "SEM AVANÇO")
 
@@ -124,6 +133,8 @@ def main() -> int:
         print(f" Monitor aberto:    {duracao(agora - inicio_monitor)}")
         print()
         print(f" Alertadas:         {alertadas:,}".replace(",", "."))
+        print(f" Críticas (P0):     {prioridades.get('P0-CRITICA', 0):,}".replace(",", "."))
+        print(f" Conferir (P1):     {prioridades.get('P1-CONFERIR', 0):,}".replace(",", "."))
         print(f" Falhas de API:     {erros:,}".replace(",", "."))
         print()
         print(" Atualização automática a cada 5 segundos. Feche esta janela para sair.")

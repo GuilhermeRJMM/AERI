@@ -8,6 +8,7 @@ import threading
 import time
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from difflib import SequenceMatcher
 from pathlib import Path
 
 
@@ -101,26 +102,65 @@ CAMPOS = [
     "alertas_onus",
     "alertas_cadeia",
     "alertas_imovel",
+    "evidencias_onus",
+    "evidencias_cadeia",
+    "evidencias_imovel",
+    "confianca_onus",
+    "confianca_cadeia",
+    "confianca_imovel",
+    "prioridade_revisao",
+    "estado_auditoria",
     "alertas",
     "duracao_ms",
     "erro",
 ]
-STATUS_TERMINAIS = {"OK", "NAO_ENCONTRADA", "SEM_TEXTO"}
+STATUS_TERMINAIS = {"OK", "NAO_ENCONTRADA", "SEM_TEXTO", "IGNORADA_LOTEAMENTO"}
 TERMOS_TRANSFERENCIA = (
     "COMPRA E VENDA",
     "VENDA E COMPRA",
     "DOACAO",
     "PARTILHA",
+    "SOBREPARTILHA",
     "ADJUDICACAO",
     "ARREMATACAO",
     "DACAO",
     "TITULO DE DOMINIO",
     "CONSOLIDACAO DA PROPRIEDADE",
     "INTEGRALIZACAO",
+    "INCORPORACAO DE BENS",
     "PERMUTA",
+    "DIVISAO",
+    "REFORMA AGRARIA",
     "USUCAPIAO",
     "INVENTARIO",
 )
+
+ALERTAS_CRITICOS_ONUS = {
+    "ONUS_EXPLICITO_NAO_CLASSIFICADO",
+    "CANCELAMENTO_DE_ONUS_SEM_ALVO",
+    "CANCELAMENTO_DE_ONUS_COM_ALVO_DIVERGENTE",
+    "CANCELAMENTO_POSSIVELMENTE_INCOMPLETO",
+    "RESULTADO_ONUS_INCONSISTENTE",
+}
+ALERTAS_CRITICOS_CADEIA = {
+    "PROPRIETARIO_CABECALHO_NAO_EXTRAIDO",
+    "CADEIA_DOMINIAL_VAZIA_COM_TRANSFERENCIA",
+    "ADQUIRENTE_ROTULADO_NAO_EXTRAIDO",
+    "PROPRIETARIOS_NUMERADOS_CABECALHO_NAO_EXTRAIDOS",
+    "PROPRIETARIOS_PLURAIS_CABECALHO_NAO_EXTRAIDOS",
+    "INDICACAO_TITULARIDADE_QUANTIDADE_DIVERGENTE",
+    "TITULARIDADE_FORA_DE_100",
+    "ULTIMA_TRANSFERENCIA_INTEGRAL_DIVERGENTE",
+    "RETIFICACAO_CPF_NAO_APLICADA",
+    "PROPRIETARIO_NOME_INVALIDO",
+}
+ALERTAS_CRITICOS_IMOVEL = {
+    "ENCERRAMENTO_NAO_RECONHECIDO",
+    "MATRICULA_INEXISTENTE_NAO_RECONHECIDA",
+    "TIPO_IMOVEL_DIVERGENTE",
+    "AREA_REGISTRAL_DIVERGENTE",
+    "MATRICULA_NAO_IDENTIFICADA",
+}
 
 
 def carregar_env_local() -> None:
@@ -154,15 +194,91 @@ def contem_rotulo(itens: list[dict], rotulos: set[str]) -> bool:
     return any(item.get("rotulo") in rotulos and str(item.get("valor", "")).strip() for item in itens)
 
 
-def contem_termo_transferencia(ato_normalizado: str) -> bool:
-    return any(
-        re.search(rf"\b{re.escape(termo)}\b", ato_normalizado)
-        for termo in TERMOS_TRANSFERENCIA
+def item_por_rotulo(itens: list[dict], rotulo_normalizado: str) -> dict:
+    return next(
+        (
+            item
+            for item in itens
+            if sem_acentos(item.get("rotulo", "")) == rotulo_normalizado
+            and str(item.get("valor", "")).strip()
+        ),
+        {},
     )
 
 
+def descricao_cabecalho_imovel(texto: str) -> str:
+    cabecalho = sem_acentos(cabecalho_matricula(texto))
+    bloco = re.search(
+        r"\bIMOVEL\s*[:\-]\s*(.*?)"
+        r"(?=\bP?ROPRIETARI[OA]S?\s*[:;]|\bTITULO\s+AQUISITIVO\s*:|\bORIGEM\s*:|$)",
+        cabecalho,
+        re.DOTALL,
+    )
+    return bloco.group(1) if bloco else cabecalho
+
+
+def area_em_metros_quadrados(valor: str) -> float | None:
+    correspondencia = re.search(
+        r"([\d.]+(?:,\d+)?)\s*(M(?:2|²)|HA|HECTARES?)\b",
+        sem_acentos(valor),
+    )
+    if not correspondencia:
+        return None
+    numero = float(correspondencia.group(1).replace(".", "").replace(",", "."))
+    return numero * 10_000 if correspondencia.group(2).startswith(("HA", "HECTARE")) else numero
+
+
+def area_registral_independente(texto: str) -> float | None:
+    descricao = descricao_cabecalho_imovel(texto)
+    composta = re.search(
+        r"\bAREA(?:\s+TOTAL)?\s*(?:DE|:)?\s*(\d+)(?:\s*\([^)]*\))?\s*"
+        r"HECTARES?\s*(?:,|E)\s*(\d+)(?:\s*\([^)]*\))?\s*ARES?"
+        r"(?:\s+E\s*(\d+)(?:\s*\([^)]*\))?\s*(?:CENTIARES?)?)?",
+        descricao,
+    )
+    if composta:
+        hectares = (
+            int(composta.group(1))
+            + int(composta.group(2)) / 100
+            + int(composta.group(3) or 0) / 10_000
+        )
+        return hectares * 10_000
+    correspondencia = re.search(
+        r"\bAREA(?:\s+TOTAL)?\s*(?:DE|:)?\s*"
+        r"([\d.]+(?:,\d+)?)\s*(M(?:2|²)|HA|HECTARES?)\b",
+        descricao,
+    )
+    if not correspondencia:
+        return None
+    return area_em_metros_quadrados(" ".join(correspondencia.groups()))
+
+
+def evidencia_itens(itens: list[dict]) -> list[str]:
+    evidencias = []
+    for item in itens:
+        rotulo = str(item.get("rotulo", "")).strip()
+        origem = str(item.get("origem", "")).strip()
+        if rotulo:
+            evidencias.append(f"{rotulo}@{origem or 'origem não informada'}")
+    return evidencias
+
+
+def confianca_dominio(alertas: list[str], criticos: set[str]) -> str:
+    if not alertas:
+        return "ALTA"
+    if criticos.intersection(alertas):
+        return "BAIXA"
+    return "MEDIA"
+
+
+def contem_termo_transferencia(ato_normalizado: str) -> bool:
+    return any(termo in ato_normalizado for termo in TERMOS_TRANSFERENCIA)
+
+
 ROTULO_ADQUIRENTE_INDEPENDENTE = re.compile(
-    r"\b(?:ADQUIRENTES?|OUTORGADOS?|DONAT[ÁA]RI[OA]S?|ADJUDICANTES?|"
+    r"\b(?:ADQUIRENTES?(?:/(?:TOMADOR(?:ES)?|"
+    r"(?:PRIMEIR|SEGUND)[OA]S?\s+PERMUTANTES?))?|"
+    r"OUTORGADOS?|DONAT[ÁA]RI[OA]S?|ADJUDICANTES?|"
     r"ARREMATANTES?|COMPRADOR(?:ES)?)\s*:\s*(.*?)"
     r"(?=\b(?:IM[ÓO]VEL|OBJETO|ORIGEM|FORMA\s+DO\s+T[ÍI]TULO|"
     r"TRANSMITENTES?|OUTORGANTES?|DOADORES?)\s*:|\*NOTA|\bDOU\s+F[ÉE]\b|$)",
@@ -183,11 +299,19 @@ def _percentual_numero(valor: object) -> float:
 
 def _pessoa_presente(candidata: dict, proprietarios: list[dict]) -> bool:
     documento = _documento_limpo(candidata.get("cpf"))
+    nome_candidato = sem_acentos(candidata.get("nome", "")).strip()
     for proprietario in proprietarios:
         documento_atual = _documento_limpo(proprietario.get("cpf"))
         if documento and documento_atual and documento == documento_atual:
             return True
         if nomes_compativeis(candidata.get("nome", ""), proprietario.get("nome", "")):
+            return True
+        nome_atual = sem_acentos(proprietario.get("nome", "")).strip()
+        if (
+            nome_candidato
+            and nome_atual
+            and SequenceMatcher(None, nome_candidato, nome_atual).ratio() >= 0.92
+        ):
             return True
     return False
 
@@ -199,14 +323,23 @@ def auditar_proprietarios(texto: str, proprietarios: list[dict]) -> dict:
     retificacoes_nao_aplicadas = 0
     cabecalho = cabecalho_matricula(texto)
     bloco_proprietarios = re.search(
-        r'\bP?ROPRIETARI[OA]S?\s*[:;](.*?)(?=\bORIGEM\s*:|\*NOTA|\Z)',
+        r'\b(?:P?ROPRIETARI|PRORIETARI)[OA]S?\s*[:;](.*?)(?=\bORIGEM\s*:|\*NOTA|\Z)',
         sem_acentos(cabecalho),
         re.DOTALL,
     )
     proprietarios_numerados = len(re.findall(
-        r'\b\d{1,3}\)\s*-',
+        r'(?:^|;)\s*(?:e\s*,?\s*)?(?:\d{1,3}\s*\)\s*-?|\d{1,3}\s+-)',
+        bloco_proprietarios.group(1) if bloco_proprietarios else "",
+        re.MULTILINE,
+    ))
+    proprietarios_por_percentual = len(re.findall(
+        r'\(\s*\d+(?:[,.]\d+)?\s*%\s*\)',
         bloco_proprietarios.group(1) if bloco_proprietarios else "",
     ))
+    proprietarios_numerados = max(
+        proprietarios_numerados,
+        proprietarios_por_percentual,
+    )
     proprietarios_cabecalho = extrair_proprietario_inicial(cabecalho)
     indicacao_titularidade_declarados = 0
 
@@ -215,8 +348,17 @@ def auditar_proprietarios(texto: str, proprietarios: list[dict]) -> dict:
         normalizado = sem_acentos(descricao)
         transferencia = contem_termo_transferencia(normalizado)
         percentual_transferencia = parse_percent(descricao) if transferencia else 0.0
+        if transferencia and percentual_transferencia <= 0 and re.search(
+            r"\b(?:IMOVEL|OBJETO)\s*:\s*(?:O\s+)?(?:DESCRIT[OA]|OBJETO|CONSTANTE)"
+            r".{0,80}\bMATRICULA\b|\bTOTALIDADE\s+DO\s+IMOVEL\b",
+            normalizado,
+            re.DOTALL,
+        ):
+            percentual_transferencia = 100.0
         bloco_independente = ROTULO_ADQUIRENTE_INDEPENDENTE.search(descricao)
         adquirentes = extrair_pessoas(extrair_bloco(descricao, "ADQUIRENTE"))
+        if not adquirentes and bloco_independente:
+            adquirentes = extrair_pessoas(bloco_independente.group(1))
         if transferencia:
             indicacao_titularidade_declarados = 0
         if "INDICA" in normalizado and "TITULARIDADE" in normalizado:
@@ -250,7 +392,12 @@ def auditar_proprietarios(texto: str, proprietarios: list[dict]) -> dict:
             }
             itens_numerados = len(re.findall(r"(?:^|;)\s*\d{1,3}\s*\)\s*-?", bloco_independente.group(1)))
             if documentos_declarados and (
-                not adquirentes or (itens_numerados and len(adquirentes) < itens_numerados)
+                not adquirentes
+                or (
+                    not re.search(r"\bCOUBE\s+EXCLUSIVAMENTE\b", normalizado)
+                    and itens_numerados
+                    and len(adquirentes) < itens_numerados
+                )
             ):
                 atos_nao_extraidos += 1
 
@@ -271,6 +418,28 @@ def auditar_proprietarios(texto: str, proprietarios: list[dict]) -> dict:
                 for atual in atuais_mesmo_nome
             ):
                 retificacoes_nao_aplicadas += 1
+
+        if "RETIFICACAO" in normalizado[:350] and "QUALIFICACAO" in normalizado[:350]:
+            retificacao_direta = re.search(
+                r"\bPROPRIETARI[OA]\s+([A-Z][A-Z\s'.-]{2,100}?)\s+"
+                r"(?:E\s+)?(?:PORTADOR|PORTADORA|INSCRITO|INSCRITA)\b"
+                r".{0,260}?\bCPF(?:/MF)?\b[^\d]{0,30}([\d.\-/]{9,20})",
+                normalizado,
+                re.DOTALL,
+            )
+            if retificacao_direta:
+                nome_retificado = retificacao_direta.group(1).strip()
+                documento_retificado = _documento_limpo(retificacao_direta.group(2))
+                atuais_mesmo_nome = [
+                    atual
+                    for atual in proprietarios
+                    if nomes_compativeis(nome_retificado, atual.get("nome", ""))
+                ]
+                if atuais_mesmo_nome and not any(
+                    _documento_limpo(atual.get("cpf")) == documento_retificado
+                    for atual in atuais_mesmo_nome
+                ):
+                    retificacoes_nao_aplicadas += 1
 
     candidatos_integrais = 0
     transferencia_integral_coberta = True
@@ -333,6 +502,11 @@ MARCADORES_CANCELAMENTO = (
 
 def _cancelamento_explicito(ato_normalizado: str) -> bool:
     cabecalho = ato_normalizado[:500]
+    if "DESVINCULAD" in cabecalho and "PROAGRO" in cabecalho and not any(
+        marcador in cabecalho
+        for marcador in ("CANCELAMENTO", "LIBERACAO", "LEVANTAMENTO", "QUITACAO")
+    ):
+        return False
     fortes = (
         "LEVANTAMENTO DE PENHORA", "LIBERACAO DE HIPOTECA",
         "LIBERACAO DE BENS APENHADOS", "PERMUTA DE BENS APENHADOS",
@@ -374,6 +548,12 @@ def _ato_constitui_onus(ato_normalizado: str) -> bool:
         "RETIFICACAO DE DADOS DE QUALIFICACAO PESSOAL",
     )):
         return False
+    if re.search(
+        r"\b(?:INCLUID[AO]|ACRESCID[AO]|CONSTITUID[AO])\b.{0,100}\b"
+        r"(?:HIPOTECA|ALIENACAO FIDUCIARIA|GARANTIA)\b",
+        ato_normalizado,
+    ):
+        return True
     if any(expressao in cabecalho[:350] for expressao in (
         "IMOVEL DE LOCALIZACAO",
         "LIBERACAO E SUBSTITUICAO DA AREA HIPOTECADA",
@@ -389,7 +569,29 @@ def _ato_constitui_onus(ato_normalizado: str) -> bool:
         "PRORROGACAO DE PRAZO",
         "EXCLUSAO DE BENS VINCULADOS",
         "QUITACAO DE PROMISSORIA",
+        "INDICACAO GRAUS E CREDORES",
     )):
+        return False
+    if re.search(
+        r"\bDIVIDA\b.{0,100}\bFOI\s+TRANSFERIDA\s+INTEGRALMENTE\b",
+        cabecalho,
+    ):
+        return False
+    if (
+        "ADITIVO" in cabecalho[:180]
+        and "RATIFIC" in ato_normalizado
+        and any(marcador in ato_normalizado for marcador in (
+            "VENCIMENTO",
+            "FORMA DE PAGAMENTO",
+            "ENCARGOS FINANCEIROS",
+            "DATA DA PRIMEIRA PARCELA",
+        ))
+        and not re.search(
+            r"\b(?:INCLUID[AO]|ACRESCID[AO]|CONSTITUID[AO])\b.{0,100}\b"
+            r"(?:HIPOTECA|ALIENACAO FIDUCIARIA|GARANTIA)\b",
+            ato_normalizado,
+        )
+    ):
         return False
     if any(expressao in cabecalho[:320] for expressao in (
         "RENEGOCIACAO",
@@ -568,6 +770,7 @@ def auditar_onus(texto: str, resultado: dict) -> dict:
     sem_tipo = [ato for ato in ativos if not ato.get("tipo_onus")]
     cancelamentos_sem_alvo = []
     cancelamentos_alvo_divergente = []
+    cancelamentos_possivelmente_incompletos = []
 
     def codigo_normalizado(valor: object) -> str:
         correspondencia = re.search(r"\b(R|AV)\s*[.\-,]*\s*(\d+)", str(valor or ""), re.IGNORECASE)
@@ -576,6 +779,7 @@ def auditar_onus(texto: str, resultado: dict) -> dict:
     por_codigo = {
         codigo_normalizado(ato.get("codigo")): ato for ato in atos_aeri
     }
+    posicoes = {id(ato): indice for indice, ato in enumerate(atos_aeri)}
     codigos_onus_normalizados = {
         codigo_normalizado(ato.get("codigo")) for ato in classificados
     }
@@ -592,6 +796,8 @@ def auditar_onus(texto: str, resultado: dict) -> dict:
             r"\b(?:HIPOTECA|ALIENACAO\s+FIDUCIARIA|PENHORA|PENHOR|USUFRUTO|SERVIDAO)\b",
             descricao,
         ))
+        if "PENHOR RURAL/IMOVEL DE LOCALIZACAO" in descricao[:220]:
+            menciona_gravame = False
         if any(marcador in descricao[:600] for marcador in (
             "CLAUSULAS DE INALIENABILIDADE E IMPENHORABILIDADE",
             "CLAUSULA DE INALIENABILIDADE E IMPENHORABILIDADE",
@@ -619,10 +825,43 @@ def auditar_onus(texto: str, resultado: dict) -> dict:
         alvos_aplicados = {
             codigo_normalizado(alvo) for alvo in (ato.get("cancela_atos") or [])
         }
-        if menciona_gravame and not alvos_aplicados.intersection(codigos_onus_normalizados):
+        referencia_externa = bool(re.search(
+            r"\b(?:R|AV)\s*[.\-,]*\s*\d+\s*-\s*(\d{1,10})\b",
+            descricao,
+        ) and any(
+            str(int(sufixo)) != str(int(numero_matricula))
+            for sufixo in re.findall(
+                r"\b(?:R|AV)\s*[.\-,]*\s*\d+\s*-\s*(\d{1,10})\b",
+                descricao,
+            )
+            if numero_matricula
+        ))
+        if (
+            menciona_gravame
+            and not referencia_externa
+            and not alvos_aplicados.intersection(codigos_onus_normalizados)
+        ):
             cancelamentos_sem_alvo.append(codigo)
         if alvos_esperados and not alvos_esperados.issubset(alvos_aplicados):
             cancelamentos_alvo_divergente.append(codigo)
+        tipos_cancelados = {
+            tipo
+            for marcador, tipo in (
+                ("USUFRUTO", "USUFRUTO"),
+                ("HIPOTECA", "HIPOTECA"),
+                ("ALIENACAO FIDUCIARIA", "ALIENACAO FIDUCIARIA"),
+                ("PENHORA", "PENHORA"),
+                ("SERVIDAO", "SERVIDAO"),
+            )
+            if marcador in descricao
+            and re.search(rf"\bCANCELAD[AO]\b.{{0,80}}\b{marcador}\b", descricao)
+        }
+        if tipos_cancelados and any(
+            sem_acentos(ativo.get("tipo_onus", "")) in tipos_cancelados
+            and posicoes.get(id(ativo), -1) < posicoes.get(id(ato), len(atos_aeri))
+            for ativo in ativos
+        ):
+            cancelamentos_possivelmente_incompletos.append(codigo)
 
     alertas = []
     if faltantes:
@@ -635,6 +874,8 @@ def auditar_onus(texto: str, resultado: dict) -> dict:
         alertas.append("CANCELAMENTO_DE_ONUS_SEM_ALVO")
     if cancelamentos_alvo_divergente:
         alertas.append("CANCELAMENTO_DE_ONUS_COM_ALVO_DIVERGENTE")
+    if cancelamentos_possivelmente_incompletos:
+        alertas.append("CANCELAMENTO_POSSIVELMENTE_INCOMPLETO")
     resultado_positivo = str(resultado.get("resultado", "")).startswith("POSITIVA")
     if resultado_positivo != bool(ativos):
         alertas.append("RESULTADO_ONUS_INCONSISTENTE")
@@ -697,14 +938,18 @@ def marcadores_independentes(texto: str) -> dict:
     )
 
     encerramento_explicito = bool(re.search(
-        r"(?:FICA|FICANDO|FOI|E|SEJA)?\s*ENCERRAD[AO]\s+(?:A\s+)?(?:PRESENTE\s+)?MATRICULA"
+        r"(?:FICA|FICANDO|FOI|E|SEJA)?(?:\s+EM\s+CONSEQUENCIA)?\s*"
+        r"ENCERRAD[AO]\s+(?:A\s+)?(?:PRESENTE\s+|ESTA\s+)?MATRICULA"
         r"|COM\s+O\s+QUE\s+(?:FICA\s+)?ENCERRAD[AO]"
         r"|ENCERRA-SE\s+(?:A\s+)?(?:PRESENTE\s+)?MATRICULA"
-        r"|ENCERRAMENTO\s+(?:DA\s+)?(?:PRESENTE\s+)?MATRICULA",
+        r"|ENCERRAMENTO\s+(?:DA\s+)?(?:PRESENTE\s+)?MATRICULA"
+        r"|CANCELAMENTO\s+(?:DA\s+|DE\s+)?MATRICULA"
+        r"|FICA\s+CANCELAD[AO]\s+(?:A\s+|O\s+)?(?:PRESENTE\s+)?MATRICULA",
         texto_normalizado,
     ))
     desmembramento_integral = bool(re.search(
-        r"DESMEMBRAMENTO\s+DO\s+IMOVEL\s+MATRICULADO\s+EM\s+"
+        r"DESMEMBRAMENTO\s+DO\s+IMOVEL(?:\s+OBJETO\s+DA\s+PRESENTE\s+MATRICULA"
+        r"|\s+MATRICULADO)?\s+EM\s+"
         r"(?:DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)\s+GLEBAS\b",
         texto_normalizado,
     )) and "REMANESC" not in texto_normalizado
@@ -730,13 +975,16 @@ def marcadores_independentes(texto: str) -> dict:
                 ) + 1:
             ]
         ),
-        "marcador_cci": any(re.search(r"\bCCI\b", ato) and "CADASTR" in ato for ato in atos_normalizados),
+        "marcador_cci": (
+            bool(re.search(r"\bCCI\b", cabecalho_normalizado))
+            or any(re.search(r"\bCCI\b", ato) and "CADASTR" in ato for ato in atos_normalizados)
+        ),
         "marcador_cep": any(
             "ENDERECAMENTO POSTAL" in ato
             or "CEP DO IMOVEL" in ato
             or re.search(r"\bIMOVEL\b.{0,100}\bPOSSUI\b.{0,100}\bCEP\b", ato, re.DOTALL)
             for ato in atos_normalizados
-        ),
+        ) or bool(re.search(r"\bCEP\b", descricao_imovel)),
         "marcador_ccir": any(
             "CCIR" in ato and ("CODIGO DO IMOVEL RURAL" in ato or "N.º DO CCIR" in ato or "N. DO CCIR" in ato)
             for ato in atos_normalizados
@@ -753,18 +1001,20 @@ def marcadores_independentes(texto: str) -> dict:
         )),
         "marcador_denominacao_rural": denominacao_rural,
         "marcador_incra": bool(re.search(
-            r"\bINCRA\b[^\n;]{0,160}\bSOB\s+O\s+N[.\s\xBA\xB0O]*[\d.]"
-            r"|\bCODIGO\s+DO\s+IMOVEL\s+RURAL\s*[:;]?\s*[\d.]",
+            r"\bINCRA\b[^\n;]{0,220}(?:"
+            r"\bSOB\s+O\s+N[.\s\xBA\xB0O]*[\d.]|"
+            r"\bCODIGO\s+DO\s+IMOVEL\s+RURAL\s*[:;]?\s*[\d.]"
+            r")",
             cabecalho_normalizado,
         )),
-        "cabecalho_proprietario": bool(re.search(r"\bP?ROPRIETARI[OA]S?\s*[:;]", cabecalho_normalizado)),
+        "cabecalho_proprietario": bool(re.search(r"\b(?:P?ROPRIETARI|PRORIETARI)[OA]S?\s*[:;]", cabecalho_normalizado)),
         "atos_transferencia": sum(contem_termo_transferencia(ato) for ato in atos_normalizados),
     }
 
 
-def auditar_texto(numero: int, texto: str) -> dict:
+def auditar_texto(numero: int, texto: str, resultado: dict | None = None) -> dict:
     inicio = time.monotonic()
-    resultado = analisar_matricula(texto, numero_matricula=str(numero))
+    resultado = resultado or analisar_matricula(texto, numero_matricula=str(numero))
     imovel = resultado.get("imovel") or {}
     identificacao = imovel.get("identificacao") or []
     areas = imovel.get("areas") or []
@@ -786,7 +1036,7 @@ def auditar_texto(numero: int, texto: str) -> dict:
         "extraiu_rua": contem_rotulo(identificacao, {"Rua"}),
         "extraiu_numero_predial": contem_rotulo(identificacao, {"Número"}),
         "extraiu_setor": contem_rotulo(identificacao, {"Setor"}),
-        "extraiu_denominacao_rural": contem_rotulo(identificacao, {"Denominação"}),
+        "extraiu_denominacao_rural": contem_rotulo(identificacao, {"Denominação", "Nome"}),
         "extraiu_incra": contem_rotulo(cadastros, {"INCRA"}),
     }
     situacao = str((imovel.get("situacao") or {}).get("status", ""))
@@ -801,6 +1051,40 @@ def auditar_texto(numero: int, texto: str) -> dict:
     ):
         if marcadores[f"marcador_{nome}"] and not extraidos[f"extraiu_{nome}"]:
             alertas_imovel.append(f"{nome.upper()}_NAO_EXTRAIDO")
+
+    tipo_imovel = sem_acentos(imovel.get("tipo", ""))
+    descricao_imovel = descricao_cabecalho_imovel(texto)
+    if tipo_imovel == "RURAL" and re.search(r"\b(?:LOTE|QUADRA)\b", descricao_imovel[:350]):
+        alertas_imovel.append("TIPO_IMOVEL_DIVERGENTE")
+
+    area_extraida = area_em_metros_quadrados(
+        str(item_por_rotulo(areas, "AREA").get("valor", ""))
+    )
+    area_independente = area_registral_independente(texto)
+    if (
+        area_extraida is not None
+        and area_independente is not None
+        and abs(area_extraida - area_independente) > max(0.01, area_independente * 0.001)
+    ):
+        alertas_imovel.append("AREA_REGISTRAL_DIVERGENTE")
+
+    rua_extraida = sem_acentos(item_por_rotulo(identificacao, "RUA").get("valor", ""))
+    if re.match(
+        r"^(RUA|AVENIDA|ALAMEDA|TRAVESSA|PRACA|RODOVIA|VIELA|BECO)\s+\1\b",
+        rua_extraida,
+    ):
+        alertas_imovel.append("RUA_COM_PREFIXO_DUPLICADO")
+
+    setor_extraido = str(item_por_rotulo(identificacao, "SETOR").get("valor", "")).strip()
+    if (
+        re.match(r"^(?:D[OA]\s+)?LOTEAMENTO\b", sem_acentos(setor_extraido))
+        or re.match(r"^(SETOR|BAIRRO|RESIDENCIAL)\s+\1\b", sem_acentos(setor_extraido))
+        or '"' in setor_extraido
+        or "“" in setor_extraido
+        or "”" in setor_extraido
+    ):
+        alertas_imovel.append("SETOR_COM_QUALIFICADOR_RESIDUAL")
+
     alertas_cadeia = []
     if marcadores["cabecalho_proprietario"] and not proprietarios:
         alertas_cadeia.append("PROPRIETARIO_CABECALHO_NAO_EXTRAIDO")
@@ -827,11 +1111,48 @@ def auditar_texto(numero: int, texto: str) -> dict:
         alertas_cadeia.append("ULTIMA_TRANSFERENCIA_INTEGRAL_DIVERGENTE")
     if auditoria_proprietarios["retificacoes_cpf_atuais_nao_aplicadas"]:
         alertas_cadeia.append("RETIFICACAO_CPF_NAO_APLICADA")
+    if any(
+        (
+            len(re.sub(r"[^A-Z]", "", sem_acentos(item.get("nome", "")))) < 2
+            or sem_acentos(item.get("nome", "")).strip()
+            in {"DESCONHECIDO", "NAO INFORMADO", "NOME NAO INFORMADO"}
+        )
+        for item in proprietarios
+    ):
+        alertas_cadeia.append("PROPRIETARIO_NOME_INVALIDO")
     if not contem_rotulo(identificacao, {"Matrícula"}):
         alertas_imovel.append("MATRICULA_NAO_IDENTIFICADA")
 
     alertas_onus = list(filter(None, auditoria_onus["alertas_onus"].split(";")))
     alertas = alertas_onus + alertas_cadeia + alertas_imovel
+
+    codigos_transferencia = [
+        ato["codigo"]
+        for ato in separar_atos(texto)
+        if contem_termo_transferencia(sem_acentos(ato["texto"]))
+    ]
+    evidencias_onus = sorted(filter(None, {
+        *str(auditoria_onus.get("onus_explicitos_codigos", "")).split(","),
+        *str(auditoria_onus.get("onus_classificados_codigos", "")).split(","),
+        *str(auditoria_onus.get("cancelamentos_sem_alvo_codigos", "")).split(","),
+        *str(auditoria_onus.get("cancelamentos_alvo_divergente_codigos", "")).split(","),
+    }))
+    situacao_origem = str((imovel.get("situacao") or {}).get("origem", "")).strip()
+    evidencias_imovel = evidencia_itens(identificacao + areas + cadastros)
+    if situacao:
+        evidencias_imovel.append(f"Situação@{situacao_origem or 'origem não informada'}")
+
+    confianca_onus = confianca_dominio(alertas_onus, ALERTAS_CRITICOS_ONUS)
+    confianca_cadeia = confianca_dominio(alertas_cadeia, ALERTAS_CRITICOS_CADEIA)
+    confianca_imovel = confianca_dominio(alertas_imovel, ALERTAS_CRITICOS_IMOVEL)
+    confiancas = {confianca_onus, confianca_cadeia, confianca_imovel}
+    prioridade_revisao = (
+        "P0-CRITICA"
+        if "BAIXA" in confiancas
+        else "P1-CONFERIR"
+        if alertas
+        else "P2-VALIDADA"
+    )
 
     return {
         "numero_matricula": numero,
@@ -847,6 +1168,14 @@ def auditar_texto(numero: int, texto: str) -> dict:
         "veredito_imovel": "REVISAR" if alertas_imovel else "OK",
         "alertas_cadeia": ";".join(alertas_cadeia),
         "alertas_imovel": ";".join(alertas_imovel),
+        "evidencias_onus": ",".join(evidencias_onus),
+        "evidencias_cadeia": ",".join(codigos_transferencia),
+        "evidencias_imovel": ";".join(evidencias_imovel),
+        "confianca_onus": confianca_onus,
+        "confianca_cadeia": confianca_cadeia,
+        "confianca_imovel": confianca_imovel,
+        "prioridade_revisao": prioridade_revisao,
+        "estado_auditoria": "REVISAR" if alertas else "VALIDADA_AUTOMATICAMENTE",
         "alertas": ";".join(alertas),
         "duracao_ms": round((time.monotonic() - inicio) * 1000),
         "erro": "",
@@ -873,8 +1202,29 @@ def linha_erro(numero: int, status: str, inicio: float, erro: str = "") -> dict:
     linha.update(
         numero_matricula=numero,
         status=status,
+        prioridade_revisao="P0-CRITICA",
+        estado_auditoria="NAO_PROCESSADA",
         duracao_ms=round((time.monotonic() - inicio) * 1000),
         erro=erro[:240],
+    )
+    return linha
+
+
+def linha_ignorada_loteamento(numero: int) -> dict:
+    linha = {campo: "" for campo in CAMPOS}
+    linha.update(
+        numero_matricula=numero,
+        status="IGNORADA_LOTEAMENTO",
+        situacao_aeri="IGNORADA",
+        veredito_onus="IGNORADO",
+        veredito_cadeia="IGNORADO",
+        veredito_imovel="IGNORADO",
+        confianca_onus="NAO_APLICAVEL",
+        confianca_cadeia="NAO_APLICAVEL",
+        confianca_imovel="NAO_APLICAVEL",
+        prioridade_revisao="P2-VALIDADA",
+        estado_auditoria="IGNORADA",
+        erro="Registro de loteamento excluído da auditoria por decisão registral.",
     )
     return linha
 
@@ -918,13 +1268,41 @@ def filtrar_resultados_faixa(
     }
 
 
+def gravar_resultados_consolidados(
+    caminho: Path,
+    resultados: dict[int, dict],
+    inicio: int,
+    fim: int,
+) -> None:
+    """Compacta o checkpoint, mantendo apenas a versão mais recente de cada matrícula."""
+    temporario = caminho.with_suffix(caminho.suffix + ".tmp")
+    with temporario.open("w", encoding="utf-8-sig", newline="") as arquivo:
+        escritor = csv.DictWriter(arquivo, fieldnames=CAMPOS)
+        escritor.writeheader()
+        for numero in range(inicio, fim + 1):
+            linha = resultados.get(numero)
+            if linha:
+                escritor.writerow({campo: linha.get(campo, "") for campo in CAMPOS})
+    os.replace(temporario, caminho)
+
+
 def gravar_resumo(caminho: Path, resultados: dict[int, dict], inicio: int, fim: int) -> Path:
     totais_status: dict[str, int] = {}
     totais_alertas: dict[str, int] = {}
     exemplos_alertas: dict[str, list[int]] = {}
+    totais_dominio = {"onus": 0, "cadeia": 0, "imovel": 0}
+    totais_prioridade: dict[str, int] = {}
+    totais_estado: dict[str, int] = {}
     for numero, linha in sorted(resultados.items()):
         status = linha.get("status", "")
         totais_status[status] = totais_status.get(status, 0) + 1
+        for dominio in totais_dominio:
+            if str(linha.get(f"alertas_{dominio}", "")).strip():
+                totais_dominio[dominio] += 1
+        prioridade = str(linha.get("prioridade_revisao", "")).strip() or "NAO_CLASSIFICADA"
+        estado = str(linha.get("estado_auditoria", "")).strip() or "NAO_CLASSIFICADO"
+        totais_prioridade[prioridade] = totais_prioridade.get(prioridade, 0) + 1
+        totais_estado[estado] = totais_estado.get(estado, 0) + 1
         for alerta in filter(None, str(linha.get("alertas", "")).split(";")):
             totais_alertas[alerta] = totais_alertas.get(alerta, 0) + 1
             exemplos_alertas.setdefault(alerta, [])
@@ -933,6 +1311,9 @@ def gravar_resumo(caminho: Path, resultados: dict[int, dict], inicio: int, fim: 
     resumo = {
         "faixa": {"inicio": inicio, "fim": fim, "quantidade": fim - inicio + 1},
         "totais_status": totais_status,
+        "totais_dominio": totais_dominio,
+        "totais_prioridade": totais_prioridade,
+        "totais_estado_auditoria": totais_estado,
         "totais_alertas": totais_alertas,
         "exemplos_alertas": exemplos_alertas,
         "observacao": "Relatório técnico sem texto registral, nomes ou documentos pessoais.",
@@ -951,6 +1332,11 @@ def argumentos() -> argparse.Namespace:
     parser.add_argument("--tentativas", type=int, default=4)
     parser.add_argument("--refazer", default="")
     parser.add_argument(
+        "--ignorar-loteamentos",
+        default="",
+        help="Números separados por vírgula que representam loteamentos fora do escopo.",
+    )
+    parser.add_argument(
         "--refazer-alertas",
         action="store_true",
         help="Reprocessa somente registros que ainda possuem alertas no relatório informado.",
@@ -959,6 +1345,14 @@ def argumentos() -> argparse.Namespace:
         "--refazer-dominio",
         choices=("onus", "cadeia", "imovel"),
         help="Reprocessa somente os registros alertados no domínio informado.",
+    )
+    parser.add_argument(
+        "--refazer-tipos",
+        default="",
+        help=(
+            "Reprocessa somente registros que possuam ao menos um dos alertas "
+            "informados, separados por vírgula."
+        ),
     )
     parser.add_argument(
         "--base",
@@ -980,6 +1374,19 @@ def main() -> int:
     anteriores = filtrar_resultados_faixa(
         {**resultados_base, **resultados_saida}, args.inicio, args.fim
     )
+    ignorados = {
+        int(item)
+        for item in args.ignorar_loteamentos.split(",")
+        if item.strip()
+    }
+    ignorados_novos = {
+        numero
+        for numero in ignorados
+        if args.inicio <= numero <= args.fim
+        and anteriores.get(numero, {}).get("status") != "IGNORADA_LOTEAMENTO"
+    }
+    for numero in ignorados_novos:
+        anteriores[numero] = linha_ignorada_loteamento(numero)
     refazer = {int(item) for item in args.refazer.split(",") if item.strip()}
     if args.refazer_alertas:
         refazer.update(
@@ -991,6 +1398,18 @@ def main() -> int:
         refazer.update(
             numero for numero, linha in anteriores.items()
             if str(linha.get(campo_dominio, "")).strip()
+        )
+    tipos_refazer = {
+        item.strip()
+        for item in args.refazer_tipos.split(",")
+        if item.strip()
+    }
+    if tipos_refazer:
+        refazer.update(
+            numero for numero, linha in anteriores.items()
+            if tipos_refazer.intersection(
+                filter(None, str(linha.get("alertas", "")).split(";"))
+            )
         )
     concluidos = {
         numero for numero, linha in anteriores.items()
@@ -1017,6 +1436,11 @@ def main() -> int:
             for numero in sorted(anteriores):
                 escritor.writerow({campo: anteriores[numero].get(campo, "") for campo in CAMPOS})
             arquivo.flush()
+        else:
+            for numero in sorted(ignorados_novos):
+                escritor.writerow(anteriores[numero])
+            if ignorados_novos:
+                arquivo.flush()
         with ThreadPoolExecutor(max_workers=args.workers) as executor:
             futuros = {
                 executor.submit(processar_numero, numero, cliente, limitador, args.tentativas): numero
@@ -1041,6 +1465,12 @@ def main() -> int:
                     )
                     ultimo_aviso = agora
 
+    gravar_resultados_consolidados(
+        args.saida,
+        anteriores,
+        args.inicio,
+        args.fim,
+    )
     resumo = gravar_resumo(args.saida, anteriores, args.inicio, args.fim)
     erros = sum(str(item.get("status", "")).startswith("ERRO") for item in anteriores.values())
     print(f"CONCLUÍDO relatório={args.saida} resumo={resumo} erros={erros}", flush=True)

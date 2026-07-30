@@ -10,6 +10,28 @@ from scripts.auditar_semantica_tri7 import (
 
 
 class TesteAuditoriaSemanticaTri7(unittest.TestCase):
+    def test_alerta_nome_desconhecido_na_cadeia(self):
+        texto = (
+            "MATRÍCULA 1.253. PROPRIETÁRIOS: DESCONHECIDO. "
+            "ORIGEM: registro anterior."
+        )
+
+        resultado = auditar_texto(1253, texto)
+
+        self.assertIn("PROPRIETARIO_NOME_INVALIDO", resultado["alertas_cadeia"])
+
+    def test_codigo_rural_de_ccir_nao_e_falso_alerta_de_incra(self):
+        texto = """
+        IMÓVEL: Fazenda Vera Cruz, com área de 2,4697ha.
+        Certificado de Cadastro de Imóvel Rural - CCIR n.º 20891919192;
+        código do imóvel rural: 999.962.897.760-7; área total: 2,0473ha.
+        PROPRIETÁRIA: Empresa Rural Ltda., CNPJ 13.386.541/0001-41.
+        """
+
+        resultado = auditar_texto(32997, texto)
+
+        self.assertNotIn("INCRA_NAO_EXTRAIDO", resultado["alertas"])
+
     def test_loteamento_ignorado_nao_e_contabilizado_como_erro(self):
         resultado = linha_ignorada_loteamento(4964)
 
@@ -92,7 +114,7 @@ class TesteAuditoriaSemanticaTri7(unittest.TestCase):
 
         self.assertNotIn("ENCERRAMENTO_NAO_RECONHECIDO", resultado["alertas_imovel"])
 
-    def test_detecta_cancelamento_explicito_da_matricula(self):
+    def test_cancelamento_explicito_da_matricula_ja_e_reconhecido(self):
         texto = """
         MATRÍCULA 6. IMÓVEL: Fazenda Exemplo, com a área de 1,0000ha.
         PROPRIETÁRIO: Pessoa Exemplo, CPF 004.338.341-61.
@@ -101,7 +123,8 @@ class TesteAuditoriaSemanticaTri7(unittest.TestCase):
 
         resultado = auditar_texto(6, texto)
 
-        self.assertIn("ENCERRAMENTO_NAO_RECONHECIDO", resultado["alertas_imovel"])
+        self.assertEqual(resultado["situacao_aeri"], "ENCERRADA")
+        self.assertNotIn("ENCERRAMENTO_NAO_RECONHECIDO", resultado["alertas_imovel"])
 
     def test_detecta_area_cadastral_usada_como_area_registral(self):
         texto = """

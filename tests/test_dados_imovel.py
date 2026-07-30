@@ -264,7 +264,8 @@ class TesteDadosImovel(unittest.TestCase):
         AV.02-39.000 - DESIGNAÇÃO CADASTRAL DO IMÓVEL. O imóvel objeto da
         presente matrícula possui o seguinte código cadastral na Prefeitura
         Municipal: CCI n.º 139.796xxx.xxxxxx.xxx. DOU FÉ.
-        AV.03-39.000 - EDIFICAÇÃO. Foi edificada uma casa residencial com
+        AV.03-39.000 - Data: 26.06.2026. Protocolo n.º 184.091, de 18.06.2026.
+        EDIFICAÇÃO. Foi edificada uma casa residencial de n.º 174, com
         82,37m² de área construída. DOU FÉ.
         """
 
@@ -280,6 +281,18 @@ class TesteDadosImovel(unittest.TestCase):
         )
         self.assertEqual(valores_por_rotulo(resultado["cadastros"], "CEP"), ["75.656-118"])
         self.assertEqual(valores_por_rotulo(resultado["areas"], "Área Construída"), ["82,37 m²"])
+        self.assertEqual(valores_por_rotulo(resultado["identificacao"], "Número"), ["174"])
+
+    def test_logradouro_generico_de_confrontacao_nao_e_endereco(self):
+        texto = """
+        MATRÍCULA 39.000. IMÓVEL: Lote n.º 27-B, da Quadra 66, situado na Novara,
+        Jardim Romano, dividindo na frente com a citada rua; fundos com o lote 26.
+        PROPRIETÁRIO: Pessoa Exemplo.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(valores_por_rotulo(resultado["identificacao"], "Rua"), [])
 
     def test_matricula_aberta_sem_numero_explicito_usa_primeiro_ato_e_dados_urbanos_atuais(self):
         texto = """
@@ -1219,6 +1232,29 @@ class TesteDadosImovel(unittest.TestCase):
             analisar_matricula(texto)["imovel"]["situacao"]["status"],
             "ENCERRADA",
         )
+
+    def test_foi_encerrada_a_matricula_reconhece_encerramento(self):
+        texto = """
+        MATRÍCULA 814. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa Teste.
+        AV.01-814 - REMEMBRAMENTO. Foi encerrada a presente matrícula. DOU FÉ.
+        """
+
+        self.assertEqual(
+            analisar_matricula(texto)["imovel"]["situacao"]["status"],
+            "ENCERRADA",
+        )
+
+    def test_desmembramento_integral_sem_numeros_das_sucessoras_encerra(self):
+        texto = """
+        MATRÍCULA 815. IMÓVEL: Fazenda Exemplo, com 20ha.
+        PROPRIETÁRIO: Pessoa Teste.
+        AV.01-815 - DESMEMBRAMENTO DO IMÓVEL OBJETO DA PRESENTE MATRÍCULA EM
+        DUAS GLEBAS. Os novos registros serão informados em certidão própria. DOU FÉ.
+        """
+
+        situacao = analisar_matricula(texto)["imovel"]["situacao"]
+        self.assertEqual(situacao["status"], "ENCERRADA")
+        self.assertEqual(situacao["origem"], "Texto registral")
 
     def test_desmembramento_do_imovel_objeto_em_glebas_encerra(self):
         texto = """

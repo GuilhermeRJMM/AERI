@@ -251,6 +251,54 @@ class TesteProprietarios(unittest.TestCase):
             ],
         )
 
+    def test_proprietarios_numerados_sem_parenteses_excluem_conjuges_qualificados(self):
+        cabecalho = """
+        IMÓVEL: Lote 1. PROPRIETÁRIOS:
+        1 - Amilton Pires Arantes, CPF 088.131.401-34 e sua mulher Iraídes
+        Pereira Arantes, CPF 330.335.791-91, casados;
+        2 - Francisco Fernandes Vaz Filho, CPF 193.767.151-87, e sua mulher
+        Tereza Rodrigues Vaz, CPF 360.133.231-00, casados;
+        3 - José Fernandes Vaz, solteiro, CPF 466.865.921-53.
+        ORIGEM: matrícula anterior.
+        """
+
+        pessoas = extrair_proprietario_inicial(cabecalho)
+
+        self.assertEqual(
+            [(pessoa["nome"], pessoa["cpf"]) for pessoa in pessoas],
+            [
+                ("Amilton Pires Arantes", "088.131.401-34"),
+                ("Francisco Fernandes Vaz Filho", "193.767.151-87"),
+                ("José Fernandes Vaz", "466.865.921-53"),
+            ],
+        )
+
+    def test_proprietarios_historicos_separados_por_percentual_parentetico(self):
+        cabecalho = """
+        IMÓVEL: Fazenda Exemplo. PROPRIETÁRIOS:
+        Victor Gonçalves Leite e sua mulher Coraci Maria Leite, inscritos no
+        CPF 016.761.641. (24,1202%).
+        Raquel Gonçalves Leite, viúva, CPF 020.928.161. (11,5233%).
+        Antonio Gonçalves Leite, desquitado, CPF 058.361.741-72. (64,3565%).
+        ORIGEM: matrícula anterior.
+        """
+
+        pessoas = extrair_proprietario_inicial(cabecalho)
+
+        self.assertEqual(
+            [pessoa["nome"] for pessoa in pessoas],
+            [
+                "Victor Gonçalves Leite",
+                "Raquel Gonçalves Leite",
+                "Antonio Gonçalves Leite",
+            ],
+        )
+        self.assertEqual(
+            [pessoa["percentual"] for pessoa in pessoas],
+            [24.1202, 11.5233, 64.3565],
+        )
+        self.assertEqual(pessoas[0]["cpf"], "016.761.641")
+
     def test_titulo_de_dominio_do_incra_transfere_ao_outorgado(self):
         cabecalho = """
         IMÓVEL: Fazenda Paraíso e Tijuqueiro, Lote 18. PROPRIETÁRIO: Instituto
@@ -1220,6 +1268,169 @@ class TesteProprietarios(unittest.TestCase):
                 for item in resultado
             ),
             100.0,
+        )
+
+    def test_doadores_numerados_com_e_entre_virgulas_sao_todos_debitados(self):
+        texto = """
+        MATRÍCULA 38.585. IMÓVEL: Lote urbano.
+        PROPRIETÁRIOS: 1)- José Naves de Oliveira, CPF 412.394.311-04,
+        a proporção de 25%; 2)- Célia Alves de Oliveira Barbosa,
+        CPF 418.750.951-87, a proporção de 25%; 3)- Eliete Alves de Oliveira,
+        CPF 008.377.931-06, a proporção de 25%; e, 4)- Valdete Alves de Oliveira,
+        CPF 449.092.921-87, a proporção de 25%.
+        R.03-38.585 - DOAÇÃO. DOADORES: 1- Célia Alves de Oliveira Barbosa,
+        CPF 418.750.951-87; 2- Valdete Alves de Oliveira,
+        CPF 449.092.921-87, e, 3- José Naves de Oliveira,
+        CPF 412.394.311-04. DONATÁRIO: Eliete Alves de Oliveira,
+        CPF 008.377.931-06. IMÓVEL: A proporção de 75% do imóvel total.
+        """
+        atos = [
+            SimpleNamespace(descricao=item["texto"])
+            for item in separar_atos(texto)
+        ]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            [(item["nome"], item["proporcao"]) for item in resultado],
+            [("Eliete Alves de Oliveira", "100%")],
+        )
+
+    def test_compra_antiga_nao_corta_transmitentes_no_primeiro_ponto_e_virgula(self):
+        texto = """
+        MATRÍCULA 4.860. IMÓVEL: Lote urbano.
+        PROPRIETÁRIOS: 1)- Juversina Maria Vieira, CPF 061.502.841-15,
+        a proporção de 20%; 2)- Iraci Maria Ferreira, CPF 176.805.142-91,
+        a proporção de 20%; 3)- Joana Maria de Andrade, CPF 176.792.302-34,
+        a proporção de 20%; 4)- Vera Lúcia Maria de Souza, CPF 414.877.371-49,
+        a proporção de 20%; e, 5)- José Pedro Ferreira, CPF 261.490.361-20,
+        a proporção de 20%.
+        R.07-4.860 - COMPRA E VENDA. Nos termos da escritura pública lavrada
+        no Livro 1, fls. 1; José Pedro Ferreira,
+        CPF 261.490.361-20, adquiriu por compra feita a Joana Maria de Andrade,
+        CPF 176.792.302-34; Vera Lúcia Maria de Souza, CPF 414.877.371-49;
+        e Iraci Maria Ferreira, CPF 176.805.142-91, três partes ideais,
+        correspondentes a 60% do imóvel, no valor de Cz$6.000,00.
+        R.08-4.860 - COMPRA E VENDA. Nos termos da escritura pública lavrada
+        no Livro 1, fls. 2; José Pedro Ferreira,
+        CPF 261.490.361-20, adquiriu por compra feita a Juversina Maria Vieira,
+        CPF 061.502.841-15, parte correspondente a 20% do imóvel,
+        no valor de Cz$12.000,00.
+        """
+        atos = [
+            SimpleNamespace(descricao=item["texto"])
+            for item in separar_atos(texto)
+        ]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            [(item["nome"], item["proporcao"]) for item in resultado],
+            [("José Pedro Ferreira", "100%")],
+        )
+
+    def test_matricula_4860_separa_partilhas_repetidas_com_mesmo_codigo(self):
+        texto = """
+        MATRÍCULA 4.860. IMÓVEL: Lote urbano.
+        PROPRIETÁRIA: Ana Maria Rosa, CPF 057.708.910-34.
+        R.03-4.860 - FORMAL DE PARTILHA dos bens deixados por falecimento de
+        Ana Maria Rosa, julgado por sentença. Coube à herdeira Juversina Maria
+        Vieira, CPF 061.502.841-15, parte ideal de Cz$600,00 na avaliação de
+        Cz$3.000,00 sobre o imóvel.
+        R.03-4.860 - FORMAL DE PARTILHA dos bens deixados por falecimento de
+        Ana Maria Rosa, julgado por sentença. Coube à herdeira Iraci Maria
+        Ferreira, CPF 176.805.142-91, parte ideal de Cz$600,00 na avaliação de
+        Cz$3.000,00 sobre o imóvel.
+        R.04-4.860 - FORMAL DE PARTILHA dos bens deixados por falecimento de
+        Ana Maria Rosa, julgado por sentença. Coube à herdeira Joana Maria de
+        Andrade, CPF 176.792.302-34, parte ideal de Cz$600,00 na avaliação de
+        Cz$3.000,00 sobre o imóvel.
+        R.05-4.860 - FORMAL DE PARTILHA dos bens deixados por falecimento de
+        Ana Maria Rosa, julgado por sentença. Coube à herdeira Vera Lúcia Maria
+        de Souza, CPF 414.877.371-49, parte ideal de Cz$600,00 na avaliação de
+        Cz$3.000,00 sobre o imóvel.
+        R.06-4.860 - FORMAL DE PARTILHA dos bens deixados por falecimento de
+        Ana Maria Rosa, julgado por sentença. Coube ao herdeiro José Pedro
+        Ferreira, CPF 261.490.361-20, parte ideal de Cz$600,00 na avaliação de
+        Cz$3.000,00 sobre o imóvel.
+        R.07-4.860 - COMPRA E VENDA. Escritura pública lavrada no Livro 1,
+        fls. 1; José Pedro Ferreira, CPF 261.490.361-20, adquiriu por compra
+        feita a Joana Maria de Andrade, CPF 176.792.302-34; Vera Lucia Maria
+        de Sousa; e Iraci Maria Ferreira, CPF 176.805.142-91, três partes
+        ideais correspondentes a 60% do imóvel, no valor de Cz$6.000,00.
+        R.08-4.860 - COMPRA E VENDA. Escritura pública lavrada no Livro 1,
+        fls. 2; José Pedro Ferreira, CPF 261.490.361-20, adquiriu por compra
+        feita a Juvercina Maria Vieira, CPF 061.502.841-15, parte ideal
+        correspondente a 20% do imóvel, no valor de Cz$12.000,00.
+        """
+        atos = [
+            SimpleNamespace(descricao=item["texto"])
+            for item in separar_atos(texto)
+        ]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            [(item["nome"], item["proporcao"]) for item in resultado],
+            [("José Pedro Ferreira", "100%")],
+        )
+
+    def test_transmitente_antiga_antes_de_filha_de_e_separada_dos_conjuges(self):
+        texto = """
+        R.07-4.860 - COMPRA E VENDA. José Pedro Ferreira adquiriu por compra
+        feita a Joana Maria de Andrade, CPF 176.792.302-34. Vera Lucia Maria
+        de Sousa; filha de Manoel Pedro Ferreira e Ana Maria Rosa e seu marido
+        Antônio Rabelo de Souza, casados, residentes e domiciliados ele na
+        Fazenda Macacos, ela em Goiânia, CPF 125.234.371-04 e Iraci Maria
+        Ferreira, solteira, maior, do lar, CPF 176.805.142-91, todos brasileiros,
+        três partes ideais de 20% cada,
+        no valor de Cz$6.000,00.
+        """
+
+        transmitentes = extrair_pessoas(extrair_bloco(texto, "TRANSMITENTE"))
+
+        self.assertEqual(
+            [item["nome"] for item in transmitentes],
+            [
+                "Joana Maria de Andrade",
+                "Vera Lucia Maria de Sousa",
+                "Iraci Maria Ferreira",
+            ],
+        )
+
+    def test_matricula_10726_aplica_conversao_de_separacao_antes_das_vendas(self):
+        texto = """
+        MATRÍCULA 10.726. IMÓVEL: Fazenda rural.
+        PROPRIETÁRIOS: 1)- Ancelmo Gomes Arantes, CPF 134.355.071-87;
+        e, 2)- Afonso Gomes Arantes, CPF 093.927.421-34.
+        AV.01-10.726 - Nos termos do mandado extraído dos autos de Converção de
+        Separação Judicial Consensual em Divorcio de Afonso Gomes Arantes e
+        Rosângela Gomes de Almeida; Escrivania de Família e Sucessões, 50% do
+        imóvel passará a pertencer aos requerentes na proporção de 25% para
+        casa um.
+        R.02-10.726 - COMPRA E VENDA. ADQUIRENTE: Manoel Antônio de Mendonça,
+        CPF 154.412.291-87. TRANSMITENTES: 1)- Afonso Gomes Arantes,
+        CPF 093.927.421-34; e, 2)- Ancelmo Gomes Arantes,
+        CPF 134.355.071-87. IMÓVEL: parte correspondente a 75% do imóvel.
+        O imóvel é vendido da seguinte maneira: 1) Afonso Gomes Arantes vende
+        apenas 25% do imóvel; 2) Ancelmo Gomes Arantes vende 50% do imóvel.
+        R.03-10.726 - COMPRA E VENDA. ADQUIRENTE: Jaci Moreira Arantes,
+        CPF 052.260.401-30. TRANSMITENTE: Rosângela Gomes de Almeida,
+        CPF 246.314.851-91. IMÓVEL: parte correspondente a 25% do imóvel.
+        R.04-10.726 - COMPRA E VENDA. ADQUIRENTE: José Cândido Júnior,
+        CPF 052.248.881-15. TRANSMITENTE: Manoel Antônio de Mendonça,
+        CPF 154.412.291-87. IMÓVEL: parte correspondente a 75% do imóvel.
+        """
+        atos = [
+            SimpleNamespace(descricao=item["texto"])
+            for item in separar_atos(texto)
+        ]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            [(item["nome"], item["proporcao"]) for item in resultado],
+            [("Jaci Moreira Arantes", "25%"), ("José Cândido Júnior", "75%")],
         )
 
 

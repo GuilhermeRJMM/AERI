@@ -179,7 +179,25 @@ def _tem_encerramento_explicito(normalizado: str) -> bool:
             normalizado,
         ))
         or bool(re.search(r"\bCANCELA-SE\s+A\s+(?:PRESENTE\s+)?MATRICULA\b", normalizado))
+        or bool(re.search(
+            r"\b(?:FOI|E|SEJA)\s+ENCERRAD[AO]\s+(?:A\s+)?(?:PRESENTE\s+|ESTA\s+)?MATRICULA\b",
+            normalizado,
+        ))
+        or bool(re.search(r"\bCANCELAMENTO\s+(?:DA\s+|DE\s+)?MATRICULA\b", normalizado))
+        or bool(re.search(
+            r"\bFICA\s+CANCELAD[AO]\s+(?:A\s+|O\s+)?(?:PRESENTE\s+)?MATRICULA\b",
+            normalizado,
+        ))
     )
+
+
+def _tem_desmembramento_integral(normalizado: str) -> bool:
+    return bool(re.search(
+        r"DESMEMBRAMENTO\s+DO\s+IMOVEL(?:\s+OBJETO\s+DA\s+PRESENTE\s+MATRICULA"
+        r"|\s+MATRICULADO)?\s+EM\s+"
+        r"(?:DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)\s+GLEBAS\b",
+        normalizado,
+    )) and "REMANESC" not in normalizado
 
 
 def _extrair_area_registral(cabecalho: str, rural: bool) -> Optional[str]:
@@ -363,6 +381,16 @@ def _extrair_confrontacoes(descricao: str, origem: str = "Cabeçalho", rua: Opti
     ]
 
 
+def _extrair_numero_edificacao(descricao: str) -> Optional[str]:
+    numero_edificacao = re.search(
+        r"\b(?:casa|prédio|edificação)\b[^,;.]{0,80}?(?:,|\bde)\s*"
+        r"(?:(?:n(?:[.º°o]|os|s)*)|número)\s*(\d[\d.]*)\b",
+        descricao,
+        re.IGNORECASE,
+    )
+    return numero_edificacao.group(1) if numero_edificacao else None
+
+
 def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
     tipo_logradouro = r"(?:Ruas?|Avenida|Avnida|Av[.]?|Alameda|Travessa|Praça|Rodovia|Estrada|Viela|Beco|Acesso)"
     logradouro = re.search(
@@ -403,6 +431,9 @@ def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str], Opt
             maxsplit=1,
             flags=re.IGNORECASE,
         )[0].strip(" ,.;")
+        if re.fullmatch(tipo_logradouro, rua, re.IGNORECASE):
+            rua = None
+            logradouro = None
     numero = None
     setor = None
     if rua:
@@ -498,14 +529,7 @@ def _extrair_endereco(descricao: str) -> tuple[Optional[str], Optional[str], Opt
             break
 
     if not numero:
-        numero_edificacao = re.search(
-            r"\b(?:casa|prédio|edificação)\b[^,;.]{0,80}?,\s*"
-            r"(?:(?:n(?:[.º°o]|os|s)*)|número)\s*(\d[\d.]*)\b",
-            descricao,
-            re.IGNORECASE,
-        )
-        if numero_edificacao:
-            numero = numero_edificacao.group(1)
+        numero = _extrair_numero_edificacao(descricao)
 
     if not setor:
         loteamento = re.search(
@@ -645,7 +669,7 @@ def _sucessoras_desmembramento_integral(texto: str, normalizado: str) -> list[st
         r"(DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)\s+GLEBAS\b",
         normalizado,
     )
-    if not divisao or "REMANESC" in normalizado:
+    if not divisao or not _tem_desmembramento_integral(normalizado):
         return []
 
     quantidade_texto = divisao.group(1)
@@ -1024,6 +1048,14 @@ def extrair_dados_imovel(
                     "valor": construida,
                     "origem": codigo,
                 })
+            if not rural:
+                numero_edificacao = _extrair_numero_edificacao(descricao_ato)
+                if numero_edificacao:
+                    _substituir_por_rotulo(resultado["identificacao"], {
+                        "rotulo": "Número",
+                        "valor": numero_edificacao,
+                        "origem": codigo,
+                    })
 
         if "CCIR" in normalizado or "CERTIFICADO DE CADASTRO DE IMOVEL RURAL" in normalizado:
             codigo_rural = re.search(
@@ -1146,11 +1178,17 @@ def extrair_dados_imovel(
             mensagem = f"Área documental: {diferenca.group(1)} ha; representação gráfica: {diferenca.group(2)} ha."
             _adicionar_unico(resultado["divergencias"], {"rotulo": "Divergência de área", "valor": mensagem, "origem": codigo})
 
-    if resultado["situacao"]["status"] == "ATIVA" and _tem_encerramento_explicito(texto_normalizado):
+    encerramento_textual = _tem_encerramento_explicito(texto_normalizado)
+    desmembramento_integral = _tem_desmembramento_integral(texto_normalizado)
+    if resultado["situacao"]["status"] == "ATIVA" and (encerramento_textual or desmembramento_integral):
         resultado["situacao"] = {"status": "ENCERRADA", "origem": "Texto registral"}
         resultado["alertas"].append({
             "tipo": "MATRÍCULA ENCERRADA",
-            "mensagem": "Consulte a matrícula sucessora antes de concluir a situação atual do imóvel.",
+            "mensagem": (
+                "O imóvel foi integralmente desmembrado. Consulte as matrículas sucessoras."
+                if desmembramento_integral
+                else "Consulte a matrícula sucessora antes de concluir a situação atual do imóvel."
+            ),
             "origem": "Texto registral",
         })
 
