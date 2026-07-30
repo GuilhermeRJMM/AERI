@@ -98,7 +98,7 @@ function renderizarGrupoImovel(titulo, itens) {
             <h3>${escaparHtml(titulo)}</h3>
             <div class="imovel-lista">
                 ${itens.map(item => `
-                    <div class="imovel-linha ${item.rotulo === 'Descrição registral' ? 'imovel-linha-ampla' : ''}">
+                    <div class="imovel-linha ${item.rotulo === 'Descrição registral' ? 'imovel-linha-ampla' : ''} ${item.ausente ? 'imovel-linha-ausente' : ''}">
                         <span>${escaparHtml(item.rotulo)}</span>
                         <strong>${escaparHtml(item.valor)}</strong>
                         ${item.origem && item.origem !== 'Cabeçalho' ? `<small>${escaparHtml(item.origem)}</small>` : ''}
@@ -107,17 +107,109 @@ function renderizarGrupoImovel(titulo, itens) {
         </section>`;
 }
 
-function renderizarImovel(imovel) {
+const NAO_CONSTA = 'NÃO CONSTA';
+
+function normalizarRotulo(valor) {
+    return String(valor || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toUpperCase();
+}
+
+function completarCamposImovel(itens, campos) {
+    const lista = Array.isArray(itens) ? itens : [];
+    const usados = new Set();
+    const completos = [];
+
+    campos.forEach(campo => {
+        const encontrados = [];
+        lista.forEach((item, indice) => {
+            if (campo.corresponde(item)) {
+                encontrados.push({...item, rotulo: campo.rotulo});
+                usados.add(indice);
+            }
+        });
+        if (encontrados.length) completos.push(...encontrados);
+        else completos.push({rotulo: campo.rotulo, valor: NAO_CONSTA, ausente: true});
+    });
+
+    lista.forEach((item, indice) => {
+        if (!usados.has(indice)) completos.push(item);
+    });
+    return completos;
+}
+
+function campoPorRotulos(rotulo, ...rotulos) {
+    const aceitos = new Set(rotulos.map(normalizarRotulo));
+    return {
+        rotulo,
+        corresponde: item => aceitos.has(normalizarRotulo(item.rotulo)),
+    };
+}
+
+function grupoGenerico(itens, rotulo) {
+    return Array.isArray(itens) && itens.length
+        ? itens
+        : [{rotulo, valor: NAO_CONSTA, ausente: true}];
+}
+
+function gruposCompletosImovel(imovel) {
+    const identificacao = completarCamposImovel(imovel.identificacao, [
+        campoPorRotulos('Matrícula', 'Matrícula'),
+        campoPorRotulos('Nome / denominação', 'Nome', 'Denominação'),
+        campoPorRotulos('Lote', 'Lote'),
+        campoPorRotulos('Quadra', 'Quadra'),
+        campoPorRotulos('Rua', 'Rua'),
+        campoPorRotulos('Número', 'Número'),
+        campoPorRotulos('Setor', 'Setor'),
+    ]);
+    const confrontacoes = completarCamposImovel(imovel.confrontacoes, [
+        campoPorRotulos('Frente', 'Frente'),
+        campoPorRotulos('Lado direito', 'Lado direito'),
+        campoPorRotulos('Lado esquerdo', 'Lado esquerdo'),
+        campoPorRotulos('Fundos', 'Fundos'),
+    ]);
+    const areas = completarCamposImovel(imovel.areas, [
+        campoPorRotulos('Área registral', 'Área'),
+        campoPorRotulos('Área construída', 'Área construída'),
+        campoPorRotulos('Área no CCIR', 'Área no CCIR'),
+        campoPorRotulos('Área declarada no CAR', 'Área declarada no CAR'),
+    ]);
+    const cadastros = completarCamposImovel(imovel.cadastros, [
+        {
+            rotulo: 'Cadastro municipal',
+            corresponde: item => normalizarRotulo(item.rotulo) === 'CADASTRO MUNICIPAL'
+                && !/\bCCI\b/i.test(String(item.valor || '')),
+        },
+        {
+            rotulo: 'CCI',
+            corresponde: item => normalizarRotulo(item.rotulo) === 'CCI'
+                || /\bCCI\b/i.test(String(item.valor || '')),
+        },
+        campoPorRotulos('CEP', 'CEP'),
+        campoPorRotulos('CCIR / código rural', 'CCIR / código rural'),
+        campoPorRotulos('INCRA', 'INCRA'),
+        campoPorRotulos('CAR', 'CAR'),
+        campoPorRotulos('Coordenadas do CAR', 'Coordenadas do CAR'),
+    ]);
+    const restricoes = grupoGenerico(imovel.restricoes, 'Restrições e dados ambientais');
+    const divergencias = grupoGenerico(imovel.divergencias, 'Divergências');
+    return {identificacao, confrontacoes, areas, cadastros, restricoes, divergencias};
+}
+
+export function renderizarImovel(imovel) {
     if (!imovel) {
-        return '<div class="imovel-vazio">Dados do imóvel não identificados.</div>';
+        imovel = {};
     }
-    const situacao = imovel.situacao || {status:'ATIVA', origem:'Matrícula'};
+    const situacao = imovel.situacao || {};
+    const grupos = gruposCompletosImovel(imovel);
     const matriculasSucessoras = Array.isArray(situacao.matriculas_sucessoras)
         ? situacao.matriculas_sucessoras
         : (situacao.matricula_sucessora ? [situacao.matricula_sucessora] : []);
-    const sucessora = matriculasSucessoras.length
-        ? `<div class="imovel-resumo-item"><span>${matriculasSucessoras.length > 1 ? 'Matrículas sucessoras' : 'Matrícula sucessora'}</span><strong>${escaparHtml(matriculasSucessoras.join(', '))}</strong><small>${escaparHtml(situacao.origem)}</small></div>`
-        : '';
+    const situacaoStatus = situacao.status || NAO_CONSTA;
+    const situacaoOrigem = situacao.origem || NAO_CONSTA;
+    const sucessorasValor = matriculasSucessoras.length ? matriculasSucessoras.join(', ') : NAO_CONSTA;
     const alertas = (imovel.alertas || []).map(alerta => `
         <div class="imovel-alerta">
             <div><strong>${escaparHtml(alerta.tipo)}</strong><span>${escaparHtml(alerta.mensagem)}</span></div>
@@ -127,17 +219,17 @@ function renderizarImovel(imovel) {
     return `
         <div class="imovel-painel">
             <div class="imovel-resumo">
-                <div class="imovel-resumo-item"><span>Situação</span><strong class="imovel-situacao ${situacao.status !== 'ATIVA' ? 'encerrada' : ''}">${escaparHtml(situacao.status)}</strong><small>${escaparHtml(situacao.origem)}</small></div>
-                <div class="imovel-resumo-item"><span>Tipo</span><strong>${escaparHtml(imovel.tipo || 'NÃO IDENTIFICADO')}</strong></div>
-                ${sucessora}
+                <div class="imovel-resumo-item"><span>Situação</span><strong class="imovel-situacao ${situacaoStatus !== 'ATIVA' ? 'encerrada' : ''}">${escaparHtml(situacaoStatus)}</strong><small>${escaparHtml(situacaoOrigem)}</small></div>
+                <div class="imovel-resumo-item"><span>Tipo</span><strong>${escaparHtml(imovel.tipo || NAO_CONSTA)}</strong></div>
+                <div class="imovel-resumo-item"><span>Matrículas sucessoras</span><strong>${escaparHtml(sucessorasValor)}</strong></div>
             </div>
             ${alertas ? `<div class="imovel-alertas">${alertas}</div>` : ''}
-            ${renderizarGrupoImovel('Identificação', imovel.identificacao)}
-            ${renderizarGrupoImovel('Confrontações', imovel.confrontacoes)}
-            ${renderizarGrupoImovel('Áreas', imovel.areas)}
-            ${renderizarGrupoImovel('Cadastros', imovel.cadastros)}
-            ${renderizarGrupoImovel('Restrições e dados ambientais', imovel.restricoes)}
-            ${renderizarGrupoImovel('Divergências', imovel.divergencias)}
+            ${renderizarGrupoImovel('Identificação', grupos.identificacao)}
+            ${renderizarGrupoImovel('Confrontações', grupos.confrontacoes)}
+            ${renderizarGrupoImovel('Áreas', grupos.areas)}
+            ${renderizarGrupoImovel('Cadastros', grupos.cadastros)}
+            ${renderizarGrupoImovel('Restrições e dados ambientais', grupos.restricoes)}
+            ${renderizarGrupoImovel('Divergências', grupos.divergencias)}
         </div>`;
 }
 

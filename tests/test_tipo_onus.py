@@ -58,6 +58,46 @@ class TesteTipoOnus(unittest.TestCase):
         self.assertEqual(atos["R.02"]["tipo_onus"], "HIPOTECA")
         self.assertEqual(atos["R.02"]["grau_onus"], "1º grau")
 
+    def test_matricula_33902_preserva_hipotecas_trasladadas_sem_duplicar_repactuacoes(self):
+        texto = """
+        AV.01-33.902 - TRASLADO/HIPOTECA. Na matrícula de origem encontra-se
+        registrado o Aditivo de Re-Ratificação à Cédula Rural Hipotecária,
+        que continua gravando este imóvel na sua totalidade, em PRIMEIRO GRAU.
+        Vencimento: 31 de outubro de 2002. Forma de Pagamento: seis prestações.
+        Objeto da Garantia: em hipoteca cedular de 1º grau, o imóvel desta matrícula.
+
+        AV.02-33.902 - TRASLADO/HIPOTECA. Na matrícula de origem encontra-se
+        registrado o Aditivo de Re-Ratificação à Cédula Rural Hipotecária,
+        que continua gravando este imóvel na sua totalidade, em SEGUNDO GRAU.
+        Vencimento: 31 de outubro de 2002. Forma de Pagamento: seis prestações.
+        Objeto da Garantia: em hipoteca cedular de 2º grau, o imóvel desta matrícula.
+
+        AV.04-33.902 - TRASLADO/HIPOTECA. Cédula Rural Pignoratícia e Hipotecária
+        que continua gravando este imóvel na sua totalidade, em TERCEIRO GRAU.
+        Objeto da Garantia: em hipoteca cedular de 3º grau, o imóvel desta matrícula.
+
+        AV.09-33.902 - TRASLADO/REPACTUAÇÃO DE DÍVIDA A FAVOR DA UNIÃO.
+        A repactuação refere-se à cédula da hipoteca de primeiro grau, que continua
+        em vigor a favor da União, com novo vencimento e forma de pagamento. Fica
+        suprimida a variação do preço mínimo básico do produto vinculado à operação.
+
+        AV.10-33.902 - TRASLADO/REPACTUAÇÃO DE DÍVIDA A FAVOR DA UNIÃO.
+        A repactuação refere-se à cédula da hipoteca de segundo grau, que continua
+        em vigor a favor da União, com novo vencimento e forma de pagamento. Fica
+        suprimida a variação do preço mínimo básico do produto vinculado à operação.
+        """
+
+        resultado = analisar_matricula(texto, numero_matricula="33902")
+        atos = {ato["codigo"]: ato for ato in resultado["atos"]}
+
+        self.assertEqual(resultado["resultado"], "POSITIVA PARA ÔNUS")
+        self.assertEqual(set(atos), {"AV.01", "AV.02", "AV.04"})
+        self.assertEqual(
+            [atos[codigo]["grau_onus"] for codigo in ("AV.01", "AV.02", "AV.04")],
+            ["1º grau", "2º grau", "3º grau"],
+        )
+        self.assertTrue(all(ato["status"] == "ATIVO" for ato in atos.values()))
+
 
 if __name__ == "__main__":
     unittest.main()

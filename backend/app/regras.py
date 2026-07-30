@@ -279,6 +279,48 @@ def classificar(texto, regras_aprendidas=None):
     if "INDICACAO GRAUS E CREDORES" in titulo_ato:
         return ("IGNORAR", False)
 
+    # Em matrículas abertas por desmembramento, o traslado pode trazer como
+    # averbação o aditivo da cédula originária. Quando o próprio ato declara
+    # que a hipoteca continua gravando o imóvel trasladado, ele materializa o
+    # ônus nesta matrícula e não pode ser descartado como simples aditivo.
+    if (
+        any(marcador in titulo_ato for marcador in (
+            "TRASLADO/HIPOTECA",
+            "TRASLADO DE HIPOTECA",
+        ))
+        and (
+            re.search(
+                r"\bCONTINUA(?:M)?\s+GRAVANDO\s+(?:ESTE|O)\s+IMOVEL\b",
+                texto_sem_acentos_compacto,
+            )
+            or re.search(
+                r"\bCONTINUA(?:M)?\s+EM\s+VIGOR\b",
+                texto_sem_acentos_compacto,
+            )
+        )
+    ):
+        return ("ÔNUS", True)
+
+    # A repactuação altera as condições da dívida e mantém a hipoteca já
+    # trasladada; expressões incidentais como "produto vinculado à operação"
+    # não representam a constituição de uma nova garantia.
+    if (
+        any(marcador in titulo_ato for marcador in (
+            "REPACTUACAO DA DIVIDA",
+            "REPACTUACAO DE DIVIDA",
+        ))
+        and not any(marcador in texto_sem_acentos_compacto for marcador in (
+            "OBJETO DA GARANTIA",
+            "OBJETOS DA GARANTIA",
+            "DADO EM GARANTIA",
+            "DADA EM GARANTIA",
+            "CONSTITUICAO DE GARANTIA",
+            "NOVA GARANTIA",
+            "NOVAS GARANTIAS",
+        ))
+    ):
+        return ("IGNORAR", False)
+
     nova_garantia_no_aditivo = bool(
         re.search(
             r"\b(?:INCLUID[AO]|ACRESCID[AO]|CONSTITUID[AO])\b.{0,100}\b"
@@ -381,6 +423,7 @@ def classificar(texto, regras_aprendidas=None):
     if any(marcador in titulo_ato for marcador in (
         "PRORROGACAO DE PRAZO",
         "REPACTUACAO DA DIVIDA",
+        "REPACTUACAO DE DIVIDA",
         "RETIFICACAO DA DENOMINACAO DA CEDULA",
         "ALTERACOES NO PRAZO DE VENCIMENTO",
         "ALTERACAO NO PRAZO DE VENCIMENTO",

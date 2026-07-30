@@ -710,6 +710,7 @@ textarea::-webkit-scrollbar-thumb:hover {
 .imovel-linha:nth-child(odd) { border-right:1px solid #e2e8f0; }
 .imovel-linha-ampla { grid-column:1 / -1; border-right:0 !important; }
 .imovel-linha strong { display:block; margin-top:4px; color:#0f172a; font-size:.8rem; line-height:1.45; overflow-wrap:anywhere; }
+.imovel-linha-ausente strong { color:#94a3b8; font-style:italic; font-weight:600; }
 .imovel-vazio { padding:32px; color:var(--text-muted); text-align:center; }
 
 .cards {
@@ -2025,8 +2026,13 @@ input::placeholder {
   color: var(--text-main);
 }
 
+.imovel-linha-ausente strong {
+  color: var(--text-muted);
+}
+
 .sub-status,
 .status-ato,
+.imovel-grupo h3,
 .imovel-resumo-item span,
 .imovel-linha span,
 .imovel-resumo-item small,
