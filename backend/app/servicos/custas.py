@@ -48,7 +48,7 @@ def _formatar_documento(valor: str) -> str:
 
 def _extrair_modalidade(texto: str) -> str | None:
     normalizado = _sem_acentos(texto)
-    if "ALIENACAO FIDUCIARIA" in normalizado:
+    if re.search(r"\bALIENACAO(?:\s+FIDUCIARIA)?\b", normalizado):
         return "ALIENACAO_FIDUCIARIA"
     if re.search(r"\bPENHOR\b", normalizado):
         return "PENHOR"
@@ -66,6 +66,7 @@ def _extrair_produto(texto: str) -> str:
         ("FEIJÃO", r"\bFEIJAO\b"),
         ("ARROZ", r"\bARROZ\b"),
         ("TRIGO", r"\bTRIGO\b"),
+        ("ESTUFAS", r"\bESTUFAS?\b"),
     )
     for rotulo, padrao in produtos:
         if re.search(padrao, normalizado):
@@ -80,7 +81,11 @@ def _extrair_produto(texto: str) -> str:
 
 def _extrair_safra(texto: str) -> str:
     normalizado = _sem_acentos(texto)
-    captura = re.search(r"\bSAFRA\s*:?\s*(\d{2,4})\s*(?:[/\-]|\s)\s*(\d{2,4})\b", normalizado)
+    produto_intercalado = r"(?:(?:SOJA(?:\s+EM\s+GRAOS)?|MILHO|SORGO|ALGODAO|CAFE|FEIJAO|ARROZ|TRIGO)\s+)?"
+    captura = re.search(
+        rf"\bSAFRA\s*:?\s*{produto_intercalado}(\d{{2,4}})\s*(?:[/\-]|\s)\s*(\d{{2,4}})\b",
+        normalizado,
+    )
     if not captura:
         return "NÃO CONSTA"
     inicio, fim = captura.groups()
@@ -121,6 +126,8 @@ def extrair_pedidos_texto(texto: str) -> dict:
             continue
 
         modalidade = _extrair_modalidade(bloco)
+        if not modalidade and "LIVRO 3 - GARANTIAS" in bloco_normalizado:
+            modalidade = "PENHOR"
         relacionado = modalidade and (
             "LIVRO 3" in bloco_normalizado
             or "SAFRA" in bloco_normalizado
@@ -143,6 +150,8 @@ def extrair_pedidos_texto(texto: str) -> dict:
         )
         produto = _extrair_produto(bloco)
         safra = _extrair_safra(bloco)
+        if produto == "ESTUFAS" and safra == "NÃO CONSTA":
+            safra = "NÃO SE APLICA"
         item = {
             "pedido": pedido,
             "nome": _limpar_espacos(nome.group(1)) if nome else "NÃO CONSTA",

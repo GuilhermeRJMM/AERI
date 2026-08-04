@@ -40,6 +40,33 @@ class TesteInformarCustas(unittest.TestCase):
         self.assertEqual(item["produto"], "SOJA")
         self.assertEqual(item["safra"], "2025/2026")
 
+    def test_extrai_alienacao_de_graos_sem_palavra_fiduciaria(self):
+        resultado = extrair_pedidos_texto(bloco(
+            "S26080000008D", "CERTIDÃO DE ALIENAÇÃO DE GRÃOS DE SOJA SAFRA 2025/2026"
+        ))
+
+        self.assertEqual(resultado["total"], 1)
+        self.assertEqual(resultado["itens"][0]["modalidade"], "ALIENACAO_FIDUCIARIA")
+
+    def test_extrai_safra_quando_produto_aparece_entre_rotulo_e_ano(self):
+        resultado = extrair_pedidos_texto(bloco(
+            "S26080000010D", "CERTIDÃO DE PENHOR SAFRA SOJA 2026/2027"
+        ))
+
+        self.assertEqual(resultado["itens"][0]["produto"], "SOJA")
+        self.assertEqual(resultado["itens"][0]["safra"], "2026/2027")
+
+    def test_inclui_estufas_do_livro_tres_como_garantia(self):
+        resultado = extrair_pedidos_texto(bloco(
+            "S26080000009D", "1 (uma) Estufa, fabricante Florida Estufas Agrícolas"
+        ))
+
+        self.assertEqual(resultado["total"], 1)
+        self.assertEqual(resultado["itens"][0]["modalidade"], "PENHOR")
+        self.assertEqual(resultado["itens"][0]["produto"], "ESTUFAS")
+        self.assertEqual(resultado["itens"][0]["safra"], "NÃO SE APLICA")
+        self.assertEqual(resultado["alertas"], [])
+
     def test_deduplica_repeticao_do_mesmo_pedido(self):
         texto = bloco("S26080000003D", "PENHOR DE MILHO - SAFRA 2026-27")
         resultado = extrair_pedidos_texto(texto + texto)
