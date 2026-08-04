@@ -5,6 +5,8 @@ let itens = [];
 let aba = 'andamento';
 let filtroStatus = 'TODOS';
 let arquivoPendente = null;
+const formatadorData = new Intl.DateTimeFormat('pt-BR', {dateStyle:'short'});
+const STATUS_FINAIS = new Set(['DUPLICADO_DEVOLVIDO', 'RESPONDIDO', 'SEM_PAGAMENTO']);
 
 const STATUS = {
     FAZER_PESQUISA: ['Fazer pesquisa', '#ffffff'],
@@ -27,6 +29,33 @@ function rotuloResultado(valor) {
 
 function normalizar(valor) {
     return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function notificarCustas(mensagem, tipo = 'sucesso', duracao = 3200) {
+    let area = document.getElementById('custas-notificacoes');
+    if (!area) {
+        area = document.createElement('div');
+        area.id = 'custas-notificacoes';
+        area.className = 'custas-notificacoes';
+        area.setAttribute('aria-live', 'polite');
+        document.body.appendChild(area);
+    }
+    const aviso = document.createElement('div');
+    aviso.className = `custas-toast ${tipo}`;
+    aviso.textContent = mensagem;
+    area.appendChild(aviso);
+    requestAnimationFrame(() => aviso.classList.add('visivel'));
+    if (duracao > 0) window.setTimeout(() => {
+        aviso.classList.remove('visivel');
+        window.setTimeout(() => aviso.remove(), 180);
+    }, duracao);
+    return aviso;
+}
+
+function removerNotificacao(aviso) {
+    if (!aviso) return;
+    aviso.classList.remove('visivel');
+    window.setTimeout(() => aviso.remove(), 180);
 }
 
 function precisaAtencao(item) {
@@ -61,7 +90,7 @@ function renderizar() {
         const [rotulo, cor] = STATUS[item.status] || [item.status, '#ffffff'];
         const ausente = precisaAtencao(item) ? '<span class="custas-alerta" title="Há informação ausente ou que precisa de revisão">!</span>' : '';
         return `<tr data-row-status="${escaparHtml(item.status)}" style="--custas-cor:${cor}">
-            <td data-label="Pedido"><strong class="custas-pedido">${escaparHtml(item.pedido)}</strong>${ausente}<small>${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short'}).format(new Date(item.atualizadoEm))}</small></td>
+            <td data-label="Pedido"><strong class="custas-pedido">${escaparHtml(item.pedido)}</strong>${ausente}<small>${formatadorData.format(new Date(item.atualizadoEm))}</small></td>
             <td data-label="Nome" class="custas-nome">${escaparHtml(item.nome)}</td>
             <td data-label="CPF/CNPJ">${escaparHtml(item.documento)}</td>
             <td data-label="Modalidade"><span class="custas-modalidade">${escaparHtml(rotuloModalidade(item.modalidade))}</span></td>
@@ -124,14 +153,21 @@ async function prepararImportacao(evento) {
 async function confirmarImportacao() {
     if (!arquivoPendente) return;
     const botao = document.getElementById('btn-confirmar-custas-importacao');
+    const arquivo = arquivoPendente;
     botao.disabled = true;
+    fecharImportacao();
+    const processando = notificarCustas('Adicionando os pedidos à lista…', 'processando', 0);
     try {
-        const dados = await requisicaoAeri('/api/custas/importar?confirmar=true', {method:'POST', headers:{'Content-Type':'application/pdf'}, body:arquivoPendente});
-        fecharImportacao();
-        await carregarCustas();
-        alert(`${dados.importados} pedido(s) adicionado(s).${dados.duplicados ? ` ${dados.duplicados} já existiam e foram preservados.` : ''}`);
+        const dados = await requisicaoAeri('/api/custas/importar?confirmar=true', {method:'POST', headers:{'Content-Type':'application/pdf'}, body:arquivo});
+        const novos = dados.itensImportados || [];
+        const idsNovos = new Set(novos.map(item => item.id));
+        itens = [...novos, ...itens.filter(item => !idsNovos.has(item.id))];
+        renderizar();
+        removerNotificacao(processando);
+        notificarCustas(`${dados.importados} pedido(s) adicionado(s).${dados.duplicados ? ` ${dados.duplicados} já existiam e foram preservados.` : ''}`);
     } catch (erro) {
-        alert(erro.message);
+        removerNotificacao(processando);
+        notificarCustas(erro.message, 'erro', 5200);
     } finally {
         botao.disabled = false;
     }
@@ -184,12 +220,30 @@ async function acaoTabela(evento) {
     if (!item) return;
     if (botao.dataset.custasAcao === 'editar') return abrirEdicao(item);
     const acao = botao.dataset.custasAcao;
+    if (acao === 'finalizar' && item.resultado === 'PENDENTE' && !STATUS_FINAIS.has(item.status)) {
+        notificarCustas('Informe o resultado antes de finalizar.', 'erro', 4200);
+        return;
+    }
     if (!confirm(acao === 'finalizar' ? `Mover ${item.pedido} para Finalizado?` : `Reabrir ${item.pedido}?`)) return;
+    const anterior = {...item};
+    const otimista = {
+        ...item,
+        finalizado: acao === 'finalizar',
+        status: acao === 'finalizar' && !STATUS_FINAIS.has(item.status) ? 'RESPONDIDO' : item.status,
+        atualizadoEm: new Date().toISOString(),
+    };
+    itens = itens.map(atual => atual.id === item.id ? otimista : atual);
+    renderizar();
     try {
         const salvo = await requisicaoAeri(`/api/custas/${item.id}/${acao}`, {method:'POST'});
         itens = itens.map(atual => atual.id === salvo.id ? salvo : atual);
         renderizar();
-    } catch (erro) { alert(erro.message); }
+        notificarCustas(acao === 'finalizar' ? 'Pedido finalizado.' : 'Pedido reaberto.');
+    } catch (erro) {
+        itens = itens.map(atual => atual.id === anterior.id ? anterior : atual);
+        renderizar();
+        notificarCustas(erro.message, 'erro', 5200);
+    }
 }
 
 function trocarAba(evento) {

@@ -59,10 +59,11 @@ async def importar_relatorio(
     try:
         resultado = extrair_pedidos_pdf(pdf_bytes)
         if not confirmar:
-            return {**resultado, "importados": 0, "duplicados": 0}
+            return {**resultado, "importados": 0, "duplicados": 0, "itensImportados": []}
 
         importados = 0
         duplicados = 0
+        itens_importados = []
         with conectar() as conexao:
             with conexao.cursor() as cursor:
                 for item in resultado["itens"]:
@@ -71,14 +72,16 @@ async def importar_relatorio(
                         """INSERT INTO custas_livro3_aeri
                         (id, pedido, nome, documento, modalidade, produto, safra, criado_por, atualizado_por)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (pedido) DO NOTHING RETURNING id""",
+                        ON CONFLICT (pedido) DO NOTHING RETURNING *""",
                         (
                             identificador, item["pedido"], item["nome"], item["documento"],
                             item["modalidade"], item["produto"], item["safra"], usuario, usuario,
                         ),
                     )
-                    if cursor.fetchone():
+                    novo_item = cursor.fetchone()
+                    if novo_item:
                         importados += 1
+                        itens_importados.append(custas_json(novo_item))
                         _registrar_evento(
                             cursor, identificador, item["pedido"], "IMPORTACAO", usuario,
                             {"campos_ausentes": [a["campos"] for a in resultado["alertas"] if a["pedido"] == item["pedido"]]},
@@ -90,7 +93,12 @@ async def importar_relatorio(
                     detalhes={"importados": importados, "duplicados": duplicados, "ignorados": resultado["ignorados"]},
                 )
             conexao.commit()
-        return {**resultado, "importados": importados, "duplicados": duplicados}
+        return {
+            **resultado,
+            "importados": importados,
+            "duplicados": duplicados,
+            "itensImportados": itens_importados,
+        }
     except HTTPException:
         raise
     except Exception as exc:
