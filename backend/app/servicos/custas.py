@@ -7,6 +7,11 @@ from pypdf import PdfReader
 
 
 MODALIDADES = {"PENHOR", "ALIENACAO_FIDUCIARIA"}
+CERTIDOES_FORA_DO_INFORMAR_CUSTAS = (
+    "CERTIDAO VINTENARIA",
+    "DOCUMENTO ARQUIVADO",
+    "PACTO ANTENUPCIAL",
+)
 RESULTADOS = {"PENDENTE", "POSITIVA", "NEGATIVA"}
 STATUS_CUSTAS = {
     "FAZER_PESQUISA",
@@ -110,8 +115,12 @@ def extrair_pedidos_texto(texto: str) -> dict:
 
     for bloco in _segmentar_pedidos(texto):
         protocolo = re.search(r"\b(S\d{11}D)\b", bloco, re.IGNORECASE)
-        modalidade = _extrair_modalidade(bloco)
         bloco_normalizado = _sem_acentos(bloco)
+        if any(tipo in bloco_normalizado for tipo in CERTIDOES_FORA_DO_INFORMAR_CUSTAS):
+            ignorados += 1
+            continue
+
+        modalidade = _extrair_modalidade(bloco)
         relacionado = modalidade and (
             "LIVRO 3" in bloco_normalizado
             or "SAFRA" in bloco_normalizado

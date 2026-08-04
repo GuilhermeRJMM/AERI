@@ -47,10 +47,30 @@ class TesteInformarCustas(unittest.TestCase):
         self.assertEqual(resultado["total"], 1)
         self.assertEqual(resultado["itens"][0]["safra"], "2026/2027")
 
-    def test_ignora_certidao_que_nao_e_do_fluxo_de_graos(self):
-        texto = bloco("S26080000004D", "CERTIDÃO VINTENÁRIA DO IMÓVEL").replace("Livro 3 - Garantias", "Inteiro Teor")
+    def test_ignora_certidoes_fora_do_informar_custas(self):
+        casos = (
+            "CERTIDÃO VINTENÁRIA DO IMÓVEL",
+            "CERTIDÃO DE DOCUMENTO ARQUIVADO",
+            "CERTIDÃO DE PACTO ANTENUPCIAL",
+        )
+        for indice, descricao in enumerate(casos, start=4):
+            with self.subTest(descricao=descricao):
+                texto = bloco(f"S260800000{indice:02d}D", descricao)
+                resultado = extrair_pedidos_texto(texto)
+                self.assertEqual(resultado["total"], 0)
+                self.assertEqual(resultado["ignorados"], 1)
 
-        self.assertEqual(extrair_pedidos_texto(texto)["total"], 0)
+    def test_preserva_dois_pedidos_da_mesma_pessoa_produto_e_safra(self):
+        primeiro = bloco("S26080000101D", "CERTIDÃO DE PENHOR - CULTURA: SOJA - SAFRA: 2026/2027")
+        segundo = bloco("S26080000102D", "CERTIDÃO DE PENHOR - CULTURA: SOJA - SAFRA: 2026/2027")
+
+        resultado = extrair_pedidos_texto(primeiro + segundo)
+
+        self.assertEqual(resultado["total"], 2)
+        self.assertEqual(
+            [item["pedido"] for item in resultado["itens"]],
+            ["S26080000101D", "S26080000102D"],
+        )
 
     def test_campo_ausente_fica_sinalizado_para_revisao(self):
         resultado = extrair_pedidos_texto(bloco("S26080000005D", "CERTIDÃO DE PENHOR - SAFRA 2026/2027"))
