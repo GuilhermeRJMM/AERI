@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260727-detalhes-inicial">
+    <link rel="stylesheet" href="/static/styles.css?v=20260804-informar-custas">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -81,6 +81,11 @@
             <span class="sidebar-label">MÓDULOS</span>
             <nav class="sidebar-nav">
 
+                <div class="nav-item" data-page="painel" title="Painel operacional" hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    <span>Painel operacional</span>
+                </div>
+
                 <div class="nav-item active" data-page="onus" title="Ônus & Matrícula" hidden>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -97,6 +102,13 @@
                         <line x1="15" y1="6" x2="15" y2="21"/>
                     </svg>
                     <span>INCRA</span>
+                </div>
+
+                <div class="nav-item" data-page="custas" title="Informar Custas" hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M4 5h16v14H4z"/><path d="M4 10h16M9 5v14M14 10v9"/>
+                    </svg>
+                    <span>Informar Custas</span>
                 </div>
 
                 <div class="nav-item" data-page="rotina" title="Rotina - Intimação" hidden>
@@ -124,6 +136,23 @@
 
         <div class="page-content">
 
+            <div id="page-painel" class="page">
+                <main class="layout rotina-layout">
+                    <div class="rotina-header">
+                        <div><span class="eyebrow">VISÃO OPERACIONAL</span><h1>Painel do AERI</h1><p>Pendências internas de intimações e revisões registradas no AERI.</p></div>
+                        <button class="rotina-btn-secondary" id="btn-atualizar-painel" type="button">Atualizar</button>
+                    </div>
+                    <section class="rotina-resumo" id="painel-resumo"></section>
+                    <section class="rotina-painel">
+                        <div class="painel-fases" id="painel-fases"></div>
+                        <div class="rotina-table-wrap"><table class="rotina-table">
+                            <thead><tr><th>Protocolo</th><th>Fase</th><th>Andamento</th><th>Última conferência</th><th>Certificação</th></tr></thead>
+                            <tbody id="painel-pendencias"><tr><td colspan="5" class="rotina-vazio">Carregando…</td></tr></tbody>
+                        </table></div>
+                    </section>
+                </main>
+            </div>
+
             <div id="page-onus" class="page active">
                 <main class="layout">
 
@@ -149,6 +178,15 @@
                                     <span class="matricula-search-source">Consulta segura diretamente na Tri7</span>
                                 </div>
                             </form>
+
+                            <details id="contingencia-manual" class="contingencia-manual" hidden>
+                                <summary>Tri7 indisponível? Processar texto manualmente</summary>
+                                <form id="form-texto-manual">
+                                    <p>Contingência temporária: o AERI processa o conteúdo em memória e não armazena o texto integral.</p>
+                                    <textarea id="texto-matricula-manual" maxlength="5000000" required placeholder="Cole aqui o texto completo da matrícula."></textarea>
+                                    <button type="submit" class="rotina-btn-secondary">Processar texto</button>
+                                </form>
+                            </details>
 
                             <div class="action-bar matricula-clear-bar">
                                 <button class="btn btn-clear" id="btn-limpar" type="button">
@@ -183,6 +221,62 @@
                     </div>
 
                     <section id="incra-resultado" class="incra-resultado" aria-live="polite"></section>
+                </main>
+            </div>
+
+            <div id="page-custas" class="page">
+                <main class="layout custas-layout">
+                    <div class="rotina-header custas-header">
+                        <div>
+                            <span class="eyebrow">LIVRO 3 · GARANTIAS</span>
+                            <h1>Informar Custas</h1>
+                            <p>Importe o relatório do Ofício Eletrônico e acompanhe penhores e alienações de grãos até a resposta final.</p>
+                        </div>
+                        <div class="rotina-header-actions">
+                            <input id="custas-arquivo" type="file" accept=".pdf,application/pdf" hidden>
+                            <label for="custas-arquivo" class="btn btn-primary custas-importar-btn">
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 15v5h14v-5"/></svg>
+                                Importar relatório PDF
+                            </label>
+                        </div>
+                    </div>
+
+                    <section class="custas-resumo" aria-label="Resumo de pedidos">
+                        <article><span>Em andamento</span><strong id="custas-total-andamento">0</strong><small>pedidos em trabalho</small></article>
+                        <article><span>Finalizados</span><strong id="custas-total-finalizado">0</strong><small>pedidos concluídos</small></article>
+                        <article><span>Precisam de atenção</span><strong id="custas-total-atencao">0</strong><small>dados ausentes ou correção</small></article>
+                    </section>
+
+                    <section class="custas-planilha">
+                        <div class="custas-abas" role="tablist" aria-label="Situação dos pedidos">
+                            <button type="button" class="custas-aba ativa" data-custas-aba="andamento" role="tab" aria-selected="true">Em andamento <strong data-custas-contagem="andamento">0</strong></button>
+                            <button type="button" class="custas-aba" data-custas-aba="finalizado" role="tab" aria-selected="false">Finalizado <strong data-custas-contagem="finalizado">0</strong></button>
+                        </div>
+                        <div class="custas-legenda" id="custas-legenda" aria-label="Legenda de situação">
+                            <button type="button" data-custas-status="TODOS" class="ativo"><i></i>Todos</button>
+                            <button type="button" data-custas-status="FAZER_PESQUISA"><i style="--cor:#ffffff"></i>Fazer pesquisa</button>
+                            <button type="button" data-custas-status="BUSCA_REALIZADA"><i style="--cor:#ffff00"></i>Busca realizada</button>
+                            <button type="button" data-custas-status="DUPLICADO_DEVOLVIDO"><i style="--cor:#ff0066"></i>Duplicado / devolvido</button>
+                            <button type="button" data-custas-status="PAGO_PROCESSANDO"><i style="--cor:#ffc000"></i>Pago / processando</button>
+                            <button type="button" data-custas-status="CUSTAS_INFORMADAS"><i style="--cor:#00b050"></i>Custas informadas</button>
+                            <button type="button" data-custas-status="RESPONDIDO"><i style="--cor:#0070c0"></i>Respondido</button>
+                            <button type="button" data-custas-status="SEM_PAGAMENTO"><i style="--cor:#ff0000"></i>Sem pagamento</button>
+                            <button type="button" data-custas-status="CUSTAS_ERRADAS"><i style="--cor:#7030a0"></i>Custas erradas</button>
+                        </div>
+                        <div class="custas-toolbar">
+                            <div class="rotina-busca custas-busca">
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                                <input id="custas-busca" type="search" placeholder="Buscar pedido, nome, CPF/CNPJ, produto ou registro">
+                            </div>
+                            <span id="custas-total-visivel" class="rotina-total"></span>
+                        </div>
+                        <div class="custas-table-wrap">
+                            <table class="custas-table">
+                                <thead><tr><th>Pedido</th><th>Nome</th><th>CPF/CNPJ</th><th>Modalidade</th><th>Produto</th><th>Safra</th><th>Resultado</th><th>Nº registro</th><th>Situação</th><th>Ações</th></tr></thead>
+                                <tbody id="custas-tbody"><tr><td colspan="10" class="rotina-vazio">Carregando…</td></tr></tbody>
+                            </table>
+                        </div>
+                    </section>
                 </main>
             </div>
 
@@ -254,11 +348,11 @@
                             <tbody id="auditoria-tbody"></tbody>
                         </table></div>
                     </section>
-                    <div class="rotina-header auditoria-header"><div><span class="eyebrow">APRENDIZADO</span><h2>Regras pendentes</h2><p>Sugestões revisadas entram no motor determinístico do AERI.</p></div></div>
+                    <div class="rotina-header auditoria-header"><div><span class="eyebrow">CONFERÊNCIA</span><h2>Divergências da análise</h2><p>Fila privada de resultados que os usuários solicitaram revisar. Nenhum texto integral de matrícula é armazenado.</p></div></div>
                     <section class="rotina-painel">
-                        <div class="rotina-table-wrap"><table class="rotina-table aprendizado-table">
-                            <thead><tr><th>Termo</th><th>Categoria</th><th>Tipo</th><th>Ocorrências</th><th>Justificativa</th><th>Ações</th></tr></thead>
-                            <tbody id="aprendizado-tbody"></tbody>
+                        <div class="rotina-table-wrap"><table class="rotina-table divergencias-table">
+                            <thead><tr><th>Matrícula</th><th>Partes</th><th>Comentário</th><th>Informado por</th><th>Data</th><th>Ações</th></tr></thead>
+                            <tbody id="divergencias-tbody"></tbody>
                         </table></div>
                     </section>
                 </main>
@@ -271,6 +365,37 @@
         <div class="modal-box">
             <button class="modal-fechar" id="btn-fechar-resultado" type="button" aria-label="Fechar resultado">&times;</button>
             <div id="modal-conteudo"></div>
+        </div>
+    </div>
+
+    <div id="modal-custas-importacao" class="modal-overlay">
+        <div class="modal-box custas-modal custas-importacao-modal">
+            <button class="modal-fechar" id="btn-fechar-custas-importacao" type="button" aria-label="Fechar">&times;</button>
+            <div class="rotina-form-header"><span class="eyebrow">CONFERÊNCIA ANTES DE ADICIONAR</span><h2>Pedidos encontrados no relatório</h2><p id="custas-importacao-resumo"></p></div>
+            <div class="custas-preview-wrap"><table class="custas-preview-table"><thead><tr><th>Pedido</th><th>Nome</th><th>Modalidade</th><th>Produto / safra</th></tr></thead><tbody id="custas-preview-tbody"></tbody></table></div>
+            <div id="custas-importacao-alerta" class="custas-importacao-alerta" hidden></div>
+            <div class="rotina-form-actions custas-modal-actions"><button type="button" class="rotina-btn-secondary" id="btn-cancelar-custas-importacao">Cancelar</button><button type="button" class="btn btn-primary" id="btn-confirmar-custas-importacao">Adicionar à lista</button></div>
+        </div>
+    </div>
+
+    <div id="modal-custas-edicao" class="modal-overlay">
+        <div class="modal-box custas-modal">
+            <button class="modal-fechar" id="btn-fechar-custas-edicao" type="button" aria-label="Fechar">&times;</button>
+            <div class="rotina-form-header"><span class="eyebrow">ATUALIZAR PEDIDO</span><h2 id="custas-edicao-titulo">Editar pedido</h2><p>Atualize a pesquisa e a etapa operacional. A cor da linha acompanha a situação escolhida.</p></div>
+            <form id="form-custas-edicao" class="custas-form">
+                <input id="custas-edicao-id" type="hidden">
+                <label><span>Nome</span><input id="custas-edicao-nome" maxlength="180" required></label>
+                <label><span>CPF/CNPJ</span><input id="custas-edicao-documento" maxlength="20" required></label>
+                <label><span>Modalidade</span><select id="custas-edicao-modalidade"><option value="PENHOR">Penhor</option><option value="ALIENACAO_FIDUCIARIA">Alienação fiduciária</option></select></label>
+                <label><span>Produto</span><input id="custas-edicao-produto" maxlength="80" required></label>
+                <label><span>Safra</span><input id="custas-edicao-safra" maxlength="20" required></label>
+                <label><span>Resultado</span><select id="custas-edicao-resultado"><option value="PENDENTE">Pendente</option><option value="POSITIVA">Positiva</option><option value="NEGATIVA">Negativa</option></select></label>
+                <label class="custas-form-largo"><span>Nº registro</span><input id="custas-edicao-registro" maxlength="200" placeholder="Obrigatório quando a pesquisa for positiva"></label>
+                <label class="custas-form-largo"><span>Situação / cor da planilha</span><select id="custas-edicao-status">
+                    <option value="FAZER_PESQUISA">Fazer pesquisa</option><option value="BUSCA_REALIZADA">Busca realizada · informar custas</option><option value="DUPLICADO_DEVOLVIDO">Duplicado · devolvido</option><option value="PAGO_PROCESSANDO">Pago · processando / enviar certidão</option><option value="CUSTAS_INFORMADAS">Custas informadas · aguardando pagamento</option><option value="RESPONDIDO">Respondido</option><option value="SEM_PAGAMENTO">Sem pagamento / cancelado</option><option value="CUSTAS_ERRADAS">Custas informadas erradas</option>
+                </select></label>
+                <div class="rotina-form-actions"><button type="button" class="rotina-btn-secondary" id="btn-cancelar-custas-edicao">Cancelar</button><button type="submit" class="btn btn-primary">Salvar alterações</button></div>
+            </form>
         </div>
     </div>
 
@@ -349,6 +474,7 @@
                     <legend>Atribuições do cargo operacional</legend>
                     <label><input type="checkbox" data-permissao-form="processar_matricula" checked> Processar matrículas</label>
                     <label><input type="checkbox" data-permissao-form="processar_incra" checked> Processar relatório do INCRA</label>
+                    <label><input type="checkbox" data-permissao-form="gerenciar_custas" checked> Gerenciar Informar Custas</label>
                     <label><input type="checkbox" data-permissao-form="ver_intimacoes" checked> Visualizar intimações</label>
                     <label><input type="checkbox" data-permissao-form="criar_intimacoes" checked> Criar/importar intimações</label>
                     <label><input type="checkbox" data-permissao-form="alterar_intimacoes" checked> Alterar intimações</label>
@@ -375,6 +501,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260727-detalhes-inicial"></script>
+    <script type="module" src="/static/js/app.js?v=20260804-informar-custas"></script>
 </body>
 </html>

@@ -2,7 +2,7 @@ import {requisicaoAeri} from './api.js';
 import {escaparHtml} from './util.js';
 
 let usuarios = [];
-let regrasAprendizado = [];
+let divergenciasAnalise = [];
 const salvamentosUsuarios = new Map();
 const CARGOS = [
     ['ADMIN', 'ADM'],
@@ -14,6 +14,7 @@ const CARGOS = [
 const ATRIBUICOES = [
     ['processar_matricula', 'Matrículas'],
     ['processar_incra', 'INCRA'],
+    ['gerenciar_custas', 'Informar Custas'],
     ['ver_intimacoes', 'Ver intimações'],
     ['criar_intimacoes', 'Criar/importar'],
     ['alterar_intimacoes', 'Alterar'],
@@ -82,34 +83,34 @@ function renderizarUsuarios() {
         </tr>`).join('') || '<tr><td colspan="7" class="rotina-vazio">Nenhum usuário encontrado.</td></tr>';
 }
 
-function renderizarAprendizado() {
-    const tbody = document.getElementById('aprendizado-tbody');
+function renderizarDivergencias() {
+    const tbody = document.getElementById('divergencias-tbody');
     if (!tbody) return;
-    tbody.innerHTML = regrasAprendizado.map(item => `
+    tbody.innerHTML = divergenciasAnalise.map(item => `
         <tr>
-            <td><strong>${escaparHtml(item.expressao)}</strong><small>${escaparHtml(item.criado_por)}</small></td>
-            <td><span class="usuario-status ativo">${escaparHtml(item.categoria)}</span></td>
-            <td>${escaparHtml(item.tipo_onus || '—')}</td>
-            <td>${item.votos}</td>
-            <td>${escaparHtml(item.justificativa || '—')}</td>
+            <td><strong>${escaparHtml(item.numero_matricula)}</strong><small>Motor ${escaparHtml(item.motor_versao)}</small></td>
+            <td>${(item.dominios || []).map(dominio => `<span class="usuario-status inativo">${escaparHtml(dominio)}</span>`).join(' ')}</td>
+            <td>${escaparHtml(item.comentario || '—')}</td>
+            <td>${escaparHtml(item.criado_por)}</td>
+            <td>${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(item.criado_em))}</td>
             <td><div class="rotina-row-actions">
-                <button data-acao-aprendizado="aprovar" data-regra="${item.id}" class="rotina-check">Aprovar</button>
-                <button data-acao-aprendizado="rejeitar" data-regra="${item.id}" class="perigo">Rejeitar</button>
+                <button data-acao-divergencia="resolver" data-divergencia="${item.id}" class="rotina-check">Resolver</button>
+                <button data-acao-divergencia="arquivar" data-divergencia="${item.id}" class="perigo">Arquivar</button>
             </div></td>
-        </tr>`).join('') || '<tr><td colspan="6" class="rotina-vazio">Nenhuma regra pendente.</td></tr>';
+        </tr>`).join('') || '<tr><td colspan="6" class="rotina-vazio">Nenhuma divergência pendente.</td></tr>';
 }
 
 export async function carregarUsuarios() {
     if (!cargoAdministrativo(document.body.dataset.perfil)) return;
-    const [lista, auditoria, aprendizado] = await Promise.all([
+    const [lista, auditoria, divergencias] = await Promise.all([
         requisicaoAeri('/api/usuarios'),
         requisicaoAeri('/api/usuarios/auditoria'),
-        requisicaoAeri('/analisar/aprendizado/sugestoes?status=PENDENTE'),
+        requisicaoAeri('/analisar/divergencias?status=PENDENTE'),
     ]);
     usuarios = lista;
-    regrasAprendizado = aprendizado;
+    divergenciasAnalise = divergencias;
     renderizarUsuarios();
-    renderizarAprendizado();
+    renderizarDivergencias();
     document.getElementById('auditoria-tbody').innerHTML = auditoria.map(item => `<tr>
         <td>${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(item.criada_em))}</td>
         <td>${escaparHtml(item.usuario || '—')}</td><td>${escaparHtml(item.acao)}</td>
@@ -212,16 +213,24 @@ async function acaoTabela(evento) {
     } catch (erro) { alert(erro.message); await carregarUsuarios(); }
 }
 
-async function acaoAprendizado(evento) {
-    const alvo = evento.target.closest('[data-acao-aprendizado]');
+async function acaoDivergencia(evento) {
+    const alvo = evento.target.closest('[data-acao-divergencia]');
     if (!alvo) return;
-    const acao = alvo.dataset.acaoAprendizado;
-    const regra = alvo.dataset.regra;
-    if (!regra || !['aprovar', 'rejeitar'].includes(acao)) return;
+    const acao = alvo.dataset.acaoDivergencia;
+    const identificador = alvo.dataset.divergencia;
+    if (!identificador || !['resolver', 'arquivar'].includes(acao)) return;
+    const resolucao = window.prompt(
+        acao === 'resolver' ? 'Como a divergência foi resolvida?' : 'Motivo do arquivamento:',
+        '',
+    );
+    if (resolucao === null) return;
     try {
-        await requisicaoAeri(`/analisar/aprendizado/sugestoes/${regra}/${acao}`, {method:'POST'});
-        regrasAprendizado = regrasAprendizado.filter(item => item.id !== regra);
-        renderizarAprendizado();
+        await requisicaoAeri(`/analisar/divergencias/${identificador}/resolver`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({status: acao === 'resolver' ? 'RESOLVIDA' : 'ARQUIVADA', resolucao}),
+        });
+        divergenciasAnalise = divergenciasAnalise.filter(item => item.id !== identificador);
+        renderizarDivergencias();
     } catch (erro) {
         alert(erro.message);
         await carregarUsuarios();
@@ -263,7 +272,7 @@ export function iniciarUsuarios() {
     document.getElementById('form-usuario').addEventListener('submit', salvarUsuario);
     document.getElementById('usuarios-tbody').addEventListener('change', acaoTabela);
     document.getElementById('usuarios-tbody').addEventListener('click', acaoTabela);
-    document.getElementById('aprendizado-tbody')?.addEventListener('click', acaoAprendizado);
+    document.getElementById('divergencias-tbody')?.addEventListener('click', acaoDivergencia);
     document.getElementById('form-trocar-senha').addEventListener('submit', trocarSenha);
     document.getElementById('btn-minha-senha').addEventListener('click', () => abrirTrocaSenha(false));
     document.getElementById('btn-fechar-troca-senha').addEventListener('click', () => exigirTrocaSenha(false));

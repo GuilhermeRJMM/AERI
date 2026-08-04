@@ -3,7 +3,16 @@ import {requisicaoAeri} from './api.js';
 
 const ICONE_PROCESSAR = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4v7"/><path d="m4 4 7 7"/><path d="M20 13v7h-7"/><path d="m20 20-7-7"/></svg>Buscar e processar';
 const ICONE_COPIAR = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>Copiar';
-const ICONE_APRENDER = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+let ultimoResultado = null;
+
+function blocoEvidencia(evidencia) {
+    if (!evidencia?.trecho) return '';
+    return `<details class="analise-evidencia">
+        <summary>Ver evidência <span>${escaparHtml(evidencia.fonte || '')}</span></summary>
+        <blockquote>${escaparHtml(evidencia.trecho)}</blockquote>
+        ${evidencia.regra_id ? `<small>Regra: ${escaparHtml(evidencia.regra_id)}</small>` : ''}
+    </details>`;
+}
 
 function resumo(ato, todosAtos) {
     if (ato.status === 'CANCELADO') {
@@ -61,7 +70,7 @@ function formatarProprietario(proprietario, indice) {
 }
 
 function renderizarAtos(dados) {
-    return dados.atos.map(ato => `
+    return dados.atos.map((ato, indice) => `
         <div class="card ${ato.status === 'CANCELADO' ? 'card-cancelado' : ''}">
             <div class="card-header">
                 <div class="codigo">${escaparHtml(ato.codigo)}</div>
@@ -70,10 +79,11 @@ function renderizarAtos(dados) {
             <div class="texto">${escaparHtml(resumo(ato, dados.atos))}</div>
             ${detalheOnus(ato)}
             <div class="status-ato">Status: <strong>${escaparHtml(ato.status)}</strong></div>
+            ${blocoEvidencia(dados.evidencias?.atos?.[indice])}
         </div>`).join('');
 }
 
-function renderizarProprietarios(proprietarios) {
+function renderizarProprietarios(proprietarios, evidencias = []) {
     if (!proprietarios.length) {
         return '<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.95rem;background:rgba(0,0,0,.02);border-radius:8px">Nenhum proprietário identificado. Verifique se a matrícula contém atos de transmissão (compra e venda, doação, inventário etc.).</div>';
     }
@@ -82,6 +92,7 @@ function renderizarProprietarios(proprietarios) {
             <div class="card-header"><div class="codigo">${indice + 1})- ${escaparHtml(item.nome)}</div><div class="badge badge-blue">PROPRIETÁRIO</div></div>
             <div class="texto">${genero(item.nome) === 'inscrita' ? 'Inscrita' : 'Inscrito'} no ${tipoDocumento(item.cpf)} sob o n.º <strong>${escaparHtml(item.cpf)}</strong></div>
             <div class="status-ato">Proporção: <strong>${escaparHtml(item.proporcao)}</strong></div>
+            ${blocoEvidencia(evidencias[indice])}
         </div>`).join('');
     const texto = proprietarios.map(formatarProprietario).join('\n');
     return `<div class="cards">${cards}</div>
@@ -102,6 +113,7 @@ function renderizarGrupoImovel(titulo, itens) {
                         <span>${escaparHtml(item.rotulo)}</span>
                         <strong>${escaparHtml(item.valor)}</strong>
                         ${item.origem && item.origem !== 'Cabeçalho' ? `<small>${escaparHtml(item.origem)}</small>` : ''}
+                        ${blocoEvidencia(item.evidencia)}
                     </div>`).join('')}
             </div>
         </section>`;
@@ -233,7 +245,7 @@ export function renderizarImovel(imovel) {
         imovel = {};
     }
     const situacao = imovel.situacao || {};
-    const grupos = gruposCompletosImovel(imovel);
+    const grupos = imovel.campos_aplicaveis || gruposCompletosImovel(imovel);
     const matriculasSucessoras = Array.isArray(situacao.matriculas_sucessoras)
         ? situacao.matriculas_sucessoras
         : (situacao.matricula_sucessora ? [situacao.matricula_sucessora] : []);
@@ -263,36 +275,35 @@ export function renderizarImovel(imovel) {
         </div>`;
 }
 
-function renderizarAprendizado() {
+function renderizarFeedback() {
     return `
-        <div class="aprendizado-painel">
-            <div class="aprendizado-cabecalho">
-                <div>
-                    <span class="eyebrow">APRENDIZADO</span>
-                    <h3>Correção de regra</h3>
-                </div>
-                <span class="aprendizado-status">Revisão obrigatória</span>
+        <div class="feedback-analise">
+            <div>
+                <span class="eyebrow">CONFERÊNCIA HUMANA</span>
+                <h3>O resultado confere com a matrícula?</h3>
+                <p>O texto integral não é armazenado. Uma solicitação de revisão entra na fila privada da administração.</p>
             </div>
-            <div class="aprendizado-form">
-                <label><span>Termo encontrado</span><input id="aprendizado-expressao" maxlength="120" placeholder="Ex.: afetação patrimonial"></label>
-                <label><span>Classificação correta</span><select id="aprendizado-categoria">
-                    <option value="ÔNUS">Ônus</option>
-                    <option value="RESTRIÇÃO">Restrição</option>
-                    <option value="PUBLICIDADE">Publicidade</option>
-                    <option value="CANCELAMENTO">Cancelamento</option>
-                    <option value="IGNORAR">Ignorar</option>
-                </select></label>
-                <label><span>Tipo de ônus</span><input id="aprendizado-tipo-onus" maxlength="80" placeholder="Ex.: hipoteca, usufruto, alienação fiduciária"></label>
-                <label class="aprendizado-full"><span>Justificativa</span><textarea id="aprendizado-justificativa" maxlength="500"></textarea></label>
-                <div class="aprendizado-acoes">
-                    <span id="aprendizado-retorno" aria-live="polite"></span>
-                    <button type="button" class="btn btn-primary" data-acao="enviar-aprendizado">${ICONE_APRENDER}Enviar sugestão</button>
-                </div>
+            <div class="feedback-acoes">
+                <button type="button" class="rotina-btn-secondary" data-acao="feedback-correto">Resultado correto</button>
+                <button type="button" class="rotina-btn-secondary" data-acao="abrir-feedback">Solicitar revisão</button>
             </div>
+            <form class="feedback-form" hidden>
+                <span>O que precisa de revisão?</span>
+                <div class="feedback-dominios">
+                    <label><input type="checkbox" value="ONUS"> Ônus</label>
+                    <label><input type="checkbox" value="CADEIA"> Cadeia dominial</label>
+                    <label><input type="checkbox" value="IMOVEL"> Dados do imóvel</label>
+                    <label><input type="checkbox" value="SITUACAO"> Situação do imóvel</label>
+                </div>
+                <textarea maxlength="1000" placeholder="Descreva objetivamente a divergência, sem copiar o texto integral da matrícula."></textarea>
+                <button type="submit" class="btn btn-primary">Enviar para revisão</button>
+            </form>
+            <span class="feedback-retorno" aria-live="polite"></span>
         </div>`;
 }
 
 function renderizarResultado(dados) {
+    ultimoResultado = dados;
     let cor = '#16a34a';
     let fundo = '#f0fdf4';
     if (dados.resultado === 'POSITIVA PARA ÔNUS') { cor = '#dc2626'; fundo = '#fef2f2'; }
@@ -303,6 +314,10 @@ function renderizarResultado(dados) {
             <div class="topo" style="border-left:5px solid ${cor};background-color:${fundo}">
                 <div><span class="resultado-matricula">MATRÍCULA ${escaparHtml(dados.numero_matricula || '')}</span><h2>${escaparHtml(dados.resultado)}</h2></div><div class="sub-status">${escaparHtml(dados.publicidade)}</div>
             </div>
+            <div class="resultado-ferramentas">
+                <span>Motor ${escaparHtml(dados.meta?.versao || 'legado')} · ${escaparHtml(dados.meta?.modo || 'determinístico')}</span>
+                <button type="button" class="rotina-btn-secondary" data-acao="exportar-relatorio">Exportar relatório</button>
+            </div>
             <div class="tabs-container">
                 <button class="tab-btn active" data-tab="tab-atos">Atos Registrais (${dados.atos.length})</button>
                 <button class="tab-btn" data-tab="tab-imovel">Imóvel</button>
@@ -310,7 +325,8 @@ function renderizarResultado(dados) {
             </div>
             <div id="tab-atos" class="tab-content active"><div class="cards">${renderizarAtos(dados)}</div></div>
             <div id="tab-imovel" class="tab-content">${renderizarImovel(dados.imovel)}</div>
-            <div id="tab-prop" class="tab-content" style="padding:16px">${renderizarProprietarios(proprietarios)}</div>
+            <div id="tab-prop" class="tab-content" style="padding:16px">${renderizarProprietarios(proprietarios, dados.evidencias?.proprietarios)}</div>
+            ${renderizarFeedback()}
         </div>`;
     const modal = document.getElementById('modal-resultado');
     modal.classList.add('aberta');
@@ -329,30 +345,52 @@ function copiarCadeia(botao) {
     });
 }
 
-async function enviarSugestaoAprendizado(botao) {
-    const painel = botao.closest('.aprendizado-painel');
-    const retorno = painel.querySelector('#aprendizado-retorno');
-    const dados = {
-        expressao: painel.querySelector('#aprendizado-expressao').value.trim(),
-        categoria: painel.querySelector('#aprendizado-categoria').value,
-        tipo_onus: painel.querySelector('#aprendizado-tipo-onus').value.trim(),
-        justificativa: painel.querySelector('#aprendizado-justificativa').value.trim(),
-    };
-    botao.disabled = true;
-    retorno.textContent = 'Registrando...';
+async function enviarFeedback(avaliacao, painel) {
+    const retorno = painel.querySelector('.feedback-retorno');
+    const dominios = [...painel.querySelectorAll('.feedback-dominios input:checked')].map(item => item.value);
+    const comentario = painel.querySelector('textarea')?.value.trim() || '';
+    if (avaliacao === 'REVISAR' && !dominios.length) {
+        retorno.textContent = 'Marque ao menos uma parte para revisão.';
+        return;
+    }
+    painel.querySelectorAll('button, input, textarea').forEach(item => { item.disabled = true; });
+    retorno.textContent = 'Registrando conferência...';
     try {
-        const salvo = await requisicaoAeri('/analisar/aprendizado/sugestoes', {
-            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados),
+        await requisicaoAeri('/analisar/feedback', {
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+                numero_matricula: ultimoResultado.numero_matricula,
+                resultado_hash: ultimoResultado.resultado_hash,
+                motor_versao: ultimoResultado.meta?.versao || 'legado',
+                avaliacao, dominios, comentario,
+                resumo: {
+                    resultado: ultimoResultado.resultado,
+                    situacao: ultimoResultado.imovel?.situacao?.status,
+                    total_atos: ultimoResultado.atos?.length || 0,
+                    total_proprietarios: ultimoResultado.proprietarios_atuais?.length || 0,
+                },
+            }),
         });
-        retorno.textContent = salvo.status === 'APROVADA'
-            ? 'Regra já aprovada; ocorrência registrada.'
-            : `Sugestão registrada (${salvo.votos} ocorrência${salvo.votos === 1 ? '' : 's'}).`;
-        painel.querySelector('#aprendizado-justificativa').value = '';
+        retorno.textContent = avaliacao === 'CORRETO' ? 'Conferência registrada.' : 'Enviado para a fila privada de revisão.';
+        painel.querySelector('.feedback-form').hidden = true;
     } catch (erro) {
         retorno.textContent = erro.message;
-    } finally {
-        botao.disabled = false;
+        painel.querySelectorAll('button, input, textarea').forEach(item => { item.disabled = false; });
     }
+}
+
+function exportarRelatorio() {
+    if (!ultimoResultado) return;
+    const conteudo = document.querySelector('#modal-conteudo .resultado')?.cloneNode(true);
+    conteudo?.querySelector('.feedback-analise')?.remove();
+    conteudo?.querySelector('.resultado-ferramentas')?.remove();
+    conteudo?.querySelectorAll('.tab-content').forEach(item => item.classList.add('active'));
+    const html = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>AERI - Matrícula ${escaparHtml(ultimoResultado.numero_matricula)}</title><style>body{font-family:Calibri,Arial,sans-serif;color:#111827;margin:32px}.tabs-container,.btn-copiar{display:none}.card,.imovel-linha,.imovel-resumo{border:1px solid #cbd5e1;padding:10px;margin:8px 0}.tab-content{display:block!important}summary{font-weight:700}blockquote{margin:8px 0;padding-left:12px;border-left:3px solid #64748b}</style><body>${conteudo?.innerHTML || ''}</body></html>`;
+    const url = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `AERI-matricula-${ultimoResultado.numero_matricula}.html`;
+    link.click();
+    URL.revokeObjectURL(url);
 }
 
 async function tratarAcaoResultado(evento) {
@@ -360,7 +398,15 @@ async function tratarAcaoResultado(evento) {
     if (!botao) return;
     if (botao.dataset.tab) trocarAba(botao.dataset.tab);
     if (botao.dataset.acao === 'copiar-cadeia') copiarCadeia(botao);
-    if (botao.dataset.acao === 'enviar-aprendizado') await enviarSugestaoAprendizado(botao);
+    if (botao.dataset.acao === 'exportar-relatorio') exportarRelatorio();
+    if (botao.dataset.acao === 'abrir-feedback') botao.closest('.feedback-analise').querySelector('.feedback-form').hidden = false;
+    if (botao.dataset.acao === 'feedback-correto') await enviarFeedback('CORRETO', botao.closest('.feedback-analise'));
+}
+
+async function tratarFormularioFeedback(evento) {
+    if (!evento.target.matches('.feedback-form')) return;
+    evento.preventDefault();
+    await enviarFeedback('REVISAR', evento.target.closest('.feedback-analise'));
 }
 
 function fecharModal() {
@@ -386,6 +432,7 @@ async function analisar(evento) {
         }));
     } catch (erro) {
         erroBusca.textContent = erro.message;
+        document.getElementById('contingencia-manual').hidden = false;
         campo.focus();
     } finally {
         botao.innerHTML = ICONE_PROCESSAR;
@@ -394,11 +441,37 @@ async function analisar(evento) {
     }
 }
 
+async function analisarTextoManual(evento) {
+    evento.preventDefault();
+    const texto = document.getElementById('texto-matricula-manual').value.trim();
+    const retorno = document.getElementById('erro-busca-matricula');
+    if (!texto) return;
+    const botao = evento.submitter;
+    botao.disabled = true;
+    retorno.textContent = 'Processando texto sem armazená-lo…';
+    try {
+        const resultado = await requisicaoAeri('/analisar', {
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({texto}),
+        });
+        resultado.numero_matricula = document.getElementById('numero-matricula').value.trim() || 'MANUAL';
+        resultado.origem = 'ENTRADA MANUAL';
+        renderizarResultado(resultado);
+        retorno.textContent = '';
+    } catch (erro) {
+        retorno.textContent = erro.message;
+    } finally {
+        botao.disabled = false;
+    }
+}
+
 export function iniciarAnalisador() {
     document.getElementById('form-busca-matricula').addEventListener('submit', analisar);
+    document.getElementById('form-texto-manual').addEventListener('submit', analisarTextoManual);
     document.getElementById('btn-limpar').addEventListener('click', () => {
         document.getElementById('numero-matricula').value = '';
         document.getElementById('erro-busca-matricula').textContent = '';
+        document.getElementById('texto-matricula-manual').value = '';
+        document.getElementById('contingencia-manual').hidden = true;
         fecharModal();
         document.getElementById('numero-matricula').focus();
     });
@@ -412,5 +485,6 @@ export function iniciarAnalisador() {
         }
     });
     document.getElementById('modal-conteudo').addEventListener('click', tratarAcaoResultado);
+    document.getElementById('modal-conteudo').addEventListener('submit', tratarFormularioFeedback);
     document.addEventListener('keydown', evento => { if (evento.key === 'Escape') fecharModal(); });
 }

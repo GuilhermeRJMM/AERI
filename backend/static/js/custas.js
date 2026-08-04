@@ -1,0 +1,227 @@
+import {requisicaoAeri} from './api.js';
+import {escaparHtml} from './util.js';
+
+let itens = [];
+let aba = 'andamento';
+let filtroStatus = 'TODOS';
+let arquivoPendente = null;
+
+const STATUS = {
+    FAZER_PESQUISA: ['Fazer pesquisa', '#ffffff'],
+    BUSCA_REALIZADA: ['Busca realizada', '#ffff00'],
+    DUPLICADO_DEVOLVIDO: ['Duplicado / devolvido', '#ff0066'],
+    PAGO_PROCESSANDO: ['Pago / processando', '#ffc000'],
+    CUSTAS_INFORMADAS: ['Custas informadas', '#00b050'],
+    RESPONDIDO: ['Respondido', '#0070c0'],
+    SEM_PAGAMENTO: ['Sem pagamento', '#ff0000'],
+    CUSTAS_ERRADAS: ['Custas erradas', '#7030a0'],
+};
+
+function rotuloModalidade(valor) {
+    return valor === 'ALIENACAO_FIDUCIARIA' ? 'Alienação fiduciária' : 'Penhor';
+}
+
+function rotuloResultado(valor) {
+    return {PENDENTE:'Pendente', POSITIVA:'Positiva', NEGATIVA:'Negativa'}[valor] || valor;
+}
+
+function normalizar(valor) {
+    return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function precisaAtencao(item) {
+    return item.status === 'CUSTAS_ERRADAS' || [item.nome, item.documento, item.produto, item.safra].includes('NÃO CONSTA');
+}
+
+function atualizarResumo() {
+    const andamento = itens.filter(item => !item.finalizado).length;
+    const finalizados = itens.length - andamento;
+    document.getElementById('custas-total-andamento').textContent = andamento;
+    document.getElementById('custas-total-finalizado').textContent = finalizados;
+    document.getElementById('custas-total-atencao').textContent = itens.filter(precisaAtencao).length;
+    document.querySelector('[data-custas-contagem="andamento"]').textContent = andamento;
+    document.querySelector('[data-custas-contagem="finalizado"]').textContent = finalizados;
+}
+
+function itensFiltrados() {
+    const consulta = normalizar(document.getElementById('custas-busca').value);
+    return itens.filter(item => {
+        if ((aba === 'finalizado') !== Boolean(item.finalizado)) return false;
+        if (filtroStatus !== 'TODOS' && item.status !== filtroStatus) return false;
+        const texto = [item.pedido, item.nome, item.documento, item.modalidade, item.produto, item.safra, item.resultado, item.numeroRegistro].join(' ');
+        return !consulta || normalizar(texto).includes(consulta);
+    });
+}
+
+function renderizar() {
+    atualizarResumo();
+    const visiveis = itensFiltrados();
+    document.getElementById('custas-total-visivel').textContent = `${visiveis.length} ${visiveis.length === 1 ? 'pedido' : 'pedidos'}`;
+    document.getElementById('custas-tbody').innerHTML = visiveis.map(item => {
+        const [rotulo, cor] = STATUS[item.status] || [item.status, '#ffffff'];
+        const ausente = precisaAtencao(item) ? '<span class="custas-alerta" title="Há informação ausente ou que precisa de revisão">!</span>' : '';
+        return `<tr data-row-status="${escaparHtml(item.status)}" style="--custas-cor:${cor}">
+            <td data-label="Pedido"><strong class="custas-pedido">${escaparHtml(item.pedido)}</strong>${ausente}<small>${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short'}).format(new Date(item.atualizadoEm))}</small></td>
+            <td data-label="Nome" class="custas-nome">${escaparHtml(item.nome)}</td>
+            <td data-label="CPF/CNPJ">${escaparHtml(item.documento)}</td>
+            <td data-label="Modalidade"><span class="custas-modalidade">${escaparHtml(rotuloModalidade(item.modalidade))}</span></td>
+            <td data-label="Produto">${escaparHtml(item.produto)}</td><td data-label="Safra">${escaparHtml(item.safra)}</td>
+            <td data-label="Resultado"><span class="custas-resultado ${item.resultado.toLowerCase()}">${escaparHtml(rotuloResultado(item.resultado))}</span></td>
+            <td data-label="Nº registro">${escaparHtml(item.numeroRegistro || '—')}</td>
+            <td data-label="Situação"><span class="custas-status"><i></i>${escaparHtml(rotulo)}</span></td>
+            <td data-label="Ações"><div class="custas-acoes"><button type="button" data-custas-acao="editar" data-custas-id="${item.id}">Editar</button>${item.finalizado
+                ? `<button type="button" data-custas-acao="reabrir" data-custas-id="${item.id}">Reabrir</button>`
+                : `<button type="button" class="concluir" data-custas-acao="finalizar" data-custas-id="${item.id}">Finalizar</button>`}</div></td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="10" class="rotina-vazio">Nenhum pedido nesta lista.</td></tr>';
+}
+
+export async function carregarCustas() {
+    const admin = ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil);
+    if (!admin && !window.aeriPermissoes?.gerenciar_custas) return;
+    try {
+        itens = await requisicaoAeri('/api/custas');
+        renderizar();
+    } catch (erro) {
+        document.getElementById('custas-tbody').innerHTML = `<tr><td colspan="10" class="rotina-vazio">${escaparHtml(erro.message)}</td></tr>`;
+    }
+}
+
+export function limparCustas() {
+    itens = [];
+    arquivoPendente = null;
+    document.getElementById('custas-tbody').innerHTML = '<tr><td colspan="10" class="rotina-vazio">Entre novamente para consultar.</td></tr>';
+}
+
+function fecharImportacao() {
+    document.getElementById('modal-custas-importacao').classList.remove('aberta');
+    document.getElementById('custas-arquivo').value = '';
+    arquivoPendente = null;
+}
+
+async function prepararImportacao(evento) {
+    const arquivo = evento.target.files?.[0];
+    if (!arquivo) return;
+    arquivoPendente = arquivo;
+    const botao = document.querySelector('.custas-importar-btn');
+    botao.classList.add('carregando');
+    try {
+        const dados = await requisicaoAeri('/api/custas/importar', {method:'POST', headers:{'Content-Type':'application/pdf'}, body:arquivo});
+        document.getElementById('custas-importacao-resumo').textContent = `${dados.total} pedidos de penhor ou alienação foram identificados. Confira antes de adicionar.`;
+        document.getElementById('custas-preview-tbody').innerHTML = dados.itens.map(item => `<tr><td><strong>${escaparHtml(item.pedido)}</strong></td><td>${escaparHtml(item.nome)}<small>${escaparHtml(item.documento)}</small></td><td>${escaparHtml(rotuloModalidade(item.modalidade))}</td><td>${escaparHtml(item.produto)}<small>${escaparHtml(item.safra)}</small></td></tr>`).join('');
+        const alerta = document.getElementById('custas-importacao-alerta');
+        alerta.hidden = !dados.alertas.length;
+        alerta.textContent = dados.alertas.length ? `${dados.alertas.length} pedido(s) possuem campo não identificado. Eles entrarão sinalizados como “NÃO CONSTA” para revisão.` : '';
+        document.getElementById('modal-custas-importacao').classList.add('aberta');
+    } catch (erro) {
+        alert(erro.message);
+        fecharImportacao();
+    } finally {
+        botao.classList.remove('carregando');
+    }
+}
+
+async function confirmarImportacao() {
+    if (!arquivoPendente) return;
+    const botao = document.getElementById('btn-confirmar-custas-importacao');
+    botao.disabled = true;
+    try {
+        const dados = await requisicaoAeri('/api/custas/importar?confirmar=true', {method:'POST', headers:{'Content-Type':'application/pdf'}, body:arquivoPendente});
+        fecharImportacao();
+        await carregarCustas();
+        alert(`${dados.importados} pedido(s) adicionado(s).${dados.duplicados ? ` ${dados.duplicados} já existiam e foram preservados.` : ''}`);
+    } catch (erro) {
+        alert(erro.message);
+    } finally {
+        botao.disabled = false;
+    }
+}
+
+function abrirEdicao(item) {
+    document.getElementById('custas-edicao-id').value = item.id;
+    document.getElementById('custas-edicao-titulo').textContent = item.pedido;
+    document.getElementById('custas-edicao-nome').value = item.nome;
+    document.getElementById('custas-edicao-documento').value = item.documento;
+    document.getElementById('custas-edicao-modalidade').value = item.modalidade;
+    document.getElementById('custas-edicao-produto').value = item.produto;
+    document.getElementById('custas-edicao-safra').value = item.safra;
+    document.getElementById('custas-edicao-resultado').value = item.resultado;
+    document.getElementById('custas-edicao-registro').value = item.numeroRegistro || '';
+    document.getElementById('custas-edicao-status').value = item.status;
+    document.getElementById('modal-custas-edicao').classList.add('aberta');
+    document.getElementById('custas-edicao-nome').focus();
+}
+
+function fecharEdicao() {
+    document.getElementById('modal-custas-edicao').classList.remove('aberta');
+}
+
+async function salvarEdicao(evento) {
+    evento.preventDefault();
+    const id = document.getElementById('custas-edicao-id').value;
+    const dados = {
+        nome: document.getElementById('custas-edicao-nome').value,
+        documento: document.getElementById('custas-edicao-documento').value,
+        modalidade: document.getElementById('custas-edicao-modalidade').value,
+        produto: document.getElementById('custas-edicao-produto').value,
+        safra: document.getElementById('custas-edicao-safra').value,
+        resultado: document.getElementById('custas-edicao-resultado').value,
+        numeroRegistro: document.getElementById('custas-edicao-registro').value,
+        status: document.getElementById('custas-edicao-status').value,
+    };
+    try {
+        const salvo = await requisicaoAeri(`/api/custas/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados)});
+        itens = itens.map(item => item.id === salvo.id ? salvo : item);
+        fecharEdicao();
+        renderizar();
+    } catch (erro) { alert(erro.message); }
+}
+
+async function acaoTabela(evento) {
+    const botao = evento.target.closest('[data-custas-acao]');
+    if (!botao) return;
+    const item = itens.find(atual => atual.id === botao.dataset.custasId);
+    if (!item) return;
+    if (botao.dataset.custasAcao === 'editar') return abrirEdicao(item);
+    const acao = botao.dataset.custasAcao;
+    if (!confirm(acao === 'finalizar' ? `Mover ${item.pedido} para Finalizado?` : `Reabrir ${item.pedido}?`)) return;
+    try {
+        const salvo = await requisicaoAeri(`/api/custas/${item.id}/${acao}`, {method:'POST'});
+        itens = itens.map(atual => atual.id === salvo.id ? salvo : atual);
+        renderizar();
+    } catch (erro) { alert(erro.message); }
+}
+
+function trocarAba(evento) {
+    const botao = evento.target.closest('[data-custas-aba]');
+    if (!botao) return;
+    aba = botao.dataset.custasAba;
+    document.querySelectorAll('[data-custas-aba]').forEach(item => {
+        const ativa = item === botao;
+        item.classList.toggle('ativa', ativa);
+        item.setAttribute('aria-selected', String(ativa));
+    });
+    renderizar();
+}
+
+function trocarFiltro(evento) {
+    const botao = evento.target.closest('[data-custas-status]');
+    if (!botao) return;
+    filtroStatus = botao.dataset.custasStatus;
+    document.querySelectorAll('[data-custas-status]').forEach(item => item.classList.toggle('ativo', item === botao));
+    renderizar();
+}
+
+export function iniciarCustas() {
+    document.getElementById('custas-arquivo').addEventListener('change', prepararImportacao);
+    document.getElementById('btn-confirmar-custas-importacao').addEventListener('click', confirmarImportacao);
+    document.getElementById('btn-fechar-custas-importacao').addEventListener('click', fecharImportacao);
+    document.getElementById('btn-cancelar-custas-importacao').addEventListener('click', fecharImportacao);
+    document.getElementById('form-custas-edicao').addEventListener('submit', salvarEdicao);
+    document.getElementById('btn-fechar-custas-edicao').addEventListener('click', fecharEdicao);
+    document.getElementById('btn-cancelar-custas-edicao').addEventListener('click', fecharEdicao);
+    document.getElementById('custas-tbody').addEventListener('click', acaoTabela);
+    document.querySelector('.custas-abas').addEventListener('click', trocarAba);
+    document.getElementById('custas-legenda').addEventListener('click', trocarFiltro);
+    document.getElementById('custas-busca').addEventListener('input', renderizar);
+}

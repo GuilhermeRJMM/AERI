@@ -87,13 +87,14 @@ def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_per
                 cursor.execute(
                     """INSERT INTO usuarios_aeri
                     (usuario, nome, perfil, senha_hash, deve_trocar_senha,
-                    pode_processar_matricula, pode_processar_incra, pode_ver_intimacoes,
+                    pode_processar_matricula, pode_processar_incra, pode_gerenciar_custas, pode_ver_intimacoes,
                     pode_criar_intimacoes, pode_alterar_intimacoes, pode_conferir_intimacoes)
-                    VALUES (%s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s, %s) RETURNING *""",
+                    VALUES (%s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
                     (
                         usuario, nome, perfil, hash_senha(senha),
                         permissoes["pode_processar_matricula"],
                         permissoes["pode_processar_incra"],
+                        permissoes["pode_gerenciar_custas"],
                         permissoes["pode_ver_intimacoes"],
                         permissoes["pode_criar_intimacoes"],
                         permissoes["pode_alterar_intimacoes"],
@@ -128,7 +129,7 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
                     raise HTTPException(status_code=403, detail="Somente ADM pode alterar cargo administrativo.")
             cursor.execute(
                 """UPDATE usuarios_aeri SET nome=%s, perfil=%s, ativo=%s,
-                pode_processar_matricula=%s, pode_processar_incra=%s, pode_ver_intimacoes=%s,
+                pode_processar_matricula=%s, pode_processar_incra=%s, pode_gerenciar_custas=%s, pode_ver_intimacoes=%s,
                 pode_criar_intimacoes=%s, pode_alterar_intimacoes=%s, pode_conferir_intimacoes=%s,
                 atualizado_em=NOW()
                 WHERE usuario=%s RETURNING *""",
@@ -136,6 +137,7 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
                     nome, perfil, ativo,
                     permissoes["pode_processar_matricula"],
                     permissoes["pode_processar_incra"],
+                    permissoes["pode_gerenciar_custas"],
                     permissoes["pode_ver_intimacoes"],
                     permissoes["pode_criar_intimacoes"],
                     permissoes["pode_alterar_intimacoes"],

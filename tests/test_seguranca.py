@@ -47,6 +47,7 @@ class TesteSeguranca(unittest.TestCase):
                 "perfil": "CONFERENTE",
                 "pode_processar_matricula": True,
                 "pode_processar_incra": False,
+                "pode_gerenciar_custas": True,
                 "pode_ver_intimacoes": True,
                 "pode_criar_intimacoes": False,
                 "pode_alterar_intimacoes": False,
@@ -56,6 +57,7 @@ class TesteSeguranca(unittest.TestCase):
 
         self.assertTrue(permissoes["processar_matricula"])
         self.assertFalse(permissoes["processar_incra"])
+        self.assertTrue(permissoes["gerenciar_custas"])
         self.assertFalse(permissoes["criar_intimacoes"])
         self.assertTrue(permissoes["conferir_intimacoes"])
 

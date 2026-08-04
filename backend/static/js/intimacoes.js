@@ -4,6 +4,7 @@ import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
 let intimacoes = [];
 const intimacoesPendentes = new Set();
 const detalhesAbertos = new Set();
+const historicosOperacionais = new Map();
 let intimacaoCheckId = null;
 let faseAtiva = 'INTIMACAO';
 const FASES_INTIMACAO = ['INTIMACAO', 'EDITAL', 'CONSOLIDACAO'];
@@ -113,6 +114,10 @@ function campoCard(rotulo, valor, classe = '') {
 }
 
 function detalhesFaseInicial(item) {
+    const historico = historicosOperacionais.get(item.id);
+    const eventos = Array.isArray(historico)
+        ? historico.map(evento => `<li><strong>${escaparHtml(evento.tipo)}</strong><span>${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(evento.criado_em))} · ${escaparHtml(evento.usuario)}</span></li>`).join('')
+        : '<li><span>Carregando histórico operacional…</span></li>';
     return `<div class="rotina-intimacao-detalhes">
         <section class="rotina-card-grade rotina-card-identificacao">
             ${campoCard('Protocolo RTD', valorOuTraco(item.protocoloRtd))}
@@ -132,7 +137,20 @@ function detalhesFaseInicial(item) {
             ${campoCard('Valor Usado', formatarMoeda(item.valorUsado))}
             ${campoCard('Saldo na OS', formatarMoeda(item.saldoOs), 'rotina-card-saldo')}
         </section>
+        <section class="rotina-historico-operacional">
+            <h3>Histórico operacional</h3>
+            <ul>${eventos || '<li><span>Nenhum evento registrado.</span></li>'}</ul>
+        </section>
     </div>`;
+}
+
+async function carregarHistoricoOperacional(id) {
+    if (historicosOperacionais.has(id)) return;
+    try {
+        historicosOperacionais.set(id, await requisicaoAeri(`/api/intimacoes/${id}/historico`));
+    } catch (erro) {
+        historicosOperacionais.set(id, [{tipo:'ERRO', criado_em:new Date().toISOString(), usuario:erro.message}]);
+    }
 }
 
 function renderizarIntimacoes() {
@@ -489,13 +507,16 @@ function exportarIntimacoesCsv() {
     baixarArquivo('\uFEFF' + [cabecalho,...linhas].join('\n'), 'text/csv;charset=utf-8', `intimacoes-aeri-${hojeLocal()}.csv`);
 }
 
-function tratarAcaoTabela(evento) {
+async function tratarAcaoTabela(evento) {
     const botao = evento.target.closest('button[data-acao]');
     if (!botao) return;
     if (botao.dataset.acao === 'abrir-pasta') abrirPastaIntimacao(botao.dataset.protocolo);
     if (botao.dataset.acao === 'detalhes') {
         if (detalhesAbertos.has(botao.dataset.id)) detalhesAbertos.delete(botao.dataset.id);
-        else detalhesAbertos.add(botao.dataset.id);
+        else {
+            detalhesAbertos.add(botao.dataset.id);
+            await carregarHistoricoOperacional(botao.dataset.id);
+        }
         renderizarIntimacoes();
     }
     if (botao.dataset.acao === 'conferir') abrirCheckIntimacao(botao.dataset.id);

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "onus-hipoteca-ativa",
+    "texto": "IMÓVEL: Lote 1 da quadra 2, Setor Central. PROPRIETÁRIO: JOÃO TESTE, CPF 123.456.789-09.\n----------------------------------------------------------------------------\nR.01 - HIPOTECA. O imóvel foi dado em hipoteca ao BANCO TESTE.",
+    "esperado": {
+      "resultado": "POSITIVA PARA ÔNUS",
+      "ato": {"codigo": "R.01", "categoria": "ÔNUS", "status": "ATIVO"}
+    }
+  },
+  {
+    "id": "onus-cancelado",
+    "texto": "IMÓVEL: Lote 1 da quadra 2, Setor Central. PROPRIETÁRIO: JOÃO TESTE, CPF 123.456.789-09.\n----------------------------------------------------------------------------\nR.01 - HIPOTECA. O imóvel foi dado em hipoteca ao BANCO TESTE.\n----------------------------------------------------------------------------\nAV.02 - CANCELAMENTO. Procede-se ao cancelamento da hipoteca objeto do R.01.",
+    "esperado": {
+      "resultado": "NEGATIVA PARA ÔNUS",
+      "ato": {"codigo": "R.01", "categoria": "ÔNUS", "status": "CANCELADO"}
+    }
+  },
+  {
+    "id": "urbano-cci-e-cep",
+    "texto": "IMÓVEL: Lote 27-B da Quadra 66, com 125,10m², situado no Jardim Romano. PROPRIETÁRIO: JOÃO TESTE, CPF 123.456.789-09.\n----------------------------------------------------------------------------\nAV.01 - CÓDIGO DE ENDEREÇAMENTO POSTAL. CEP n.º 75.656-118.\n----------------------------------------------------------------------------\nAV.02 - DESIGNAÇÃO CADASTRAL DO IMÓVEL. CCI n.º 139.796.",
+    "esperado": {
+      "tipo": "URBANO",
+      "campos": {
+        "Cadastro municipal / CCI": "CCI 139.796",
+        "CEP": "75.656-118"
+      }
+    }
+  },
+  {
+    "id": "rural-sem-endereco-urbano",
+    "texto": "IMÓVEL RURAL: Fazenda Boa Vista, com área de 28 ha, CCIR n.º 999.989.085.944-5. PROPRIETÁRIO: JOÃO TESTE, CPF 123.456.789-09.",
+    "esperado": {
+      "tipo": "RURAL",
+      "rotulos_ausentes": ["Rua", "Número", "Setor"],
+      "campos_presentes": ["CCIR / Código rural", "CAR"]
+    }
+  },
+  {
+    "id": "sequestro-e-onus",
+    "texto": "IMÓVEL: Lote 4 da quadra 8, Setor Central. PROPRIETÁRIO: JOÃO TESTE, CPF 123.456.789-09.\n----------------------------------------------------------------------------\nAV.01 - SEQUESTRO DO IMÓVEL. Por ordem judicial, procede-se ao sequestro do imóvel.",
+    "esperado": {
+      "resultado": "POSITIVA PARA ÔNUS",
+      "ato": {"codigo": "AV.01", "categoria": "ÔNUS", "status": "ATIVO"}
+    }
+  }
+]

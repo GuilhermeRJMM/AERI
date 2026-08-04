@@ -16,7 +16,9 @@ function aplicarPermissoesSidebar(dados) {
     const permissoes = dados.permissoes || {};
     definirModuloVisivel('onus', admin || Boolean(permissoes.processar_matricula));
     definirModuloVisivel('incra', admin || Boolean(permissoes.processar_incra));
+    definirModuloVisivel('custas', admin || Boolean(permissoes.gerenciar_custas));
     definirModuloVisivel('rotina', admin || Boolean(permissoes.ver_intimacoes));
+    definirModuloVisivel('painel', admin || Boolean(permissoes.ver_intimacoes));
     definirModuloVisivel('usuarios', admin);
 
     const ativo = document.querySelector('.nav-item.active');

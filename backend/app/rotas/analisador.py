@@ -1,4 +1,6 @@
-from uuid import uuid4
+import json
+import re
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -21,6 +23,7 @@ from backend.app.servicos.aprendizado_regras import (
 
 
 router = APIRouter(tags=["analisador"], dependencies=[Depends(preparar_banco)])
+DOMINIOS_DIVERGENCIA = {"ONUS", "CADEIA", "IMOVEL", "SITUACAO"}
 
 
 def _regras_aprovadas() -> list[dict]:
@@ -50,6 +53,67 @@ def _regra_json(item: dict) -> dict:
         "criado_em": item["criado_em"].isoformat(),
         "atualizado_em": item["atualizado_em"].isoformat(),
         "aprovado_em": item["aprovado_em"].isoformat() if item["aprovado_em"] else None,
+    }
+
+
+def _validar_feedback(dados: dict) -> dict:
+    try:
+        numero = normalizar_numero_matricula(dados.get("numero_matricula"))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    avaliacao = str(dados.get("avaliacao", "")).strip().upper()
+    if avaliacao not in {"CORRETO", "REVISAR"}:
+        raise HTTPException(status_code=422, detail="Avaliação inválida.")
+    hash_resultado = str(dados.get("resultado_hash", "")).strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{64}", hash_resultado):
+        raise HTTPException(status_code=422, detail="Identificador do resultado inválido.")
+    dominios = sorted({str(item).strip().upper() for item in dados.get("dominios", [])})
+    if not set(dominios).issubset(DOMINIOS_DIVERGENCIA):
+        raise HTTPException(status_code=422, detail="Domínio de revisão inválido.")
+    if avaliacao == "REVISAR" and not dominios:
+        raise HTTPException(status_code=422, detail="Informe ao menos uma parte que precisa de revisão.")
+    comentario = str(dados.get("comentario", "")).strip()
+    if len(comentario) > 1000:
+        raise HTTPException(status_code=422, detail="Comentário excede 1.000 caracteres.")
+    resumo_recebido = dados.get("resumo") if isinstance(dados.get("resumo"), dict) else {}
+    try:
+        total_atos = max(0, min(int(resumo_recebido.get("total_atos", 0) or 0), 10000))
+        total_proprietarios = max(0, min(int(resumo_recebido.get("total_proprietarios", 0) or 0), 10000))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail="Resumo do resultado inválido.") from exc
+    resumo = {
+        "resultado": str(resumo_recebido.get("resultado", ""))[:80],
+        "situacao": str(resumo_recebido.get("situacao", ""))[:30],
+        "total_atos": total_atos,
+        "total_proprietarios": total_proprietarios,
+    }
+    return {
+        "numero": numero,
+        "avaliacao": avaliacao,
+        "resultado_hash": hash_resultado,
+        "dominios": dominios,
+        "comentario": comentario,
+        "motor_versao": str(dados.get("motor_versao", "desconhecida"))[:30],
+        "resumo": resumo,
+    }
+
+
+def _divergencia_json(item: dict) -> dict:
+    return {
+        "id": str(item["id"]),
+        "numero_matricula": item["numero_matricula"],
+        "motor_versao": item["motor_versao"],
+        "avaliacao": item["avaliacao"],
+        "dominios": item["dominios"],
+        "comentario": item["comentario"],
+        "resumo": item["resumo"],
+        "status": item["status"],
+        "criado_por": item["criado_por"],
+        "revisado_por": item["revisado_por"],
+        "resolucao": item["resolucao"],
+        "criado_em": item["criado_em"].isoformat(),
+        "atualizado_em": item["atualizado_em"].isoformat(),
+        "revisado_em": item["revisado_em"].isoformat() if item["revisado_em"] else None,
     }
 
 
@@ -92,11 +156,99 @@ def analisar_por_numero(
     return resultado
 
 
+@router.post("/analisar/feedback", dependencies=[Depends(proteger_csrf)])
+def registrar_feedback_analise(
+    dados: dict,
+    request: Request,
+    usuario: str = Depends(exigir_permissao("processar_matricula")),
+):
+    feedback = _validar_feedback(dados)
+    status = "RESOLVIDA" if feedback["avaliacao"] == "CORRETO" else "PENDENTE"
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """INSERT INTO divergencias_analise_aeri
+                (id, numero_matricula, motor_versao, resultado_hash, avaliacao,
+                 dominios, comentario, resumo, status, criado_por)
+                VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s)
+                RETURNING *""",
+                (
+                    uuid4(), feedback["numero"], feedback["motor_versao"],
+                    feedback["resultado_hash"], feedback["avaliacao"],
+                    json.dumps(feedback["dominios"]), feedback["comentario"],
+                    json.dumps(feedback["resumo"], ensure_ascii=False), status, usuario,
+                ),
+            )
+            item = cursor.fetchone()
+            registrar_auditoria_cursor(
+                cursor, request, "avaliar_analise", "sucesso", usuario,
+                feedback["numero"], {"avaliacao": feedback["avaliacao"], "dominios": feedback["dominios"]},
+            )
+        conexao.commit()
+    return _divergencia_json(item)
+
+
+@router.get("/analisar/divergencias")
+def listar_divergencias(
+    status: str = "PENDENTE",
+    _admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+):
+    status = status.strip().upper()
+    if status not in {"PENDENTE", "RESOLVIDA", "ARQUIVADA"}:
+        raise HTTPException(status_code=422, detail="Status inválido.")
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """SELECT * FROM divergencias_analise_aeri
+                WHERE status=%s AND avaliacao='REVISAR'
+                ORDER BY criado_em DESC LIMIT 300""",
+                (status,),
+            )
+            return [_divergencia_json(item) for item in cursor.fetchall()]
+
+
+@router.post("/analisar/divergencias/{divergencia_id}/resolver", dependencies=[Depends(proteger_csrf)])
+def resolver_divergencia(
+    divergencia_id: str,
+    dados: dict,
+    request: Request,
+    admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+):
+    try:
+        identificador = UUID(divergencia_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Identificador inválido.") from exc
+    status = str(dados.get("status", "RESOLVIDA")).strip().upper()
+    if status not in {"RESOLVIDA", "ARQUIVADA"}:
+        raise HTTPException(status_code=422, detail="Status inválido.")
+    resolucao = str(dados.get("resolucao", "")).strip()
+    if len(resolucao) > 1000:
+        raise HTTPException(status_code=422, detail="Resolução excede 1.000 caracteres.")
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """UPDATE divergencias_analise_aeri SET status=%s, resolucao=%s,
+                revisado_por=%s, revisado_em=NOW(), atualizado_em=NOW()
+                WHERE id=%s AND status='PENDENTE' RETURNING *""",
+                (status, resolucao, admin, identificador),
+            )
+            item = cursor.fetchone()
+            if item:
+                registrar_auditoria_cursor(
+                    cursor, request, "resolver_divergencia_analise", "sucesso", admin,
+                    str(identificador), {"status": status},
+                )
+        conexao.commit()
+    if not item:
+        raise HTTPException(status_code=404, detail="Divergência pendente não encontrada.")
+    return _divergencia_json(item)
+
+
 @router.post("/analisar/aprendizado/sugestoes", dependencies=[Depends(proteger_csrf)])
 def sugerir_regra_aprendizado(
     dados: dict,
     request: Request,
-    usuario: str = Depends(exigir_permissao("processar_matricula")),
+    usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
 ):
     try:
         sugestao = validar_sugestao_aprendizado(dados)

@@ -22,6 +22,7 @@ JANELA_TENTATIVAS_MINUTOS = 15
 PERMISSOES = {
     "processar_matricula": "pode_processar_matricula",
     "processar_incra": "pode_processar_incra",
+    "gerenciar_custas": "pode_gerenciar_custas",
     "ver_intimacoes": "pode_ver_intimacoes",
     "criar_intimacoes": "pode_criar_intimacoes",
     "alterar_intimacoes": "pode_alterar_intimacoes",
@@ -155,7 +156,7 @@ def _obter_sessao(request: Request) -> dict | None:
         with conexao.cursor() as cursor:
             cursor.execute(
                 """SELECT s.*, u.perfil, u.nome, u.ativo, u.deve_trocar_senha,
-                u.pode_processar_matricula, u.pode_processar_incra,
+                u.pode_processar_matricula, u.pode_processar_incra, u.pode_gerenciar_custas,
                 u.pode_ver_intimacoes, u.pode_criar_intimacoes,
                 u.pode_alterar_intimacoes, u.pode_conferir_intimacoes
                 FROM sessoes_aeri s JOIN usuarios_aeri u ON u.usuario=s.usuario
