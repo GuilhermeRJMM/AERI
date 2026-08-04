@@ -4,7 +4,6 @@ import {iniciarIncra} from './incra.js';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260804-informar-custas';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260731-auditoria';
 import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
-import {carregarPainel, iniciarPainel} from './painel.js?v=20260731-auditoria';
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260706-status-onr';
 import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260731-auditoria';
 
@@ -29,7 +28,6 @@ function fecharSplash() {
         aoEntrar: dados => {
             exigirTrocaSenha(dados.deveTrocarSenha);
             if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.ver_intimacoes)) carregarIntimacoes();
-            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.ver_intimacoes)) carregarPainel();
             if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.gerenciar_custas)) carregarCustas();
             if (cargoAdministrativo(dados.perfil) && !dados.deveTrocarSenha) carregarUsuarios();
             if (!dados.deveTrocarSenha) ativarStatusOnr();
@@ -48,7 +46,6 @@ iniciarAnalisador();
 iniciarIncra();
 iniciarCustas();
 iniciarIntimacoes();
-iniciarPainel();
 iniciarUsuarios();
 document.getElementById('btn-fechar-splash').addEventListener('click', fecharSplash);
 window.setTimeout(fecharSplash, 2600);

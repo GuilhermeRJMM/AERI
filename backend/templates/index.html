@@ -81,11 +81,6 @@
             <span class="sidebar-label">MÓDULOS</span>
             <nav class="sidebar-nav">
 
-                <div class="nav-item" data-page="painel" title="Painel operacional" hidden>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-                    <span>Painel operacional</span>
-                </div>
-
                 <div class="nav-item active" data-page="onus" title="Ônus & Matrícula" hidden>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -135,23 +130,6 @@
         <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" aria-label="Fechar menu" tabindex="-1"></button>
 
         <div class="page-content">
-
-            <div id="page-painel" class="page">
-                <main class="layout rotina-layout">
-                    <div class="rotina-header">
-                        <div><span class="eyebrow">VISÃO OPERACIONAL</span><h1>Painel do AERI</h1><p>Pendências internas de intimações e revisões registradas no AERI.</p></div>
-                        <button class="rotina-btn-secondary" id="btn-atualizar-painel" type="button">Atualizar</button>
-                    </div>
-                    <section class="rotina-resumo" id="painel-resumo"></section>
-                    <section class="rotina-painel">
-                        <div class="painel-fases" id="painel-fases"></div>
-                        <div class="rotina-table-wrap"><table class="rotina-table">
-                            <thead><tr><th>Protocolo</th><th>Fase</th><th>Andamento</th><th>Última conferência</th><th>Certificação</th></tr></thead>
-                            <tbody id="painel-pendencias"><tr><td colspan="5" class="rotina-vazio">Carregando…</td></tr></tbody>
-                        </table></div>
-                    </section>
-                </main>
-            </div>
 
             <div id="page-onus" class="page active">
                 <main class="layout">

@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from backend.app.rotas import analisador, autenticacao, custas, incra, intimacoes, painel, status_onr, usuarios
+from backend.app.rotas import analisador, autenticacao, custas, incra, intimacoes, status_onr, usuarios
 from backend.app.seguranca_web import politica_frame_ancestors
 
 
@@ -25,7 +25,6 @@ app.include_router(analisador.router)
 app.include_router(incra.router)
 app.include_router(custas.router)
 app.include_router(intimacoes.router)
-app.include_router(painel.router)
 app.include_router(status_onr.router)
 app.include_router(usuarios.router)
 

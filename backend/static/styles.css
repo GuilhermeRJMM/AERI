@@ -2566,9 +2566,6 @@ body.modo-incorporado .layout { padding-top:28px; }
   .custas-table td::before{content:attr(data-label);color:#71809a;font-size:.61rem;font-weight:800;text-transform:uppercase}
 }
 @media(max-width:620px){.custas-form{grid-template-columns:1fr}.custas-form-largo,.custas-form .rotina-form-actions{grid-column:1}.custas-toolbar{align-items:stretch;flex-direction:column}.custas-busca{max-width:none}}
-.painel-fases { display:flex; flex-wrap:wrap; gap:10px; padding:16px; border-bottom:1px solid rgba(139,152,178,.15); }
-.painel-fases span { padding:8px 12px; border-radius:999px; background:rgba(15,23,42,.72); color:var(--text-muted); font-size:.76rem; }
-.painel-fases strong { margin-left:7px; color:var(--text-main); }
 .contingencia-manual { margin-top:12px; padding:12px; border:1px solid rgba(139,152,178,.15); border-radius:14px; color:var(--text-muted); }
 .contingencia-manual summary { cursor:pointer; color:var(--text-soft); font-size:.76rem; font-weight:700; }
 .contingencia-manual form { display:grid; gap:10px; margin-top:10px; }

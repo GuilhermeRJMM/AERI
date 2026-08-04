@@ -9,9 +9,8 @@ O AERI é dividido em quatro camadas principais:
 - `backend/app`: regras registrais e infraestrutura compartilhada.
 - `backend/static/js`: módulos da interface, sem JavaScript de negócio dentro do HTML.
 
-O sistema possui atualmente seis módulos funcionais:
+O sistema possui atualmente cinco módulos funcionais:
 
-- **Painel operacional**: pendências internas das intimações e fila administrativa de divergências.
 - **Ônus & Matrícula**: classificação dos atos e cálculo da cadeia dominial.
 - **INCRA**: extração e classificação de protocolos do Relatório Rural.
 - **Informar Custas**: extração dos pedidos de penhor e alienação de grãos do relatório PDF, organização por situação e separação entre filas em andamento e finalizada.
@@ -27,7 +26,6 @@ O sistema possui atualmente seis módulos funcionais:
 - `rotas/incra.py`: recebimento e classificação do Relatório Rural.
 - `rotas/custas.py`: prévia segura do relatório, importação idempotente e movimentação dos pedidos de custas.
 - `rotas/intimacoes.py`: operações da rotina diária de intimações.
-- `rotas/painel.py`: resumo operacional interno, sem sondar serviços externos.
 
 As rotas devem traduzir HTTP para chamadas de serviço. Regras de negócio não devem ser implementadas diretamente nessa camada.
 
@@ -81,7 +79,6 @@ O detalhamento funcional, os requisitos de acesso já confirmados e as pendênci
 - `incra.js`: upload, filtros e exportação rural.
 - `custas.js`: prévia da importação, planilha operacional, filtros, edição e movimentação entre filas.
 - `intimacoes.js`: rotina diária, formulários e CSV.
-- `painel.js`: resumo e filas operacionais internas.
 - `api.js`: tratamento comum das respostas HTTP.
 - `util.js`: funções compartilhadas de apresentação e download.
 
