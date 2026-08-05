@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from psycopg.types.json import Jsonb
 
@@ -27,6 +29,7 @@ router = APIRouter(
     dependencies=[Depends(preparar_banco)],
 )
 CHAVE_TRAVA_SINCRONIZACAO = 7_353_801
+MAX_CONSULTAS_TRI7_PARALELAS = 5
 
 
 def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool]:
@@ -108,6 +111,32 @@ def _estado_json(cursor) -> dict:
             if estado["ultima_sincronizacao"] else None
         ),
     }
+
+
+def _consultar_tri7_registro_auxiliar(numero: int) -> dict:
+    try:
+        resposta = cliente_tri7().buscar_texto_registro_auxiliar(numero)
+        return {"numero": numero, "status": "OK", "texto": resposta["texto"]}
+    except (RegistroAuxiliarTri7NaoEncontrado, RegistroAuxiliarTri7SemTexto):
+        return {"numero": numero, "status": "AUSENTE"}
+    except (ConfiguracaoTri7Invalida, AutenticacaoTri7Falhou) as erro:
+        return {"numero": numero, "status": "FATAL", "erro": erro}
+    except ErroTri7 as erro:
+        return {"numero": numero, "status": "ERRO", "erro": erro}
+
+
+def _consultar_lote_tri7(numeros: list[int]) -> list[dict]:
+    if not numeros:
+        return []
+    ordem = {numero: indice for indice, numero in enumerate(numeros)}
+    max_workers = min(MAX_CONSULTAS_TRI7_PARALELAS, len(numeros))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futuros = [
+            executor.submit(_consultar_tri7_registro_auxiliar, numero)
+            for numero in numeros
+        ]
+        resultados = [futuro.result() for futuro in as_completed(futuros)]
+    return sorted(resultados, key=lambda item: ordem[item["numero"]])
 
 
 @router.get("")
@@ -240,21 +269,24 @@ def sincronizar_registros_auxiliares(
                 ultimo_processado = None
                 maior_encontrado = estado["ultimo_existente"]
                 falha = None
-                for numero in numeros:
-                    try:
-                        resposta = cliente_tri7().buscar_texto_registro_auxiliar(numero)
-                        _item, inserido = _salvar_indice(cursor, numero, resposta["texto"])
+                for resultado_tri7 in _consultar_lote_tri7(numeros):
+                    numero = resultado_tri7["numero"]
+                    status_tri7 = resultado_tri7["status"]
+                    if status_tri7 == "OK":
+                        _item, inserido = _salvar_indice(cursor, numero, resultado_tri7["texto"])
                         encontrados += 1
                         novos += int(inserido)
                         alterados += int(_item["alterado"])
                         maior_encontrado = max(maior_encontrado, numero)
-                    except (RegistroAuxiliarTri7NaoEncontrado, RegistroAuxiliarTri7SemTexto):
+                    elif status_tri7 == "AUSENTE":
                         _limpar_erro(cursor, numero)
                         ausentes += 1
-                    except (ConfiguracaoTri7Invalida, AutenticacaoTri7Falhou) as erro:
+                    elif status_tri7 == "FATAL":
+                        erro = resultado_tri7["erro"]
                         falha = str(erro)
                         break
-                    except ErroTri7 as erro:
+                    else:
+                        erro = resultado_tri7["erro"]
                         _registrar_erro(cursor, numero, modo, erro)
                         falhas += 1
                         erros.append({"numero": numero, "erro": str(erro)[:180]})
