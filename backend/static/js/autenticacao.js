@@ -17,6 +17,7 @@ function aplicarPermissoesSidebar(dados) {
     definirModuloVisivel('onus', admin || Boolean(permissoes.processar_matricula));
     definirModuloVisivel('incra', admin || Boolean(permissoes.processar_incra));
     definirModuloVisivel('custas', admin || Boolean(permissoes.gerenciar_custas));
+    definirModuloVisivel('regaux', admin || Boolean(permissoes.gerenciar_custas));
     definirModuloVisivel('rotina', admin || Boolean(permissoes.ver_intimacoes));
     definirModuloVisivel('usuarios', admin);
 

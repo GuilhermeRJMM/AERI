@@ -34,6 +34,14 @@ class MatriculaTri7SemTexto(ErroTri7):
     pass
 
 
+class RegistroAuxiliarTri7NaoEncontrado(ErroTri7):
+    pass
+
+
+class RegistroAuxiliarTri7SemTexto(ErroTri7):
+    pass
+
+
 class RespostaTri7Invalida(ErroTri7):
     pass
 
@@ -156,6 +164,41 @@ class ClienteTri7:
             if numero_retornado != numero:
                 raise RespostaTri7Invalida("A Tri7 retornou uma matrícula diferente da solicitada.")
             return {"numero_matricula": numero, "texto": dados["texto"]}
+        raise AutenticacaoTri7Falhou("A autenticação com a Tri7 expirou.")
+
+    def buscar_texto_registro_auxiliar(self, numero_registro: object) -> dict:
+        numero = normalizar_numero_matricula(numero_registro)
+        caminho = "/api/v1/imoveis/texto-reg-auxiliar?" + urlencode({"numero_matricula": numero})
+        for tentativa in range(2):
+            token = self._obter_token(forcar=tentativa > 0)
+            requisicao = UrlRequest(
+                f"{self.configuracao.base_url}{caminho}",
+                method="GET",
+                headers={**HEADERS_PADRAO, "Authorization": f"Bearer {token}"},
+            )
+            status, dados = self._ler_json(requisicao)
+            if status in {401, 403} and tentativa == 0:
+                continue
+            if status == 404:
+                raise RegistroAuxiliarTri7NaoEncontrado(
+                    f"Registro Auxiliar {numero} não encontrado na Tri7."
+                )
+            if status < 200 or status >= 300:
+                raise ErroTri7("A Tri7 não conseguiu consultar o Registro Auxiliar.")
+            if not isinstance(dados, dict):
+                raise RespostaTri7Invalida(
+                    "A Tri7 retornou uma resposta inválida para o Registro Auxiliar."
+                )
+            if not isinstance(dados.get("texto"), str) or not dados["texto"].strip():
+                raise RegistroAuxiliarTri7SemTexto(
+                    f"O Registro Auxiliar {numero} não possui texto disponível na Tri7."
+                )
+            numero_retornado = normalizar_numero_matricula(dados.get("numero_matricula", numero))
+            if numero_retornado != numero:
+                raise RespostaTri7Invalida(
+                    "A Tri7 retornou um Registro Auxiliar diferente do solicitado."
+                )
+            return {"numero_registro": numero, "texto": dados["texto"]}
         raise AutenticacaoTri7Falhou("A autenticação com a Tri7 expirou.")
 
 

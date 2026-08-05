@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260804-custas-fluido">
+    <link rel="stylesheet" href="/static/styles.css?v=20260805-reg-aux">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -104,6 +104,13 @@
                         <path d="M4 5h16v14H4z"/><path d="M4 10h16M9 5v14M14 10v9"/>
                     </svg>
                     <span>Informar Custas</span>
+                </div>
+
+                <div class="nav-item" data-page="regaux" title="Registro Auxiliar" hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/><path d="M8 11h6M11 8v6"/>
+                    </svg>
+                    <span>Registro Auxiliar</span>
                 </div>
 
                 <div class="nav-item" data-page="rotina" title="Rotina - Intimação" hidden>
@@ -258,6 +265,56 @@
                 </main>
             </div>
 
+            <div id="page-regaux" class="page">
+                <main class="layout regaux-layout">
+                    <div class="rotina-header regaux-header">
+                        <div>
+                            <span class="eyebrow">LIVRO 3 · TEXTO OFICIAL TRI7</span>
+                            <h1>Pesquisa de Registro Auxiliar</h1>
+                            <p>Pesquise diretamente no índice construído a partir do texto dos registros, sem depender do cadastro de pessoas.</p>
+                        </div>
+                    </div>
+
+                    <section id="regaux-sincronizacao" class="regaux-sincronizacao" hidden>
+                        <div class="regaux-sync-resumo">
+                            <div><span>Registros indexados</span><strong id="regaux-total-indexado">0</strong></div>
+                            <div class="regaux-sync-progresso">
+                                <span>Carga inicial <strong id="regaux-progresso-texto">0%</strong></span>
+                                <div><i id="regaux-progresso-barra"></i></div>
+                                <small id="regaux-proximo">Próximo: 1 de 29.538</small>
+                            </div>
+                        </div>
+                        <div class="regaux-sync-acoes">
+                            <label><span>Último registro conhecido</span><input id="regaux-limite" type="number" min="1" value="29538"></label>
+                            <button type="button" class="btn btn-primary" id="btn-regaux-sincronizar">Iniciar sincronização</button>
+                            <button type="button" class="rotina-btn-secondary" id="btn-regaux-novos">Buscar novos</button>
+                        </div>
+                        <p id="regaux-atualizado">Carregando situação…</p>
+                        <p id="regaux-lote-status" aria-live="polite"></p>
+                    </section>
+
+                    <section class="regaux-pesquisa-card">
+                        <form id="form-regaux-pesquisa" class="regaux-form">
+                            <label class="regaux-busca-principal"><span>Nome ou CPF/CNPJ</span><input id="regaux-busca" placeholder="Ex.: João da Silva ou 000.000.000-00"></label>
+                            <label><span>Produto</span><input id="regaux-produto" placeholder="Ex.: Soja ou bovinos"></label>
+                            <label><span>Safra</span><input id="regaux-safra" placeholder="Ex.: 2026/2027"></label>
+                            <label><span>Modalidade</span><select id="regaux-modalidade"><option value="">Todas</option><option value="PENHOR">Penhor</option><option value="ALIENACAO">Alienação</option><option value="OUTROS">Outros</option></select></label>
+                            <button class="btn btn-primary" id="btn-regaux-pesquisar" type="submit">Pesquisar</button>
+                        </form>
+                    </section>
+
+                    <section class="regaux-resultados-card">
+                        <div class="regaux-resultados-topo"><div><span class="eyebrow">RESULTADOS DO TEXTO</span><h2>Registros encontrados</h2></div><strong id="regaux-total-resultados">0 resultados</strong></div>
+                        <div class="regaux-table-wrap">
+                            <table class="regaux-table">
+                                <thead><tr><th>Registro</th><th>Modalidade</th><th>Pessoas identificadas</th><th>Produto</th><th>Safra</th><th>Ação</th></tr></thead>
+                                <tbody id="regaux-resultados"><tr><td colspan="6" class="rotina-vazio">Use os filtros para pesquisar.</td></tr></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </main>
+            </div>
+
             <div id="page-rotina" class="page">
                 <main class="layout rotina-layout">
                     <div class="rotina-header">
@@ -353,6 +410,14 @@
             <div class="custas-preview-wrap"><table class="custas-preview-table"><thead><tr><th>Pedido</th><th>Nome</th><th>Modalidade</th><th>Produto / safra</th></tr></thead><tbody id="custas-preview-tbody"></tbody></table></div>
             <div id="custas-importacao-alerta" class="custas-importacao-alerta" hidden></div>
             <div class="rotina-form-actions custas-modal-actions"><button type="button" class="rotina-btn-secondary" id="btn-cancelar-custas-importacao">Cancelar</button><button type="button" class="btn btn-primary" id="btn-confirmar-custas-importacao">Adicionar à lista</button></div>
+        </div>
+    </div>
+
+    <div id="modal-regaux-texto" class="modal-overlay">
+        <div class="modal-box regaux-texto-modal">
+            <button class="modal-fechar" id="btn-fechar-regaux-texto" type="button" aria-label="Fechar">&times;</button>
+            <div class="rotina-form-header"><span class="eyebrow">TEXTO ATUALIZADO DA TRI7</span><h2 id="regaux-texto-titulo">Registro Auxiliar</h2><p>O texto não fica armazenado no AERI; esta visualização foi consultada agora.</p></div>
+            <pre id="regaux-texto-conteudo" class="regaux-texto-conteudo"></pre>
         </div>
     </div>
 
@@ -479,6 +544,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260804-custas-fluido"></script>
+    <script type="module" src="/static/js/app.js?v=20260805-reg-aux"></script>
 </body>
 </html>

@@ -11,6 +11,7 @@ from backend.app.servicos.tri7 import (
     ConfiguracaoTri7Invalida,
     MatriculaTri7NaoEncontrada,
     MatriculaTri7SemTexto,
+    RegistroAuxiliarTri7NaoEncontrado,
     RespostaTri7Invalida,
     normalizar_numero_matricula,
 )
@@ -152,6 +153,27 @@ class TesteClienteTri7(unittest.TestCase):
 
         with self.assertRaises(MatriculaTri7SemTexto):
             ClienteTri7(self.configuracao(), abridor=abrir).buscar_texto_matricula(25)
+
+    def test_busca_texto_do_registro_auxiliar(self):
+        def abrir(requisicao, timeout):
+            if requisicao.full_url.endswith("/api/v1/users/login"):
+                return RespostaFalsa({"access_token": "token"})
+            self.assertIn("/api/v1/imoveis/texto-reg-auxiliar", requisicao.full_url)
+            self.assertIn("numero_matricula=29538", requisicao.full_url)
+            return RespostaFalsa({"numero_matricula": 29538, "texto": "R.01 - PENHOR DE SOJA."})
+
+        resultado = ClienteTri7(self.configuracao(), abridor=abrir).buscar_texto_registro_auxiliar(29538)
+
+        self.assertEqual(resultado, {"numero_registro": "29538", "texto": "R.01 - PENHOR DE SOJA."})
+
+    def test_registro_auxiliar_404_tem_erro_proprio(self):
+        def abrir(requisicao, timeout):
+            if requisicao.full_url.endswith("/api/v1/users/login"):
+                return RespostaFalsa({"access_token": "token"})
+            raise HTTPError(requisicao.full_url, 404, "Not Found", {}, io.BytesIO(b'{"detail":"not found"}'))
+
+        with self.assertRaises(RegistroAuxiliarTri7NaoEncontrado):
+            ClienteTri7(self.configuracao(), abridor=abrir).buscar_texto_registro_auxiliar(7)
 
 
 if __name__ == "__main__":

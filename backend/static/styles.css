@@ -2495,6 +2495,57 @@ body.modo-incorporado .layout { padding-top:28px; }
 .rotina-historico-operacional li { display:flex; justify-content:space-between; gap:12px; color:var(--text-muted); font-size:.72rem; }
 .rotina-historico-operacional strong { color:var(--text-main); }
 
+/* --- PESQUISA DE REGISTRO AUXILIAR --- */
+.regaux-layout { max-width:1480px; }
+.regaux-header { margin-bottom:20px; }
+.regaux-sincronizacao { margin-bottom:18px; padding:18px; border:1px solid rgba(103,87,242,.25); border-radius:16px; background:linear-gradient(135deg,rgba(103,87,242,.10),rgba(12,18,32,.72)); box-shadow:var(--glass-shadow); }
+.regaux-sync-resumo { display:grid; grid-template-columns:220px minmax(280px,1fr); gap:24px; align-items:center; }
+.regaux-sync-resumo > div:first-child span,.regaux-sync-progresso > span,.regaux-sync-acoes label span { display:block; color:var(--text-muted); font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.regaux-sync-resumo > div:first-child strong { display:block; margin-top:4px; color:#fff; font-size:1.8rem; }
+.regaux-sync-progresso > span { display:flex; justify-content:space-between; gap:12px; }
+.regaux-sync-progresso > span strong { color:#c4b5fd; }
+.regaux-sync-progresso > div { height:9px; margin:8px 0 5px; overflow:hidden; border-radius:999px; background:rgba(139,152,178,.13); }
+.regaux-sync-progresso i { display:block; width:0; height:100%; border-radius:inherit; background:linear-gradient(90deg,#6757f2,#41d88f); transition:width .28s ease; }
+.regaux-sync-progresso small,.regaux-sincronizacao p { color:#8b98b0; font-size:.7rem; }
+.regaux-sync-acoes { display:flex; align-items:flex-end; gap:9px; margin-top:16px; flex-wrap:wrap; }
+.regaux-sync-acoes label { display:grid; gap:5px; }
+.regaux-sync-acoes input { width:180px; padding:10px 11px; border:1px solid rgba(139,152,178,.2); border-radius:9px; background:rgba(8,13,24,.62); color:#fff; font:600 .8rem Outfit,sans-serif; }
+#btn-regaux-sincronizar.pausar { border-color:rgba(248,113,113,.4); background:#991b1b; }
+.regaux-sincronizacao p { margin-top:9px; }
+#regaux-lote-status { min-height:16px; color:#c4b5fd; }
+.regaux-pesquisa-card,.regaux-resultados-card { border:1px solid rgba(139,152,178,.18); border-radius:16px; background:var(--surface-bg); box-shadow:var(--glass-shadow); }
+.regaux-pesquisa-card { padding:17px; margin-bottom:18px; }
+.regaux-form { display:grid; grid-template-columns:minmax(260px,1.6fr) repeat(3,minmax(130px,.7fr)) auto; gap:11px; align-items:end; }
+.regaux-form label { display:grid; gap:6px; }
+.regaux-form label span { color:#8795ae; font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; }
+.regaux-form input,.regaux-form select { width:100%; min-height:42px; padding:10px 11px; border:1px solid rgba(139,152,178,.2); border-radius:9px; background:rgba(12,18,32,.7); color:var(--text-main); font:500 .79rem Outfit,sans-serif; }
+.regaux-form input:focus,.regaux-form select:focus { border-color:var(--focus-blue); box-shadow:0 0 0 2px rgba(59,130,246,.2); }
+.regaux-resultados-card { overflow:hidden; }
+.regaux-resultados-topo { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 18px; border-bottom:1px solid rgba(139,152,178,.14); }
+.regaux-resultados-topo h2 { margin-top:3px; color:var(--text-main); font-size:1.08rem; }
+.regaux-resultados-topo > strong { color:#8b98b0; font-size:.72rem; }
+.regaux-table-wrap { overflow:auto; max-height:620px; }
+.regaux-table { width:100%; border-collapse:collapse; table-layout:fixed; }
+.regaux-table th,.regaux-table td { padding:12px 11px; border-right:1px solid rgba(139,152,178,.09); border-bottom:1px solid rgba(139,152,178,.12); text-align:left; vertical-align:top; }
+.regaux-table th { position:sticky; top:0; z-index:1; background:#192237; color:#8795ae; font-size:.62rem; letter-spacing:.05em; text-transform:uppercase; }
+.regaux-table td { color:#cbd5e1; font-size:.73rem; }
+.regaux-table th:nth-child(1){width:10%}.regaux-table th:nth-child(2){width:11%}.regaux-table th:nth-child(3){width:39%}.regaux-table th:nth-child(4){width:10%}.regaux-table th:nth-child(5){width:12%}.regaux-table th:nth-child(6){width:18%}
+.regaux-numero { display:block; color:#fff; font-size:.86rem; }
+.regaux-table td > small { display:block; margin-top:4px; color:#6f7d95; font-size:.62rem; }
+.regaux-modalidade { display:inline-flex; padding:4px 7px; border:1px solid rgba(103,87,242,.28); border-radius:7px; background:rgba(103,87,242,.09); color:#c4b5fd; font-size:.64rem; font-weight:800; }
+.regaux-pessoa { padding:0 0 7px; }
+.regaux-pessoa:last-child { padding-bottom:0; }
+.regaux-pessoa strong,.regaux-pessoa small { display:block; }
+.regaux-pessoa strong { color:#eef2ff; font-size:.72rem; }
+.regaux-pessoa small { margin-top:2px; color:#71809a; font-size:.61rem; }
+.regaux-ausente { color:#fbbf24; }
+.regaux-texto-btn { padding:7px 9px; border:1px solid rgba(65,216,143,.27); border-radius:7px; background:rgba(65,216,143,.08); color:#86efac; font:700 .65rem Outfit,sans-serif; cursor:pointer; }
+.regaux-texto-btn:hover { background:rgba(65,216,143,.14); border-color:rgba(65,216,143,.45); }
+.regaux-texto-modal { width:min(1050px,calc(100vw - 28px)); max-width:1050px; padding:0 24px 24px; }
+.regaux-texto-conteudo { max-height:68vh; margin-top:16px; overflow:auto; padding:18px; border:1px solid rgba(139,152,178,.15); border-radius:11px; background:#0c1321; color:#d5dbea; font:400 .75rem/1.62 Arial,sans-serif; white-space:pre-wrap; }
+@media(max-width:1050px){.regaux-form{grid-template-columns:repeat(2,minmax(0,1fr))}.regaux-busca-principal{grid-column:1/-1}.regaux-form button{width:100%}}
+@media(max-width:720px){.regaux-sync-resumo{grid-template-columns:1fr}.regaux-form{grid-template-columns:1fr}.regaux-busca-principal{grid-column:1}.regaux-table thead{display:none}.regaux-table,.regaux-table tbody,.regaux-table tr,.regaux-table td{display:block;width:100%}.regaux-table tr{padding:10px}.regaux-table td{display:grid;grid-template-columns:110px 1fr;gap:10px;border-right:0}.regaux-table td::before{content:attr(data-label);color:#71809a;font-size:.61rem;font-weight:800;text-transform:uppercase}}
+
 /* --- INFORMAR CUSTAS · PLANILHA OPERACIONAL --- */
 .custas-layout { max-width: 1580px; }
 .custas-header { align-items: flex-end; }
