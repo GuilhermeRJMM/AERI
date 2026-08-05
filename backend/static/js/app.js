@@ -4,7 +4,7 @@ import {iniciarIncra} from './incra.js';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260804-custas-fluido';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260731-auditoria';
 import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
-import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260805-reg-aux';
+import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260805-reg-aux-v2';
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260706-status-onr';
 import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260731-auditoria';
 

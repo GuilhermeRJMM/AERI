@@ -8,6 +8,7 @@ from backend.app.servicos.registros_auxiliares import (
     extrair_indice_registro_auxiliar,
     normalizar_busca,
     registro_auxiliar_json,
+    resumo_certidao_registro_auxiliar,
 )
 from backend.app.servicos.tri7 import (
     ConfiguracaoTri7Invalida,
@@ -37,11 +38,12 @@ def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool]:
     alterado = bool(anterior and anterior["texto_hash"] != indice["texto_hash"])
     cursor.execute(
         """INSERT INTO registros_auxiliares_aeri
-        (numero, texto_hash, modalidade, pessoas, nomes_busca, documentos_busca, produtos, safras)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        (numero, texto_hash, modalidade, situacao, pessoas, nomes_busca, documentos_busca, produtos, safras)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (numero) DO UPDATE SET
             texto_hash=EXCLUDED.texto_hash,
             modalidade=EXCLUDED.modalidade,
+            situacao=EXCLUDED.situacao,
             pessoas=EXCLUDED.pessoas,
             nomes_busca=EXCLUDED.nomes_busca,
             documentos_busca=EXCLUDED.documentos_busca,
@@ -54,7 +56,7 @@ def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool]:
             END
         RETURNING *""",
         (
-            numero, indice["texto_hash"], indice["modalidade"], Jsonb(indice["pessoas"]),
+            numero, indice["texto_hash"], indice["modalidade"], indice["situacao"], Jsonb(indice["pessoas"]),
             indice["nomes_busca"], indice["documentos_busca"], Jsonb(indice["produtos"]),
             Jsonb(indice["safras"]),
         ),
@@ -100,11 +102,16 @@ def pesquisar_registros_auxiliares(
     produto = normalizar_busca(produto)[:30]
     safra = safra.strip()[:20]
     modalidade = normalizar_busca(modalidade)[:20]
+    if not termo or not produto or not safra:
+        raise HTTPException(
+            status_code=422,
+            detail="Informe o nome ou CPF/CNPJ, o produto e a safra.",
+        )
     if modalidade not in {"", "PENHOR", "ALIENACAO", "OUTROS"}:
         raise HTTPException(status_code=422, detail="Modalidade inválida.")
     modalidade_banco = "ALIENAÇÃO" if modalidade == "ALIENACAO" else modalidade
 
-    filtros = []
+    filtros = ["situacao='ATIVO'"]
     parametros = []
     if termo:
         filtros.append("(nomes_busca LIKE %s OR documentos_busca LIKE %s)")
@@ -122,11 +129,17 @@ def pesquisar_registros_auxiliares(
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
-                f"""SELECT * FROM registros_auxiliares_aeri
+                f"""SELECT *, COUNT(*) OVER() AS total_filtrado FROM registros_auxiliares_aeri
                 {where} ORDER BY numero DESC LIMIT %s""",
                 (*parametros, limite),
             )
-            return [registro_auxiliar_json(item) for item in cursor.fetchall()]
+            registros = cursor.fetchall()
+            total = registros[0]["total_filtrado"] if registros else 0
+            itens = [registro_auxiliar_json(item) for item in registros]
+            return {
+                "itens": itens,
+                "resumo": resumo_certidao_registro_auxiliar(total),
+            }
 
 
 @router.get("/status")

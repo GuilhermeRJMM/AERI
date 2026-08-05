@@ -27,9 +27,21 @@ function atualizarStatus(estado) {
         : 'A sincronização ainda não foi iniciada.';
 }
 
-function renderizarResultados(itens) {
+function formatarMoeda(valor) {
+    return new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(Number(valor));
+}
+
+function renderizarResultados(dados) {
+    const itens = dados.itens || [];
+    const resumo = dados.resumo || {resultado:'NEGATIVA', quantidadeRegistros:0, valorCertidao:'139.93'};
     const corpo = document.getElementById('regaux-resultados');
-    document.getElementById('regaux-total-resultados').textContent = `${itens.length} ${itens.length === 1 ? 'resultado' : 'resultados'}`;
+    document.getElementById('regaux-total-resultados').textContent = `${resumo.quantidadeRegistros} ${resumo.quantidadeRegistros === 1 ? 'resultado' : 'resultados'}`;
+    document.getElementById('regaux-certidao-resumo').hidden = false;
+    const resultado = document.getElementById('regaux-certidao-resultado');
+    resultado.textContent = resumo.resultado;
+    resultado.dataset.resultado = resumo.resultado;
+    document.getElementById('regaux-certidao-quantidade').textContent = formatarNumero(resumo.quantidadeRegistros);
+    document.getElementById('regaux-certidao-valor').textContent = formatarMoeda(resumo.valorCertidao);
     corpo.innerHTML = itens.map(item => {
         const pessoas = (item.pessoas || []).map(pessoa => `
             <div class="regaux-pessoa"><strong>${escaparHtml(pessoa.nome)}</strong><small>${escaparHtml(pessoa.papel)} · ${escaparHtml(pessoa.documento)}</small></div>
@@ -38,13 +50,14 @@ function renderizarResultados(itens) {
         const safras = item.safras?.length ? item.safras.join(', ') : 'NÃO CONSTA';
         return `<tr>
             <td data-label="Registro"><strong class="regaux-numero">${formatarNumero(item.numero)}</strong><small>${new Intl.DateTimeFormat('pt-BR').format(new Date(item.consultadoEm))}</small></td>
+            <td data-label="Situação"><span class="regaux-situacao">${escaparHtml(item.situacao)}</span></td>
             <td data-label="Modalidade"><span class="regaux-modalidade">${escaparHtml(rotuloModalidade(item.modalidade))}</span></td>
-            <td data-label="Pessoas">${pessoas}</td>
+            <td data-label="Emitente/devedor">${pessoas}</td>
             <td data-label="Produto">${escaparHtml(produtos)}</td>
             <td data-label="Safra">${escaparHtml(safras)}</td>
             <td data-label="Ação"><button type="button" class="regaux-texto-btn" data-regaux-texto="${item.numero}">Ver texto atualizado</button></td>
         </tr>`;
-    }).join('') || '<tr><td colspan="6" class="rotina-vazio">Nenhum Registro Auxiliar encontrado com esses filtros.</td></tr>';
+    }).join('') || '<tr><td colspan="7" class="rotina-vazio">Nenhum Registro Auxiliar ativo encontrado com esses filtros.</td></tr>';
 }
 
 export async function carregarRegistrosAuxiliares() {
@@ -61,7 +74,8 @@ export async function carregarRegistrosAuxiliares() {
 export function limparRegistrosAuxiliares() {
     sincronizando = false;
     estadoAtual = null;
-    document.getElementById('regaux-resultados').innerHTML = '<tr><td colspan="6" class="rotina-vazio">Entre novamente para pesquisar.</td></tr>';
+    document.getElementById('regaux-resultados').innerHTML = '<tr><td colspan="7" class="rotina-vazio">Entre novamente para pesquisar.</td></tr>';
+    document.getElementById('regaux-certidao-resumo').hidden = true;
 }
 
 async function pesquisar(evento) {
@@ -76,11 +90,11 @@ async function pesquisar(evento) {
         modalidade: document.getElementById('regaux-modalidade').value,
     };
     Object.entries(campos).forEach(([chave, valor]) => { if (valor) parametros.set(chave, valor); });
-    document.getElementById('regaux-resultados').innerHTML = '<tr><td colspan="6" class="rotina-vazio">Pesquisando no índice…</td></tr>';
+    document.getElementById('regaux-resultados').innerHTML = '<tr><td colspan="7" class="rotina-vazio">Pesquisando nos textos indexados…</td></tr>';
     try {
         renderizarResultados(await requisicaoAeri(`/api/registros-auxiliares?${parametros}`));
     } catch (erro) {
-        document.getElementById('regaux-resultados').innerHTML = `<tr><td colspan="6" class="rotina-vazio">${escaparHtml(erro.message)}</td></tr>`;
+        document.getElementById('regaux-resultados').innerHTML = `<tr><td colspan="7" class="rotina-vazio">${escaparHtml(erro.message)}</td></tr>`;
     } finally {
         botao.disabled = false;
     }

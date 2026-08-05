@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260805-reg-aux">
+    <link rel="stylesheet" href="/static/styles.css?v=20260805-reg-aux-v2">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -287,7 +287,7 @@
                         <div class="regaux-sync-acoes">
                             <label><span>Último registro conhecido</span><input id="regaux-limite" type="number" min="1" value="29538"></label>
                             <button type="button" class="btn btn-primary" id="btn-regaux-sincronizar">Iniciar sincronização</button>
-                            <button type="button" class="rotina-btn-secondary" id="btn-regaux-novos">Buscar novos</button>
+                            <button type="button" class="rotina-btn-secondary" id="btn-regaux-novos">Atualizar registros</button>
                         </div>
                         <p id="regaux-atualizado">Carregando situação…</p>
                         <p id="regaux-lote-status" aria-live="polite"></p>
@@ -295,9 +295,9 @@
 
                     <section class="regaux-pesquisa-card">
                         <form id="form-regaux-pesquisa" class="regaux-form">
-                            <label class="regaux-busca-principal"><span>Nome ou CPF/CNPJ</span><input id="regaux-busca" placeholder="Ex.: João da Silva ou 000.000.000-00"></label>
-                            <label><span>Produto</span><input id="regaux-produto" placeholder="Ex.: Soja ou bovinos"></label>
-                            <label><span>Safra</span><input id="regaux-safra" placeholder="Ex.: 2026/2027"></label>
+                            <label class="regaux-busca-principal"><span>Emitente/devedor ou CPF/CNPJ</span><input id="regaux-busca" required placeholder="Ex.: João da Silva ou 000.000.000-00"></label>
+                            <label><span>Produto</span><input id="regaux-produto" required placeholder="Ex.: Soja ou bovinos"></label>
+                            <label><span>Safra</span><input id="regaux-safra" required placeholder="Ex.: 2026/2027"></label>
                             <label><span>Modalidade</span><select id="regaux-modalidade"><option value="">Todas</option><option value="PENHOR">Penhor</option><option value="ALIENACAO">Alienação</option><option value="OUTROS">Outros</option></select></label>
                             <button class="btn btn-primary" id="btn-regaux-pesquisar" type="submit">Pesquisar</button>
                         </form>
@@ -305,10 +305,15 @@
 
                     <section class="regaux-resultados-card">
                         <div class="regaux-resultados-topo"><div><span class="eyebrow">RESULTADOS DO TEXTO</span><h2>Registros encontrados</h2></div><strong id="regaux-total-resultados">0 resultados</strong></div>
+                        <div id="regaux-certidao-resumo" class="regaux-certidao-resumo" hidden>
+                            <div><span>Resultado da busca</span><strong id="regaux-certidao-resultado">-</strong></div>
+                            <div><span>Registros ativos</span><strong id="regaux-certidao-quantidade">0</strong></div>
+                            <div><span>Valor da certidão</span><strong id="regaux-certidao-valor">R$ 139,93</strong></div>
+                        </div>
                         <div class="regaux-table-wrap">
                             <table class="regaux-table">
-                                <thead><tr><th>Registro</th><th>Modalidade</th><th>Pessoas identificadas</th><th>Produto</th><th>Safra</th><th>Ação</th></tr></thead>
-                                <tbody id="regaux-resultados"><tr><td colspan="6" class="rotina-vazio">Use os filtros para pesquisar.</td></tr></tbody>
+                                <thead><tr><th>Registro</th><th>Situação</th><th>Modalidade</th><th>Emitente/devedor</th><th>Produto</th><th>Safra</th><th>Ação</th></tr></thead>
+                                <tbody id="regaux-resultados"><tr><td colspan="7" class="rotina-vazio">Informe emitente/devedor, produto e safra para pesquisar.</td></tr></tbody>
                             </table>
                         </div>
                     </section>
@@ -544,6 +549,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260805-reg-aux"></script>
+    <script type="module" src="/static/js/app.js?v=20260805-reg-aux-v2"></script>
 </body>
 </html>
