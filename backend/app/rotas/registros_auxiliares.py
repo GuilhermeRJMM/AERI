@@ -11,6 +11,7 @@ from backend.app.servicos.registros_auxiliares import (
     resumo_certidao_registro_auxiliar,
 )
 from backend.app.servicos.tri7 import (
+    AutenticacaoTri7Falhou,
     ConfiguracaoTri7Invalida,
     ErroTri7,
     RegistroAuxiliarTri7NaoEncontrado,
@@ -62,8 +63,26 @@ def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool]:
         ),
     )
     item = cursor.fetchone()
+    _limpar_erro(cursor, numero)
     item["alterado"] = alterado
     return item, anterior is None
+
+
+def _registrar_erro(cursor, numero: int, modo: str, erro: Exception) -> None:
+    cursor.execute(
+        """INSERT INTO registros_auxiliares_erros_aeri (numero, modo, erro)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (numero) DO UPDATE SET
+            modo=EXCLUDED.modo,
+            erro=EXCLUDED.erro,
+            tentativas=registros_auxiliares_erros_aeri.tentativas + 1,
+            ultima_tentativa_em=NOW()""",
+        (numero, modo, str(erro)[:500]),
+    )
+
+
+def _limpar_erro(cursor, numero: int) -> None:
+    cursor.execute("DELETE FROM registros_auxiliares_erros_aeri WHERE numero=%s", (numero,))
 
 
 def _estado_json(cursor) -> dict:
@@ -71,6 +90,8 @@ def _estado_json(cursor) -> dict:
     estado = cursor.fetchone()
     cursor.execute("SELECT COUNT(*) AS total FROM registros_auxiliares_aeri")
     total = cursor.fetchone()["total"]
+    cursor.execute("SELECT COUNT(*) AS total FROM registros_auxiliares_erros_aeri")
+    erros = cursor.fetchone()["total"]
     limite = estado["limite_inicial"]
     concluidos = min(max(estado["proximo_inicial"] - 1, 0), limite)
     return {
@@ -79,6 +100,7 @@ def _estado_json(cursor) -> dict:
         "ultimoExistente": estado["ultimo_existente"],
         "proximoRevisao": estado["proximo_revisao"],
         "totalIndexados": total,
+        "errosPendentes": erros,
         "progressoInicial": round((concluidos / limite) * 100, 2) if limite else 100,
         "cargaInicialConcluida": estado["proximo_inicial"] > limite,
         "ultimaSincronizacao": (
@@ -158,7 +180,7 @@ def sincronizar_registros_auxiliares(
     usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
 ):
     modo = str(dados.get("modo", "INICIAL")).strip().upper()
-    if modo not in {"INICIAL", "NOVOS", "REVISAO"}:
+    if modo not in {"INICIAL", "NOVOS", "REVISAO", "ERROS"}:
         raise HTTPException(status_code=422, detail="Modo de sincronização inválido.")
     try:
         tamanho = max(1, min(int(dados.get("tamanho", 15)), 30))
@@ -191,7 +213,7 @@ def sincronizar_registros_auxiliares(
                 elif modo == "NOVOS":
                     inicio = estado["ultimo_existente"] + 1
                     numeros = list(range(inicio, inicio + tamanho))
-                else:
+                elif modo == "REVISAO":
                     cursor.execute(
                         """SELECT numero FROM registros_auxiliares_aeri
                         WHERE numero >= %s ORDER BY numero LIMIT %s""",
@@ -205,8 +227,16 @@ def sincronizar_registros_auxiliares(
                             (estado["proximo_revisao"], tamanho - len(numeros)),
                         )
                         numeros.extend(item["numero"] for item in cursor.fetchall())
+                else:
+                    cursor.execute(
+                        """SELECT numero FROM registros_auxiliares_erros_aeri
+                        ORDER BY ultima_tentativa_em ASC, numero ASC LIMIT %s""",
+                        (tamanho,),
+                    )
+                    numeros = [item["numero"] for item in cursor.fetchall()]
 
-                processados = encontrados = novos = alterados = ausentes = 0
+                processados = encontrados = novos = alterados = ausentes = falhas = 0
+                erros = []
                 ultimo_processado = None
                 maior_encontrado = estado["ultimo_existente"]
                 falha = None
@@ -219,10 +249,15 @@ def sincronizar_registros_auxiliares(
                         alterados += int(_item["alterado"])
                         maior_encontrado = max(maior_encontrado, numero)
                     except (RegistroAuxiliarTri7NaoEncontrado, RegistroAuxiliarTri7SemTexto):
+                        _limpar_erro(cursor, numero)
                         ausentes += 1
-                    except (ConfiguracaoTri7Invalida, ErroTri7) as erro:
+                    except (ConfiguracaoTri7Invalida, AutenticacaoTri7Falhou) as erro:
                         falha = str(erro)
                         break
+                    except ErroTri7 as erro:
+                        _registrar_erro(cursor, numero, modo, erro)
+                        falhas += 1
+                        erros.append({"numero": numero, "erro": str(erro)[:180]})
                     processados += 1
                     ultimo_processado = numero
 
@@ -234,12 +269,12 @@ def sincronizar_registros_auxiliares(
                             ultima_sincronizacao=NOW(), atualizado_em=NOW() WHERE id=1""",
                         (ultimo_processado + 1, maior_encontrado),
                     )
-                elif modo == "NOVOS":
+                elif modo == "NOVOS" and ultimo_processado is not None:
                     cursor.execute(
                         """UPDATE sincronizacao_registros_auxiliares_aeri
                         SET ultimo_existente=GREATEST(ultimo_existente,%s),
                             ultima_sincronizacao=NOW(), atualizado_em=NOW() WHERE id=1""",
-                        (maior_encontrado,),
+                        (max(maior_encontrado, ultimo_processado),),
                     )
                 elif modo == "REVISAO" and ultimo_processado is not None:
                     cursor.execute(
@@ -248,17 +283,23 @@ def sincronizar_registros_auxiliares(
                         WHERE id=1""",
                         (ultimo_processado + 1,),
                     )
+                elif modo == "ERROS" and ultimo_processado is not None:
+                    cursor.execute(
+                        """UPDATE sincronizacao_registros_auxiliares_aeri
+                        SET ultima_sincronizacao=NOW(), atualizado_em=NOW() WHERE id=1"""
+                    )
 
                 registrar_auditoria_cursor(
                     cursor, request, "sincronizar_registros_auxiliares", "sucesso", usuario,
                     detalhes={"modo": modo, "processados": processados, "encontrados": encontrados,
-                              "novos": novos, "alterados": alterados, "ausentes": ausentes},
+                              "novos": novos, "alterados": alterados, "ausentes": ausentes,
+                              "falhas": falhas},
                 )
                 estado_json = _estado_json(cursor)
                 conexao.commit()
                 return {"modo": modo, "processados": processados, "encontrados": encontrados,
                         "novos": novos, "alterados": alterados, "ausentes": ausentes,
-                        "falha": falha, "estado": estado_json}
+                        "falhas": falhas, "erros": erros, "falha": falha, "estado": estado_json}
             finally:
                 cursor.execute("SELECT pg_advisory_unlock(%s)", (CHAVE_TRAVA_SINCRONIZACAO,))
 

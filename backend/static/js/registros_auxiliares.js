@@ -25,6 +25,10 @@ function atualizarStatus(estado) {
     document.getElementById('regaux-atualizado').textContent = estado.ultimaSincronizacao
         ? `Última atualização: ${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(estado.ultimaSincronizacao))}`
         : 'A sincronização ainda não foi iniciada.';
+    const pendencias = Number(estado.errosPendentes || 0);
+    if (pendencias) {
+        document.getElementById('regaux-lote-status').textContent = `${formatarNumero(pendencias)} registro(s) com falha aguardando nova tentativa.`;
+    }
 }
 
 function formatarMoeda(valor) {
@@ -145,12 +149,23 @@ async function buscarNovos() {
     const botao = document.getElementById('btn-regaux-novos');
     botao.disabled = true;
     try {
+        let falhasReprocessadas = null;
+        if (Number(estadoAtual?.errosPendentes || 0) > 0) {
+            falhasReprocessadas = await requisicaoAeri('/api/registros-auxiliares/sincronizar', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({modo:'ERROS', tamanho:30}),
+            });
+            atualizarStatus(falhasReprocessadas.estado);
+        }
         const resultado = await requisicaoAeri('/api/registros-auxiliares/sincronizar', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body:JSON.stringify({modo:'NOVOS', tamanho:30}),
         });
         atualizarStatus(resultado.estado);
-        document.getElementById('regaux-lote-status').textContent = `${resultado.novos} novo(s) Registro(s) Auxiliar(es) encontrado(s).`;
+        const reprocessados = falhasReprocessadas
+            ? ` ${falhasReprocessadas.processados} falha(s) reprocessada(s).`
+            : '';
+        document.getElementById('regaux-lote-status').textContent = `${resultado.novos} novo(s) Registro(s) Auxiliar(es) encontrado(s).${reprocessados}`;
     } catch (erro) {
         document.getElementById('regaux-lote-status').textContent = erro.message;
     } finally {

@@ -184,6 +184,11 @@ class TesteRegistrosAuxiliares(unittest.TestCase):
         self.assertIn("sincronizacao_registros_auxiliares_aeri", sql)
         self.assertNotIn("texto_integral", sql)
 
+    def test_reindexacao_nao_apaga_indice_existente(self):
+        sql = (Path(__file__).parents[1] / "backend/app/migrations/019_reindexar_emitentes_devedores.sql").read_text(encoding="utf-8")
+
+        self.assertNotIn("DELETE FROM registros_auxiliares_aeri", sql)
+
 
 if __name__ == "__main__":
     unittest.main()

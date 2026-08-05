@@ -16,11 +16,8 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_reg_aux_situacao
     ON registros_auxiliares_aeri (situacao, numero DESC);
 
-DELETE FROM registros_auxiliares_aeri;
-
 UPDATE sincronizacao_registros_auxiliares_aeri
-SET proximo_inicial=1,
+SET proximo_inicial=LEAST(proximo_inicial, limite_inicial + 1),
     proximo_revisao=1,
-    ultima_sincronizacao=NULL,
     atualizado_em=NOW()
 WHERE id=1;
