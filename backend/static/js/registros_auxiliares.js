@@ -114,27 +114,35 @@ async function sincronizarCargaInicial() {
     sincronizando = true;
     atualizarBotaoSincronizacao();
     const limite = Number(document.getElementById('regaux-limite').value || 29538);
+    let falhasTemporarias = 0;
     while (sincronizando) {
         try {
             const resultado = await requisicaoAeri('/api/registros-auxiliares/sincronizar', {
                 method:'POST', headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({modo:'INICIAL', tamanho:20, limite}),
             });
+            falhasTemporarias = 0;
             atualizarStatus(resultado.estado);
             document.getElementById('regaux-lote-status').textContent = resultado.falha
                 ? resultado.falha
-                : `Lote: ${resultado.processados} consultados · ${resultado.encontrados} encontrados · ${resultado.ausentes} sem texto`;
+                : `Lote: ${resultado.processados} consultados · ${resultado.encontrados} encontrados · ${resultado.ausentes} sem texto · ${resultado.falhas || 0} falha(s)`;
             if (resultado.falha || resultado.estado.cargaInicialConcluida || resultado.processados === 0) break;
             await new Promise(resolve => window.setTimeout(resolve, 180));
         } catch (erro) {
-            document.getElementById('regaux-lote-status').textContent = erro.message;
-            break;
+            const mensagem = erro.message || 'Falha temporária na sincronização.';
+            if (/sess[aã]o expirou|permiss[aã]o|troque sua senha/i.test(mensagem)) {
+                document.getElementById('regaux-lote-status').textContent = mensagem;
+                break;
+            }
+            falhasTemporarias += 1;
+            document.getElementById('regaux-lote-status').textContent = `${mensagem} Tentando novamente (${falhasTemporarias}/5)...`;
+            if (falhasTemporarias >= 5) break;
+            await new Promise(resolve => window.setTimeout(resolve, 2000 * falhasTemporarias));
         }
     }
     sincronizando = false;
     atualizarBotaoSincronizacao();
 }
-
 function alternarSincronizacao() {
     if (sincronizando) {
         sincronizando = false;
