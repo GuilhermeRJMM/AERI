@@ -118,7 +118,7 @@ async function sincronizarCargaInicial() {
         try {
             const resultado = await requisicaoAeri('/api/registros-auxiliares/sincronizar', {
                 method:'POST', headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({modo:'INICIAL', tamanho:30, limite}),
+                body:JSON.stringify({modo:'INICIAL', tamanho:20, limite}),
             });
             atualizarStatus(resultado.estado);
             document.getElementById('regaux-lote-status').textContent = resultado.falha
