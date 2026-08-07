@@ -74,6 +74,18 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def _derivar_csrf(token_sessao: str) -> str:
+    # Determinístico a partir do token de sessão (secreto, httponly,
+    # compartilhado por cookie entre todas as abas do navegador) em vez de um
+    # valor aleatório girado a cada checagem: antes, abrir uma 2ª aba
+    # sobrescrevia o único csrf_hash válido no banco e invalidava o token que
+    # a 1ª aba já tinha em memória (cada aba guarda o csrf só localmente, sem
+    # sincronizar entre si), quebrando a próxima ação nela com "validação de
+    # segurança expirada". Derivar do token de sessão garante o mesmo valor
+    # em qualquer aba, sem precisar de estado adicional nem rotação.
+    return hmac.new(token_sessao.encode(), b"csrf", hashlib.sha256).hexdigest()
+
+
 def contar_tentativas_invalidas(cursor, usuario: str, ip: str) -> int:
     cursor.execute(
         """SELECT COUNT(*) AS total FROM tentativas_login_aeri
@@ -112,7 +124,7 @@ def criar_sessao(usuario: str, request: Request) -> tuple[str, str]:
 
 def criar_sessao_cursor(cursor, usuario: str, request: Request) -> tuple[str, str]:
     token = secrets.token_urlsafe(48)
-    csrf = secrets.token_urlsafe(32)
+    csrf = _derivar_csrf(token)
     agora = datetime.now(timezone.utc)
     cursor.execute("DELETE FROM sessoes_aeri WHERE expira_em < NOW() OR revogada_em IS NOT NULL")
     cursor.execute(
@@ -190,22 +202,20 @@ def exigir_permissao(permissao: str):
 
 def proteger_csrf(request: Request) -> None:
     validar_origem(request)
+    token_sessao = request.cookies.get(COOKIE_SESSAO, "")
     sessao = getattr(request.state, "sessao", None) or _obter_sessao(request)
-    token = request.headers.get("x-csrf-token", "")
-    if not sessao or not token or not hmac.compare_digest(_hash_token(token), sessao["csrf_hash"]):
+    cabecalho = request.headers.get("x-csrf-token", "")
+    if not sessao or not token_sessao or not cabecalho:
+        raise HTTPException(status_code=403, detail="Validação de segurança expirada.")
+    if not hmac.compare_digest(cabecalho, _derivar_csrf(token_sessao)):
         raise HTTPException(status_code=403, detail="Validação de segurança expirada.")
 
 
-def renovar_csrf(request: Request) -> str:
+def csrf_atual(request: Request) -> str:
     sessao = getattr(request.state, "sessao", None)
     if not sessao:
         raise HTTPException(status_code=401, detail="Faça login para continuar.")
-    csrf = secrets.token_urlsafe(32)
-    with conectar() as conexao:
-        with conexao.cursor() as cursor:
-            cursor.execute("UPDATE sessoes_aeri SET csrf_hash=%s WHERE id=%s", (_hash_token(csrf), sessao["id"]))
-        conexao.commit()
-    return csrf
+    return _derivar_csrf(request.cookies.get(COOKIE_SESSAO, ""))
 
 
 def revogar_sessao(request: Request) -> None:

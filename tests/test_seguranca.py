@@ -7,7 +7,13 @@ from unittest.mock import patch
 
 from fastapi import Request, Response
 
-from backend.app.autenticacao import hash_senha, permissoes_sessao, senha_forte, verificar_senha
+from backend.app.autenticacao import (
+    _derivar_csrf,
+    hash_senha,
+    permissoes_sessao,
+    senha_forte,
+    verificar_senha,
+)
 from backend.app.seguranca_web import (
     ip_cliente,
     origem_sync_autorizada,
@@ -82,6 +88,24 @@ class TesteSeguranca(unittest.TestCase):
         self.assertTrue(permissoes["gerenciar_custas"])
         self.assertFalse(permissoes["criar_intimacoes"])
         self.assertTrue(permissoes["conferir_intimacoes"])
+
+    def test_csrf_derivado_e_igual_em_qualquer_aba_da_mesma_sessao(self):
+        # Antes, o csrf era um valor aleatório re-gerado a cada checagem de
+        # sessão e sobrescrevia o único válido no banco: abrir uma 2ª aba
+        # invalidava o token que a 1ª aba já tinha guardado em memória,
+        # quebrando a próxima ação nela com "validação de segurança
+        # expirada". Sendo determinístico a partir do token de sessão
+        # (idêntico em todas as abas via cookie), qualquer aba recalcula o
+        # mesmo csrf, sem depender de sincronização entre elas.
+        token_sessao = "token-de-sessao-compartilhado-pelo-cookie"
+
+        csrf_aba_1 = _derivar_csrf(token_sessao)
+        csrf_aba_2 = _derivar_csrf(token_sessao)
+
+        self.assertEqual(csrf_aba_1, csrf_aba_2)
+
+    def test_csrf_derivado_difere_entre_sessoes_distintas(self):
+        self.assertNotEqual(_derivar_csrf("sessao-a"), _derivar_csrf("sessao-b"))
 
     def test_iframe_permanece_bloqueado_sem_origem_sync(self):
         with patch.dict(os.environ, {}, clear=False):

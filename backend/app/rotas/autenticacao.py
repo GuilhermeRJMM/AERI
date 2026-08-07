@@ -8,10 +8,10 @@ from backend.app.autenticacao import (
     contar_tentativas_invalidas,
     criar_sessao_cursor,
     hash_senha,
+    csrf_atual,
     permissoes_sessao,
     proteger_csrf,
     registrar_tentativa_cursor,
-    renovar_csrf,
     revogar_sessao,
     usuario_atual,
     verificar_senha_login,
@@ -85,7 +85,7 @@ def sessao(request: Request, usuario: str = Depends(usuario_atual)):
     conta = request.state.sessao
     return {
         "usuario": usuario, "nome": conta["nome"], "perfil": conta["perfil"], "cargo": conta["perfil"],
-        "deveTrocarSenha": conta["deve_trocar_senha"], "csrfToken": renovar_csrf(request),
+        "deveTrocarSenha": conta["deve_trocar_senha"], "csrfToken": csrf_atual(request),
         "permissoes": permissoes_sessao(conta),
     }
 
