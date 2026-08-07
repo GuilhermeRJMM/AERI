@@ -1,3 +1,7 @@
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from psycopg.types.json import Jsonb
 
@@ -26,7 +30,78 @@ router = APIRouter(
     tags=["registros auxiliares"],
     dependencies=[Depends(preparar_banco)],
 )
-CHAVE_TRAVA_SINCRONIZACAO = 7_353_801
+LEASE_SINCRONIZACAO_SEGUNDOS = 300
+
+# Concorrência deliberadamente conservadora: a Tri7 já demonstrou não tolerar
+# bem paralelismo sem controle (5 workers sem limite de taxa quebrou em
+# produção e foi revertido). Esses valores devem só subir depois de observar
+# `errosPendentes` estável por um tempo nesse patamar.
+MAX_WORKERS_TRI7 = 3
+REQUISICOES_POR_SEGUNDO_TRI7 = 3.0
+
+
+class _LimitadorTaxaTri7:
+    def __init__(self, requisicoes_por_segundo: float):
+        self._intervalo = 1.0 / requisicoes_por_segundo
+        self._proximo = 0.0
+        self._trava = threading.Lock()
+
+    def aguardar(self) -> None:
+        with self._trava:
+            agora = time.monotonic()
+            reservado = max(agora, self._proximo)
+            self._proximo = reservado + self._intervalo
+        espera = reservado - agora
+        if espera > 0:
+            time.sleep(espera)
+
+
+def _consultar_registro_auxiliar_tri7(
+    numero: int, limitador: "_LimitadorTaxaTri7", cancelar: threading.Event
+) -> dict:
+    if cancelar.is_set():
+        return {"numero": numero, "status": "CANCELADO"}
+    limitador.aguardar()
+    try:
+        resposta = cliente_tri7().buscar_texto_registro_auxiliar(numero)
+        return {"numero": numero, "status": "OK", "texto": resposta["texto"]}
+    except (RegistroAuxiliarTri7NaoEncontrado, RegistroAuxiliarTri7SemTexto):
+        return {"numero": numero, "status": "AUSENTE"}
+    except (ConfiguracaoTri7Invalida, AutenticacaoTri7Falhou) as erro:
+        cancelar.set()
+        return {"numero": numero, "status": "FATAL", "erro": erro}
+    except ErroTri7 as erro:
+        return {"numero": numero, "status": "ERRO", "erro": erro}
+
+
+def _consultar_lote_tri7(numeros: list[int]) -> tuple[list[dict], str | None]:
+    """Consulta a Tri7 com paralelismo limitado, preservando a semântica
+    serial: para na primeira falha fatal (autenticação/configuração) sem
+    processar nada além dela, mesmo que respostas cheguem fora de ordem."""
+    if not numeros:
+        return [], None
+    limitador = _LimitadorTaxaTri7(REQUISICOES_POR_SEGUNDO_TRI7)
+    cancelar = threading.Event()
+    por_numero: dict[int, dict] = {}
+    with ThreadPoolExecutor(max_workers=min(MAX_WORKERS_TRI7, len(numeros))) as executor:
+        futuros = {
+            executor.submit(_consultar_registro_auxiliar_tri7, numero, limitador, cancelar): numero
+            for numero in numeros
+        }
+        for futuro in as_completed(futuros):
+            resultado = futuro.result()
+            por_numero[resultado["numero"]] = resultado
+
+    resultados = []
+    falha = None
+    for numero in numeros:
+        resultado = por_numero.get(numero)
+        if resultado is None or resultado["status"] in ("CANCELADO", "FATAL"):
+            if resultado is not None and resultado["status"] == "FATAL":
+                falha = str(resultado["erro"])
+            break
+        resultados.append(resultado)
+    return resultados, falha
 
 
 def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool]:
@@ -190,12 +265,24 @@ def sincronizar_registros_auxiliares(
 
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            cursor.execute("SELECT pg_try_advisory_lock(%s) AS obtida", (CHAVE_TRAVA_SINCRONIZACAO,))
-            if not cursor.fetchone()["obtida"]:
+            # Trava por lease (não por pg_advisory_lock): a trava por sessão
+            # depende da conexão nunca morrer sem passar pelo `finally`, o
+            # que falha sob pool de conexão ou função serverless encerrada
+            # por timeout — nesses casos a trava ficava presa para sempre.
+            # Uma trava com expiração se auto-recupera mesmo se o processo
+            # for encerrado no meio da sincronização.
+            cursor.execute(
+                """UPDATE sincronizacao_registros_auxiliares_aeri
+                SET travado_em=NOW()
+                WHERE id=1 AND (travado_em IS NULL OR travado_em < NOW() - make_interval(secs => %s))
+                RETURNING *""",
+                (LEASE_SINCRONIZACAO_SEGUNDOS,),
+            )
+            estado = cursor.fetchone()
+            conexao.commit()
+            if estado is None:
                 raise HTTPException(status_code=409, detail="Já existe uma sincronização em andamento.")
             try:
-                cursor.execute("SELECT * FROM sincronizacao_registros_auxiliares_aeri WHERE id=1")
-                estado = cursor.fetchone()
                 if limite_informado > estado["limite_inicial"]:
                     cursor.execute(
                         """UPDATE sincronizacao_registros_auxiliares_aeri
@@ -236,24 +323,12 @@ def sincronizar_registros_auxiliares(
                     numeros = [item["numero"] for item in cursor.fetchall()]
 
                 # Libera a transação/lock de linha antes da fase lenta: a trava
-                # de sincronização (advisory lock, ligada à sessão) continua
-                # valendo, mas a conexão fica ociosa durante as chamadas à Tri7
-                # em vez de seguras linhas por até 20s x tamanho do lote.
+                # de sincronização (lease em travado_em) já está gravada e
+                # commitada, então a conexão fica ociosa durante as chamadas
+                # à Tri7 em vez de segurar linhas por até 20s x tamanho do lote.
                 conexao.commit()
 
-                resultados = []
-                falha = None
-                for numero in numeros:
-                    try:
-                        resposta = cliente_tri7().buscar_texto_registro_auxiliar(numero)
-                        resultados.append({"numero": numero, "status": "OK", "texto": resposta["texto"]})
-                    except (RegistroAuxiliarTri7NaoEncontrado, RegistroAuxiliarTri7SemTexto):
-                        resultados.append({"numero": numero, "status": "AUSENTE"})
-                    except (ConfiguracaoTri7Invalida, AutenticacaoTri7Falhou) as erro:
-                        falha = str(erro)
-                        break
-                    except ErroTri7 as erro:
-                        resultados.append({"numero": numero, "status": "ERRO", "erro": erro})
+                resultados, falha = _consultar_lote_tri7(numeros)
 
                 processados = encontrados = novos = alterados = ausentes = falhas = 0
                 erros = []
@@ -318,7 +393,11 @@ def sincronizar_registros_auxiliares(
                         "novos": novos, "alterados": alterados, "ausentes": ausentes,
                         "falhas": falhas, "erros": erros, "falha": falha, "estado": estado_json}
             finally:
-                cursor.execute("SELECT pg_advisory_unlock(%s)", (CHAVE_TRAVA_SINCRONIZACAO,))
+                conexao.rollback()
+                cursor.execute(
+                    "UPDATE sincronizacao_registros_auxiliares_aeri SET travado_em=NULL WHERE id=1"
+                )
+                conexao.commit()
 
 
 @router.get("/{numero}/texto")
