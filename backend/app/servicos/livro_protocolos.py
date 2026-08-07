@@ -48,7 +48,7 @@ def _texto_valido(valor: object) -> bool:
 PADRAO_CONECTIVO = re.compile(r"\b(?:DE|DO|DA|DOS|DAS|EM|NO|NA|NOS|NAS|E)\b")
 
 
-def _normalizar_tema(valor: str) -> str:
+def normalizar_tema(valor: str) -> str:
     sem_conectivos = PADRAO_CONECTIVO.sub(" ", _normalizar(valor))
     return _colapsar_espacos(sem_conectivos)
 
@@ -161,7 +161,9 @@ def _primeiro_item_com_ato(protocolo_json: dict) -> dict | None:
     return None
 
 
-def _regra_natureza_bate_com_titulo(protocolo_json: dict) -> list[dict]:
+def _regra_natureza_bate_com_titulo(
+    protocolo_json: dict, excecoes: frozenset[tuple[str, str]] = frozenset(),
+) -> list[dict]:
     # Só o item principal (primeiro com ato de verdade) é conferido contra o
     # Dados do Título — os demais itens do pedido (CEP, cancelamentos,
     # outras averbações que acompanham o ato principal) legitimamente não
@@ -183,8 +185,8 @@ def _regra_natureza_bate_com_titulo(protocolo_json: dict) -> list[dict]:
             "descricao": "Nenhum item com registro/averbação foi encontrado para conferir contra o título.",
         }]
     natureza = item_principal["natureza_formal_descricao"]
-    titulo_tema = _normalizar_tema(str(descricao_titulo))
-    natureza_tema = _normalizar_tema(str(natureza))
+    titulo_tema = normalizar_tema(str(descricao_titulo))
+    natureza_tema = normalizar_tema(str(natureza))
     # Comparação por conteúdo (não igualdade exata), ignorando
     # preposições/conectivos: descricao_titulo costuma ser o nome completo
     # do instrumento e pode conter a natureza formal como parte do texto
@@ -195,14 +197,30 @@ def _regra_natureza_bate_com_titulo(protocolo_json: dict) -> list[dict]:
     # removendo conectivos um aparece dentro do outro, os dois textos não
     # têm relação nenhuma — sinal de que a natureza formal escolhida no
     # item não corresponde ao título do protocolo.
-    if natureza_tema not in titulo_tema and titulo_tema not in natureza_tema:
+    bate = natureza_tema in titulo_tema or titulo_tema in natureza_tema
+    if not bate and (titulo_tema, natureza_tema) in excecoes:
+        # Alguém já confirmou manualmente que esse par específico (mesmo
+        # texto de título + mesma natureza formal) é correto, apesar da
+        # comparação por texto não reconhecer relação nenhuma — ex.:
+        # "Contrato Particular Venda e Compra" com natureza "Compra e Venda
+        # - PMCMV e/ou SFH", onde PMCMV/SFH é uma modalidade de
+        # financiamento que só quem conhece o negócio sabe que corresponde.
+        bate = True
+    if not bate:
+        # GRAVIDADE menor que os campos em branco/checagens objetivas: essa
+        # regra é um julgamento por texto com limite conhecido (não entende
+        # sinônimos/jargão do setor fora dos conectivos removidos), então
+        # pode dar falso positivo em casos legítimos — não é tão confiável
+        # quanto "campo vazio" ou "busca com matrícula vinculada".
         return [{
             "regra": "NATUREZA_TITULO",
-            "gravidade": "GRAVE",
+            "gravidade": "ATENCAO",
             "descricao": (
                 f"Dados do Título ('{descricao_titulo}') não corresponde à Natureza Formal "
                 f"do 1º item ('{natureza}')."
             ),
+            "tituloOriginal": str(descricao_titulo),
+            "naturezaOriginal": str(natureza),
         }]
     return []
 
@@ -287,9 +305,14 @@ def _regra_data_um_dia_antes(item_pdf: dict, data_esperada: date) -> list[dict]:
     return []
 
 
-def conferir_protocolo(item_pdf: dict, protocolo_json: dict, data_esperada: date) -> list[dict]:
+def conferir_protocolo(
+    item_pdf: dict,
+    protocolo_json: dict,
+    data_esperada: date,
+    excecoes_natureza_titulo: frozenset[tuple[str, str]] = frozenset(),
+) -> list[dict]:
     return [
-        *_regra_natureza_bate_com_titulo(protocolo_json),
+        *_regra_natureza_bate_com_titulo(protocolo_json, excecoes_natureza_titulo),
         *_regra_busca_com_matricula(protocolo_json),
         *_regra_ordem_e_texto_dos_atos(protocolo_json),
         # Regra de data desativada por enquanto: mesmo com inferir_data_esperada()

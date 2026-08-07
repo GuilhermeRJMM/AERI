@@ -1,17 +1,19 @@
 import threading
 import time
 from datetime import datetime, timedelta
+from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from backend.app.autenticacao import exigir_permissao, proteger_csrf
-from backend.app.database import preparar_banco
+from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
+from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria
 from backend.app.servicos.livro_protocolos import (
     conferir_protocolo,
     extrair_protocolos_pdf,
     inferir_data_esperada,
+    normalizar_tema,
 )
 from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7
 
@@ -66,6 +68,11 @@ async def analisar_livro_protocolos(
             datetime.now(ZoneInfo("America/Sao_Paulo")).date() - timedelta(days=1)
         )
 
+        with conectar() as conexao:
+            with conexao.cursor() as cursor:
+                cursor.execute("SELECT titulo_tema, natureza_tema FROM livro_protocolos_excecoes_natureza_aeri")
+                excecoes = frozenset((linha["titulo_tema"], linha["natureza_tema"]) for linha in cursor.fetchall())
+
         cliente = cliente_tri7()
         limitador = _LimitadorTaxaTri7(REQUISICOES_POR_SEGUNDO_TRI7)
         resultados = []
@@ -75,7 +82,7 @@ async def analisar_livro_protocolos(
                 limitador.aguardar()
                 try:
                     protocolo_json = cliente.buscar_protocolo_completo(item["numero"])
-                    registro["ocorrencias"] = conferir_protocolo(item, protocolo_json, data_esperada)
+                    registro["ocorrencias"] = conferir_protocolo(item, protocolo_json, data_esperada, excecoes)
                     registro["conferido"] = True
                 except ProtocoloTri7NaoEncontrado:
                     registro["erro"] = "Protocolo não encontrado na Tri7."
@@ -103,3 +110,89 @@ async def analisar_livro_protocolos(
     except Exception as exc:
         registrar_auditoria(request, "analisar_livro_protocolos", "falha", usuario)
         raise HTTPException(status_code=422, detail="Não foi possível processar o relatório.") from exc
+
+
+def _excecao_json(item: dict) -> dict:
+    return {
+        "id": str(item["id"]),
+        "tituloOriginal": item["titulo_original"],
+        "naturezaOriginal": item["natureza_original"],
+        "criadoPor": item.get("criado_por"),
+        "criadoEm": item["criado_em"].isoformat(),
+    }
+
+
+@router.get("/excecoes")
+def listar_excecoes_natureza_titulo(
+    _usuario: str = Depends(exigir_permissao("processar_matricula")),
+):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM livro_protocolos_excecoes_natureza_aeri ORDER BY criado_em DESC"
+            )
+            return [_excecao_json(item) for item in cursor.fetchall()]
+
+
+@router.post("/excecoes", status_code=201, dependencies=[Depends(proteger_csrf)])
+def confirmar_excecao_natureza_titulo(
+    dados: dict,
+    request: Request,
+    usuario: str = Depends(exigir_permissao("processar_matricula")),
+):
+    titulo_original = str(dados.get("tituloOriginal") or "").strip()
+    natureza_original = str(dados.get("naturezaOriginal") or "").strip()
+    if not titulo_original or not natureza_original:
+        raise HTTPException(status_code=422, detail="Informe o título e a natureza formal confirmados.")
+    titulo_tema = normalizar_tema(titulo_original)
+    natureza_tema = normalizar_tema(natureza_original)
+    if not titulo_tema or not natureza_tema:
+        raise HTTPException(status_code=422, detail="Título ou natureza formal inválidos.")
+
+    identificador = uuid4()
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """INSERT INTO livro_protocolos_excecoes_natureza_aeri
+                (id, titulo_tema, natureza_tema, titulo_original, natureza_original, criado_por)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (titulo_tema, natureza_tema) DO NOTHING
+                RETURNING *""",
+                (identificador, titulo_tema, natureza_tema, titulo_original, natureza_original, usuario),
+            )
+            item = cursor.fetchone()
+            if item is None:
+                # Já existia (mesmo par de outro protocolo/usuário) -- devolve a
+                # exceção existente em vez de erro, a intenção do clique já foi
+                # cumprida antes.
+                cursor.execute(
+                    """SELECT * FROM livro_protocolos_excecoes_natureza_aeri
+                    WHERE titulo_tema=%s AND natureza_tema=%s""",
+                    (titulo_tema, natureza_tema),
+                )
+                item = cursor.fetchone()
+        conexao.commit()
+    registrar_auditoria(
+        request, "confirmar_excecao_livro_protocolos", "sucesso", usuario,
+        detalhes={"titulo": titulo_original, "natureza": natureza_original},
+    )
+    return _excecao_json(item)
+
+
+@router.delete("/excecoes/{identificador}", status_code=204, dependencies=[Depends(proteger_csrf)])
+def remover_excecao_natureza_titulo(
+    identificador: UUID,
+    request: Request,
+    usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM livro_protocolos_excecoes_natureza_aeri WHERE id=%s", (identificador,)
+            )
+            removidos = cursor.rowcount
+        conexao.commit()
+    if not removidos:
+        raise HTTPException(status_code=404, detail="Exceção não encontrada.")
+    registrar_auditoria(request, "remover_excecao_livro_protocolos", "sucesso", usuario, str(identificador))
+    return Response(status_code=204)

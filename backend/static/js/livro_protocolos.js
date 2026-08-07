@@ -54,9 +54,46 @@ function renderizarOcorrencias(item) {
     if (item.erro) return `<span class="livroproto-erro-item">${escaparHtml(item.erro)}</span>`;
     if (!item.conferido) return '<span class="livroproto-nao-conferido">—</span>';
     if (!item.ocorrencias.length) return '<span class="livroproto-ok">Sem ocorrências</span>';
-    return `<ul class="livroproto-ocorrencias">${item.ocorrencias.map(ocorrencia => `
-        <li class="livroproto-gravidade-${ocorrencia.gravidade.toLowerCase()}">${escaparHtml(ocorrencia.descricao)}</li>
-    `).join('')}</ul>`;
+    return `<ul class="livroproto-ocorrencias">${item.ocorrencias.map(ocorrencia => {
+        const podeConfirmar = ocorrencia.regra === 'NATUREZA_TITULO' && ocorrencia.tituloOriginal && ocorrencia.naturezaOriginal;
+        const botao = podeConfirmar ? `
+            <button type="button" class="livroproto-confirmar-excecao" data-numero="${escaparHtml(item.numero)}"
+                data-titulo="${escaparHtml(ocorrencia.tituloOriginal)}" data-natureza="${escaparHtml(ocorrencia.naturezaOriginal)}">
+                Confirmar que está certo
+            </button>` : '';
+        return `<li class="livroproto-gravidade-${ocorrencia.gravidade.toLowerCase()}">${escaparHtml(ocorrencia.descricao)}${botao}</li>`;
+    }).join('')}</ul>`;
+}
+
+async function confirmarExcecaoNatureza(botao) {
+    const numero = botao.dataset.numero;
+    const tituloOriginal = botao.dataset.titulo;
+    const naturezaOriginal = botao.dataset.natureza;
+    botao.disabled = true;
+    botao.textContent = 'Confirmando...';
+    try {
+        await requisicaoAeri('/api/livro-protocolos/excecoes', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({tituloOriginal, naturezaOriginal}),
+        });
+        // Remove só da linha clicada (o item já visível na tela); pares
+        // iguais em outras linhas desta mesma análise só somem na próxima
+        // vez que o Livro de Protocolos for conferido.
+        const protocolo = resultadoLivroProto?.protocolos.find(item => item.numero === numero);
+        if (protocolo) {
+            protocolo.ocorrencias = protocolo.ocorrencias.filter(ocorrencia => !(
+                ocorrencia.regra === 'NATUREZA_TITULO'
+                && ocorrencia.tituloOriginal === tituloOriginal
+                && ocorrencia.naturezaOriginal === naturezaOriginal
+            ));
+        }
+        const filtroAtivo = document.querySelector('.incra-filtro.active')?.dataset.filtro || 'TODOS';
+        renderizarLivroProtocolos(filtroAtivo);
+    } catch (erro) {
+        alert(erro.message);
+        botao.disabled = false;
+        botao.textContent = 'Confirmar que está certo';
+    }
 }
 
 function renderizarLivroProtocolos(filtro) {
@@ -101,8 +138,10 @@ function renderizarLivroProtocolos(filtro) {
 }
 
 function tratarAcaoResultado(evento) {
-    const botao = evento.target.closest('.incra-filtro');
-    if (botao) renderizarLivroProtocolos(botao.dataset.filtro);
+    const botaoFiltro = evento.target.closest('.incra-filtro');
+    if (botaoFiltro) return renderizarLivroProtocolos(botaoFiltro.dataset.filtro);
+    const botaoConfirmar = evento.target.closest('.livroproto-confirmar-excecao');
+    if (botaoConfirmar) confirmarExcecaoNatureza(botaoConfirmar);
 }
 
 export function iniciarLivroProtocolos() {

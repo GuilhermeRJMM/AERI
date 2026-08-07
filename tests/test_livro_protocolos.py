@@ -8,6 +8,7 @@ from backend.app.servicos.livro_protocolos import (
     conferir_protocolo,
     extrair_protocolos_pdf,
     inferir_data_esperada,
+    normalizar_tema,
 )
 
 
@@ -239,10 +240,13 @@ class TesteConferirProtocolo(unittest.TestCase):
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
 
-    def test_natureza_sem_relacao_com_o_titulo_e_ocorrencia_grave(self):
+    def test_natureza_sem_relacao_com_o_titulo_e_ocorrencia_de_atencao(self):
         # Caso relatado: protocolo com "Dados do Título" = Georreferenciamento
         # mas a Natureza Formal registrada no item foi Código de
         # Endereçamento Postal (CEP) -- não têm nada a ver um com o outro.
+        # Gravidade ATENCAO (não GRAVE): essa regra é julgamento por texto
+        # com falso positivo conhecido (PMCMV/SFH), não tão confiável quanto
+        # uma checagem objetiva de campo em branco.
         protocolo = _protocolo_base(
             protocolo={"protocolo_numero": 185021, "descricao_titulo": "GEORREFERENCIAMENTO"},
             itens_do_pedido=[
@@ -255,8 +259,53 @@ class TesteConferirProtocolo(unittest.TestCase):
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         relevantes = [o for o in ocorrencias if o["regra"] == "NATUREZA_TITULO"]
         self.assertEqual(len(relevantes), 1)
+        self.assertEqual(relevantes[0]["gravidade"], "ATENCAO")
         self.assertIn("GEORREFERENCIAMENTO", relevantes[0]["descricao"])
         self.assertIn("Código de Endereçamento Postal", relevantes[0]["descricao"])
+        self.assertEqual(relevantes[0]["tituloOriginal"], "GEORREFERENCIAMENTO")
+        self.assertEqual(relevantes[0]["naturezaOriginal"], "Código de Endereçamento Postal - CEP")
+
+    def test_excecao_confirmada_suprime_a_ocorrencia(self):
+        # Caso real sem correção heurística possível: "Compra e Venda -
+        # PMCMV e/ou SFH" não compartilha palavras com "Contrato Particular
+        # Venda e Compra c/c Alienação Fiduciária" -- só um humano que
+        # confirmou manualmente esse par pode suprimir a ocorrência.
+        protocolo = _protocolo_base(
+            protocolo={
+                "protocolo_numero": 184840,
+                "descricao_titulo": "CONTRATO PARTICULAR VENDA E COMPRA C/C ALIENAÇÃO FIDUCIÁRIA",
+            },
+            itens_do_pedido=[{
+                "natureza_formal_descricao": "Compra e Venda - PMCMV e/ou SFH (Sem Desconto)",
+                "dados_imovel": {}, "atos_registrados": {"ato_tipo": "R", "ato_numero": 13, "texto": ""},
+            }],
+        )
+        titulo_tema = normalizar_tema("CONTRATO PARTICULAR VENDA E COMPRA C/C ALIENAÇÃO FIDUCIÁRIA")
+        natureza_tema = normalizar_tema("Compra e Venda - PMCMV e/ou SFH (Sem Desconto)")
+
+        sem_excecao = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        self.assertTrue(any(o["regra"] == "NATUREZA_TITULO" for o in sem_excecao))
+
+        com_excecao = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            excecoes_natureza_titulo=frozenset({(titulo_tema, natureza_tema)}),
+        )
+        self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in com_excecao))
+
+    def test_excecao_de_outro_par_nao_suprime_ocorrencia_diferente(self):
+        protocolo = _protocolo_base(
+            protocolo={"protocolo_numero": 185021, "descricao_titulo": "GEORREFERENCIAMENTO"},
+            itens_do_pedido=[{
+                "natureza_formal_descricao": "Código de Endereçamento Postal - CEP",
+                "dados_imovel": {}, "atos_registrados": {"ato_tipo": "A", "ato_numero": 31, "texto": ""},
+            }],
+        )
+        excecao_de_outro_caso = frozenset({(normalizar_tema("OUTRO TITULO"), normalizar_tema("OUTRA NATUREZA"))})
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            excecoes_natureza_titulo=excecao_de_outro_caso,
+        )
+        self.assertTrue(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
 
     def test_so_o_primeiro_item_e_conferido_contra_o_titulo(self):
         # Regressão: um protocolo real tinha 3 itens com ato de verdade (CEP,
