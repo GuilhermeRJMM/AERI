@@ -186,7 +186,7 @@ class TesteClienteTri7(unittest.TestCase):
             if requisicao.full_url.endswith("/api/v1/users/login"):
                 return RespostaFalsa({"access_token": "token"})
             self.assertIn("/api/v1/imoveis/protocolo-completo", requisicao.full_url)
-            self.assertIn("numero_protocolo=185126", requisicao.full_url)
+            self.assertIn("protocolo=185126", requisicao.full_url)
             return RespostaFalsa(resposta)
 
         resultado = ClienteTri7(self.configuracao(), abridor=abrir).buscar_protocolo_completo("185.126")

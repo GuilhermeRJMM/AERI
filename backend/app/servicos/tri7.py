@@ -207,7 +207,7 @@ class ClienteTri7:
 
     def buscar_protocolo_completo(self, numero_protocolo: object) -> dict:
         numero = normalizar_numero_matricula(numero_protocolo)
-        caminho = "/api/v1/imoveis/protocolo-completo?" + urlencode({"numero_protocolo": numero})
+        caminho = "/api/v1/imoveis/protocolo-completo?" + urlencode({"protocolo": numero})
         for tentativa in range(2):
             token = self._obter_token(forcar=tentativa > 0)
             requisicao = UrlRequest(
