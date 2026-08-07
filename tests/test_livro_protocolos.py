@@ -147,26 +147,70 @@ class TesteConferirProtocolo(unittest.TestCase):
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertTrue(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
 
-    def test_busca_com_matricula_vinculada_e_ocorrencia_grave(self):
-        protocolo = _protocolo_base(itens_do_pedido=[
+    def test_natureza_contida_no_titulo_completo_nao_gera_ocorrencia(self):
+        # Caso real: o instrumento (Dados do Título) é o nome completo da
+        # escritura, que contém a natureza formal do 1º item como parte do
+        # texto.
+        protocolo = _protocolo_base(
+            protocolo={
+                "protocolo_numero": 185110,
+                "descricao_titulo": (
+                    "ESCRITURA PÚBLICA DE CONFISSÃO DE DÍVIDA, TRANSAÇÃO E DAÇÃO EM PAGAMENTO"
+                ),
+            },
+            itens_do_pedido=[
+                {
+                    "natureza_formal_descricao": "Dação em Pagamento",
+                    "dados_imovel": {}, "atos_registrados": {"ato_tipo": "R", "ato_numero": 19, "texto": ""},
+                },
+            ],
+        )
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
+
+    def test_natureza_sem_relacao_com_o_titulo_e_ocorrencia_grave(self):
+        # Caso relatado: protocolo com "Dados do Título" = Georreferenciamento
+        # mas a Natureza Formal registrada no item foi Código de
+        # Endereçamento Postal (CEP) -- não têm nada a ver um com o outro.
+        protocolo = _protocolo_base(
+            protocolo={"protocolo_numero": 185021, "descricao_titulo": "GEORREFERENCIAMENTO"},
+            itens_do_pedido=[
+                {
+                    "natureza_formal_descricao": "Código de Endereçamento Postal - CEP",
+                    "dados_imovel": {}, "atos_registrados": {"ato_tipo": "A", "ato_numero": 31, "texto": ""},
+                },
+            ],
+        )
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        relevantes = [o for o in ocorrencias if o["regra"] == "NATUREZA_TITULO"]
+        self.assertEqual(len(relevantes), 1)
+        self.assertIn("GEORREFERENCIAMENTO", relevantes[0]["descricao"])
+        self.assertIn("Código de Endereçamento Postal", relevantes[0]["descricao"])
+
+    def _itens_com_busca(self, numero_registro):
+        # "Busca" é sempre um item auxiliar, nunca o item em 1ª posição (é
+        # esse 1º item que a regra de Natureza x Título verifica) — por isso
+        # o item principal vem antes, igual acontece nos protocolos reais.
+        return [
+            {
+                "natureza_formal_descricao": "Cédula de Produto Rural",
+                "dados_imovel": {}, "atos_registrados": {"ato_tipo": "R", "ato_numero": 1, "texto": ""},
+            },
             {
                 "natureza_formal_descricao": "Busca",
-                "dados_imovel": {"tipo_registro": "M", "numero_registro": 152},
+                "dados_imovel": {"tipo_registro": "M", "numero_registro": numero_registro},
                 "atos_registrados": {"ato_tipo": None, "ato_numero": None, "texto": ""},
             },
-        ])
+        ]
+
+    def test_busca_com_matricula_vinculada_e_ocorrencia_grave(self):
+        protocolo = _protocolo_base(itens_do_pedido=self._itens_com_busca(152))
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertEqual(len(ocorrencias), 1)
         self.assertEqual(ocorrencias[0]["regra"], "BUSCA_COM_MATRICULA")
 
     def test_busca_sem_matricula_nao_gera_ocorrencia(self):
-        protocolo = _protocolo_base(itens_do_pedido=[
-            {
-                "natureza_formal_descricao": "Busca",
-                "dados_imovel": {"tipo_registro": "M", "numero_registro": None},
-                "atos_registrados": {"ato_tipo": None, "ato_numero": None, "texto": ""},
-            },
-        ])
+        protocolo = _protocolo_base(itens_do_pedido=self._itens_com_busca(None))
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertEqual(ocorrencias, [])
 
@@ -184,7 +228,7 @@ class TesteConferirProtocolo(unittest.TestCase):
 
     def test_ordem_numerica_crescente_nao_gera_ocorrencia(self):
         protocolo = _protocolo_base(itens_do_pedido=[
-            {"natureza_formal_descricao": "Registro", "dados_imovel": {},
+            {"natureza_formal_descricao": "Cédula de Produto Rural", "dados_imovel": {},
              "atos_registrados": {"ato_tipo": "R", "ato_numero": 1, "texto": ""}},
             {"natureza_formal_descricao": "Registro", "dados_imovel": {},
              "atos_registrados": {"ato_tipo": "R", "ato_numero": 2, "texto": ""}},
