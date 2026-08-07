@@ -7,6 +7,15 @@ import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
 import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260805-reg-aux-v5';
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260706-status-onr';
 import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260731-auditoria';
+import {iniciarAtualizacaoPeriodica} from './util.js';
+
+const INTERVALO_ATUALIZACAO_MS = 5000;
+let pararAtualizacoesPeriodicas = [];
+
+function pararAtualizacoesAoVivo() {
+    pararAtualizacoesPeriodicas.forEach(parar => parar());
+    pararAtualizacoesPeriodicas = [];
+}
 
 let splashEncerrada = false;
 
@@ -28,13 +37,24 @@ function fecharSplash() {
     iniciarAutenticacao({
         aoEntrar: dados => {
             exigirTrocaSenha(dados.deveTrocarSenha);
-            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.ver_intimacoes)) carregarIntimacoes();
-            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.gerenciar_custas)) carregarCustas();
-            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.gerenciar_custas)) carregarRegistrosAuxiliares();
+            pararAtualizacoesAoVivo();
+            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.ver_intimacoes)) {
+                carregarIntimacoes();
+                pararAtualizacoesPeriodicas.push(iniciarAtualizacaoPeriodica(carregarIntimacoes, INTERVALO_ATUALIZACAO_MS));
+            }
+            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.gerenciar_custas)) {
+                carregarCustas();
+                pararAtualizacoesPeriodicas.push(iniciarAtualizacaoPeriodica(carregarCustas, INTERVALO_ATUALIZACAO_MS));
+            }
+            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.gerenciar_custas)) {
+                carregarRegistrosAuxiliares();
+                pararAtualizacoesPeriodicas.push(iniciarAtualizacaoPeriodica(carregarRegistrosAuxiliares, INTERVALO_ATUALIZACAO_MS));
+            }
             if (cargoAdministrativo(dados.perfil) && !dados.deveTrocarSenha) carregarUsuarios();
             if (!dados.deveTrocarSenha) ativarStatusOnr();
         },
         aoSair: () => {
+            pararAtualizacoesAoVivo();
             limparIntimacoes();
             limparCustas();
             limparRegistrosAuxiliares();
