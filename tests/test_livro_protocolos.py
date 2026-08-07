@@ -181,6 +181,22 @@ class TesteConferirProtocolo(unittest.TestCase):
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertTrue(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
 
+    def test_preposicao_diferente_nao_gera_ocorrencia(self):
+        # Caso relatado: "Dados do Título" = "Designação Cadastral DO
+        # Imóvel" e "Natureza Formal" = "Designação Cadastral DE Imóvel" —
+        # mesmo ato, só a preposição muda entre as duas fontes (texto livre
+        # do protocolo vs. catálogo padronizado da Tri7). Antes, a
+        # comparação por substring exato não considerava isso relacionado.
+        protocolo = _protocolo_base(
+            protocolo={"protocolo_numero": 185300, "descricao_titulo": "Designação Cadastral do Imóvel"},
+            itens_do_pedido=[{
+                "natureza_formal_descricao": "Designação Cadastral de Imóvel",
+                "dados_imovel": {}, "atos_registrados": {"ato_tipo": "A", "ato_numero": 5, "texto": ""},
+            }],
+        )
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
+
     def test_natureza_contida_no_titulo_completo_nao_gera_ocorrencia(self):
         # Caso real: o instrumento (Dados do Título) é o nome completo da
         # escritura, que contém a natureza formal do 1º item como parte do

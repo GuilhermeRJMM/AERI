@@ -40,6 +40,19 @@ def _texto_valido(valor: object) -> bool:
     return isinstance(valor, str) and valor.strip() != ""
 
 
+# Preposições/conectivos comuns que variam entre "Dados do Título" (texto
+# livre do protocolo) e "Natureza Formal" (catálogo padronizado da Tri7) sem
+# mudar o sentido — ex.: "Designação Cadastral do Imóvel" vs "Designação
+# Cadastral de Imóvel". Como a comparação é por substring exata, essa única
+# palavra trocada já derrubava o match inteiro mesmo descrevendo o mesmo ato.
+PADRAO_CONECTIVO = re.compile(r"\b(?:DE|DO|DA|DOS|DAS|EM|NO|NA|NOS|NAS|E)\b")
+
+
+def _normalizar_tema(valor: str) -> str:
+    sem_conectivos = PADRAO_CONECTIVO.sub(" ", _normalizar(valor))
+    return _colapsar_espacos(sem_conectivos)
+
+
 def classificar_status(bloco: str) -> str:
     # "(Sem Efeito)" e a presença de uma referência de ato (R./Av./Mat./Reg.)
     # são evidências concretas; checadas antes de "Prenotado" para não cair
@@ -163,7 +176,7 @@ def _regra_natureza_bate_com_titulo(protocolo_json: dict) -> list[dict]:
             "descricao": "Nenhum item com registro/averbação foi encontrado para conferir contra o título.",
         }]
 
-    titulo_normalizado = _normalizar(str(descricao_titulo))
+    titulo_tema = _normalizar_tema(str(descricao_titulo))
     ocorrencias = []
     for item in itens_com_ato:
         registrado = item["atos_registrados"]
@@ -176,15 +189,18 @@ def _regra_natureza_bate_com_titulo(protocolo_json: dict) -> list[dict]:
                 "descricao": f"{rotulo}: não possui Natureza Formal do Título preenchida.",
             })
             continue
-        natureza_normalizada = _normalizar(str(natureza))
-        # Comparação por conteúdo (não igualdade exata): descricao_titulo
-        # costuma ser o nome completo do instrumento e pode conter a
-        # natureza formal como parte do texto (ex.: "ESCRITURA ... E DAÇÃO
-        # EM PAGAMENTO" contém "DAÇÃO EM PAGAMENTO"). Quando nenhum dos dois
-        # aparece dentro do outro, os dois textos não têm relação nenhuma —
-        # sinal de que a natureza formal escolhida no item não corresponde
-        # ao título do protocolo.
-        if natureza_normalizada not in titulo_normalizado and titulo_normalizado not in natureza_normalizada:
+        natureza_tema = _normalizar_tema(str(natureza))
+        # Comparação por conteúdo (não igualdade exata), ignorando
+        # preposições/conectivos: descricao_titulo costuma ser o nome
+        # completo do instrumento e pode conter a natureza formal como parte
+        # do texto (ex.: "ESCRITURA ... E DAÇÃO EM PAGAMENTO" contém "DAÇÃO
+        # EM PAGAMENTO"), e a mesma natureza às vezes vem escrita com uma
+        # preposição diferente entre as duas fontes (ex.: "Designação
+        # Cadastral DO Imóvel" vs "... DE Imóvel") sem mudar o sentido.
+        # Quando nem removendo conectivos um aparece dentro do outro, os dois
+        # textos não têm relação nenhuma — sinal de que a natureza formal
+        # escolhida no item não corresponde ao título do protocolo.
+        if natureza_tema not in titulo_tema and titulo_tema not in natureza_tema:
             ocorrencias.append({
                 "regra": "NATUREZA_TITULO",
                 "gravidade": "GRAVE",
