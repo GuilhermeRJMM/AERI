@@ -937,7 +937,7 @@ def extrair_dados_imovel(
 
         if "DESIGNACAO CADASTRAL DO IMOVEL" in normalizado:
             designacao = re.search(
-                r"códigos?\s+cadastra(?:l|is)\b.*?:\s*(.*?)"
+                r"códigos?\s+cadastra(?:l|is)\b.{0,100}?:\s*(.{0,300}?)"
                 r"(?=\.\s*(?:\*NOTA|DOU\s+FÉ|VALOR\b|COTAÇÃO\b|PROTOCOLO\b)|\bDOU\s+FÉ|$)",
                 descricao_ato,
                 re.IGNORECASE | re.DOTALL,
@@ -1170,7 +1170,7 @@ def extrair_dados_imovel(
             _adicionar_unico(resultado["restricoes"], {"rotulo": "Cláusula restritiva", "valor": valor, "origem": codigo})
 
         diferenca = re.search(
-            r"diferença\s+entre.*?\[\s*([\d.,]+)\s*hectares?\s*\].*?\[\s*([\d.,]+)\s*hectares?\s*\]",
+            r"diferença\s+entre.{0,80}?\[\s*([\d.,]+)\s*hectares?\s*\].{0,80}?\[\s*([\d.,]+)\s*hectares?\s*\]",
             descricao_ato,
             re.IGNORECASE | re.DOTALL,
         )

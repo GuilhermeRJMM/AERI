@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from backend.app.autenticacao import exigir_permissao, proteger_csrf
+from backend.app.database import preparar_banco
 from backend.app.incra import extrair_protocolos
 from backend.app.seguranca_web import registrar_auditoria
 
 
-router = APIRouter(tags=["incra"])
+router = APIRouter(tags=["incra"], dependencies=[Depends(preparar_banco)])
 
 
 @router.post("/analisar-incra", dependencies=[Depends(proteger_csrf)])

@@ -74,13 +74,6 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def verificar_bloqueio(usuario: str, ip: str) -> int:
-    with conectar() as conexao:
-        with conexao.cursor() as cursor:
-            total = contar_tentativas_invalidas(cursor, usuario, ip)
-    return max(0, MAX_TENTATIVAS - total)
-
-
 def contar_tentativas_invalidas(cursor, usuario: str, ip: str) -> int:
     cursor.execute(
         """SELECT COUNT(*) AS total FROM tentativas_login_aeri
@@ -107,22 +100,6 @@ def registrar_tentativa(usuario: str, ip: str, sucesso: bool) -> None:
         with conexao.cursor() as cursor:
             registrar_tentativa_cursor(cursor, usuario, ip, sucesso)
         conexao.commit()
-
-
-def autenticar(usuario: str, senha: str) -> bool:
-    with conectar() as conexao:
-        with conexao.cursor() as cursor:
-            cursor.execute(
-                "SELECT senha_hash FROM usuarios_aeri WHERE UPPER(usuario)=UPPER(%s) AND ativo=TRUE",
-                (usuario,),
-            )
-            registro = cursor.fetchone()
-            armazenada = registro["senha_hash"] if registro else _HASH_SIMULADO
-            valido = verificar_senha(senha, armazenada) and registro is not None
-            if valido and not registro["senha_hash"].startswith("$argon2id$"):
-                cursor.execute("UPDATE usuarios_aeri SET senha_hash=%s WHERE usuario=%s", (hash_senha(senha), usuario))
-        conexao.commit()
-    return valido
 
 
 def criar_sessao(usuario: str, request: Request) -> tuple[str, str]:

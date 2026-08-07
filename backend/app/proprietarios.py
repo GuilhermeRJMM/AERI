@@ -365,7 +365,7 @@ def extrair_bloco(texto, tipo):
         )
         if m: return m.group(1).strip().rstrip(';, ')
 
-        m = re.search(r'\bvend(?:eu|eram)\s+.*?\bpara\s+(.*?)(?=\bpelo valor\b|\bpelo preço\b|;|\.\s*Dou|\.\s*O referido|\Z)', texto, re.I | re.DOTALL)
+        m = re.search(r'\bvend(?:eu|eram)\s+.{0,300}?\bpara\s+(.{0,400}?)(?=\bpelo valor\b|\bpelo preço\b|;|\.\s*Dou|\.\s*O referido|\Z)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(r'\badjudicante\s*:\s*(.*?)(?=\*NOTA|;|\.\s*Dou|\.\s*DOU|\Z)', texto, re.I | re.DOTALL)
@@ -418,7 +418,7 @@ def extrair_bloco(texto, tipo):
         if m and m.group(1).strip().rstrip(';, '): return m.group(1).strip().rstrip(';, ')
 
         m = re.search(
-            r'lavrada\b.*?,\s*(.*?)(?=[;,]\s*adquiri(?:u|do)\s+por\s+compra\b)',
+            r'lavrada\b.{0,200}?,\s*(.{0,400}?)(?=[;,]\s*adquiri(?:u|do)\s+por\s+compra\b)',
             texto,
             re.I | re.DOTALL,
         )
