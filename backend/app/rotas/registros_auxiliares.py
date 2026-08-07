@@ -235,26 +235,43 @@ def sincronizar_registros_auxiliares(
                     )
                     numeros = [item["numero"] for item in cursor.fetchall()]
 
-                processados = encontrados = novos = alterados = ausentes = falhas = 0
-                erros = []
-                ultimo_processado = None
-                maior_encontrado = estado["ultimo_existente"]
+                # Libera a transação/lock de linha antes da fase lenta: a trava
+                # de sincronização (advisory lock, ligada à sessão) continua
+                # valendo, mas a conexão fica ociosa durante as chamadas à Tri7
+                # em vez de seguras linhas por até 20s x tamanho do lote.
+                conexao.commit()
+
+                resultados = []
                 falha = None
                 for numero in numeros:
                     try:
                         resposta = cliente_tri7().buscar_texto_registro_auxiliar(numero)
-                        _item, inserido = _salvar_indice(cursor, numero, resposta["texto"])
-                        encontrados += 1
-                        novos += int(inserido)
-                        alterados += int(_item["alterado"])
-                        maior_encontrado = max(maior_encontrado, numero)
+                        resultados.append({"numero": numero, "status": "OK", "texto": resposta["texto"]})
                     except (RegistroAuxiliarTri7NaoEncontrado, RegistroAuxiliarTri7SemTexto):
-                        _limpar_erro(cursor, numero)
-                        ausentes += 1
+                        resultados.append({"numero": numero, "status": "AUSENTE"})
                     except (ConfiguracaoTri7Invalida, AutenticacaoTri7Falhou) as erro:
                         falha = str(erro)
                         break
                     except ErroTri7 as erro:
+                        resultados.append({"numero": numero, "status": "ERRO", "erro": erro})
+
+                processados = encontrados = novos = alterados = ausentes = falhas = 0
+                erros = []
+                ultimo_processado = None
+                maior_encontrado = estado["ultimo_existente"]
+                for resultado in resultados:
+                    numero = resultado["numero"]
+                    if resultado["status"] == "OK":
+                        _item, inserido = _salvar_indice(cursor, numero, resultado["texto"])
+                        encontrados += 1
+                        novos += int(inserido)
+                        alterados += int(_item["alterado"])
+                        maior_encontrado = max(maior_encontrado, numero)
+                    elif resultado["status"] == "AUSENTE":
+                        _limpar_erro(cursor, numero)
+                        ausentes += 1
+                    else:
+                        erro = resultado["erro"]
                         _registrar_erro(cursor, numero, modo, erro)
                         falhas += 1
                         erros.append({"numero": numero, "erro": str(erro)[:180]})

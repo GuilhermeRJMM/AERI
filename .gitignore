@@ -9,3 +9,5 @@ output/relatorios/
 output/planilhas/
 output/registros_auxiliares/
 output/pdf/Relatorio_Final_Auditoria_AERI_*.pdf
+.vercel
+.env*
