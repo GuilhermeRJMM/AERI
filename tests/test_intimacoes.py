@@ -142,6 +142,19 @@ class TesteIntimacoes(unittest.TestCase):
         self.assertIn("IN01650919C", protocolos)
         self.assertIn("IN01345616C", protocolos)
 
+    def test_migracao_preenche_fase_nula_com_fase_inicial(self):
+        # Regressão: a migração 010 só classificou uma lista fixa de
+        # protocolos que existiam naquele momento; qualquer intimação fora
+        # dela (anterior à migração, ou reimportada depois) ficou com
+        # fase=NULL, valor aceito pela CHECK constraint mas que não bate com
+        # nenhuma das 3 abas do frontend (comparação por igualdade exata) --
+        # a intimação sumia dos filtros mesmo continuando cadastrada.
+        caminho = Path(__file__).parents[1] / "backend/app/migrations/022_backfill_fase_intimacoes_nula.sql"
+        sql = caminho.read_text(encoding="utf-8")
+
+        self.assertIn("SET fase = 'INTIMACAO'", sql)
+        self.assertIn("WHERE fase IS NULL", sql)
+
     def test_novo_andamento_e_opcional_na_conferencia(self):
         self.assertIsNone(servico.validar_novo_andamento(None))
         self.assertIsNone(servico.validar_novo_andamento({}))
