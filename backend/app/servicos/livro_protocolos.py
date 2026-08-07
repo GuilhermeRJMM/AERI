@@ -106,9 +106,20 @@ def extrair_protocolos_pdf(pdf_bytes: bytes) -> list[dict]:
     return linhas
 
 
+def _itens_com_ato(protocolo_json: dict) -> list[dict]:
+    # Busca e Prenotação são itens administrativos (ato_tipo/ato_numero
+    # nulos) — não são um registro/averbação de verdade, então não fazem
+    # sentido conferir contra o Dados do Título.
+    itens = []
+    for item in protocolo_json.get("itens_do_pedido") or []:
+        registrado = item.get("atos_registrados") or {}
+        if registrado.get("ato_tipo") is not None and registrado.get("ato_numero") is not None:
+            itens.append(item)
+    return itens
+
+
 def _regra_natureza_bate_com_titulo(protocolo_json: dict) -> list[dict]:
     protocolo = protocolo_json.get("protocolo") or {}
-    itens = protocolo_json.get("itens_do_pedido") or []
     descricao_titulo = protocolo.get("descricao_titulo")
     if not _texto_valido(descricao_titulo):
         return [{
@@ -116,31 +127,46 @@ def _regra_natureza_bate_com_titulo(protocolo_json: dict) -> list[dict]:
             "gravidade": "GRAVE",
             "descricao": "O protocolo não possui descrição do título (descricao_titulo em branco).",
         }]
-    if not itens or not _texto_valido(itens[0].get("natureza_formal_descricao")):
+
+    itens_com_ato = _itens_com_ato(protocolo_json)
+    if not itens_com_ato:
         return [{
             "regra": "NATUREZA_TITULO",
             "gravidade": "GRAVE",
-            "descricao": "O item em 1ª posição não possui Natureza Formal do Título preenchida.",
+            "descricao": "Nenhum item com registro/averbação foi encontrado para conferir contra o título.",
         }]
-    natureza = itens[0]["natureza_formal_descricao"]
+
     titulo_normalizado = _normalizar(str(descricao_titulo))
-    natureza_normalizada = _normalizar(str(natureza))
-    # Comparação por conteúdo (não igualdade exata): descricao_titulo costuma
-    # ser o nome completo do instrumento e pode conter a natureza formal como
-    # parte do texto (ex.: "ESCRITURA ... E DAÇÃO EM PAGAMENTO" contém
-    # "DAÇÃO EM PAGAMENTO"). Quando nenhum dos dois aparece dentro do outro,
-    # os dois textos não têm relação nenhuma — sinal de que a natureza formal
-    # escolhida no item não corresponde ao título do protocolo.
-    if natureza_normalizada not in titulo_normalizado and titulo_normalizado not in natureza_normalizada:
-        return [{
-            "regra": "NATUREZA_TITULO",
-            "gravidade": "GRAVE",
-            "descricao": (
-                f"Dados do Título ('{descricao_titulo}') não corresponde à Natureza Formal "
-                f"do 1º item ('{natureza}')."
-            ),
-        }]
-    return []
+    ocorrencias = []
+    for item in itens_com_ato:
+        registrado = item["atos_registrados"]
+        rotulo = f"{registrado.get('ato_tipo')}.{registrado.get('ato_numero')}"
+        natureza = item.get("natureza_formal_descricao")
+        if not _texto_valido(natureza):
+            ocorrencias.append({
+                "regra": "NATUREZA_TITULO",
+                "gravidade": "GRAVE",
+                "descricao": f"{rotulo}: não possui Natureza Formal do Título preenchida.",
+            })
+            continue
+        natureza_normalizada = _normalizar(str(natureza))
+        # Comparação por conteúdo (não igualdade exata): descricao_titulo
+        # costuma ser o nome completo do instrumento e pode conter a
+        # natureza formal como parte do texto (ex.: "ESCRITURA ... E DAÇÃO
+        # EM PAGAMENTO" contém "DAÇÃO EM PAGAMENTO"). Quando nenhum dos dois
+        # aparece dentro do outro, os dois textos não têm relação nenhuma —
+        # sinal de que a natureza formal escolhida no item não corresponde
+        # ao título do protocolo.
+        if natureza_normalizada not in titulo_normalizado and titulo_normalizado not in natureza_normalizada:
+            ocorrencias.append({
+                "regra": "NATUREZA_TITULO",
+                "gravidade": "GRAVE",
+                "descricao": (
+                    f"{rotulo}: Dados do Título ('{descricao_titulo}') não corresponde à "
+                    f"Natureza Formal ('{natureza}')."
+                ),
+            })
+    return ocorrencias
 
 
 def _regra_busca_com_matricula(protocolo_json: dict) -> list[dict]:

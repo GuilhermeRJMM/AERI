@@ -187,10 +187,49 @@ class TesteConferirProtocolo(unittest.TestCase):
         self.assertIn("GEORREFERENCIAMENTO", relevantes[0]["descricao"])
         self.assertIn("Código de Endereçamento Postal", relevantes[0]["descricao"])
 
+    def test_verifica_todos_os_itens_com_ato_nao_so_o_primeiro(self):
+        # Protocolo real: 3 itens com ato de verdade (CEP, Dação em
+        # Pagamento, Cancelamento de Alienação Fiduciária) sob a mesma
+        # escritura. Só o do meio bate com o texto do título -- os outros
+        # dois têm que ser sinalizados mesmo não sendo o 1º item.
+        protocolo = _protocolo_base(
+            protocolo={
+                "protocolo_numero": 185256,
+                "descricao_titulo": (
+                    "ESCRITURA PÚBLICA DE CONFISSÃO DE DÍVIDA, TRANSAÇÃO E DAÇÃO EM PAGAMENTO"
+                ),
+            },
+            itens_do_pedido=[
+                {"natureza_formal_descricao": "Código de Endereçamento Postal - CEP", "dados_imovel": {},
+                 "atos_registrados": {"ato_tipo": "A", "ato_numero": 18, "texto": ""}},
+                {"natureza_formal_descricao": "Dação em Pagamento", "dados_imovel": {},
+                 "atos_registrados": {"ato_tipo": "R", "ato_numero": 19, "texto": ""}},
+                {"natureza_formal_descricao": "Cancelamento de Alienação Fiduciária", "dados_imovel": {},
+                 "atos_registrados": {"ato_tipo": "A", "ato_numero": 20, "texto": ""}},
+            ],
+        )
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        relevantes = {o["descricao"].split(":")[0] for o in ocorrencias if o["regra"] == "NATUREZA_TITULO"}
+        self.assertEqual(relevantes, {"A.18", "A.20"})
+
+    def test_busca_e_prenotacao_ficam_de_fora_da_checagem_de_natureza(self):
+        # Busca e Prenotação não têm ato_tipo/ato_numero (não são um
+        # registro/averbação de verdade) e nunca vão bater textualmente com
+        # o título -- têm que ficar de fora da regra, não gerar ocorrência.
+        protocolo = _protocolo_base(itens_do_pedido=[
+            {"natureza_formal_descricao": "Cédula de Produto Rural", "dados_imovel": {},
+             "atos_registrados": {"ato_tipo": "R", "ato_numero": 1, "texto": ""}},
+            {"natureza_formal_descricao": "Busca", "dados_imovel": {},
+             "atos_registrados": {"ato_tipo": None, "ato_numero": None, "texto": ""}},
+            {"natureza_formal_descricao": "Prenotação", "dados_imovel": {},
+             "atos_registrados": {"ato_tipo": None, "ato_numero": None, "texto": ""}},
+        ])
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
+
     def _itens_com_busca(self, numero_registro):
-        # "Busca" é sempre um item auxiliar, nunca o item em 1ª posição (é
-        # esse 1º item que a regra de Natureza x Título verifica) — por isso
-        # o item principal vem antes, igual acontece nos protocolos reais.
+        # "Busca" é um item auxiliar sem ato_tipo/ato_numero, então fica de
+        # fora da checagem de Natureza x Título mesmo não sendo o 1º item.
         return [
             {
                 "natureza_formal_descricao": "Cédula de Produto Rural",
@@ -227,12 +266,14 @@ class TesteConferirProtocolo(unittest.TestCase):
         self.assertTrue(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
 
     def test_ordem_numerica_crescente_nao_gera_ocorrencia(self):
+        # As três naturezas batem com o título (por conteúdo) para isolar
+        # a checagem de ordem numérica, sem ruído da regra de natureza.
         protocolo = _protocolo_base(itens_do_pedido=[
             {"natureza_formal_descricao": "Cédula de Produto Rural", "dados_imovel": {},
              "atos_registrados": {"ato_tipo": "R", "ato_numero": 1, "texto": ""}},
-            {"natureza_formal_descricao": "Registro", "dados_imovel": {},
+            {"natureza_formal_descricao": "Cédula de Produto Rural", "dados_imovel": {},
              "atos_registrados": {"ato_tipo": "R", "ato_numero": 2, "texto": ""}},
-            {"natureza_formal_descricao": "Averbação", "dados_imovel": {},
+            {"natureza_formal_descricao": "Cédula de Produto Rural", "dados_imovel": {},
              "atos_registrados": {"ato_tipo": "A", "ato_numero": 3, "texto": ""}},
         ])
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
