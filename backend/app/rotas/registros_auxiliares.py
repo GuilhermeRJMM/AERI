@@ -13,6 +13,7 @@ from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_c
 from backend.app.servicos.registros_auxiliares import (
     extrair_indice_registro_auxiliar,
     normalizar_busca,
+    normalizar_safra,
     registro_auxiliar_json,
     resumo_certidao_registro_auxiliar,
 )
@@ -198,7 +199,7 @@ def pesquisar_registros_auxiliares(
     termo = normalizar_busca(busca)[:120]
     documento = "".join(caractere for caractere in busca if caractere.isdigit())[:14]
     produto = normalizar_busca(produto)[:30]
-    safra = safra.strip()[:20]
+    safra = normalizar_safra(safra)
     modalidade = normalizar_busca(modalidade)[:20]
     if not termo or not produto or not safra:
         raise HTTPException(

@@ -4,6 +4,7 @@ from pathlib import Path
 from backend.app.servicos.registros_auxiliares import (
     extrair_indice_registro_auxiliar,
     normalizar_busca,
+    normalizar_safra,
     resumo_certidao_registro_auxiliar,
 )
 
@@ -45,6 +46,25 @@ class TesteRegistrosAuxiliares(unittest.TestCase):
 
     def test_normaliza_busca_sem_acentos(self):
         self.assertEqual(normalizar_busca("  José   Agrícola  "), "JOSE AGRICOLA")
+
+    def test_normaliza_safra_em_qualquer_formato_digitado(self):
+        # Regressão: busca por "Durval Rodrigues de Bessa / Soja / 2025/2026"
+        # achava 4 registros, mas os mesmos parâmetros com "25/26" ou
+        # "setembro/2025 a maio/2026" não achavam nada — a busca comparava a
+        # string digitada crua contra o formato canônico "AAAA/AAAA" gravado
+        # na indexação, sem normalizar.
+        casos = {
+            "2025/2026": "2025/2026",
+            "25/26": "2025/2026",
+            "2025-2026": "2025/2026",
+            "setembro/2025 a maio/2026": "2025/2026",
+            "set/25 a mai/26": "2025/2026",
+            "  2026/2027  ": "2026/2027",
+            "": "",
+        }
+        for entrada, esperado in casos.items():
+            with self.subTest(entrada=entrada):
+                self.assertEqual(normalizar_safra(entrada), esperado)
 
     def test_modalidade_considera_objeto_principal_e_safra_por_periodo_agricola(self):
         texto = """

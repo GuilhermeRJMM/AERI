@@ -48,6 +48,29 @@ PADRAO_PAPEIS_NAO_BUSCADOS = (
 VALOR_CERTIDAO_REGISTRO_AUXILIAR = Decimal("139.93")
 
 
+def normalizar_safra(valor: str) -> str:
+    """Aceita variações comuns de digitação da safra na busca (25/26,
+    2025/26, "setembro/2025 a maio/2026"...) e devolve o formato canônico
+    "AAAA/AAAA" usado na indexação (extrair_indice_registro_auxiliar já só
+    grava safras nesse formato). Sem isso, uma busca digitada diferente do
+    que foi indexado nunca casa com "safras ? %s", mesmo se tratando da
+    mesma safra.
+    """
+    texto = (valor or "").strip()
+    if not texto:
+        return ""
+    anos: list[str] = []
+    for ano in re.findall(r"\d{4}|\d{2}", texto):
+        if len(ano) == 4:
+            anos.append(ano)
+        else:
+            seculo = anos[-1][:2] if anos else "20"
+            anos.append(seculo + ano)
+    if len(anos) < 2:
+        return texto[:20]
+    return f"{anos[0]}/{anos[1]}"
+
+
 def normalizar_busca(valor: str) -> str:
     sem_acentos = "".join(
         caractere for caractere in unicodedata.normalize("NFKD", valor or "")
