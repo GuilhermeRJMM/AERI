@@ -173,7 +173,10 @@ async function confirmarImportacao() {
     }
 }
 
+let edicaoAtualizadoEm = null;
+
 function abrirEdicao(item) {
+    edicaoAtualizadoEm = item.atualizadoEm;
     document.getElementById('custas-edicao-id').value = item.id;
     document.getElementById('custas-edicao-titulo').textContent = item.pedido;
     document.getElementById('custas-edicao-nome').value = item.nome;
@@ -204,13 +207,22 @@ async function salvarEdicao(evento) {
         resultado: document.getElementById('custas-edicao-resultado').value,
         numeroRegistro: document.getElementById('custas-edicao-registro').value,
         status: document.getElementById('custas-edicao-status').value,
+        atualizadoEm: edicaoAtualizadoEm,
     };
     try {
         const salvo = await requisicaoAeri(`/api/custas/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados)});
         itens = itens.map(item => item.id === salvo.id ? salvo : item);
         fecharEdicao();
         renderizar();
-    } catch (erro) { alert(erro.message); }
+    } catch (erro) {
+        if (erro.message.includes('alterado por outra pessoa') || erro.message.includes('já foi finalizado')) {
+            fecharEdicao();
+            notificarCustas(erro.message, 'erro', 6000);
+            carregarCustas();
+            return;
+        }
+        alert(erro.message);
+    }
 }
 
 async function acaoTabela(evento) {

@@ -219,8 +219,11 @@ export function limparIntimacoes() {
     renderizarIntimacoes();
 }
 
+let edicaoIntimacaoAtualizadoEm = null;
+
 function abrirFormularioIntimacao() {
     if (!pode('criar_intimacoes')) return;
+    edicaoIntimacaoAtualizadoEm = null;
     document.getElementById('form-intimacao').reset();
     document.getElementById('intimacao-id').value = '';
     document.getElementById('titulo-form-intimacao').textContent = 'Nova intimação';
@@ -266,6 +269,7 @@ async function salvarIntimacao(evento) {
         dataCertificacao: document.getElementById('intimacao-data-certificacao').value,
         valorPagoOnr: document.getElementById('intimacao-valor-pago').value,
         valorUsado: document.getElementById('intimacao-valor-usado').value,
+        atualizadoEm: edicaoIntimacaoAtualizadoEm,
     };
     try {
         botaoSalvar.disabled = true;
@@ -281,6 +285,12 @@ async function salvarIntimacao(evento) {
         fecharFormularioIntimacao();
         renderizarIntimacoes();
     } catch (falha) {
+        if (falha.message.includes('alterada por outra pessoa')) {
+            fecharFormularioIntimacao();
+            alert(falha.message);
+            carregarIntimacoes();
+            return;
+        }
         alert(falha.message);
     } finally {
         botaoSalvar.disabled = false;
@@ -292,6 +302,7 @@ function editarIntimacao(id) {
     if (!pode('alterar_intimacoes')) return;
     const item = intimacoes.find(atual => atual.id === id);
     if (!item) return;
+    edicaoIntimacaoAtualizadoEm = item.atualizadoEm;
     document.getElementById('intimacao-id').value = item.id;
     document.getElementById('intimacao-protocolo').value = item.protocolo;
     document.getElementById('intimacao-credor').value = item.credor;

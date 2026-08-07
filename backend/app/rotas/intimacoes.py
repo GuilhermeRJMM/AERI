@@ -25,6 +25,15 @@ router = APIRouter(
 )
 
 
+def _analisar_versao_esperada(dados: dict) -> datetime:
+    try:
+        return datetime.fromisoformat(str(dados.get("atualizadoEm", "")))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422, detail="Recarregue a lista antes de editar esta intimação."
+        ) from exc
+
+
 def _registrar_evento(cursor, identificador: UUID, protocolo: str, tipo: str, usuario: str, detalhes=None):
     cursor.execute(
         """INSERT INTO eventos_intimacao_aeri
@@ -77,6 +86,7 @@ def criar_intimacao(dados: dict, request: Request, usuario: str = Depends(exigir
 def atualizar_intimacao(identificador: UUID, dados: dict, request: Request, usuario: str = Depends(exigir_permissao("alterar_intimacoes"))):
     protocolo, credor, devedor, nome_andamento, andamento, fase = validar_intimacao(dados)
     campos = validar_campos_fase_inicial(dados)
+    versao_esperada = _analisar_versao_esperada(dados)
     try:
         with conectar() as conexao:
             with conexao.cursor() as cursor:
@@ -90,16 +100,23 @@ def atualizar_intimacao(identificador: UUID, dados: dict, request: Request, usua
                     numero_os_tri7=%s, protocolo_tri7=%s, certidao_decurso_prazo=%s,
                     data_intimacao=%s, data_certificacao=%s, valor_pago_onr=%s,
                     valor_usado=%s, atualizado_em=NOW()
-                    WHERE id=%s RETURNING *""",
+                    WHERE id=%s AND atualizado_em=%s RETURNING *""",
                     (
                         protocolo, credor, devedor, nome_andamento, andamento, fase,
                         campos["protocolo_rtd"], campos["numero_os_tri7"], campos["protocolo_tri7"],
                         campos["certidao_decurso_prazo"], campos["data_intimacao"],
                         campos["data_certificacao"], campos["valor_pago_onr"],
-                        campos["valor_usado"], identificador,
+                        campos["valor_usado"], identificador, versao_esperada,
                     ),
                 )
                 item = cursor.fetchone()
+                if not item:
+                    # A trava otimista falhou: outra pessoa salvou uma
+                    # alteração nesta intimação enquanto a tela estava aberta.
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Esta intimação foi alterada por outra pessoa. Recarregue e tente novamente.",
+                    )
                 campos_alterados = [
                     campo for campo, novo in {
                         "protocolo": protocolo,
@@ -118,8 +135,6 @@ def atualizar_intimacao(identificador: UUID, dados: dict, request: Request, usua
             conexao.commit()
     except UniqueViolation as exc:
         raise HTTPException(status_code=409, detail="Este protocolo já está cadastrado.") from exc
-    if not item:
-        raise HTTPException(status_code=404, detail="Intimação não encontrada.")
     registrar_auditoria(request, "atualizar_intimacao", "sucesso", usuario, str(identificador))
     return intimacao_json(item)
 

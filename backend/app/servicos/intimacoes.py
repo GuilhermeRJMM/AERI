@@ -75,6 +75,7 @@ def intimacao_json(registro: dict) -> dict:
         "valorPagoOnr": float(valor_pago),
         "valorUsado": float(valor_usado),
         "saldoOs": float(valor_pago - valor_usado),
+        "atualizadoEm": registro["atualizado_em"].isoformat(),
     }
 
 

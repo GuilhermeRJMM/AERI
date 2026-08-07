@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -19,6 +20,15 @@ router = APIRouter(
     tags=["informar custas"],
     dependencies=[Depends(preparar_banco)],
 )
+
+
+def _analisar_versao_esperada(dados: dict) -> datetime:
+    try:
+        return datetime.fromisoformat(str(dados.get("atualizadoEm", "")))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422, detail="Recarregue a lista antes de editar este pedido."
+        ) from exc
 
 
 def _registrar_evento(cursor, item_id: UUID, pedido: str, tipo: str, usuario: str, detalhes=None):
@@ -114,6 +124,7 @@ def atualizar_custas(
     usuario: str = Depends(exigir_permissao("gerenciar_custas")),
 ):
     campos = validar_item_custas(dados)
+    versao_esperada = _analisar_versao_esperada(dados)
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute("SELECT * FROM custas_livro3_aeri WHERE id=%s", (identificador,))
@@ -129,14 +140,21 @@ def atualizar_custas(
                 """UPDATE custas_livro3_aeri SET
                 nome=%s, documento=%s, modalidade=%s, produto=%s, safra=%s,
                 resultado=%s, numero_registro=%s, status=%s, atualizado_por=%s, atualizado_em=NOW()
-                WHERE id=%s RETURNING *""",
+                WHERE id=%s AND atualizado_em=%s RETURNING *""",
                 (
                     campos["nome"], campos["documento"], campos["modalidade"], campos["produto"],
                     campos["safra"], campos["resultado"], campos["numero_registro"], campos["status"],
-                    usuario, identificador,
+                    usuario, identificador, versao_esperada,
                 ),
             )
             item = cursor.fetchone()
+            if not item:
+                # A trava otimista falhou: alguém salvou uma alteração neste
+                # pedido entre a abertura da tela de edição e este envio.
+                raise HTTPException(
+                    status_code=409,
+                    detail="Este pedido foi alterado por outra pessoa. Recarregue e tente novamente.",
+                )
             alterados = [campo for campo, valor in campos.items() if anterior.get(campo) != valor]
             _registrar_evento(cursor, identificador, item["pedido"], "ALTERACAO", usuario, {"campos": alterados})
             registrar_auditoria_cursor(cursor, request, "atualizar_custas", "sucesso", usuario, item["pedido"], {"campos": alterados})

@@ -1,8 +1,10 @@
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import HTTPException
 
+from backend.app.rotas.custas import _analisar_versao_esperada
 from backend.app.servicos.custas import extrair_pedidos_texto, validar_item_custas
 
 
@@ -122,6 +124,23 @@ class TesteInformarCustas(unittest.TestCase):
         self.assertIn("eventos_custas_livro3_aeri", sql)
         self.assertIn("pode_gerenciar_custas", sql)
         self.assertIn("finalizado BOOLEAN", sql)
+
+    def test_versao_esperada_aceita_iso_valido(self):
+        versao = _analisar_versao_esperada(
+            {"atualizadoEm": "2026-08-06T21:23:45.123456+00:00"}
+        )
+
+        self.assertEqual(
+            versao,
+            datetime(2026, 8, 6, 21, 23, 45, 123456, tzinfo=timezone.utc),
+        )
+
+    def test_versao_esperada_rejeita_valor_ausente_ou_invalido(self):
+        for dados in ({}, {"atualizadoEm": "nao-e-uma-data"}, {"atualizadoEm": None}):
+            with self.subTest(dados=dados):
+                with self.assertRaises(HTTPException) as erro:
+                    _analisar_versao_esperada(dados)
+                self.assertEqual(erro.exception.status_code, 422)
 
 
 if __name__ == "__main__":

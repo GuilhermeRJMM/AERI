@@ -1,11 +1,13 @@
 import re
 import unittest
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
 
+from fastapi import HTTPException
 
+from backend.app.rotas.intimacoes import _analisar_versao_esperada
 from backend.app.servicos import intimacoes as servico
 from ferramentas.abrir_pasta_intimacao import caminho_pasta
 
@@ -46,6 +48,7 @@ class TesteIntimacoes(unittest.TestCase):
                 "data_certificacao": None,
                 "valor_pago_onr": Decimal("530.07"),
                 "valor_usado": Decimal("100.00"),
+                "atualizado_em": datetime(2026, 7, 8, 12, 0, 0),
             }
         )
 
@@ -169,6 +172,23 @@ class TesteIntimacoes(unittest.TestCase):
         self.assertEqual("IN01625306C", caminho.name)
         self.assertIn("07 - 2026", str(caminho))
         self.assertIn("02 - Agua. pagamento (emolu informados)", str(caminho))
+
+    def test_versao_esperada_aceita_iso_valido(self):
+        versao = _analisar_versao_esperada(
+            {"atualizadoEm": "2026-08-06T21:23:45.123456+00:00"}
+        )
+
+        self.assertEqual(
+            versao,
+            datetime(2026, 8, 6, 21, 23, 45, 123456, tzinfo=timezone.utc),
+        )
+
+    def test_versao_esperada_rejeita_valor_ausente_ou_invalido(self):
+        for dados in ({}, {"atualizadoEm": "nao-e-uma-data"}, {"atualizadoEm": None}):
+            with self.subTest(dados=dados):
+                with self.assertRaises(HTTPException) as erro:
+                    _analisar_versao_esperada(dados)
+                self.assertEqual(erro.exception.status_code, 422)
 
 
 if __name__ == "__main__":
