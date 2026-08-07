@@ -23,7 +23,6 @@ from backend.app.servicos.tri7 import (
     RegistroAuxiliarTri7NaoEncontrado,
     RegistroAuxiliarTri7SemTexto,
     cliente_tri7,
-    normalizar_numero_matricula,
 )
 
 
@@ -464,29 +463,3 @@ def cron_sincronizar_registros_auxiliares(request: Request):
                 "REVISAO", tamanho=20, limite_informado=0, request=request, usuario="cron"
             )
     return resultado
-
-
-@router.get("/{numero}/texto")
-def texto_registro_auxiliar(
-    numero: int,
-    request: Request,
-    usuario: str = Depends(exigir_permissao("gerenciar_custas")),
-):
-    try:
-        numero_normalizado = int(normalizar_numero_matricula(numero))
-        resposta = cliente_tri7().buscar_texto_registro_auxiliar(numero_normalizado)
-    except (RegistroAuxiliarTri7NaoEncontrado, RegistroAuxiliarTri7SemTexto) as erro:
-        raise HTTPException(status_code=404, detail=str(erro)) from erro
-    except ConfiguracaoTri7Invalida as erro:
-        raise HTTPException(status_code=503, detail=str(erro)) from erro
-    except ErroTri7 as erro:
-        raise HTTPException(status_code=502, detail=str(erro)) from erro
-    with conectar() as conexao:
-        with conexao.cursor() as cursor:
-            item, _inserido = _salvar_indice(cursor, numero_normalizado, resposta["texto"])
-            registrar_auditoria_cursor(
-                cursor, request, "consultar_texto_registro_auxiliar", "sucesso", usuario,
-                str(numero_normalizado),
-            )
-        conexao.commit()
-    return {"registro": registro_auxiliar_json(item), "texto": resposta["texto"]}

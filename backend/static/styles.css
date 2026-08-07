@@ -2547,10 +2547,6 @@ body.modo-incorporado .layout { padding-top:28px; }
 .regaux-pessoa strong { color:#eef2ff; font-size:.72rem; }
 .regaux-pessoa small { margin-top:2px; color:#71809a; font-size:.61rem; }
 .regaux-ausente { color:#fbbf24; }
-.regaux-texto-btn { padding:7px 9px; border:1px solid rgba(65,216,143,.27); border-radius:7px; background:rgba(65,216,143,.08); color:#86efac; font:700 .65rem Outfit,sans-serif; cursor:pointer; }
-.regaux-texto-btn:hover { background:rgba(65,216,143,.14); border-color:rgba(65,216,143,.45); }
-.regaux-texto-modal { width:min(1050px,calc(100vw - 28px)); max-width:1050px; padding:0 24px 24px; }
-.regaux-texto-conteudo { max-height:68vh; margin-top:16px; overflow:auto; padding:18px; border:1px solid rgba(139,152,178,.15); border-radius:11px; background:#0c1321; color:#d5dbea; font:400 .75rem/1.62 Arial,sans-serif; white-space:pre-wrap; }
 @media(max-width:1050px){.regaux-form{grid-template-columns:repeat(2,minmax(0,1fr))}.regaux-busca-principal{grid-column:1/-1}.regaux-form button{width:100%}}
 @media(max-width:720px){.regaux-sync-resumo,.regaux-certidao-resumo{grid-template-columns:1fr}.regaux-form{grid-template-columns:1fr}.regaux-busca-principal{grid-column:1}.regaux-table thead{display:none}.regaux-table,.regaux-table tbody,.regaux-table tr,.regaux-table td{display:block;width:100%}.regaux-table tr{padding:10px}.regaux-table td{display:grid;grid-template-columns:110px 1fr;gap:10px;border-right:0}.regaux-table td::before{content:attr(data-label);color:#71809a;font-size:.61rem;font-weight:800;text-transform:uppercase}}
 

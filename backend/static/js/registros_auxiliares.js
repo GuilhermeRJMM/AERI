@@ -63,9 +63,8 @@ function renderizarResultados(dados) {
             <td data-label="Emitente/devedor">${pessoas}</td>
             <td data-label="Produto">${escaparHtml(produtos)}</td>
             <td data-label="Safra">${escaparHtml(safras)}</td>
-            <td data-label="Ação"><button type="button" class="regaux-texto-btn" data-regaux-texto="${item.numero}">Ver texto atualizado</button></td>
         </tr>`;
-    }).join('') || '<tr><td colspan="7" class="rotina-vazio">Nenhum Registro Auxiliar ativo encontrado com esses filtros.</td></tr>';
+    }).join('') || '<tr><td colspan="6" class="rotina-vazio">Nenhum Registro Auxiliar ativo encontrado com esses filtros.</td></tr>';
 }
 
 export async function carregarRegistrosAuxiliares() {
@@ -82,7 +81,7 @@ export async function carregarRegistrosAuxiliares() {
 export function limparRegistrosAuxiliares() {
     sincronizando = false;
     estadoAtual = null;
-    document.getElementById('regaux-resultados').innerHTML = '<tr><td colspan="7" class="rotina-vazio">Entre novamente para pesquisar.</td></tr>';
+    document.getElementById('regaux-resultados').innerHTML = '<tr><td colspan="6" class="rotina-vazio">Entre novamente para pesquisar.</td></tr>';
     document.getElementById('regaux-certidao-resumo').hidden = true;
 }
 
@@ -98,11 +97,11 @@ async function pesquisar(evento) {
         modalidade: document.getElementById('regaux-modalidade').value,
     };
     Object.entries(campos).forEach(([chave, valor]) => { if (valor) parametros.set(chave, valor); });
-    document.getElementById('regaux-resultados').innerHTML = '<tr><td colspan="7" class="rotina-vazio">Pesquisando nos textos indexados…</td></tr>';
+    document.getElementById('regaux-resultados').innerHTML = '<tr><td colspan="6" class="rotina-vazio">Pesquisando nos textos indexados…</td></tr>';
     try {
         renderizarResultados(await requisicaoAeri(`/api/registros-auxiliares?${parametros}`));
     } catch (erro) {
-        document.getElementById('regaux-resultados').innerHTML = `<tr><td colspan="7" class="rotina-vazio">${escaparHtml(erro.message)}</td></tr>`;
+        document.getElementById('regaux-resultados').innerHTML = `<tr><td colspan="6" class="rotina-vazio">${escaparHtml(erro.message)}</td></tr>`;
     } finally {
         botao.disabled = false;
     }
@@ -213,32 +212,9 @@ async function verErrosSincronizacao() {
     }
 }
 
-async function abrirTexto(evento) {
-    const botao = evento.target.closest('[data-regaux-texto]');
-    if (!botao) return;
-    botao.disabled = true;
-    try {
-        const dados = await requisicaoAeri(`/api/registros-auxiliares/${botao.dataset.regauxTexto}/texto`);
-        document.getElementById('regaux-texto-titulo').textContent = `Registro Auxiliar ${formatarNumero(botao.dataset.regauxTexto)}`;
-        document.getElementById('regaux-texto-conteudo').textContent = dados.texto;
-        document.getElementById('modal-regaux-texto').classList.add('aberta');
-    } catch (erro) {
-        alert(erro.message);
-    } finally {
-        botao.disabled = false;
-    }
-}
-
-function fecharTexto() {
-    document.getElementById('modal-regaux-texto').classList.remove('aberta');
-    document.getElementById('regaux-texto-conteudo').textContent = '';
-}
-
 export function iniciarRegistrosAuxiliares() {
     document.getElementById('form-regaux-pesquisa').addEventListener('submit', pesquisar);
     document.getElementById('btn-regaux-sincronizar').addEventListener('click', alternarSincronizacao);
     document.getElementById('btn-regaux-novos').addEventListener('click', buscarNovos);
     document.getElementById('btn-regaux-ver-erros').addEventListener('click', verErrosSincronizacao);
-    document.getElementById('regaux-resultados').addEventListener('click', abrirTexto);
-    document.getElementById('btn-fechar-regaux-texto').addEventListener('click', fecharTexto);
 }
