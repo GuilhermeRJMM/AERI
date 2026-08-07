@@ -93,6 +93,24 @@ class TesteRegistrosAuxiliares(unittest.TestCase):
 
         self.assertEqual([item["nome"] for item in indice["pessoas"]], ["Ana Souza", "Carlos Souza"])
 
+    def test_preserva_varios_devedores_mesmo_com_cabecalho_singular(self):
+        # Regressão: matrícula 29.461 (relato de busca por "PAULO CESAR
+        # CHIARI" faltando no resultado) tinha rótulo "DEVEDOR:" no singular
+        # listando duas pessoas — a segunda ficava de fora porque a divisão
+        # em pessoas dependia do cabeçalho sinalizar plural explicitamente.
+        texto = """
+        DEVEDOR: 1)- João da Silva, inscrito no CPF sob o n.º 111.222.333-44;
+        2)- Paulo Cesar Chiari, inscrito no CPF sob o n.º 555.666.777-88.
+        CREDORA: Cooperativa Exemplo, inscrita no CNPJ sob o n.º 12.345.678/0001-90.
+        """
+
+        indice = extrair_indice_registro_auxiliar(29461, texto)
+
+        self.assertEqual(
+            [item["nome"] for item in indice["pessoas"]],
+            ["João da Silva", "Paulo Cesar Chiari"],
+        )
+
     def test_reconhece_emitente_com_papeis_complementares(self):
         casos = (
             "EMITENTE/DEVEDOR/FIEL",

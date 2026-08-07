@@ -2,6 +2,7 @@ import {requisicaoAeri} from './api.js';
 import {escaparHtml} from './util.js';
 
 let sincronizando = false;
+let revisando = false;
 let estadoAtual = null;
 
 function rotuloModalidade(valor) {
@@ -146,6 +147,64 @@ async function sincronizarCargaInicial() {
     sincronizando = false;
     atualizarBotaoSincronizacao();
 }
+function atualizarBotaoRevisao() {
+    const botao = document.getElementById('btn-regaux-revisar');
+    botao.textContent = revisando ? 'Pausar revisão' : 'Revisar registros indexados';
+    botao.classList.toggle('pausar', revisando);
+}
+
+async function revisarRegistros() {
+    revisando = true;
+    atualizarBotaoRevisao();
+    const inicioProximoRevisao = estadoAtual?.proximoRevisao ?? 1;
+    let processadosNestaVolta = 0;
+    let falhasTemporarias = 0;
+    while (revisando) {
+        try {
+            const resultado = await requisicaoAeri('/api/registros-auxiliares/sincronizar', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({modo:'REVISAO', tamanho:20}),
+            });
+            falhasTemporarias = 0;
+            atualizarStatus(resultado.estado);
+            processadosNestaVolta += resultado.processados;
+            document.getElementById('regaux-lote-status').textContent = resultado.falha
+                ? resultado.falha
+                : `Revisão: ${processadosNestaVolta} de ${formatarNumero(estadoAtual.totalIndexados)} revisado(s) nesta volta · ${resultado.alterados} atualizado(s) neste lote.`;
+            // Uma volta completa termina quando o cursor de revisão volta a
+            // cruzar o ponto de partida, ou quando não sobra nada indexado
+            // pra revisar.
+            const completouVolta = processadosNestaVolta > 0
+                && resultado.estado.proximoRevisao >= inicioProximoRevisao
+                && processadosNestaVolta >= estadoAtual.totalIndexados;
+            if (resultado.falha || resultado.processados === 0 || completouVolta) break;
+            await new Promise(resolve => window.setTimeout(resolve, 180));
+        } catch (erro) {
+            const mensagem = erro.message || 'Falha temporária na revisão.';
+            if (/sess[aã]o expirou|permiss[aã]o|troque sua senha/i.test(mensagem)) {
+                document.getElementById('regaux-lote-status').textContent = mensagem;
+                break;
+            }
+            falhasTemporarias += 1;
+            document.getElementById('regaux-lote-status').textContent = `${mensagem} Tentando novamente (${falhasTemporarias}/5)...`;
+            if (falhasTemporarias >= 5) break;
+            await new Promise(resolve => window.setTimeout(resolve, 2000 * falhasTemporarias));
+        }
+    }
+    revisando = false;
+    atualizarBotaoRevisao();
+}
+
+function alternarRevisao() {
+    if (revisando) {
+        revisando = false;
+        atualizarBotaoRevisao();
+        document.getElementById('regaux-lote-status').textContent = 'Pausa solicitada. O lote atual será concluído.';
+        return;
+    }
+    revisarRegistros();
+}
+
 function alternarSincronizacao() {
     if (sincronizando) {
         sincronizando = false;
@@ -217,4 +276,5 @@ export function iniciarRegistrosAuxiliares() {
     document.getElementById('btn-regaux-sincronizar').addEventListener('click', alternarSincronizacao);
     document.getElementById('btn-regaux-novos').addEventListener('click', buscarNovos);
     document.getElementById('btn-regaux-ver-erros').addEventListener('click', verErrosSincronizacao);
+    document.getElementById('btn-regaux-revisar').addEventListener('click', alternarRevisao);
 }

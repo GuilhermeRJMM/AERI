@@ -110,11 +110,13 @@ def _extrair_pessoas(texto: str) -> list[dict]:
         fim = min(candidatos_fim, default=limite)
         bloco = texto_linear[inicio:fim]
         papel = normalizar_busca(marcador.group("papel"))
-        plural = bool(re.search(
-            r"\b(?:EMITENTES|DEVEDORES|DEVEDORAS)\b|\((?:S|ES|AS)\)",
-            papel,
-        ))
-        segmentos = re.split(r";\s*(?=(?:\d+\)\s*[-–—]?\s*)?[A-ZÀ-Ü])", bloco) if plural else [bloco]
+        # Não confiar só no cabeçalho para decidir se há mais de uma pessoa:
+        # é comum o texto listar "1)-", "2)-" mesmo sob um rótulo singular
+        # (ex.: "DEVEDOR:" com dois devedores separados por ";"). Tentar
+        # sempre dividir é seguro porque cada pedaço só é aceito se bater
+        # com o padrão de nome+documento; um corte espúrio simplesmente não
+        # encontra pessoa nenhuma naquele trecho.
+        segmentos = re.split(r";\s*(?=(?:\d+\)\s*[-–—]?\s*)?[A-ZÀ-Ü])", bloco)
         for segmento in segmentos:
             item = pessoa_no_inicio.search(segmento)
             if not item:
