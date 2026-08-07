@@ -1,3 +1,5 @@
+import hmac
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -248,21 +250,9 @@ def status_sincronizacao(
             return _estado_json(cursor)
 
 
-@router.post("/sincronizar", dependencies=[Depends(proteger_csrf)])
-def sincronizar_registros_auxiliares(
-    dados: dict,
-    request: Request,
-    usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
-):
-    modo = str(dados.get("modo", "INICIAL")).strip().upper()
-    if modo not in {"INICIAL", "NOVOS", "REVISAO", "ERROS"}:
-        raise HTTPException(status_code=422, detail="Modo de sincronização inválido.")
-    try:
-        tamanho = max(1, min(int(dados.get("tamanho", 15)), 30))
-        limite_informado = int(dados.get("limite", 0) or 0)
-    except (TypeError, ValueError) as erro:
-        raise HTTPException(status_code=422, detail="Parâmetros de sincronização inválidos.") from erro
-
+def _executar_sincronizacao(
+    modo: str, tamanho: int, limite_informado: int, request: Request, usuario: str
+) -> dict:
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             # Trava por lease (não por pg_advisory_lock): a trava por sessão
@@ -398,6 +388,58 @@ def sincronizar_registros_auxiliares(
                     "UPDATE sincronizacao_registros_auxiliares_aeri SET travado_em=NULL WHERE id=1"
                 )
                 conexao.commit()
+
+
+@router.post("/sincronizar", dependencies=[Depends(proteger_csrf)])
+def sincronizar_registros_auxiliares(
+    dados: dict,
+    request: Request,
+    usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+):
+    modo = str(dados.get("modo", "INICIAL")).strip().upper()
+    if modo not in {"INICIAL", "NOVOS", "REVISAO", "ERROS"}:
+        raise HTTPException(status_code=422, detail="Modo de sincronização inválido.")
+    try:
+        tamanho = max(1, min(int(dados.get("tamanho", 15)), 30))
+        limite_informado = int(dados.get("limite", 0) or 0)
+    except (TypeError, ValueError) as erro:
+        raise HTTPException(status_code=422, detail="Parâmetros de sincronização inválidos.") from erro
+    return _executar_sincronizacao(modo, tamanho, limite_informado, request, usuario)
+
+
+def _proximo_modo_automatico(cursor) -> str | None:
+    cursor.execute("SELECT * FROM sincronizacao_registros_auxiliares_aeri WHERE id=1")
+    estado = cursor.fetchone()
+    if estado["proximo_inicial"] <= estado["limite_inicial"]:
+        return "INICIAL"
+    cursor.execute("SELECT COUNT(*) AS total FROM registros_auxiliares_erros_aeri")
+    if cursor.fetchone()["total"] > 0:
+        return "ERROS"
+    return "NOVOS"
+
+
+@router.get("/cron")
+def cron_sincronizar_registros_auxiliares(request: Request):
+    segredo = os.getenv("CRON_SECRET", "")
+    autorizacao = request.headers.get("authorization", "")
+    if not segredo or not hmac.compare_digest(autorizacao, f"Bearer {segredo}"):
+        raise HTTPException(status_code=401, detail="Não autorizado.")
+
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            modo = _proximo_modo_automatico(cursor)
+
+    resultado = _executar_sincronizacao(modo, tamanho=20, limite_informado=0, request=request, usuario="cron")
+    if modo == "NOVOS":
+        with conectar() as conexao:
+            with conexao.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) AS total FROM registros_auxiliares_erros_aeri")
+                sem_erros = cursor.fetchone()["total"] == 0
+        if sem_erros:
+            resultado["revisao"] = _executar_sincronizacao(
+                "REVISAO", tamanho=20, limite_informado=0, request=request, usuario="cron"
+            )
+    return resultado
 
 
 @router.get("/{numero}/texto")

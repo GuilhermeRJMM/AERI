@@ -48,5 +48,11 @@
       "src": "/(.*)",
       "dest": "backend/app/main.py"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/registros-auxiliares/cron",
+      "schedule": "0 6 * * *"
+    }
   ]
 }
