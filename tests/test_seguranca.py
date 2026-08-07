@@ -9,12 +9,34 @@ from fastapi import Request, Response
 
 from backend.app.autenticacao import hash_senha, permissoes_sessao, senha_forte, verificar_senha
 from backend.app.seguranca_web import (
+    ip_cliente,
     origem_sync_autorizada,
     origens_sync_autorizadas,
     politica_frame_ancestors,
     politica_samesite_sessao,
 )
 from backend.app.main import seguranca_http
+
+
+def _requisicao_com_cabecalhos(cabecalhos: dict[str, str]) -> Request:
+    escopo = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "https",
+        "path": "/",
+        "raw_path": b"/",
+        "query_string": b"",
+        "root_path": "",
+        "headers": [
+            (chave.lower().encode(), valor.encode())
+            for chave, valor in cabecalhos.items()
+        ],
+        "client": ("127.0.0.1", 12345),
+        "server": ("aeri.example", 443),
+    }
+    return Request(escopo)
 
 
 class TesteSeguranca(unittest.TestCase):
@@ -167,6 +189,20 @@ class TesteSeguranca(unittest.TestCase):
             "http://localhost:3031",
             cabecalhos["content-security-policy"],
         )
+
+    def test_ip_cliente_usa_o_ultimo_salto_do_x_forwarded_for(self):
+        # O último salto é escrito pelo proxy confiável (Vercel); os
+        # anteriores vêm do próprio cliente e são livremente forjáveis. Usar
+        # o primeiro permitia burlar o bloqueio de tentativas de login
+        # trocando esse valor a cada requisição.
+        requisicao = _requisicao_com_cabecalhos(
+            {"x-forwarded-for": "1.2.3.4, 5.6.7.8, 203.0.113.9"}
+        )
+        self.assertEqual(ip_cliente(requisicao), "203.0.113.9")
+
+    def test_ip_cliente_usa_ip_da_conexao_sem_x_forwarded_for(self):
+        requisicao = _requisicao_com_cabecalhos({})
+        self.assertEqual(ip_cliente(requisicao), "127.0.0.1")
 
     def test_middleware_libera_frame_apenas_para_sync_configurado(self):
         escopo = {

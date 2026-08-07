@@ -198,6 +198,14 @@ def trocar_minha_senha(dados: dict, request: Request):
                 """UPDATE usuarios_aeri SET senha_hash=%s, deve_trocar_senha=FALSE, atualizado_em=NOW()
                 WHERE usuario=%s""", (hash_senha(nova), usuario),
             )
+            # Derruba as demais sessões (ex.: uma sessão roubada em outro
+            # dispositivo) sem encerrar a sessão atual que acabou de trocar
+            # a senha — ao contrário da redefinição feita por um ADM, aqui
+            # o próprio usuário ainda está usando a sessão em uso.
+            cursor.execute(
+                "UPDATE sessoes_aeri SET revogada_em=NOW() WHERE usuario=%s AND id<>%s",
+                (usuario, request.state.sessao["id"]),
+            )
         conexao.commit()
     registrar_auditoria(request, "trocar_senha", "sucesso", usuario)
     return {"ok": True}

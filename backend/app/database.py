@@ -5,6 +5,7 @@ from threading import Lock
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 
 
 MIGRACOES_DIR = Path(__file__).resolve().parent / "migrations"
@@ -41,7 +42,15 @@ def _executar_migracoes(cursor) -> None:
         if arquivo.name in aplicadas:
             continue
         cursor.execute(arquivo.read_text(encoding="utf-8"))
-        cursor.execute("INSERT INTO migracoes_aeri (versao) VALUES (%s)", (arquivo.name,))
+        # ON CONFLICT DO NOTHING: sob cold starts concorrentes, duas
+        # instâncias podem ver a mesma migração como pendente; sem isso, a
+        # segunda esbarra em violação de chave única nesse INSERT e a
+        # requisição inteira falha com 500 (mesmo com o DDL em si já sendo
+        # idempotente).
+        cursor.execute(
+            "INSERT INTO migracoes_aeri (versao) VALUES (%s) ON CONFLICT (versao) DO NOTHING",
+            (arquivo.name,),
+        )
 
 
 def _garantir_usuario_administrador(cursor) -> None:
@@ -57,12 +66,26 @@ def _garantir_usuario_administrador(cursor) -> None:
             "AERI_ADMIN_PASSWORD deve ter 14 caracteres, maiúscula, minúscula, número e símbolo."
         )
 
-    cursor.execute("SELECT senha_hash FROM usuarios_aeri WHERE usuario = %s", (usuario,))
+    cursor.execute("SELECT perfil, ativo FROM usuarios_aeri WHERE usuario = %s", (usuario,))
     existente = cursor.fetchone()
     if existente:
+        if existente["perfil"] == "ADMIN" and existente["ativo"]:
+            return
+        # A conta foi alterada deliberadamente (ex.: desativada por suspeita
+        # de comprometimento) e o bootstrap está prestes a reverter isso.
+        # Sem este registro, essa reversão acontecia em silêncio a cada
+        # cold start, sem deixar rastro na auditoria.
         cursor.execute(
             "UPDATE usuarios_aeri SET perfil='ADMIN', ativo=TRUE WHERE usuario=%s",
             (usuario,),
+        )
+        cursor.execute(
+            """INSERT INTO auditoria_aeri (usuario, acao, resultado, detalhes)
+            VALUES (%s, 'bootstrap_admin_reativado', 'sucesso', %s)""",
+            (usuario, Jsonb({
+                "perfilAnterior": existente["perfil"],
+                "ativoAnterior": existente["ativo"],
+            })),
         )
         return
 

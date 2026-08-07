@@ -340,17 +340,29 @@ def aprovar_regra_aprendizado(
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
+                "SELECT criado_por FROM regras_aprendizado_aeri WHERE id=%s",
+                (identificador,),
+            )
+            regra = cursor.fetchone()
+            if not regra:
+                raise HTTPException(status_code=404, detail="Regra de aprendizado não encontrada.")
+            if regra["criado_por"] == admin:
+                # Exige um segundo revisor: quem sugere a regra não pode ser
+                # quem aprova, já que isso muda a classificação de ônus para
+                # todo mundo sem nenhuma revisão independente.
+                raise HTTPException(
+                    status_code=403,
+                    detail="Quem sugeriu a regra não pode aprová-la — peça a outro ADM/SUBSTITUTO.",
+                )
+            cursor.execute(
                 """UPDATE regras_aprendizado_aeri
                 SET status='APROVADA', aprovado_por=%s, aprovado_em=NOW(), atualizado_em=NOW()
                 WHERE id=%s RETURNING *""",
                 (admin, identificador),
             )
             item = cursor.fetchone()
-            if item:
-                registrar_auditoria_cursor(cursor, request, "aprovar_regra_aprendizado", "sucesso", admin, str(identificador))
+            registrar_auditoria_cursor(cursor, request, "aprovar_regra_aprendizado", "sucesso", admin, str(identificador))
         conexao.commit()
-    if not item:
-        raise HTTPException(status_code=404, detail="Regra de aprendizado não encontrada.")
     return _regra_json(item)
 
 

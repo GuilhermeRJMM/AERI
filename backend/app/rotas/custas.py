@@ -120,6 +120,11 @@ def atualizar_custas(
             anterior = cursor.fetchone()
             if not anterior:
                 raise HTTPException(status_code=404, detail="Pedido não encontrado.")
+            if anterior["finalizado"]:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Este pedido já foi finalizado. Reabra antes de editar.",
+                )
             cursor.execute(
                 """UPDATE custas_livro3_aeri SET
                 nome=%s, documento=%s, modalidade=%s, produto=%s, safra=%s,

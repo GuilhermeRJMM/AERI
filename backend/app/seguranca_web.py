@@ -86,7 +86,11 @@ def politica_samesite_sessao() -> str:
 def ip_cliente(request: Request) -> str:
     encaminhado = request.headers.get("x-forwarded-for", "")
     if encaminhado:
-        return encaminhado.split(",", 1)[0].strip()[:64]
+        # O último salto é o adicionado pelo proxy confiável (Vercel); os
+        # anteriores vêm do próprio cliente e podem ser forjados livremente.
+        # Usar o primeiro permitia burlar o bloqueio de tentativas de login
+        # (e falsificar a auditoria) trocando esse valor a cada requisição.
+        return encaminhado.split(",")[-1].strip()[:64]
     return (request.client.host if request.client else "desconhecido")[:64]
 
 
