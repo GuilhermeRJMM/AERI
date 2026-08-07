@@ -146,20 +146,14 @@ def inferir_data_esperada(linhas: list[dict]) -> date | None:
     return date.fromisoformat(mais_comum)
 
 
-def _itens_com_ato(protocolo_json: dict) -> list[dict]:
-    # Busca e Prenotação são itens administrativos (ato_tipo/ato_numero
-    # nulos) — não são um registro/averbação de verdade, então não fazem
-    # sentido conferir contra o Dados do Título.
-    itens = []
-    for item in protocolo_json.get("itens_do_pedido") or []:
-        registrado = item.get("atos_registrados") or {}
-        if registrado.get("ato_tipo") is not None and registrado.get("ato_numero") is not None:
-            itens.append(item)
-    return itens
-
-
 def _regra_natureza_bate_com_titulo(protocolo_json: dict) -> list[dict]:
+    # Só o item em 1ª posição é conferido contra o Dados do Título — os
+    # demais itens do pedido (CEP, cancelamentos, outras averbações que
+    # acompanham o ato principal) legitimamente não precisam bater com o
+    # título e geravam ocorrência à toa quando essa checagem foi estendida
+    # para todos os itens.
     protocolo = protocolo_json.get("protocolo") or {}
+    itens = protocolo_json.get("itens_do_pedido") or []
     descricao_titulo = protocolo.get("descricao_titulo")
     if not _texto_valido(descricao_titulo):
         return [{
@@ -167,49 +161,35 @@ def _regra_natureza_bate_com_titulo(protocolo_json: dict) -> list[dict]:
             "gravidade": "GRAVE",
             "descricao": "O protocolo não possui descrição do título (descricao_titulo em branco).",
         }]
-
-    itens_com_ato = _itens_com_ato(protocolo_json)
-    if not itens_com_ato:
+    if not itens or not _texto_valido(itens[0].get("natureza_formal_descricao")):
         return [{
             "regra": "NATUREZA_TITULO",
             "gravidade": "GRAVE",
-            "descricao": "Nenhum item com registro/averbação foi encontrado para conferir contra o título.",
+            "descricao": "O item em 1ª posição não possui Natureza Formal do Título preenchida.",
         }]
-
+    natureza = itens[0]["natureza_formal_descricao"]
     titulo_tema = _normalizar_tema(str(descricao_titulo))
-    ocorrencias = []
-    for item in itens_com_ato:
-        registrado = item["atos_registrados"]
-        rotulo = f"{registrado.get('ato_tipo')}.{registrado.get('ato_numero')}"
-        natureza = item.get("natureza_formal_descricao")
-        if not _texto_valido(natureza):
-            ocorrencias.append({
-                "regra": "NATUREZA_TITULO",
-                "gravidade": "GRAVE",
-                "descricao": f"{rotulo}: não possui Natureza Formal do Título preenchida.",
-            })
-            continue
-        natureza_tema = _normalizar_tema(str(natureza))
-        # Comparação por conteúdo (não igualdade exata), ignorando
-        # preposições/conectivos: descricao_titulo costuma ser o nome
-        # completo do instrumento e pode conter a natureza formal como parte
-        # do texto (ex.: "ESCRITURA ... E DAÇÃO EM PAGAMENTO" contém "DAÇÃO
-        # EM PAGAMENTO"), e a mesma natureza às vezes vem escrita com uma
-        # preposição diferente entre as duas fontes (ex.: "Designação
-        # Cadastral DO Imóvel" vs "... DE Imóvel") sem mudar o sentido.
-        # Quando nem removendo conectivos um aparece dentro do outro, os dois
-        # textos não têm relação nenhuma — sinal de que a natureza formal
-        # escolhida no item não corresponde ao título do protocolo.
-        if natureza_tema not in titulo_tema and titulo_tema not in natureza_tema:
-            ocorrencias.append({
-                "regra": "NATUREZA_TITULO",
-                "gravidade": "GRAVE",
-                "descricao": (
-                    f"{rotulo}: Dados do Título ('{descricao_titulo}') não corresponde à "
-                    f"Natureza Formal ('{natureza}')."
-                ),
-            })
-    return ocorrencias
+    natureza_tema = _normalizar_tema(str(natureza))
+    # Comparação por conteúdo (não igualdade exata), ignorando
+    # preposições/conectivos: descricao_titulo costuma ser o nome completo
+    # do instrumento e pode conter a natureza formal como parte do texto
+    # (ex.: "ESCRITURA ... E DAÇÃO EM PAGAMENTO" contém "DAÇÃO EM
+    # PAGAMENTO"), e a mesma natureza às vezes vem escrita com uma
+    # preposição diferente entre as duas fontes (ex.: "Designação Cadastral
+    # DO Imóvel" vs "... DE Imóvel") sem mudar o sentido. Quando nem
+    # removendo conectivos um aparece dentro do outro, os dois textos não
+    # têm relação nenhuma — sinal de que a natureza formal escolhida no
+    # item não corresponde ao título do protocolo.
+    if natureza_tema not in titulo_tema and titulo_tema not in natureza_tema:
+        return [{
+            "regra": "NATUREZA_TITULO",
+            "gravidade": "GRAVE",
+            "descricao": (
+                f"Dados do Título ('{descricao_titulo}') não corresponde à Natureza Formal "
+                f"do 1º item ('{natureza}')."
+            ),
+        }]
+    return []
 
 
 def _regra_busca_com_matricula(protocolo_json: dict) -> list[dict]:
@@ -229,13 +209,20 @@ def _regra_busca_com_matricula(protocolo_json: dict) -> list[dict]:
 
 def _regra_ordem_e_texto_dos_atos(protocolo_json: dict) -> list[dict]:
     ocorrencias = []
-    atos: list[tuple[int, str]] = []
+    # A numeração de R./Av. é por imóvel, não por protocolo: um protocolo
+    # que abrange vários imóveis tem uma sequência independente em cada um
+    # (ex.: AV.31 num imóvel seguido de AV.11 em outro é normal). Agrupar por
+    # (tipo_registro, numero_registro) antes de checar a ordem evita
+    # comparar sequências de imóveis diferentes entre si.
+    atos_por_imovel: dict[tuple, list[tuple[int, str]]] = {}
     for item in protocolo_json.get("itens_do_pedido") or []:
         registrado = item.get("atos_registrados") or {}
         numero, tipo = registrado.get("ato_numero"), registrado.get("ato_tipo")
         if numero is None or tipo is None:
             continue
-        atos.append((int(numero), str(tipo)))
+        imovel = item.get("dados_imovel") or {}
+        chave_imovel = (imovel.get("tipo_registro"), imovel.get("numero_registro"))
+        atos_por_imovel.setdefault(chave_imovel, []).append((int(numero), str(tipo)))
         texto = registrado.get("texto") or ""
         rotulo = f"{tipo}.{numero}"
         if PADRAO_DATA_PLACEHOLDER.search(texto):
@@ -256,13 +243,16 @@ def _regra_ordem_e_texto_dos_atos(protocolo_json: dict) -> list[dict]:
                 "gravidade": "ATENCAO",
                 "descricao": f"{rotulo}: selo e/ou cotação (emolumentos/ISSQN/taxa/total) aparentam estar em branco.",
             })
-    for anterior, atual in zip(atos, atos[1:]):
-        if atual[0] < anterior[0]:
-            ocorrencias.append({
-                "regra": "ORDEM_NUMERICA",
-                "gravidade": "GRAVE",
-                "descricao": f"Ordem fora de sequência: {anterior[1]}.{anterior[0]} seguido de {atual[1]}.{atual[0]}.",
-            })
+    for atos in atos_por_imovel.values():
+        for anterior, atual in zip(atos, atos[1:]):
+            if atual[0] < anterior[0]:
+                ocorrencias.append({
+                    "regra": "ORDEM_NUMERICA",
+                    "gravidade": "GRAVE",
+                    "descricao": (
+                        f"Ordem fora de sequência: {anterior[1]}.{anterior[0]} seguido de {atual[1]}.{atual[0]}."
+                    ),
+                })
     return ocorrencias
 
 
@@ -287,5 +277,9 @@ def conferir_protocolo(item_pdf: dict, protocolo_json: dict, data_esperada: date
         *_regra_natureza_bate_com_titulo(protocolo_json),
         *_regra_busca_com_matricula(protocolo_json),
         *_regra_ordem_e_texto_dos_atos(protocolo_json),
-        *_regra_data_um_dia_antes(item_pdf, data_esperada),
+        # Regra de data desativada por enquanto: mesmo com inferir_data_esperada()
+        # olhando a própria folha em vez de "hoje - 1 dia" fixo, ainda gerou
+        # ocorrência em casos legítimos. Fica pausada até a lógica ser revista;
+        # _regra_data_um_dia_antes/item_pdf/data_esperada seguem disponíveis
+        # pra quando isso for retomado.
     ]

@@ -3,6 +3,7 @@ from datetime import date
 from pathlib import Path
 
 from backend.app.servicos.livro_protocolos import (
+    _regra_data_um_dia_antes,
     classificar_status,
     conferir_protocolo,
     extrair_protocolos_pdf,
@@ -237,11 +238,13 @@ class TesteConferirProtocolo(unittest.TestCase):
         self.assertIn("GEORREFERENCIAMENTO", relevantes[0]["descricao"])
         self.assertIn("Código de Endereçamento Postal", relevantes[0]["descricao"])
 
-    def test_verifica_todos_os_itens_com_ato_nao_so_o_primeiro(self):
-        # Protocolo real: 3 itens com ato de verdade (CEP, Dação em
-        # Pagamento, Cancelamento de Alienação Fiduciária) sob a mesma
-        # escritura. Só o do meio bate com o texto do título -- os outros
-        # dois têm que ser sinalizados mesmo não sendo o 1º item.
+    def test_so_o_primeiro_item_e_conferido_contra_o_titulo(self):
+        # Regressão: um protocolo real tinha 3 itens com ato de verdade (CEP,
+        # Dação em Pagamento, Cancelamento de Alienação Fiduciária) sob a
+        # mesma escritura -- checar todos os itens gerava ocorrência à toa
+        # nos itens que legitimamente não precisam bater com o título (CEP,
+        # cancelamentos etc. que acompanham o ato principal). Só o item em 1ª
+        # posição é conferido.
         protocolo = _protocolo_base(
             protocolo={
                 "protocolo_numero": 185256,
@@ -250,36 +253,18 @@ class TesteConferirProtocolo(unittest.TestCase):
                 ),
             },
             itens_do_pedido=[
-                {"natureza_formal_descricao": "Código de Endereçamento Postal - CEP", "dados_imovel": {},
-                 "atos_registrados": {"ato_tipo": "A", "ato_numero": 18, "texto": ""}},
                 {"natureza_formal_descricao": "Dação em Pagamento", "dados_imovel": {},
                  "atos_registrados": {"ato_tipo": "R", "ato_numero": 19, "texto": ""}},
+                {"natureza_formal_descricao": "Código de Endereçamento Postal - CEP", "dados_imovel": {},
+                 "atos_registrados": {"ato_tipo": "A", "ato_numero": 18, "texto": ""}},
                 {"natureza_formal_descricao": "Cancelamento de Alienação Fiduciária", "dados_imovel": {},
                  "atos_registrados": {"ato_tipo": "A", "ato_numero": 20, "texto": ""}},
             ],
         )
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
-        relevantes = {o["descricao"].split(":")[0] for o in ocorrencias if o["regra"] == "NATUREZA_TITULO"}
-        self.assertEqual(relevantes, {"A.18", "A.20"})
-
-    def test_busca_e_prenotacao_ficam_de_fora_da_checagem_de_natureza(self):
-        # Busca e Prenotação não têm ato_tipo/ato_numero (não são um
-        # registro/averbação de verdade) e nunca vão bater textualmente com
-        # o título -- têm que ficar de fora da regra, não gerar ocorrência.
-        protocolo = _protocolo_base(itens_do_pedido=[
-            {"natureza_formal_descricao": "Cédula de Produto Rural", "dados_imovel": {},
-             "atos_registrados": {"ato_tipo": "R", "ato_numero": 1, "texto": ""}},
-            {"natureza_formal_descricao": "Busca", "dados_imovel": {},
-             "atos_registrados": {"ato_tipo": None, "ato_numero": None, "texto": ""}},
-            {"natureza_formal_descricao": "Prenotação", "dados_imovel": {},
-             "atos_registrados": {"ato_tipo": None, "ato_numero": None, "texto": ""}},
-        ])
-        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
 
     def _itens_com_busca(self, numero_registro):
-        # "Busca" é um item auxiliar sem ato_tipo/ato_numero, então fica de
-        # fora da checagem de Natureza x Título mesmo não sendo o 1º item.
         return [
             {
                 "natureza_formal_descricao": "Cédula de Produto Rural",
@@ -329,6 +314,40 @@ class TesteConferirProtocolo(unittest.TestCase):
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertEqual(ocorrencias, [])
 
+    def test_ordem_numerica_ignora_sequencias_de_imoveis_diferentes(self):
+        # Regressão relatada: "AV.31 seguido de AV.11" e "AV.24 seguido de
+        # AV.15" foram sinalizados como fora de ordem, mas eram imóveis
+        # diferentes dentro do mesmo protocolo -- cada matrícula tem sua
+        # própria sequência de R./Av., não faz sentido compará-las entre si.
+        protocolo = _protocolo_base(itens_do_pedido=[
+            {"natureza_formal_descricao": "Cédula de Produto Rural",
+             "dados_imovel": {"tipo_registro": "M", "numero_registro": 152},
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 31, "texto": ""}},
+            {"natureza_formal_descricao": "Cédula de Produto Rural",
+             "dados_imovel": {"tipo_registro": "M", "numero_registro": 200},
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 11, "texto": ""}},
+            {"natureza_formal_descricao": "Cédula de Produto Rural",
+             "dados_imovel": {"tipo_registro": "M", "numero_registro": 152},
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 32, "texto": ""}},
+        ])
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        self.assertFalse(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
+
+    def test_ordem_numerica_ainda_detecta_erro_dentro_do_mesmo_imovel(self):
+        protocolo = _protocolo_base(itens_do_pedido=[
+            {"natureza_formal_descricao": "Cédula de Produto Rural",
+             "dados_imovel": {"tipo_registro": "M", "numero_registro": 152},
+             "atos_registrados": {"ato_tipo": "R", "ato_numero": 1, "texto": ""}},
+            {"natureza_formal_descricao": "Cédula de Produto Rural",
+             "dados_imovel": {"tipo_registro": "M", "numero_registro": 152},
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 3, "texto": ""}},
+            {"natureza_formal_descricao": "Cédula de Produto Rural",
+             "dados_imovel": {"tipo_registro": "M", "numero_registro": 152},
+             "atos_registrados": {"ato_tipo": "R", "ato_numero": 2, "texto": ""}},
+        ])
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        self.assertTrue(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
+
     def test_data_placeholder_xx_e_ocorrencia_grave(self):
         protocolo = _protocolo_base()
         protocolo["itens_do_pedido"][0]["atos_registrados"]["texto"] = "AV. 18-152 - Data: xx.07.2026. Texto do ato."
@@ -353,16 +372,26 @@ class TesteConferirProtocolo(unittest.TestCase):
         self.assertTrue(relevantes)
         self.assertTrue(all(o["gravidade"] == "ATENCAO" for o in relevantes))
 
-    def test_data_diferente_da_esperada_e_ocorrencia_grave(self):
+    def test_regra_de_data_esta_desativada_em_conferir_protocolo(self):
+        # Desativada a pedido: mesmo inferindo a data esperada a partir da
+        # própria folha (em vez de "hoje - 1 dia" fixo), ainda gerava
+        # ocorrência em casos legítimos. _regra_data_um_dia_antes continua
+        # definida e testada isoladamente abaixo, pronta pra ser religada.
         ocorrencias = conferir_protocolo(
             self._item_registrado(data="2026-08-05"), _protocolo_base(), data_esperada=date(2026, 8, 6),
         )
+        self.assertFalse(any(o["regra"] == "DATA_DIVERGENTE" for o in ocorrencias))
+
+    def test_funcao_de_data_isolada_ainda_detecta_divergencia(self):
+        ocorrencias = _regra_data_um_dia_antes(
+            self._item_registrado(data="2026-08-05"), data_esperada=date(2026, 8, 6),
+        )
         self.assertTrue(any(o["regra"] == "DATA_DIVERGENTE" for o in ocorrencias))
 
-    def test_data_nao_e_checada_para_protocolo_prenotado(self):
+    def test_funcao_de_data_isolada_ignora_protocolo_prenotado(self):
         item = self._item_registrado(status="PRENOTADO", data="2026-08-01")
-        ocorrencias = conferir_protocolo(item, _protocolo_base(), data_esperada=date(2026, 8, 6))
-        self.assertFalse(any(o["regra"] == "DATA_DIVERGENTE" for o in ocorrencias))
+        ocorrencias = _regra_data_um_dia_antes(item, data_esperada=date(2026, 8, 6))
+        self.assertEqual(ocorrencias, [])
 
 
 if __name__ == "__main__":
