@@ -250,6 +250,30 @@ def status_sincronizacao(
             return _estado_json(cursor)
 
 
+@router.get("/erros")
+def listar_erros_sincronizacao(
+    _usuario: str = Depends(exigir_permissao("gerenciar_custas")),
+):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """SELECT numero, modo, erro, tentativas, ultima_tentativa_em
+                FROM registros_auxiliares_erros_aeri
+                ORDER BY tentativas DESC, ultima_tentativa_em DESC
+                LIMIT 200"""
+            )
+            return [
+                {
+                    "numero": item["numero"],
+                    "modo": item["modo"],
+                    "erro": item["erro"],
+                    "tentativas": item["tentativas"],
+                    "ultimaTentativaEm": item["ultima_tentativa_em"].isoformat(),
+                }
+                for item in cursor.fetchall()
+            ]
+
+
 def _executar_sincronizacao(
     modo: str, tamanho: int, limite_informado: int, request: Request, usuario: str
 ) -> dict:

@@ -29,6 +29,10 @@ function atualizarStatus(estado) {
     if (pendencias) {
         document.getElementById('regaux-lote-status').textContent = `${formatarNumero(pendencias)} registro(s) com falha aguardando nova tentativa.`;
     }
+    document.getElementById('btn-regaux-ver-erros').hidden = !pendencias;
+    if (!pendencias) {
+        document.getElementById('regaux-erros').hidden = true;
+    }
 }
 
 function formatarMoeda(valor) {
@@ -157,25 +161,53 @@ async function buscarNovos() {
     const botao = document.getElementById('btn-regaux-novos');
     botao.disabled = true;
     try {
-        let falhasReprocessadas = null;
-        if (Number(estadoAtual?.errosPendentes || 0) > 0) {
-            falhasReprocessadas = await requisicaoAeri('/api/registros-auxiliares/sincronizar', {
+        let totalReprocessado = 0;
+        // Reprocessa até esvaziar a fila de erros (ou até 20 lotes, como
+        // limite de segurança), em vez de só um lote de cada vez — falhas
+        // transitórias (rede, limite de taxa da Tri7) tendem a se resolver
+        // sozinhas numa nova tentativa.
+        for (let volta = 0; volta < 20 && Number(estadoAtual?.errosPendentes || 0) > 0; volta += 1) {
+            const falhasReprocessadas = await requisicaoAeri('/api/registros-auxiliares/sincronizar', {
                 method:'POST', headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({modo:'ERROS', tamanho:30}),
             });
             atualizarStatus(falhasReprocessadas.estado);
+            totalReprocessado += falhasReprocessadas.processados;
+            if (falhasReprocessadas.processados === 0) break;
         }
         const resultado = await requisicaoAeri('/api/registros-auxiliares/sincronizar', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body:JSON.stringify({modo:'NOVOS', tamanho:30}),
         });
         atualizarStatus(resultado.estado);
-        const reprocessados = falhasReprocessadas
-            ? ` ${falhasReprocessadas.processados} falha(s) reprocessada(s).`
-            : '';
+        const reprocessados = totalReprocessado ? ` ${totalReprocessado} falha(s) reprocessada(s).` : '';
         document.getElementById('regaux-lote-status').textContent = `${resultado.novos} novo(s) Registro(s) Auxiliar(es) encontrado(s).${reprocessados}`;
     } catch (erro) {
         document.getElementById('regaux-lote-status').textContent = erro.message;
+    } finally {
+        botao.disabled = false;
+    }
+}
+
+async function verErrosSincronizacao() {
+    const botao = document.getElementById('btn-regaux-ver-erros');
+    const painel = document.getElementById('regaux-erros');
+    if (!painel.hidden) {
+        painel.hidden = true;
+        return;
+    }
+    botao.disabled = true;
+    try {
+        const erros = await requisicaoAeri('/api/registros-auxiliares/erros');
+        document.getElementById('regaux-erros-tbody').innerHTML = erros.map(item => `<tr>
+            <td>${formatarNumero(item.numero)}</td>
+            <td>${item.tentativas}</td>
+            <td>${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(item.ultimaTentativaEm))}</td>
+            <td>${escaparHtml(item.erro)}</td>
+        </tr>`).join('') || '<tr><td colspan="4" class="rotina-vazio">Nenhuma falha pendente.</td></tr>';
+        painel.hidden = false;
+    } catch (erro) {
+        alert(erro.message);
     } finally {
         botao.disabled = false;
     }
@@ -206,6 +238,7 @@ export function iniciarRegistrosAuxiliares() {
     document.getElementById('form-regaux-pesquisa').addEventListener('submit', pesquisar);
     document.getElementById('btn-regaux-sincronizar').addEventListener('click', alternarSincronizacao);
     document.getElementById('btn-regaux-novos').addEventListener('click', buscarNovos);
+    document.getElementById('btn-regaux-ver-erros').addEventListener('click', verErrosSincronizacao);
     document.getElementById('regaux-resultados').addEventListener('click', abrirTexto);
     document.getElementById('btn-fechar-regaux-texto').addEventListener('click', fecharTexto);
 }

@@ -291,6 +291,13 @@
                         </div>
                         <p id="regaux-atualizado">Carregando situação…</p>
                         <p id="regaux-lote-status" aria-live="polite"></p>
+                        <button type="button" id="btn-regaux-ver-erros" class="rotina-btn-secondary" hidden>Ver detalhes das falhas</button>
+                        <div id="regaux-erros" class="regaux-erros" hidden>
+                            <table>
+                                <thead><tr><th>Registro</th><th>Tentativas</th><th>Última tentativa</th><th>Erro</th></tr></thead>
+                                <tbody id="regaux-erros-tbody"></tbody>
+                            </table>
+                        </div>
                     </section>
 
                     <section class="regaux-pesquisa-card">
