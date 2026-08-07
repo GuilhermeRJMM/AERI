@@ -5,7 +5,12 @@ from decimal import Decimal
 
 
 PRODUTOS = (
-    ("SOJA", r"\bSOJA(?:\s+EM\s+GRAOS)?\b"),
+    # "Padrão CONCEX" é a classificação de qualidade específica da soja (14%
+    # umidade, 1% impurezas, 8% avariados/5% ardidos, 10% verdes, 30%
+    # quebrados) — algumas cédulas descrevem só essas características, sem
+    # nunca escrever a palavra "SOJA" no texto (campo do template não
+    # preenchido), então esse padrão serve de assinatura alternativa.
+    ("SOJA", r"\bSOJA(?:\s+EM\s+GRAOS)?\b|\bPADRAO\s+CONCEX\b"),
     ("MILHO", r"\bMILHO\b"),
     ("SORGO", r"\bSORGO\b"),
     ("ALGODÃO", r"\bALGODAO\b"),
