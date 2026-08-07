@@ -109,7 +109,19 @@ export async function carregarCustas() {
     const admin = ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil);
     if (!admin && !window.aeriPermissoes?.gerenciar_custas) return;
     try {
-        itens = await requisicaoAeri('/api/custas');
+        const recebidos = await requisicaoAeri('/api/custas');
+        const atuaisPorId = new Map(itens.map(item => [item.id, item]));
+        itens = recebidos.map(recebido => {
+            const atual = atuaisPorId.get(recebido.id);
+            // A atualização automática roda a cada 5s (INTERVALO_ATUALIZACAO_MS
+            // em app.js) e pode buscar o pedido um instante antes de um
+            // Salvar/Finalizar/Reabrir ter comitado no banco. Sem essa
+            // checagem, essa resposta desatualizada sobrescrevia silenciosamente
+            // a mudança que acabou de acontecer (otimista ou já confirmada),
+            // fazendo o pedido "voltar" na tela e obrigando a repetir a ação.
+            if (atual && new Date(atual.atualizadoEm) > new Date(recebido.atualizadoEm)) return atual;
+            return recebido;
+        });
         renderizar();
     } catch (erro) {
         document.getElementById('custas-tbody').innerHTML = `<tr><td colspan="10" class="rotina-vazio">${escaparHtml(erro.message)}</td></tr>`;

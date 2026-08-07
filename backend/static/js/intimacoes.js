@@ -206,10 +206,23 @@ function renderizarIntimacoes() {
 
 export async function carregarIntimacoes() {
     try {
-        intimacoes = await requisicaoAeri('/api/intimacoes');
+        const recebidas = await requisicaoAeri('/api/intimacoes');
+        const atuaisPorId = new Map(intimacoes.map(item => [item.id, item]));
+        intimacoes = recebidas.map(recebida => {
+            const atual = atuaisPorId.get(recebida.id);
+            // A atualização automática roda a cada 5s (INTERVALO_ATUALIZACAO_MS
+            // em app.js) e pode buscar a intimação um instante antes de uma
+            // criação/edição/conferência ter comitado no banco. Sem essa
+            // checagem, essa resposta desatualizada sobrescrevia silenciosamente
+            // a mudança recém-feita, fazendo o item "voltar" na tela (mesma
+            // causa do bug em custas.js).
+            if (atual && new Date(atual.atualizadoEm) > new Date(recebida.atualizadoEm)) return atual;
+            return recebida;
+        });
     } catch (falha) {
         console.error(falha);
-        intimacoes = [];
+        // Mantém a última lista conhecida em vez de zerar: uma falha
+        // passageira do polling não deve apagar tudo que já estava na tela.
     }
     renderizarIntimacoes();
 }
