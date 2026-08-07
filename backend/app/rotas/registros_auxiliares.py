@@ -274,6 +274,51 @@ def listar_erros_sincronizacao(
             ]
 
 
+@router.post("/{numero}/revisar", dependencies=[Depends(proteger_csrf)])
+def revisar_registro_auxiliar(
+    numero: int,
+    request: Request,
+    usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+):
+    """Reconsulta um único número na Tri7 e regrava o índice na hora, sem
+    esperar a fila sequencial de REVISÃO alcançá-lo. Útil quando se sabe que
+    um Registro Auxiliar específico acabou de receber uma averbação/
+    retificação e não se quer esperar o ciclo diário (ou clicar em "Revisar
+    registros indexados" até a fila chegar nele)."""
+    if numero <= 0:
+        raise HTTPException(status_code=422, detail="Número inválido.")
+
+    resultado = _consultar_registro_auxiliar_tri7(numero, _LimitadorTaxaTri7(REQUISICOES_POR_SEGUNDO_TRI7), threading.Event())
+
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            if resultado["status"] == "OK":
+                item, inserido = _salvar_indice(cursor, numero, resultado["texto"])
+                registrar_auditoria_cursor(
+                    cursor, request, "revisar_registro_auxiliar", "sucesso", usuario,
+                    detalhes={"numero": numero, "novo": inserido, "alterado": item["alterado"]},
+                )
+                conexao.commit()
+                return {"status": "OK", "item": registro_auxiliar_json(item)}
+
+            if resultado["status"] == "AUSENTE":
+                _limpar_erro(cursor, numero)
+                registrar_auditoria_cursor(
+                    cursor, request, "revisar_registro_auxiliar", "ausente", usuario, detalhes={"numero": numero},
+                )
+                conexao.commit()
+                raise HTTPException(status_code=404, detail="Registro Auxiliar sem texto disponível na Tri7.")
+
+            erro = resultado.get("erro")
+            _registrar_erro(cursor, numero, "MANUAL", erro)
+            registrar_auditoria_cursor(
+                cursor, request, "revisar_registro_auxiliar", "falha", usuario,
+                detalhes={"numero": numero, "erro": str(erro)[:180]},
+            )
+            conexao.commit()
+            raise HTTPException(status_code=502, detail=f"Falha ao consultar a Tri7: {erro}")
+
+
 def _executar_sincronizacao(
     modo: str, tamanho: int, limite_informado: int, request: Request, usuario: str
 ) -> dict:

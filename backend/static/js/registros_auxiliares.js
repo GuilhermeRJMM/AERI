@@ -247,6 +247,29 @@ async function buscarNovos() {
     }
 }
 
+async function revisarNumero() {
+    const campo = document.getElementById('regaux-numero-revisar');
+    const botao = document.getElementById('btn-regaux-revisar-numero');
+    const numero = Number(campo.value);
+    if (!Number.isInteger(numero) || numero <= 0) {
+        document.getElementById('regaux-lote-status').textContent = 'Informe um número de Registro Auxiliar válido.';
+        return;
+    }
+    botao.disabled = true;
+    document.getElementById('regaux-lote-status').textContent = `Consultando o registro ${numero} na Tri7…`;
+    try {
+        const resultado = await requisicaoAeri(`/api/registros-auxiliares/${numero}/revisar`, {method:'POST'});
+        document.getElementById('regaux-lote-status').textContent = resultado.item.alterado
+            ? `Registro ${numero} revisado: houve alteração (nova averbação/retificação capturada).`
+            : `Registro ${numero} revisado: sem alterações desde a última consulta.`;
+        campo.value = '';
+    } catch (erro) {
+        document.getElementById('regaux-lote-status').textContent = erro.message;
+    } finally {
+        botao.disabled = false;
+    }
+}
+
 async function verErrosSincronizacao() {
     const botao = document.getElementById('btn-regaux-ver-erros');
     const painel = document.getElementById('regaux-erros');
@@ -277,4 +300,5 @@ export function iniciarRegistrosAuxiliares() {
     document.getElementById('btn-regaux-novos').addEventListener('click', buscarNovos);
     document.getElementById('btn-regaux-ver-erros').addEventListener('click', verErrosSincronizacao);
     document.getElementById('btn-regaux-revisar').addEventListener('click', alternarRevisao);
+    document.getElementById('btn-regaux-revisar-numero').addEventListener('click', revisarNumero);
 }

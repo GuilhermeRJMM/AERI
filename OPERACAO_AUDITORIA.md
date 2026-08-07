@@ -35,3 +35,12 @@ Regras operacionais:
 - não editar `sincronizacao_registros_auxiliares_aeri` diretamente no banco; sempre passar pela API/tela, que mantém a trava por lease e o hash de deduplicação;
 - se um número específico falhar repetidamente, ele aparece em **"Ver erros"**; usar o botão de reprocessamento em vez de tentar consultá-lo manualmente na Tri7;
 - produto/modalidade/safra são extraídos por regex sobre o texto (`backend/app/servicos/registros_auxiliares.py`) — cédulas com campos de template em branco (ex.: nome do produto omitido, só com as características de qualidade) podem exigir uma assinatura alternativa nova nesse arquivo, como foi feito para o padrão CONCEX da soja.
+
+## Forçar a revisão de um número específico
+
+A revisão automática (item anterior) percorre a fila inteira em ordem — se um Registro Auxiliar específico acabou de receber uma averbação/retificação e a fila está longe dele, pode demorar dias até o AERI reconsultar aquele número. No campo **"Revisar um número agora"** (mesma tela, ADMIN/SUBSTITUTO), digitar o número e clicar em **"Revisar agora"**: isso consulta só aquele número na Tri7 e regrava o índice na hora, sem mexer na fila sequencial.
+
+Duas ressalvas importantes:
+
+- não é automático nem por webhook — alguém precisa saber que houve uma retificação e disparar isso manualmente;
+- o texto retornado pela Tri7 é cumulativo (R.01 + todas as averbações), e a extração de produto/modalidade só olha presença de palavra-chave no texto inteiro, não "estado atual". Uma retificação que troca o produto (ex.: "onde se lê SOJA, leia-se MILHO") deixa o registro indexado com os dois produtos juntos, não só o corrigido — o registro fica achável em ambos, mas o índice não expressa qual é o valor vigente.
