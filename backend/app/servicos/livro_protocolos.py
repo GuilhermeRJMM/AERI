@@ -146,14 +146,28 @@ def inferir_data_esperada(linhas: list[dict]) -> date | None:
     return date.fromisoformat(mais_comum)
 
 
+def _primeiro_item_com_ato(protocolo_json: dict) -> dict | None:
+    # A API não devolve itens_do_pedido na mesma ordem visual do sistema da
+    # Tri7 (onde o ato principal aparece como item "1") -- Prenotação (que
+    # sempre acontece antes, cronologicamente) costuma vir em 1º lugar no
+    # array, mesmo sem ser o ato principal. Prenotação e Busca nunca têm
+    # ato_tipo/ato_numero preenchidos (não são registro/averbação de
+    # verdade), então "1º item" pra fins de conferência é o primeiro item
+    # que tem um ato de verdade, não literalmente itens_do_pedido[0].
+    for item in protocolo_json.get("itens_do_pedido") or []:
+        registrado = item.get("atos_registrados") or {}
+        if registrado.get("ato_tipo") is not None and registrado.get("ato_numero") is not None:
+            return item
+    return None
+
+
 def _regra_natureza_bate_com_titulo(protocolo_json: dict) -> list[dict]:
-    # Só o item em 1ª posição é conferido contra o Dados do Título — os
-    # demais itens do pedido (CEP, cancelamentos, outras averbações que
-    # acompanham o ato principal) legitimamente não precisam bater com o
-    # título e geravam ocorrência à toa quando essa checagem foi estendida
-    # para todos os itens.
+    # Só o item principal (primeiro com ato de verdade) é conferido contra o
+    # Dados do Título — os demais itens do pedido (CEP, cancelamentos,
+    # outras averbações que acompanham o ato principal) legitimamente não
+    # precisam bater com o título e geravam ocorrência à toa quando essa
+    # checagem foi estendida para todos os itens.
     protocolo = protocolo_json.get("protocolo") or {}
-    itens = protocolo_json.get("itens_do_pedido") or []
     descricao_titulo = protocolo.get("descricao_titulo")
     if not _texto_valido(descricao_titulo):
         return [{
@@ -161,13 +175,14 @@ def _regra_natureza_bate_com_titulo(protocolo_json: dict) -> list[dict]:
             "gravidade": "GRAVE",
             "descricao": "O protocolo não possui descrição do título (descricao_titulo em branco).",
         }]
-    if not itens or not _texto_valido(itens[0].get("natureza_formal_descricao")):
+    item_principal = _primeiro_item_com_ato(protocolo_json)
+    if not item_principal or not _texto_valido(item_principal.get("natureza_formal_descricao")):
         return [{
             "regra": "NATUREZA_TITULO",
             "gravidade": "GRAVE",
-            "descricao": "O item em 1ª posição não possui Natureza Formal do Título preenchida.",
+            "descricao": "Nenhum item com registro/averbação foi encontrado para conferir contra o título.",
         }]
-    natureza = itens[0]["natureza_formal_descricao"]
+    natureza = item_principal["natureza_formal_descricao"]
     titulo_tema = _normalizar_tema(str(descricao_titulo))
     natureza_tema = _normalizar_tema(str(natureza))
     # Comparação por conteúdo (não igualdade exata), ignorando

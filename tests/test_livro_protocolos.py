@@ -198,6 +198,26 @@ class TesteConferirProtocolo(unittest.TestCase):
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
 
+    def test_prenotacao_como_primeiro_item_do_array_e_ignorada(self):
+        # Caso relatado: protocolo 185.203, título "CASAMENTO". Visualmente
+        # Casamento é o item 1 do pedido, mas a API devolve Prenotação
+        # primeiro no array (ela acontece antes, cronologicamente).
+        # itens_do_pedido[0] literal seria Prenotação -- que nunca bate com
+        # nenhum título -- gerando ocorrência a toa num protocolo correto.
+        protocolo = _protocolo_base(
+            protocolo={"protocolo_numero": 185203, "descricao_titulo": "CASAMENTO"},
+            itens_do_pedido=[
+                {"natureza_formal_descricao": "Prenotação", "dados_imovel": {},
+                 "atos_registrados": {"ato_tipo": None, "ato_numero": None, "texto": ""}},
+                {"natureza_formal_descricao": "Busca", "dados_imovel": {},
+                 "atos_registrados": {"ato_tipo": None, "ato_numero": None, "texto": ""}},
+                {"natureza_formal_descricao": "Casamento", "dados_imovel": {},
+                 "atos_registrados": {"ato_tipo": "A", "ato_numero": 1, "texto": ""}},
+            ],
+        )
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
+
     def test_natureza_contida_no_titulo_completo_nao_gera_ocorrencia(self):
         # Caso real: o instrumento (Dados do Título) é o nome completo da
         # escritura, que contém a natureza formal do 1º item como parte do
