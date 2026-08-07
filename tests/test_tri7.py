@@ -11,6 +11,7 @@ from backend.app.servicos.tri7 import (
     ConfiguracaoTri7Invalida,
     MatriculaTri7NaoEncontrada,
     MatriculaTri7SemTexto,
+    ProtocoloTri7NaoEncontrado,
     RegistroAuxiliarTri7NaoEncontrado,
     RespostaTri7Invalida,
     normalizar_numero_matricula,
@@ -174,6 +175,50 @@ class TesteClienteTri7(unittest.TestCase):
 
         with self.assertRaises(RegistroAuxiliarTri7NaoEncontrado):
             ClienteTri7(self.configuracao(), abridor=abrir).buscar_texto_registro_auxiliar(7)
+
+    def test_busca_protocolo_completo(self):
+        resposta = {
+            "protocolo": {"protocolo_numero": 185126, "descricao_titulo": "ESCRITURA PÚBLICA DE VENDA E COMPRA"},
+            "itens_do_pedido": [{"natureza_formal_descricao": "Venda e Compra"}],
+        }
+
+        def abrir(requisicao, timeout):
+            if requisicao.full_url.endswith("/api/v1/users/login"):
+                return RespostaFalsa({"access_token": "token"})
+            self.assertIn("/api/v1/imoveis/protocolo-completo", requisicao.full_url)
+            self.assertIn("numero_protocolo=185126", requisicao.full_url)
+            return RespostaFalsa(resposta)
+
+        resultado = ClienteTri7(self.configuracao(), abridor=abrir).buscar_protocolo_completo("185.126")
+
+        self.assertEqual(resultado, resposta)
+
+    def test_protocolo_404_tem_erro_proprio(self):
+        def abrir(requisicao, timeout):
+            if requisicao.full_url.endswith("/api/v1/users/login"):
+                return RespostaFalsa({"access_token": "token"})
+            raise HTTPError(requisicao.full_url, 404, "Not Found", {}, io.BytesIO(b'{"detail":"not found"}'))
+
+        with self.assertRaises(ProtocoloTri7NaoEncontrado):
+            ClienteTri7(self.configuracao(), abridor=abrir).buscar_protocolo_completo(999999)
+
+    def test_protocolo_recusa_numero_diferente_na_resposta(self):
+        def abrir(requisicao, timeout):
+            if requisicao.full_url.endswith("/api/v1/users/login"):
+                return RespostaFalsa({"access_token": "token"})
+            return RespostaFalsa({"protocolo": {"protocolo_numero": 999999}, "itens_do_pedido": []})
+
+        with self.assertRaises(RespostaTri7Invalida):
+            ClienteTri7(self.configuracao(), abridor=abrir).buscar_protocolo_completo(185126)
+
+    def test_protocolo_sem_chave_protocolo_e_resposta_invalida(self):
+        def abrir(requisicao, timeout):
+            if requisicao.full_url.endswith("/api/v1/users/login"):
+                return RespostaFalsa({"access_token": "token"})
+            return RespostaFalsa({"itens_do_pedido": []})
+
+        with self.assertRaises(RespostaTri7Invalida):
+            ClienteTri7(self.configuracao(), abridor=abrir).buscar_protocolo_completo(185126)
 
 
 if __name__ == "__main__":

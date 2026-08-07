@@ -99,6 +99,13 @@
                     <span>INCRA</span>
                 </div>
 
+                <div class="nav-item" data-page="livroproto" title="Livro de Protocolos" hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    </svg>
+                    <span>Livro de Protocolos</span>
+                </div>
+
                 <div class="nav-item" data-page="custas" title="Informar Custas" hidden>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M4 5h16v14H4z"/><path d="M4 10h16M9 5v14M14 10v9"/>
@@ -206,6 +213,30 @@
                     </div>
 
                     <section id="incra-resultado" class="incra-resultado" aria-live="polite"></section>
+                </main>
+            </div>
+
+            <div id="page-livroproto" class="page">
+                <main class="layout incra-layout">
+                    <div class="hero hero-incra">
+                        <span class="eyebrow">CONFERÊNCIA FINAL</span>
+                        <h1>Livro de Protocolos</h1>
+                        <p>Envie o Livro de Protocolos em PDF. O AERI separa Prenotados, Registrados e Sem Efeito e confere cada protocolo registrado direto na Tri7.</p>
+                    </div>
+
+                    <div class="incra-upload-card">
+                        <input id="livroproto-pdf" type="file" accept="application/pdf,.pdf" hidden>
+                        <label for="livroproto-pdf" class="incra-dropzone" id="livroproto-dropzone">
+                            <span class="incra-upload-icon">
+                                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>
+                            </span>
+                            <strong id="livroproto-file-name">Selecionar Livro de Protocolos</strong>
+                            <small>PDF exportado da Tri7</small>
+                        </label>
+                        <button class="btn btn-primary incra-processar" id="btn-livroproto" disabled>Conferir protocolos</button>
+                    </div>
+
+                    <section id="livroproto-resultado" class="incra-resultado" aria-live="polite"></section>
                 </main>
             </div>
 

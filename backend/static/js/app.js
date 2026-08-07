@@ -1,6 +1,7 @@
 import {iniciarAnalisador} from './analisador.js?v=20260731-auditoria';
 import {iniciarAutenticacao} from './autenticacao.js?v=20260731-auditoria';
 import {iniciarIncra} from './incra.js';
+import {iniciarLivroProtocolos} from './livro_protocolos.js';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260804-custas-fluido';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260731-auditoria';
 import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
@@ -67,6 +68,7 @@ iniciarNavegacao();
 iniciarStatusOnr();
 iniciarAnalisador();
 iniciarIncra();
+iniciarLivroProtocolos();
 iniciarCustas();
 iniciarRegistrosAuxiliares();
 iniciarIntimacoes();

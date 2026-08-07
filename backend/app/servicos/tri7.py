@@ -42,6 +42,10 @@ class RegistroAuxiliarTri7SemTexto(ErroTri7):
     pass
 
 
+class ProtocoloTri7NaoEncontrado(ErroTri7):
+    pass
+
+
 class RespostaTri7Invalida(ErroTri7):
     pass
 
@@ -199,6 +203,35 @@ class ClienteTri7:
                     "A Tri7 retornou um Registro Auxiliar diferente do solicitado."
                 )
             return {"numero_registro": numero, "texto": dados["texto"]}
+        raise AutenticacaoTri7Falhou("A autenticação com a Tri7 expirou.")
+
+    def buscar_protocolo_completo(self, numero_protocolo: object) -> dict:
+        numero = normalizar_numero_matricula(numero_protocolo)
+        caminho = "/api/v1/imoveis/protocolo-completo?" + urlencode({"numero_protocolo": numero})
+        for tentativa in range(2):
+            token = self._obter_token(forcar=tentativa > 0)
+            requisicao = UrlRequest(
+                f"{self.configuracao.base_url}{caminho}",
+                method="GET",
+                headers={**HEADERS_PADRAO, "Authorization": f"Bearer {token}"},
+            )
+            status, dados = self._ler_json(requisicao)
+            if status in {401, 403} and tentativa == 0:
+                continue
+            if status == 404:
+                raise ProtocoloTri7NaoEncontrado(f"Protocolo {numero} não encontrado na Tri7.")
+            if status < 200 or status >= 300:
+                raise ErroTri7("A Tri7 não conseguiu consultar o protocolo.")
+            if not isinstance(dados, dict) or not isinstance(dados.get("protocolo"), dict):
+                raise RespostaTri7Invalida("A Tri7 retornou uma resposta inválida para o protocolo.")
+            protocolo = dados["protocolo"]
+            try:
+                numero_retornado = normalizar_numero_matricula(protocolo.get("protocolo_numero", numero))
+            except ValueError as erro:
+                raise RespostaTri7Invalida("A Tri7 retornou um número de protocolo inválido.") from erro
+            if numero_retornado != numero:
+                raise RespostaTri7Invalida("A Tri7 retornou um protocolo diferente do solicitado.")
+            return dados
         raise AutenticacaoTri7Falhou("A autenticação com a Tri7 expirou.")
 
 
