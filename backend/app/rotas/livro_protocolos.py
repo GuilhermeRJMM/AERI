@@ -8,7 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from backend.app.autenticacao import exigir_permissao, proteger_csrf
 from backend.app.database import preparar_banco
 from backend.app.seguranca_web import registrar_auditoria
-from backend.app.servicos.livro_protocolos import conferir_protocolo, extrair_protocolos_pdf
+from backend.app.servicos.livro_protocolos import (
+    conferir_protocolo,
+    extrair_protocolos_pdf,
+    inferir_data_esperada,
+)
 from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7
 
 
@@ -55,7 +59,12 @@ async def analisar_livro_protocolos(
             raise HTTPException(status_code=422, detail="Envie um arquivo PDF válido.")
 
         itens_pdf = extrair_protocolos_pdf(pdf_bytes)
-        data_esperada = datetime.now(ZoneInfo("America/Sao_Paulo")).date() - timedelta(days=1)
+        # A data esperada vem da própria folha (data mais frequente entre os
+        # "REGISTRADO"); "hoje - 1 dia" só entra como último recurso, se a
+        # folha não tiver nenhum registrado com data legível.
+        data_esperada = inferir_data_esperada(itens_pdf) or (
+            datetime.now(ZoneInfo("America/Sao_Paulo")).date() - timedelta(days=1)
+        )
 
         cliente = cliente_tri7()
         limitador = _LimitadorTaxaTri7(REQUISICOES_POR_SEGUNDO_TRI7)

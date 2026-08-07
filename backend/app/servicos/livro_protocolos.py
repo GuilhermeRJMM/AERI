@@ -1,6 +1,7 @@
 import io
 import re
 import unicodedata
+from collections import Counter
 from datetime import date
 
 from pypdf import PdfReader
@@ -104,6 +105,32 @@ def extrair_protocolos_pdf(pdf_bytes: bytes) -> list[dict]:
             indices_por_numero[item["numero"]] = len(linhas)
             linhas.append(item)
     return linhas
+
+
+def inferir_data_esperada(linhas: list[dict]) -> date | None:
+    """Descobre a data que a folha representa a partir do próprio conteúdo.
+
+    Antes disso a data esperada era sempre "hoje - 1 dia", assumindo que a
+    folha é conferida no dia seguinte ao expediente. Isso quebra sempre que
+    essa suposição não vale — depois de fim de semana/feriado (a folha de
+    sexta é conferida na segunda, "ontem" seria domingo), ao reconferir uma
+    folha antiga, ou ao rodar a conferência mais de uma vez no mesmo dia.
+    Quando isso acontecia, TODO registro "REGISTRADO" caía na regra
+    DATA_DIVERGENTE de uma vez, mesmo com as demais regras corretas — dava a
+    impressão de que a conferência inteira estava errada.
+
+    Usa a data mais frequente entre as linhas "REGISTRADO" (a maioria da
+    folha), não a primeira nem a última, para não deixar uma linha isolada
+    com data digitada errado decidir a data esperada de todo o resto.
+    """
+    datas = [
+        linha["data"] for linha in linhas
+        if linha.get("status") == "REGISTRADO" and linha.get("data")
+    ]
+    if not datas:
+        return None
+    mais_comum, _contagem = Counter(datas).most_common(1)[0]
+    return date.fromisoformat(mais_comum)
 
 
 def _itens_com_ato(protocolo_json: dict) -> list[dict]:

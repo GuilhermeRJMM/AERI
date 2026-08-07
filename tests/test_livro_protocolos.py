@@ -6,6 +6,7 @@ from backend.app.servicos.livro_protocolos import (
     classificar_status,
     conferir_protocolo,
     extrair_protocolos_pdf,
+    inferir_data_esperada,
 )
 
 
@@ -121,6 +122,39 @@ class TesteExtrairProtocolosPdf(unittest.TestCase):
                 extrair_protocolos_pdf(b"qualquer coisa")
         finally:
             modulo.PdfReader = original
+
+
+class TesteInferirDataEsperada(unittest.TestCase):
+    def test_usa_a_data_mais_frequente_entre_os_registrados(self):
+        linhas = [
+            {"status": "REGISTRADO", "data": "2026-08-05"},
+            {"status": "REGISTRADO", "data": "2026-08-05"},
+            {"status": "REGISTRADO", "data": "2026-08-04"},
+            {"status": "PRENOTADO", "data": None},
+        ]
+        self.assertEqual(inferir_data_esperada(linhas), date(2026, 8, 5))
+
+    def test_ignora_prenotados_e_sem_efeito_na_inferencia(self):
+        linhas = [
+            {"status": "REGISTRADO", "data": "2026-08-05"},
+            {"status": "PRENOTADO", "data": "2026-08-06"},
+            {"status": "SEM_EFEITO", "data": "2026-08-06"},
+        ]
+        self.assertEqual(inferir_data_esperada(linhas), date(2026, 8, 5))
+
+    def test_retorna_none_sem_nenhum_registrado_com_data(self):
+        linhas = [{"status": "PRENOTADO", "data": None}]
+        self.assertIsNone(inferir_data_esperada(linhas))
+
+    def test_funciona_apos_fim_de_semana_quando_ontem_seria_domingo(self):
+        # Caso que quebrava antes: folha de sexta-feira conferida na
+        # segunda. "Hoje - 1 dia" cairia num domingo (sem expediente) e
+        # todo REGISTRADO seria sinalizado como DATA_DIVERGENTE à toa.
+        linhas = [
+            {"status": "REGISTRADO", "data": "2026-08-07"},  # sexta-feira
+            {"status": "REGISTRADO", "data": "2026-08-07"},
+        ]
+        self.assertEqual(inferir_data_esperada(linhas), date(2026, 8, 7))
 
 
 class TesteConferirProtocolo(unittest.TestCase):
