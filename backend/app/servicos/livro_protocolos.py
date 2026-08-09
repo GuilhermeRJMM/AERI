@@ -248,13 +248,27 @@ def _regra_ordem_e_texto_dos_atos(protocolo_json: dict) -> list[dict]:
     # (tipo_registro, numero_registro) antes de checar a ordem evita
     # comparar sequências de imóveis diferentes entre si.
     atos_por_imovel: dict[tuple, list[tuple[int, str]]] = {}
+    sem_numero_vistos = 0
     for item in protocolo_json.get("itens_do_pedido") or []:
         registrado = item.get("atos_registrados") or {}
         numero, tipo = registrado.get("ato_numero"), registrado.get("ato_tipo")
         if numero is None or tipo is None:
             continue
         imovel = item.get("dados_imovel") or {}
-        chave_imovel = (imovel.get("tipo_registro"), imovel.get("numero_registro"))
+        numero_registro = imovel.get("numero_registro")
+        if numero_registro is None:
+            # Sem número de matrícula não dá pra saber se é o mesmo imóvel de
+            # outro item também sem número — comum quando o protocolo abre
+            # mais de uma matrícula nova de uma vez (ex.: desmembramento,
+            # onde cada matrícula nova começa sua própria numeração do
+            # zero). Cada item vira seu próprio grupo isolado em vez de
+            # entrar no balaio de "sem número", que comparava matrículas
+            # novas diferentes como se fossem uma só e acusava ordem errada
+            # à toa.
+            chave_imovel = ("SEM_NUMERO", sem_numero_vistos)
+            sem_numero_vistos += 1
+        else:
+            chave_imovel = (imovel.get("tipo_registro"), numero_registro)
         atos_por_imovel.setdefault(chave_imovel, []).append((int(numero), str(tipo)))
         texto = registrado.get("texto") or ""
         rotulo = f"{tipo}.{numero}"

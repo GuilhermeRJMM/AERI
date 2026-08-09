@@ -358,16 +358,34 @@ class TesteConferirProtocolo(unittest.TestCase):
         self.assertEqual(ocorrencias, [])
 
     def test_ordem_numerica_fora_de_sequencia_e_ocorrencia_grave(self):
+        imovel = {"tipo_registro": "M", "numero_registro": 152}
         protocolo = _protocolo_base(itens_do_pedido=[
-            {"natureza_formal_descricao": "Registro", "dados_imovel": {},
+            {"natureza_formal_descricao": "Registro", "dados_imovel": imovel,
              "atos_registrados": {"ato_tipo": "R", "ato_numero": 1, "texto": ""}},
-            {"natureza_formal_descricao": "Averbação", "dados_imovel": {},
+            {"natureza_formal_descricao": "Averbação", "dados_imovel": imovel,
              "atos_registrados": {"ato_tipo": "A", "ato_numero": 3, "texto": ""}},
-            {"natureza_formal_descricao": "Registro", "dados_imovel": {},
+            {"natureza_formal_descricao": "Registro", "dados_imovel": imovel,
              "atos_registrados": {"ato_tipo": "R", "ato_numero": 2, "texto": ""}},
         ])
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertTrue(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
+
+    def test_ordem_numerica_nao_compara_matriculas_novas_distintas_sem_numero(self):
+        # Regressão: protocolo que abre duas matrículas novas de uma vez
+        # (ex.: desmembramento) — nenhuma das duas tem numero_registro
+        # ainda, mas são imóveis diferentes, cada um com sua própria
+        # numeração começando do zero. Antes, ambas caíam no mesmo grupo
+        # "sem número" e a comparação entre elas acusava ordem errada à toa.
+        protocolo = _protocolo_base(itens_do_pedido=[
+            {"natureza_formal_descricao": "Desmembramento",
+             "dados_imovel": {"tipo_registro": "M", "numero_registro": None},
+             "atos_registrados": {"ato_tipo": "M", "ato_numero": 30, "texto": ""}},
+            {"natureza_formal_descricao": "Desmembramento",
+             "dados_imovel": {"tipo_registro": "M", "numero_registro": None},
+             "atos_registrados": {"ato_tipo": "M", "ato_numero": 5, "texto": ""}},
+        ])
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        self.assertFalse(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
 
     def test_ordem_numerica_crescente_nao_gera_ocorrencia(self):
         # As três naturezas batem com o título (por conteúdo) para isolar
