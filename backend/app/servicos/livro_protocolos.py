@@ -187,17 +187,22 @@ def _regra_natureza_bate_com_titulo(
     natureza = item_principal["natureza_formal_descricao"]
     titulo_tema = normalizar_tema(str(descricao_titulo))
     natureza_tema = normalizar_tema(str(natureza))
-    # Comparação por conteúdo (não igualdade exata), ignorando
-    # preposições/conectivos: descricao_titulo costuma ser o nome completo
-    # do instrumento e pode conter a natureza formal como parte do texto
-    # (ex.: "ESCRITURA ... E DAÇÃO EM PAGAMENTO" contém "DAÇÃO EM
-    # PAGAMENTO"), e a mesma natureza às vezes vem escrita com uma
-    # preposição diferente entre as duas fontes (ex.: "Designação Cadastral
-    # DO Imóvel" vs "... DE Imóvel") sem mudar o sentido. Quando nem
-    # removendo conectivos um aparece dentro do outro, os dois textos não
-    # têm relação nenhuma — sinal de que a natureza formal escolhida no
-    # item não corresponde ao título do protocolo.
-    bate = natureza_tema in titulo_tema or titulo_tema in natureza_tema
+    # Comparação por conjunto de palavras (não por substring nem igualdade
+    # exata), ignorando preposições/conectivos: descricao_titulo costuma ser
+    # o nome completo do instrumento e conter as mesmas palavras da natureza
+    # formal, mas não necessariamente na mesma ordem (ex.: título "Retificação
+    # de Área e Confrontações" vs natureza "Confrontações e Área -
+    # Retificação" — mesmas palavras, ordem diferente; substring exato não
+    # reconhecia isso). A mesma natureza também pode vir com uma preposição
+    # diferente entre as duas fontes (ex.: "Designação Cadastral DO Imóvel"
+    # vs "... DE Imóvel") sem mudar o sentido. Quando o conjunto de palavras
+    # de um não está inteiramente contido no do outro, os dois textos não
+    # têm relação nenhuma — sinal de que a natureza formal escolhida no item
+    # não corresponde ao título do protocolo.
+    palavras_titulo, palavras_natureza = set(titulo_tema.split()), set(natureza_tema.split())
+    bate = bool(palavras_natureza) and bool(palavras_titulo) and (
+        palavras_natureza <= palavras_titulo or palavras_titulo <= palavras_natureza
+    )
     if not bate and (titulo_tema, natureza_tema) in excecoes:
         # Alguém já confirmou manualmente que esse par específico (mesmo
         # texto de título + mesma natureza formal) é correto, apesar da
@@ -225,10 +230,16 @@ def _regra_natureza_bate_com_titulo(
     return []
 
 
+PADRAO_NATUREZA_BUSCA = re.compile(r"\bBUSCA\b")
+
+
 def _regra_busca_com_matricula(protocolo_json: dict) -> list[dict]:
     ocorrencias = []
     for item in protocolo_json.get("itens_do_pedido") or []:
-        if _normalizar(str(item.get("natureza_formal_descricao") or "")) != "BUSCA":
+        # Palavra "BUSCA" em qualquer lugar da natureza, não só o texto
+        # exato "Busca" — variantes como "Busca Simples" ou "Busca de Bens"
+        # antes escapavam dessa checagem por não baterem a igualdade exata.
+        if not PADRAO_NATUREZA_BUSCA.search(_normalizar(str(item.get("natureza_formal_descricao") or ""))):
             continue
         numero_registro = (item.get("dados_imovel") or {}).get("numero_registro")
         if numero_registro:

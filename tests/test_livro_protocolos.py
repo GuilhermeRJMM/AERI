@@ -219,6 +219,24 @@ class TesteConferirProtocolo(unittest.TestCase):
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
 
+    def test_ordem_das_palavras_diferente_nao_gera_ocorrencia(self):
+        # As mesmas palavras em ordem diferente entre as duas fontes (título
+        # em texto livre vs. natureza do catálogo padronizado) descrevem o
+        # mesmo ato — comparação por substring exato não reconhecia isso
+        # porque exige a mesma sequência, não só as mesmas palavras.
+        protocolo = _protocolo_base(
+            protocolo={
+                "protocolo_numero": 185400,
+                "descricao_titulo": "Retificação de Área e Confrontações",
+            },
+            itens_do_pedido=[{
+                "natureza_formal_descricao": "Confrontações e Área - Retificação",
+                "dados_imovel": {}, "atos_registrados": {"ato_tipo": "A", "ato_numero": 7, "texto": ""},
+            }],
+        )
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
+
     def test_natureza_contida_no_titulo_completo_nao_gera_ocorrencia(self):
         # Caso real: o instrumento (Dados do Título) é o nome completo da
         # escritura, que contém a natureza formal do 1º item como parte do
@@ -356,6 +374,15 @@ class TesteConferirProtocolo(unittest.TestCase):
         protocolo = _protocolo_base(itens_do_pedido=self._itens_com_busca(None))
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertEqual(ocorrencias, [])
+
+    def test_variante_de_busca_com_matricula_tambem_e_detectada(self):
+        # "Busca Simples"/"Busca de Bens" etc. escapavam da checagem antes,
+        # que exigia o texto exato "Busca" (igualdade, não substring).
+        itens = self._itens_com_busca(152)
+        itens[1]["natureza_formal_descricao"] = "Busca Simples"
+        protocolo = _protocolo_base(itens_do_pedido=itens)
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        self.assertTrue(any(o["regra"] == "BUSCA_COM_MATRICULA" for o in ocorrencias))
 
     def test_ordem_numerica_fora_de_sequencia_e_ocorrencia_grave(self):
         imovel = {"tipo_registro": "M", "numero_registro": 152}
