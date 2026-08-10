@@ -432,7 +432,7 @@ async function analisar(evento) {
         }));
     } catch (erro) {
         erroBusca.textContent = erro.message;
-        document.getElementById('contingencia-manual').hidden = false;
+        configurarAcessoAnaliseManual(document.body.dataset.perfil);
         campo.focus();
     } finally {
         botao.innerHTML = ICONE_PROCESSAR;
@@ -444,6 +444,7 @@ async function analisar(evento) {
 async function analisarTextoManual(evento) {
     evento.preventDefault();
     const texto = document.getElementById('texto-matricula-manual').value.trim();
+    const numeroMatricula = document.getElementById('numero-matricula-manual').value.trim();
     const retorno = document.getElementById('erro-busca-matricula');
     if (!texto) return;
     const botao = evento.submitter;
@@ -451,10 +452,11 @@ async function analisarTextoManual(evento) {
     retorno.textContent = 'Processando texto sem armazená-lo…';
     try {
         const resultado = await requisicaoAeri('/analisar', {
-            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({texto}),
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+                texto,
+                numero_matricula: numeroMatricula || null,
+            }),
         });
-        resultado.numero_matricula = document.getElementById('numero-matricula').value.trim() || 'MANUAL';
-        resultado.origem = 'ENTRADA MANUAL';
         renderizarResultado(resultado);
         retorno.textContent = '';
     } catch (erro) {
@@ -464,14 +466,23 @@ async function analisarTextoManual(evento) {
     }
 }
 
+export function configurarAcessoAnaliseManual(perfil = '') {
+    const painel = document.getElementById('contingencia-manual');
+    if (!painel) return;
+    const autorizado = perfil === 'ADMIN';
+    painel.hidden = !autorizado;
+    if (!autorizado) painel.open = false;
+}
+
 export function iniciarAnalisador() {
     document.getElementById('form-busca-matricula').addEventListener('submit', analisar);
     document.getElementById('form-texto-manual').addEventListener('submit', analisarTextoManual);
     document.getElementById('btn-limpar').addEventListener('click', () => {
         document.getElementById('numero-matricula').value = '';
         document.getElementById('erro-busca-matricula').textContent = '';
+        document.getElementById('numero-matricula-manual').value = '';
         document.getElementById('texto-matricula-manual').value = '';
-        document.getElementById('contingencia-manual').hidden = true;
+        document.getElementById('contingencia-manual').open = false;
         fecharModal();
         document.getElementById('numero-matricula').focus();
     });

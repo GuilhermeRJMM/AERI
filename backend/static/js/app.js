@@ -1,4 +1,4 @@
-import {iniciarAnalisador} from './analisador.js?v=20260731-auditoria';
+import {configurarAcessoAnaliseManual, iniciarAnalisador} from './analisador.js?v=20260810-texto-manual-admin';
 import {iniciarAutenticacao} from './autenticacao.js?v=20260731-auditoria';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js';
@@ -37,6 +37,7 @@ function fecharSplash() {
     window.setTimeout(() => splash.remove(), 650);
     iniciarAutenticacao({
         aoEntrar: dados => {
+            configurarAcessoAnaliseManual(dados.perfil);
             exigirTrocaSenha(dados.deveTrocarSenha);
             pararAtualizacoesAoVivo();
             if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.ver_intimacoes)) {
@@ -55,6 +56,7 @@ function fecharSplash() {
             if (!dados.deveTrocarSenha) ativarStatusOnr();
         },
         aoSair: () => {
+            configurarAcessoAnaliseManual();
             pararAtualizacoesAoVivo();
             limparIntimacoes();
             limparCustas();

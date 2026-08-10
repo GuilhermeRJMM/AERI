@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260805-reg-aux-v2">
+    <link rel="stylesheet" href="/static/styles.css?v=20260810-texto-manual-admin">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -172,9 +172,11 @@
                             </form>
 
                             <details id="contingencia-manual" class="contingencia-manual" hidden>
-                                <summary>Tri7 indisponível? Processar texto manualmente</summary>
+                                <summary>Analisar texto manualmente <span class="contingencia-manual-badge">Somente ADM</span></summary>
                                 <form id="form-texto-manual">
-                                    <p>Contingência temporária: o AERI processa o conteúdo em memória e não armazena o texto integral.</p>
+                                    <p>Use a qualquer momento. O AERI processa o conteúdo em memória e não armazena o texto integral.</p>
+                                    <label for="numero-matricula-manual">Número da matrícula (opcional)</label>
+                                    <input id="numero-matricula-manual" name="numero_matricula_manual" type="text" inputmode="numeric" autocomplete="off" maxlength="14" pattern="[0-9. ]{1,14}" placeholder="Ex.: 29.774">
                                     <textarea id="texto-matricula-manual" maxlength="5000000" required placeholder="Cole aqui o texto completo da matrícula."></textarea>
                                     <button type="submit" class="rotina-btn-secondary">Processar texto</button>
                                 </form>
@@ -584,6 +586,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260810-nota-desistencia-v3"></script>
+    <script type="module" src="/static/js/app.js?v=20260810-texto-manual-admin"></script>
 </body>
 </html>

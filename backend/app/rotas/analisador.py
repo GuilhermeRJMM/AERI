@@ -118,12 +118,25 @@ def _divergencia_json(item: dict) -> dict:
 
 
 @router.post("/analisar", dependencies=[Depends(proteger_csrf)])
-def analisar(dados: dict, request: Request, usuario: str = Depends(exigir_permissao("processar_matricula"))):
+def analisar(dados: dict, request: Request, usuario: str = Depends(exigir_perfis("ADMIN"))):
     texto = str(dados.get("texto", ""))
     if not texto.strip() or len(texto) > 5_000_000:
         raise HTTPException(status_code=413, detail="A matrícula excede o limite permitido.")
-    resultado = analisar_matricula(texto, regras_aprendidas=_regras_aprovadas())
-    registrar_auditoria(request, "analisar_matricula", "sucesso", usuario)
+    numero_informado = str(dados.get("numero_matricula") or "").strip()
+    numero = None
+    if numero_informado:
+        try:
+            numero = normalizar_numero_matricula(numero_informado)
+        except ValueError as erro:
+            raise HTTPException(status_code=422, detail=str(erro)) from erro
+    resultado = analisar_matricula(
+        texto,
+        regras_aprendidas=_regras_aprovadas(),
+        numero_matricula=numero,
+    )
+    resultado["numero_matricula"] = numero or resultado.get("numero_matricula") or "MANUAL"
+    resultado["origem"] = "ENTRADA MANUAL"
+    registrar_auditoria(request, "analisar_matricula_texto_manual", "sucesso", usuario, numero)
     return resultado
 
 

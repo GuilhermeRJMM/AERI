@@ -2693,9 +2693,13 @@ body.modo-incorporado .layout { padding-top:28px; }
 @media(max-width:620px){.custas-form{grid-template-columns:1fr}.custas-form-largo,.custas-form .rotina-form-actions{grid-column:1}.custas-toolbar{align-items:stretch;flex-direction:column}.custas-busca{max-width:none}}
 .contingencia-manual { margin-top:12px; padding:12px; border:1px solid rgba(139,152,178,.15); border-radius:14px; color:var(--text-muted); }
 .contingencia-manual summary { cursor:pointer; color:var(--text-soft); font-size:.76rem; font-weight:700; }
+.contingencia-manual-badge { display:inline-flex; margin-left:7px; padding:2px 7px; border:1px solid rgba(74,222,128,.26); border-radius:999px; background:rgba(34,197,94,.1); color:#86efac; font-size:.58rem; letter-spacing:.06em; text-transform:uppercase; vertical-align:middle; }
 .contingencia-manual form { display:grid; gap:10px; margin-top:10px; }
 .contingencia-manual p { margin:0; font-size:.7rem; }
+.contingencia-manual label { color:var(--text-muted); font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
+.contingencia-manual input,
 .contingencia-manual textarea { min-height:150px; resize:vertical; padding:12px; border:1px solid rgba(139,152,178,.2); border-radius:12px; background:rgba(12,18,32,.72); color:var(--text-main); font:inherit; }
+.contingencia-manual input { min-height:auto; resize:none; }
 
 /* INCRA · enriquecimento de situação, matrículas e atos pela Tri7 */
 .incra-resumo-tri7 { grid-template-columns:repeat(4,minmax(0,1fr)); }

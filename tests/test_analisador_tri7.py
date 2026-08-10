@@ -1,13 +1,45 @@
+import inspect
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from fastapi import HTTPException
 
-from backend.app.rotas.analisador import analisar_por_numero
+from backend.app.rotas.analisador import analisar, analisar_por_numero
 from backend.app.servicos.tri7 import MatriculaTri7NaoEncontrada
 
 
 class TesteRotaAnalisadorTri7(unittest.TestCase):
+    def test_texto_manual_e_restrito_exclusivamente_ao_admin(self):
+        dependencia = inspect.signature(analisar).parameters["usuario"].default.dependency
+        requisicao_admin = SimpleNamespace(
+            state=SimpleNamespace(sessao={"perfil": "ADMIN", "deve_trocar_senha": False})
+        )
+        requisicao_substituto = SimpleNamespace(
+            state=SimpleNamespace(sessao={"perfil": "SUBSTITUTO", "deve_trocar_senha": False})
+        )
+
+        self.assertEqual(dependencia(requisicao_admin, usuario="administrador"), "administrador")
+        with self.assertRaises(HTTPException) as contexto:
+            dependencia(requisicao_substituto, usuario="substituto")
+        self.assertEqual(contexto.exception.status_code, 403)
+
+    @patch("backend.app.rotas.analisador.registrar_auditoria")
+    @patch("backend.app.rotas.analisador._regras_aprovadas", return_value=[])
+    def test_texto_manual_aceita_numero_opcional_sem_persistir_texto(self, _regras, auditoria):
+        resultado = analisar(
+            {
+                "numero_matricula": "29.774",
+                "texto": "IMÓVEL: Lote 1. PROPRIETÁRIO: Fulano de Tal.",
+            },
+            request=Mock(),
+            usuario="administrador",
+        )
+
+        self.assertEqual(resultado["numero_matricula"], "29774")
+        self.assertEqual(resultado["origem"], "ENTRADA MANUAL")
+        auditoria.assert_called_once()
+
     @patch("backend.app.rotas.analisador.registrar_auditoria")
     @patch("backend.app.rotas.analisador._regras_aprovadas", return_value=[])
     @patch("backend.app.rotas.analisador.cliente_tri7")
