@@ -2513,6 +2513,48 @@ body.modo-incorporado .layout { padding-top:28px; }
 .rotina-historico-operacional ul { display:grid; gap:7px; margin:0; padding:0; list-style:none; }
 .rotina-historico-operacional li { display:flex; justify-content:space-between; gap:12px; color:var(--text-muted); font-size:.72rem; }
 .rotina-historico-operacional strong { color:var(--text-main); }
+.rotina-documentos-acoes {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  padding:15px 16px;
+  border-top:1px solid rgba(139,152,178,.12);
+  border-bottom:1px solid rgba(139,152,178,.12);
+  background:linear-gradient(135deg,rgba(103,87,242,.08),rgba(16,185,129,.055));
+}
+.rotina-documentos-acoes h3 {
+  margin:0 0 4px;
+  color:var(--text-main);
+  font-size:.82rem;
+}
+.rotina-documentos-acoes p {
+  margin:0;
+  color:var(--text-muted);
+  font-size:.7rem;
+  line-height:1.4;
+}
+.rotina-gerar-desistencia {
+  flex:0 0 auto;
+  min-height:38px;
+  padding:9px 14px;
+  border:1px solid rgba(65,216,143,.38);
+  border-radius:10px;
+  background:rgba(16,185,129,.14);
+  color:#86efac;
+  font:800 .72rem "Outfit",sans-serif;
+  cursor:pointer;
+  transition:border-color .18s ease,background .18s ease,transform .18s ease;
+}
+.rotina-gerar-desistencia:hover {
+  border-color:rgba(65,216,143,.72);
+  background:rgba(16,185,129,.22);
+  transform:translateY(-1px);
+}
+@media (max-width:620px) {
+  .rotina-documentos-acoes { align-items:stretch; flex-direction:column; }
+  .rotina-gerar-desistencia { width:100%; }
+}
 
 /* --- PESQUISA DE REGISTRO AUXILIAR --- */
 .regaux-layout { max-width:1480px; }

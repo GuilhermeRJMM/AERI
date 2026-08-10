@@ -137,6 +137,15 @@ function detalhesFaseInicial(item) {
             ${campoCard('Valor Usado', formatarMoeda(item.valorUsado))}
             ${campoCard('Saldo na OS', formatarMoeda(item.saldoOs), 'rotina-card-saldo')}
         </section>
+        ${pode('alterar_intimacoes') ? `<section class="rotina-documentos-acoes">
+            <div>
+                <h3>Documentos do processo</h3>
+                <p>Lê os PDFs do processo e o arquivo "Pedido de Desistência" em "Recebido para Intimacao". A nota abre no Word para conferir o signatário no ITI.</p>
+            </div>
+            <button type="button" class="rotina-gerar-desistencia" data-acao="gerar-desistencia" data-protocolo="${escaparHtml(item.protocolo)}">
+                Gerar nota de Desistência
+            </button>
+        </section>` : ''}
         <section class="rotina-historico-operacional">
             <h3>Histórico operacional</h3>
             <ul>${eventos || '<li><span>Nenhum evento registrado.</span></li>'}</ul>
@@ -419,6 +428,14 @@ async function abrirPastaIntimacao(protocolo) {
     window.location.href = `aeri-intimacao://abrir/${encodeURIComponent(protocolo)}`;
 }
 
+function gerarNotaDesistencia(protocolo) {
+    const confirmado = confirm(
+        `O AERI analisará os PDFs da pasta ${protocolo} e o "Pedido de Desistência" em "Recebido para Intimacao". O DOCX será aberto para conferir obrigatoriamente o signatário no ITI. Continuar?`,
+    );
+    if (!confirmado) return;
+    window.location.href = `aeri-intimacao://gerar-desistencia/${encodeURIComponent(protocolo)}`;
+}
+
 function normalizarCabecalho(valor) {
     return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
@@ -535,6 +552,7 @@ async function tratarAcaoTabela(evento) {
     const botao = evento.target.closest('button[data-acao]');
     if (!botao) return;
     if (botao.dataset.acao === 'abrir-pasta') abrirPastaIntimacao(botao.dataset.protocolo);
+    if (botao.dataset.acao === 'gerar-desistencia') gerarNotaDesistencia(botao.dataset.protocolo);
     if (botao.dataset.acao === 'detalhes') {
         if (detalhesAbertos.has(botao.dataset.id)) detalhesAbertos.delete(botao.dataset.id);
         else {
