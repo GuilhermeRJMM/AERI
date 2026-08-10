@@ -221,6 +221,17 @@ def extrair_indice_registro_auxiliar(numero: int | str, texto: str) -> dict:
         safra = f"{inicio}/{fim}"
         if safra not in safras:
             safras.append(safra)
+    # Mesmo padrão mês/ano A mês/ano do "período agrícola", mas sem essa
+    # frase âncora — algumas cédulas escrevem só "da safra janeiro/2026 a
+    # agosto/2026" (frequente em produtos de ciclo curto, ex.: sorgo, onde a
+    # colheita começa e termina dentro do mesmo ano-safra).
+    for inicio, fim in re.findall(
+        r"\bSAFRA\b.{0,40}?/[ ]?(20\d{2})\s+A\s+.{0,40}?/[ ]?(20\d{2})",
+        normalizado,
+    ):
+        safra = f"{inicio}/{fim}"
+        if safra not in safras:
+            safras.append(safra)
 
     pessoas = _extrair_pessoas(texto)
     nomes_busca = " | ".join(normalizar_busca(item["nome"]) for item in pessoas)

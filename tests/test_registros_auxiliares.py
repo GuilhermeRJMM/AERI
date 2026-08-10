@@ -78,6 +78,24 @@ class TesteRegistrosAuxiliares(unittest.TestCase):
         self.assertEqual(indice["modalidade"], "PENHOR")
         self.assertEqual(indice["safras"], ["2026/2027"])
 
+    def test_safra_mes_a_mes_sem_periodo_agricola_e_reconhecida(self):
+        # Regressão: Registro Auxiliar 29.300 (Joaquim Guilherme Barbosa de
+        # Souza, Sorgo) aparecia como negativo na busca por safra. O texto
+        # real diz "da safra janeiro/2026 a agosto/2026" -- sem a frase
+        # "período agrícola" que ancorava o único padrão mês/ano A mês/ano
+        # reconhecido, e sem dois anos diferentes para o padrão geral
+        # AAAA/AAAA. safras ficava vazio e a busca nunca encontrava.
+        texto = """
+        OBJETO DA GARANTIA: Em PENHOR CEDULAR DE PRIMEIRO GRAU, a colheita de
+        Sorgo Granífero, da safra janeiro/2026 a agosto/2026, totalizando o
+        valor de R$893.727,45.
+        """
+
+        indice = extrair_indice_registro_auxiliar(29300, texto)
+
+        self.assertEqual(indice["produtos"], ["SORGO"])
+        self.assertEqual(indice["safras"], ["2026/2026"])
+
     def test_identifica_produtos_pecuarios(self):
         indice = extrair_indice_registro_auxiliar(
             29538,
