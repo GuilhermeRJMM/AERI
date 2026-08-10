@@ -203,6 +203,14 @@ class TesteIntimacoes(unittest.TestCase):
                     _analisar_versao_esperada(dados)
                 self.assertEqual(erro.exception.status_code, 422)
 
+    def test_detalhes_ficam_disponiveis_em_todas_as_fases(self):
+        javascript = (Path(__file__).parents[1] / "backend/static/js/intimacoes.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("acoesIntimacao(item, true)", javascript)
+        self.assertNotIn("if (!inicial || !detalhesAbertos.has(item.id))", javascript)
+
 
 if __name__ == "__main__":
     unittest.main()

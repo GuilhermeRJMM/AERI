@@ -178,8 +178,7 @@ function renderizarIntimacoes() {
 
     tbody.innerHTML = filtradas.map(item => {
         const situacao = situacaoIntimacao(item);
-        const inicial = faseAtiva === 'INTIMACAO';
-        const acoes = acoesIntimacao(item, inicial);
+        const acoes = acoesIntimacao(item, true);
         const linha = `<tr class="rotina-row rotina-row-${situacao.classe}">
             <td><span class="rotina-status ${situacao.classe}"><i></i>${situacao.rotulo}</span><small>${situacao.detalhe}</small></td>
             <td><strong class="rotina-protocolo">${escaparHtml(item.protocolo)}</strong></td>
@@ -191,7 +190,7 @@ function renderizarIntimacoes() {
             <td>${botaoPastaIntimacao(item)}</td>
             <td>${acoes}</td>
         </tr>`;
-        if (!inicial || !detalhesAbertos.has(item.id)) return linha;
+        if (!detalhesAbertos.has(item.id)) return linha;
         return `${linha}<tr class="rotina-detalhes-row"><td colspan="9">${detalhesFaseInicial(item)}</td></tr>`;
     }).join('') || '<tr><td colspan="9" class="rotina-vazio">Nenhuma intimação cadastrada. Use “Nova intimação” ou importe sua planilha em CSV.</td></tr>';
 
