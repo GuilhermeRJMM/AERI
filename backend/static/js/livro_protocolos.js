@@ -55,11 +55,16 @@ function renderizarOcorrencias(item) {
     if (!item.conferido) return '<span class="livroproto-nao-conferido">—</span>';
     if (!item.ocorrencias.length) return '<span class="livroproto-ok">Sem ocorrências</span>';
     return `<ul class="livroproto-ocorrencias">${item.ocorrencias.map(ocorrencia => {
-        const podeConfirmar = ocorrencia.regra === 'NATUREZA_TITULO' && ocorrencia.tituloOriginal && ocorrencia.naturezaOriginal;
+        const perfil = document.body.dataset.perfil;
+        const podeConfirmar = ['ADMIN', 'SUBSTITUTO'].includes(perfil)
+            && ocorrencia.regra === 'NATUREZA_TITULO'
+            && ocorrencia.permiteExcecao === true
+            && ocorrencia.tituloOriginal
+            && ocorrencia.naturezaOriginal;
         const botao = podeConfirmar ? `
             <button type="button" class="livroproto-confirmar-excecao" data-numero="${escaparHtml(item.numero)}"
                 data-titulo="${escaparHtml(ocorrencia.tituloOriginal)}" data-natureza="${escaparHtml(ocorrencia.naturezaOriginal)}">
-                Confirmar que está certo
+                Cadastrar equivalência exata
             </button>` : '';
         return `<li class="livroproto-gravidade-${ocorrencia.gravidade.toLowerCase()}">${escaparHtml(ocorrencia.descricao)}${botao}</li>`;
     }).join('')}</ul>`;
@@ -69,6 +74,11 @@ async function confirmarExcecaoNatureza(botao) {
     const numero = botao.dataset.numero;
     const tituloOriginal = botao.dataset.titulo;
     const naturezaOriginal = botao.dataset.natureza;
+    const confirmado = window.confirm(
+        `Esta equivalência valerá somente quando os dois textos abaixo aparecerem juntos em outro protocolo:\n\n`
+        + `Título: ${tituloOriginal}\nNatureza: ${naturezaOriginal}\n\nConfirmar essa equivalência exata?`,
+    );
+    if (!confirmado) return;
     botao.disabled = true;
     botao.textContent = 'Confirmando...';
     try {
@@ -92,7 +102,7 @@ async function confirmarExcecaoNatureza(botao) {
     } catch (erro) {
         alert(erro.message);
         botao.disabled = false;
-        botao.textContent = 'Confirmar que está certo';
+        botao.textContent = 'Cadastrar equivalência exata';
     }
 }
 

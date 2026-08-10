@@ -13,7 +13,9 @@ from backend.app.servicos.livro_protocolos import (
     conferir_protocolo,
     extrair_protocolos_pdf,
     inferir_data_esperada,
+    natureza_permite_excecao,
     normalizar_tema,
+    referencias_textos_protocolo,
 )
 from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7
 
@@ -75,6 +77,7 @@ async def analisar_livro_protocolos(
 
         cliente = cliente_tri7()
         limitador = _LimitadorTaxaTri7(REQUISICOES_POR_SEGUNDO_TRI7)
+        cache_textos: dict[tuple[str, int], tuple[str | None, str | None]] = {}
         resultados = []
         for item in itens_pdf:
             registro = {**item, "conferido": False, "ocorrencias": [], "erro": None}
@@ -82,7 +85,26 @@ async def analisar_livro_protocolos(
                 limitador.aguardar()
                 try:
                     protocolo_json = cliente.buscar_protocolo_completo(item["numero"])
-                    registro["ocorrencias"] = conferir_protocolo(item, protocolo_json, data_esperada, excecoes)
+                    textos_registros = {}
+                    falhas_textos = {}
+                    for referencia in referencias_textos_protocolo(protocolo_json):
+                        if referencia not in cache_textos:
+                            limitador.aguardar()
+                            try:
+                                resposta_texto = cliente.buscar_texto_matricula(referencia[1])
+                                cache_textos[referencia] = (resposta_texto["texto"], None)
+                            except ErroTri7 as erro:
+                                cache_textos[referencia] = (None, str(erro))
+                        texto, falha = cache_textos[referencia]
+                        if texto:
+                            textos_registros[referencia] = texto
+                        elif falha:
+                            falhas_textos[referencia] = falha
+                    registro["ocorrencias"] = conferir_protocolo(
+                        item, protocolo_json, data_esperada, excecoes,
+                        textos_registros=textos_registros,
+                        falhas_textos=falhas_textos,
+                    )
                     registro["conferido"] = True
                 except ProtocoloTri7NaoEncontrado:
                     registro["erro"] = "Protocolo não encontrado na Tri7."
@@ -138,7 +160,7 @@ def listar_excecoes_natureza_titulo(
 def confirmar_excecao_natureza_titulo(
     dados: dict,
     request: Request,
-    usuario: str = Depends(exigir_permissao("processar_matricula")),
+    usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
 ):
     titulo_original = str(dados.get("tituloOriginal") or "").strip()
     natureza_original = str(dados.get("naturezaOriginal") or "").strip()
@@ -148,6 +170,11 @@ def confirmar_excecao_natureza_titulo(
     natureza_tema = normalizar_tema(natureza_original)
     if not titulo_tema or not natureza_tema:
         raise HTTPException(status_code=422, detail="Título ou natureza formal inválidos.")
+    if not natureza_permite_excecao(natureza_original):
+        raise HTTPException(
+            status_code=422,
+            detail="Itens auxiliares como Prenotação, Busca e CEP não podem virar equivalência de título.",
+        )
 
     identificador = uuid4()
     with conectar() as conexao:

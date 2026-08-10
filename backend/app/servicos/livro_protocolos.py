@@ -6,6 +6,8 @@ from datetime import date
 
 from pypdf import PdfReader
 
+from backend.app.parser import separar_atos
+
 
 # 3 dígitos + ponto + 3 dígitos, sem ser parte de um número maior (evita
 # casar com trechos do CNPJ do rodapé, ex.: "20.639.962" contém "639.962").
@@ -146,29 +148,97 @@ def inferir_data_esperada(linhas: list[dict]) -> date | None:
     return date.fromisoformat(mais_comum)
 
 
-def _primeiro_item_com_ato(protocolo_json: dict) -> dict | None:
-    # A API não devolve itens_do_pedido na mesma ordem visual do sistema da
-    # Tri7 (onde o ato principal aparece como item "1") -- Prenotação (que
-    # sempre acontece antes, cronologicamente) costuma vir em 1º lugar no
-    # array, mesmo sem ser o ato principal. Prenotação e Busca nunca têm
-    # ato_tipo/ato_numero preenchidos (não são registro/averbação de
-    # verdade), então "1º item" pra fins de conferência é o primeiro item
-    # que tem um ato de verdade, não literalmente itens_do_pedido[0].
-    for item in protocolo_json.get("itens_do_pedido") or []:
-        registrado = item.get("atos_registrados") or {}
-        if registrado.get("ato_tipo") is not None and registrado.get("ato_numero") is not None:
-            return item
-    return None
+PADRAO_ITEM_AUXILIAR = re.compile(
+    r"\b(?:PRENOTACAO|BUSCA|CODIGO\s+DE\s+ENDERECAMENTO\s+POSTAL|CEP)\b"
+)
+PALAVRAS_GENERICAS_TITULO = {
+    "ATO", "AVERBACAO", "CONTRATO", "ESCRITURA", "FORMAL", "IMOVEL",
+    "INSTRUMENTO", "PARTICULAR", "PUBLICA", "REGISTRO", "RURAL", "SIMPLES",
+    "TITULO", "URBANO",
+}
+PALAVRAS_ANCORA = {
+    "ARREMATACAO", "CASAMENTO", "CEDULA", "CONSOLIDACAO",
+    "DESMEMBRAMENTO", "DIVORCIO", "EDIFICACAO", "GEORREFERENCIAMENTO",
+    "HIPOTECA", "INTIMACAO", "PARTILHA", "PENHORA",
+    "USUCAPIAO", "USUFRUTO",
+}
+PALAVRAS_CANCELAMENTO = {"BAIXA", "CANCELAMENTO", "EXTINCAO"}
+
+
+def _item_tem_resultado_registral(item: dict) -> bool:
+    natureza = _normalizar(str(item.get("natureza_formal_descricao") or ""))
+    if not natureza or natureza == "PRENOTACAO" or re.search(r"\bBUSCA\b", natureza):
+        return False
+    registrado = item.get("atos_registrados") or {}
+    if registrado.get("ato_tipo") is not None and registrado.get("ato_numero") is not None:
+        return True
+    # Matrículas novas e alguns atos de intimação aparecem como Mat.0 no
+    # Livro, mas a Tri7 não preenche ato_tipo/ato_numero. O vínculo ao imóvel
+    # ainda demonstra que este é um item efetivamente formalizado.
+    return (item.get("dados_imovel") or {}).get("numero_registro") is not None
+
+
+def _itens_com_resultado_registral(protocolo_json: dict) -> list[dict]:
+    return [
+        item for item in protocolo_json.get("itens_do_pedido") or []
+        if _item_tem_resultado_registral(item)
+    ]
+
+
+def _palavras_tema(valor: str) -> set[str]:
+    limpo = re.sub(r"[^A-Z0-9]+", " ", normalizar_tema(valor))
+    return {
+        palavra for palavra in limpo.split()
+        if palavra not in PALAVRAS_GENERICAS_TITULO and len(palavra) > 1
+    }
+
+
+def _temas_correspondem(titulo: str, natureza: str) -> bool:
+    palavras_titulo = _palavras_tema(titulo)
+    palavras_natureza = _palavras_tema(natureza)
+    if not palavras_titulo or not palavras_natureza:
+        return False
+    # Não confunde constituição/manutenção de um direito com sua baixa.
+    # Ex.: "Alienação Fiduciária" e "Cancelamento de Alienação
+    # Fiduciária" compartilham quase todas as palavras, mas são opostos.
+    if bool(palavras_titulo & PALAVRAS_CANCELAMENTO) != bool(
+        palavras_natureza & PALAVRAS_CANCELAMENTO
+    ):
+        return False
+    if palavras_titulo <= palavras_natureza or palavras_natureza <= palavras_titulo:
+        return True
+    comuns = palavras_titulo & palavras_natureza
+    # Dois termos materiais em comum identificam o mesmo negócio mesmo
+    # quando cada fonte acrescenta qualificadores diferentes: "Escritura
+    # Pública de Venda e Compra" x "Venda e Compra Imóvel Urbano (Simples)".
+    if len(comuns) >= 2:
+        return True
+    # Alguns atos têm uma palavra jurídica suficientemente distintiva para
+    # identificar o tema sozinha: "Formal de Partilha" x "Partilha Divórcio".
+    return bool(comuns & PALAVRAS_ANCORA)
+
+
+def natureza_permite_excecao(natureza: str) -> bool:
+    # Itens instrumentais nunca devem virar equivalência manual de um título
+    # principal. Isso impede cadastrar pares perigosos como
+    # "Escritura de Venda e Compra" x "CEP".
+    return not PADRAO_ITEM_AUXILIAR.search(_normalizar(natureza))
+
+
+def _pontuacao_natureza(titulo: str, natureza: str) -> tuple[int, int]:
+    titulo_palavras = _palavras_tema(titulo)
+    natureza_palavras = _palavras_tema(natureza)
+    comuns = titulo_palavras & natureza_palavras
+    return (len(comuns & PALAVRAS_ANCORA), len(comuns))
 
 
 def _regra_natureza_bate_com_titulo(
     protocolo_json: dict, excecoes: frozenset[tuple[str, str]] = frozenset(),
 ) -> list[dict]:
-    # Só o item principal (primeiro com ato de verdade) é conferido contra o
-    # Dados do Título — os demais itens do pedido (CEP, cancelamentos,
-    # outras averbações que acompanham o ato principal) legitimamente não
-    # precisam bater com o título e geravam ocorrência à toa quando essa
-    # checagem foi estendida para todos os itens.
+    # A ordem da API é operacional: atos preparatórios como CEP e cancelamento
+    # podem vir corretamente antes do ato principal (Venda e Compra). Por isso
+    # o título não é comparado apenas com a primeira posição; procura-se, entre
+    # os resultados formalizados, ao menos uma Natureza Formal correspondente.
     protocolo = protocolo_json.get("protocolo") or {}
     descricao_titulo = protocolo.get("descricao_titulo")
     if not _texto_valido(descricao_titulo):
@@ -177,57 +247,46 @@ def _regra_natureza_bate_com_titulo(
             "gravidade": "GRAVE",
             "descricao": "O protocolo não possui descrição do título (descricao_titulo em branco).",
         }]
-    item_principal = _primeiro_item_com_ato(protocolo_json)
-    if not item_principal or not _texto_valido(item_principal.get("natureza_formal_descricao")):
+    itens_com_natureza = [
+        item for item in _itens_com_resultado_registral(protocolo_json)
+        if _texto_valido(item.get("natureza_formal_descricao"))
+    ]
+    if not itens_com_natureza:
         return [{
             "regra": "NATUREZA_TITULO",
             "gravidade": "GRAVE",
-            "descricao": "Nenhum item com registro/averbação foi encontrado para conferir contra o título.",
+            "descricao": "Nenhum item formalizado possui Natureza Formal para conferir contra o título.",
         }]
-    natureza = item_principal["natureza_formal_descricao"]
     titulo_tema = normalizar_tema(str(descricao_titulo))
-    natureza_tema = normalizar_tema(str(natureza))
-    # Comparação por conjunto de palavras (não por substring nem igualdade
-    # exata), ignorando preposições/conectivos: descricao_titulo costuma ser
-    # o nome completo do instrumento e conter as mesmas palavras da natureza
-    # formal, mas não necessariamente na mesma ordem (ex.: título "Retificação
-    # de Área e Confrontações" vs natureza "Confrontações e Área -
-    # Retificação" — mesmas palavras, ordem diferente; substring exato não
-    # reconhecia isso). A mesma natureza também pode vir com uma preposição
-    # diferente entre as duas fontes (ex.: "Designação Cadastral DO Imóvel"
-    # vs "... DE Imóvel") sem mudar o sentido. Quando o conjunto de palavras
-    # de um não está inteiramente contido no do outro, os dois textos não
-    # têm relação nenhuma — sinal de que a natureza formal escolhida no item
-    # não corresponde ao título do protocolo.
-    palavras_titulo, palavras_natureza = set(titulo_tema.split()), set(natureza_tema.split())
-    bate = bool(palavras_natureza) and bool(palavras_titulo) and (
-        palavras_natureza <= palavras_titulo or palavras_titulo <= palavras_natureza
+    for item in itens_com_natureza:
+        natureza = str(item["natureza_formal_descricao"])
+        natureza_tema = normalizar_tema(natureza)
+        if _temas_correspondem(str(descricao_titulo), natureza):
+            return []
+        if (
+            natureza_permite_excecao(natureza)
+            and (titulo_tema, natureza_tema) in excecoes
+        ):
+            return []
+
+    item_candidato = max(
+        itens_com_natureza,
+        key=lambda item: _pontuacao_natureza(
+            str(descricao_titulo), str(item["natureza_formal_descricao"]),
+        ),
     )
-    if not bate and (titulo_tema, natureza_tema) in excecoes:
-        # Alguém já confirmou manualmente que esse par específico (mesmo
-        # texto de título + mesma natureza formal) é correto, apesar da
-        # comparação por texto não reconhecer relação nenhuma — ex.:
-        # "Contrato Particular Venda e Compra" com natureza "Compra e Venda
-        # - PMCMV e/ou SFH", onde PMCMV/SFH é uma modalidade de
-        # financiamento que só quem conhece o negócio sabe que corresponde.
-        bate = True
-    if not bate:
-        # GRAVIDADE menor que os campos em branco/checagens objetivas: essa
-        # regra é um julgamento por texto com limite conhecido (não entende
-        # sinônimos/jargão do setor fora dos conectivos removidos), então
-        # pode dar falso positivo em casos legítimos — não é tão confiável
-        # quanto "campo vazio" ou "busca com matrícula vinculada".
-        return [{
-            "regra": "NATUREZA_TITULO",
-            "gravidade": "ATENCAO",
-            "descricao": (
-                f"Dados do Título ('{descricao_titulo}') não corresponde à Natureza Formal "
-                f"do 1º item ('{natureza}')."
-            ),
-            "tituloOriginal": str(descricao_titulo),
-            "naturezaOriginal": str(natureza),
-        }]
-    return []
+    natureza = str(item_candidato["natureza_formal_descricao"])
+    return [{
+        "regra": "NATUREZA_TITULO",
+        "gravidade": "ATENCAO",
+        "descricao": (
+            f"Dados do Título ('{descricao_titulo}') não corresponde a nenhuma Natureza "
+            f"Formal dos atos. Candidata mais próxima: '{natureza}'."
+        ),
+        "tituloOriginal": str(descricao_titulo),
+        "naturezaOriginal": natureza,
+        "permiteExcecao": natureza_permite_excecao(natureza),
+    }]
 
 
 PADRAO_NATUREZA_BUSCA = re.compile(r"\bBUSCA\b")
@@ -251,66 +310,180 @@ def _regra_busca_com_matricula(protocolo_json: dict) -> list[dict]:
     return ocorrencias
 
 
-def _regra_ordem_e_texto_dos_atos(protocolo_json: dict) -> list[dict]:
-    ocorrencias = []
-    # A numeração de R./Av. é por imóvel, não por protocolo: um protocolo
-    # que abrange vários imóveis tem uma sequência independente em cada um
-    # (ex.: AV.31 num imóvel seguido de AV.11 em outro é normal). Agrupar por
-    # (tipo_registro, numero_registro) antes de checar a ordem evita
-    # comparar sequências de imóveis diferentes entre si.
-    atos_por_imovel: dict[tuple, list[tuple[int, str]]] = {}
-    sem_numero_vistos = 0
+def _chave_registro(item: dict) -> tuple[str, int] | None:
+    imovel = item.get("dados_imovel") or {}
+    numero = imovel.get("numero_registro")
+    if numero is None:
+        return None
+    try:
+        return (str(imovel.get("tipo_registro") or "").upper(), int(numero))
+    except (TypeError, ValueError):
+        return None
+
+
+def referencias_textos_protocolo(protocolo_json: dict) -> set[tuple[str, int]]:
+    """Retorna as matrículas/Registros Auxiliares que precisam ser lidos.
+
+    O texto é consultado somente durante a requisição e não é persistido.
+    """
+    referencias = set()
     for item in protocolo_json.get("itens_do_pedido") or []:
+        chave = _chave_registro(item)
+        if chave and chave[0] == "M" and _codigo_ato_registrado(item):
+            referencias.add(chave)
+    return referencias
+
+
+def _codigo_ato_registrado(item: dict) -> tuple[str, int] | None:
+    registrado = item.get("atos_registrados") or {}
+    tipo = _normalizar(str(registrado.get("ato_tipo") or ""))
+    numero = registrado.get("ato_numero")
+    if numero is None or tipo not in {"A", "AV", "R"}:
+        return None
+    return ("AV" if tipo in {"A", "AV"} else "R", int(numero))
+
+
+def _atos_do_texto(texto: str) -> list[tuple[tuple[str, int], str]]:
+    resultado = []
+    for ato in separar_atos(texto):
+        match = re.fullmatch(r"(R|AV)\.0*(\d+)", ato["codigo"], re.IGNORECASE)
+        if match:
+            resultado.append(((match.group(1).upper(), int(match.group(2))), ato["texto"]))
+    return resultado
+
+
+def _ocorrencias_campos_ato(codigo: tuple[str, int], texto: str) -> list[dict]:
+    return _ocorrencias_campos_ato_com_isencao(codigo, texto, isento=False)
+
+
+def _item_isento_de_custas(item: dict) -> bool:
+    """Reconhece a isenção pela discriminação objetiva da Tri7.
+
+    Não basta o texto da tabela sugerir gratuidade: todos os campos
+    financeiros que a API informou precisam estar zerados, inclusive o total.
+    Assim um ato comum com minuta ainda incompleta continua sendo alertado.
+    """
+    detalhes = item.get("detalhes_emolumentos")
+    if not isinstance(detalhes, dict) or "total_do_item" not in detalhes:
+        return False
+    campos = (
+        "emolumentos", "fundos", "iss", "total_do_item", "tx_jud",
+        "valor_base_calculo",
+    )
+    valores = [detalhes[campo] for campo in campos if campo in detalhes]
+    if len(valores) < 2:
+        return False
+    return all(
+        isinstance(valor, (int, float))
+        and not isinstance(valor, bool)
+        and abs(float(valor)) < 0.000001
+        for valor in valores
+    )
+
+
+def _ocorrencias_campos_ato_com_isencao(
+    codigo: tuple[str, int], texto: str, *, isento: bool,
+) -> list[dict]:
+    rotulo = f"{codigo[0]}.{codigo[1]}"
+    ocorrencias = []
+    # A pedido da Serventia, o Livro de Protocolos não confere datas neste
+    # momento. Isso inclui tanto a data do relatório quanto placeholders
+    # internos como "xx.07.2026" e o fecho "de de".
+    if not isento and (
+        PADRAO_VALOR_EM_BRANCO.search(texto) or PADRAO_SELO_EM_BRANCO.search(texto)
+    ):
+        ocorrencias.append({
+            "regra": "CAMPO_EM_BRANCO",
+            "gravidade": "ATENCAO",
+            "descricao": f"{rotulo}: selo e/ou cotação (emolumentos/ISSQN/taxa/total) aparentam estar em branco.",
+        })
+    return ocorrencias
+
+
+def _regra_ordem_itens_protocolo(protocolo_json: dict) -> list[dict]:
+    """Confere a sequência oficial devolvida em ``itens_do_pedido``.
+
+    O Explorer da Tri7 não ordena a resposta no navegador: ele exibe o JSON
+    bruto. Logo, a posição dos itens no array é a ordem operacional do
+    protocolo (atualização do imóvel, pessoas e transferência, por exemplo).
+    A numeração continua independente para cada matrícula.
+    """
+    ocorrencias = []
+    sequencias: dict[tuple[str, int], list[tuple[str, int]]] = {}
+    for item in protocolo_json.get("itens_do_pedido") or []:
+        chave = _chave_registro(item)
         registrado = item.get("atos_registrados") or {}
-        numero, tipo = registrado.get("ato_numero"), registrado.get("ato_tipo")
-        if numero is None or tipo is None:
+        tipo = _normalizar(str(registrado.get("ato_tipo") or ""))
+        numero = registrado.get("ato_numero")
+        if not chave or chave[0] != "M" or numero is None or tipo not in {"A", "AV", "R", "M"}:
             continue
-        imovel = item.get("dados_imovel") or {}
-        numero_registro = imovel.get("numero_registro")
-        if numero_registro is None:
-            # Sem número de matrícula não dá pra saber se é o mesmo imóvel de
-            # outro item também sem número — comum quando o protocolo abre
-            # mais de uma matrícula nova de uma vez (ex.: desmembramento,
-            # onde cada matrícula nova começa sua própria numeração do
-            # zero). Cada item vira seu próprio grupo isolado em vez de
-            # entrar no balaio de "sem número", que comparava matrículas
-            # novas diferentes como se fossem uma só e acusava ordem errada
-            # à toa.
-            chave_imovel = ("SEM_NUMERO", sem_numero_vistos)
-            sem_numero_vistos += 1
-        else:
-            chave_imovel = (imovel.get("tipo_registro"), numero_registro)
-        atos_por_imovel.setdefault(chave_imovel, []).append((int(numero), str(tipo)))
-        texto = registrado.get("texto") or ""
-        rotulo = f"{tipo}.{numero}"
-        if PADRAO_DATA_PLACEHOLDER.search(texto):
-            ocorrencias.append({
-                "regra": "CAMPO_EM_BRANCO",
-                "gravidade": "GRAVE",
-                "descricao": f"{rotulo}: data do ato ainda não preenchida (consta 'xx' no lugar do dia/mês).",
-            })
-        if PADRAO_FECHO_EM_BRANCO.search(texto):
-            ocorrencias.append({
-                "regra": "CAMPO_EM_BRANCO",
-                "gravidade": "GRAVE",
-                "descricao": f"{rotulo}: data de fechamento do ato (dia/mês) em branco.",
-            })
-        if PADRAO_VALOR_EM_BRANCO.search(texto) or PADRAO_SELO_EM_BRANCO.search(texto):
-            ocorrencias.append({
-                "regra": "CAMPO_EM_BRANCO",
-                "gravidade": "ATENCAO",
-                "descricao": f"{rotulo}: selo e/ou cotação (emolumentos/ISSQN/taxa/total) aparentam estar em branco.",
-            })
-    for atos in atos_por_imovel.values():
-        for anterior, atual in zip(atos, atos[1:]):
-            if atual[0] < anterior[0]:
+        try:
+            codigo = ("AV" if tipo in {"A", "AV"} else tipo, int(numero))
+        except (TypeError, ValueError):
+            continue
+        sequencias.setdefault(chave, []).append(codigo)
+
+    for chave, codigos in sequencias.items():
+        for anterior, atual in zip(codigos, codigos[1:]):
+            if atual[1] < anterior[1]:
                 ocorrencias.append({
                     "regra": "ORDEM_NUMERICA",
                     "gravidade": "GRAVE",
                     "descricao": (
-                        f"Ordem fora de sequência: {anterior[1]}.{anterior[0]} seguido de {atual[1]}.{atual[0]}."
+                        f"Matrícula {chave[1]}: ordem dos itens do protocolo fora de sequência, "
+                        f"{anterior[0]}.{anterior[1]} seguido de {atual[0]}.{atual[1]}."
                     ),
                 })
+    return ocorrencias
+
+
+def _regra_ordem_e_texto_dos_atos(
+    protocolo_json: dict,
+    textos_registros: dict[tuple[str, int], str] | None = None,
+    falhas_textos: dict[tuple[str, int], str] | None = None,
+) -> list[dict]:
+    ocorrencias = []
+    textos_registros = textos_registros or {}
+    falhas_textos = falhas_textos or {}
+    alvos_por_registro: dict[tuple[str, int], dict[tuple[str, int], list[dict]]] = {}
+    for item in protocolo_json.get("itens_do_pedido") or []:
+        chave = _chave_registro(item)
+        codigo = _codigo_ato_registrado(item)
+        # Ordem R./AV. só existe em matrícula. Registro Auxiliar usa outra
+        # estrutura e não deve ser comparado como se fosse Livro 2.
+        if chave and chave[0] == "M" and codigo:
+            alvos_por_registro.setdefault(chave, {}).setdefault(codigo, []).append(item)
+
+    for chave, itens_por_codigo in alvos_por_registro.items():
+        codigos_alvo = set(itens_por_codigo)
+        if chave in falhas_textos:
+            ocorrencias.append({
+                "regra": "TEXTO_INDISPONIVEL",
+                "gravidade": "ATENCAO",
+                "descricao": f"Não foi possível conferir o texto atual da matrícula {chave[1]}: {falhas_textos[chave]}",
+            })
+            continue
+        texto = textos_registros.get(chave)
+        if not texto:
+            # A função também é usada isoladamente em testes; sem o texto
+            # oficial, não tenta validar existência nem conteúdo do ato.
+            continue
+        atos_texto = _atos_do_texto(texto)
+        por_codigo = {codigo: bloco for codigo, bloco in atos_texto}
+        encontrados = {codigo for codigo, _bloco in atos_texto if codigo in codigos_alvo}
+        ausentes = sorted(codigos_alvo - encontrados, key=lambda codigo: codigo[1])
+        for codigo in ausentes:
+            ocorrencias.append({
+                "regra": "ATO_NAO_LOCALIZADO",
+                "gravidade": "GRAVE",
+                "descricao": f"{codigo[0]}.{codigo[1]} não foi localizado no texto atual da matrícula {chave[1]}.",
+            })
+        for codigo in sorted(codigos_alvo, key=lambda valor: valor[1]):
+            if codigo in por_codigo:
+                isento = any(_item_isento_de_custas(item) for item in itens_por_codigo[codigo])
+                ocorrencias.extend(_ocorrencias_campos_ato_com_isencao(
+                    codigo, por_codigo[codigo], isento=isento,
+                ))
     return ocorrencias
 
 
@@ -335,11 +508,14 @@ def conferir_protocolo(
     protocolo_json: dict,
     data_esperada: date,
     excecoes_natureza_titulo: frozenset[tuple[str, str]] = frozenset(),
+    textos_registros: dict[tuple[str, int], str] | None = None,
+    falhas_textos: dict[tuple[str, int], str] | None = None,
 ) -> list[dict]:
     return [
         *_regra_natureza_bate_com_titulo(protocolo_json, excecoes_natureza_titulo),
         *_regra_busca_com_matricula(protocolo_json),
-        *_regra_ordem_e_texto_dos_atos(protocolo_json),
+        *_regra_ordem_itens_protocolo(protocolo_json),
+        *_regra_ordem_e_texto_dos_atos(protocolo_json, textos_registros, falhas_textos),
         # Regra de data desativada por enquanto: mesmo com inferir_data_esperada()
         # olhando a própria folha em vez de "hoje - 1 dia" fixo, ainda gerou
         # ocorrência em casos legítimos. Fica pausada até a lógica ser revista;

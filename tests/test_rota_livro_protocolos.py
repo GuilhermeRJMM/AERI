@@ -195,6 +195,16 @@ class TesteExcecoesNaturezaTitulo(unittest.TestCase):
         self.assertEqual(contexto.exception.status_code, 422)
 
     @patch("backend.app.rotas.livro_protocolos.registrar_auditoria")
+    def test_nao_permite_transformar_cep_em_equivalencia_de_titulo(self, _auditoria):
+        with self.assertRaises(HTTPException) as contexto:
+            confirmar_excecao_natureza_titulo(
+                {"tituloOriginal": "ESCRITURA PÚBLICA DE VENDA E COMPRA",
+                 "naturezaOriginal": "Código de Endereçamento Postal - CEP"},
+                request=Mock(), usuario="ADM",
+            )
+        self.assertEqual(contexto.exception.status_code, 422)
+
+    @patch("backend.app.rotas.livro_protocolos.registrar_auditoria")
     @patch("backend.app.rotas.livro_protocolos.conectar")
     def test_remover_excecao_inexistente_e_404(self, conectar_mock, _auditoria):
         conexao, cursor = _conexao_falsa()

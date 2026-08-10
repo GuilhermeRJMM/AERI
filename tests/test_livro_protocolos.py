@@ -283,23 +283,43 @@ class TesteConferirProtocolo(unittest.TestCase):
         self.assertEqual(relevantes[0]["tituloOriginal"], "GEORREFERENCIAMENTO")
         self.assertEqual(relevantes[0]["naturezaOriginal"], "Código de Endereçamento Postal - CEP")
 
+    def test_cancelamento_nao_e_confundido_com_constituicao_do_mesmo_direito(self):
+        protocolo = _protocolo_base(
+            protocolo={"protocolo_numero": 185500, "descricao_titulo": "ALIENAÇÃO FIDUCIÁRIA"},
+            itens_do_pedido=[{
+                "natureza_formal_descricao": "Cancelamento de Alienação Fiduciária",
+                "dados_imovel": {}, "atos_registrados": {"ato_tipo": "A", "ato_numero": 7, "texto": ""},
+            }],
+        )
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        self.assertTrue(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
+
+    def test_retificacao_de_area_nao_bate_com_retificacao_de_cpf(self):
+        protocolo = _protocolo_base(
+            protocolo={"protocolo_numero": 185501, "descricao_titulo": "RETIFICAÇÃO DE ÁREA"},
+            itens_do_pedido=[{
+                "natureza_formal_descricao": "Retificação de CPF",
+                "dados_imovel": {}, "atos_registrados": {"ato_tipo": "A", "ato_numero": 7, "texto": ""},
+            }],
+        )
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        self.assertTrue(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
+
     def test_excecao_confirmada_suprime_a_ocorrencia(self):
-        # Caso real sem correção heurística possível: "Compra e Venda -
-        # PMCMV e/ou SFH" não compartilha palavras com "Contrato Particular
-        # Venda e Compra c/c Alienação Fiduciária" -- só um humano que
-        # confirmou manualmente esse par pode suprimir a ocorrência.
+        # Quando dois nomes realmente não compartilham tema textual, somente
+        # uma equivalência exata confirmada por administrador pode suprimir.
         protocolo = _protocolo_base(
             protocolo={
                 "protocolo_numero": 184840,
-                "descricao_titulo": "CONTRATO PARTICULAR VENDA E COMPRA C/C ALIENAÇÃO FIDUCIÁRIA",
+                "descricao_titulo": "ESCRITURA PÚBLICA DE CONFISSÃO DE DÍVIDA",
             },
             itens_do_pedido=[{
-                "natureza_formal_descricao": "Compra e Venda - PMCMV e/ou SFH (Sem Desconto)",
+                "natureza_formal_descricao": "Dação em Pagamento",
                 "dados_imovel": {}, "atos_registrados": {"ato_tipo": "R", "ato_numero": 13, "texto": ""},
             }],
         )
-        titulo_tema = normalizar_tema("CONTRATO PARTICULAR VENDA E COMPRA C/C ALIENAÇÃO FIDUCIÁRIA")
-        natureza_tema = normalizar_tema("Compra e Venda - PMCMV e/ou SFH (Sem Desconto)")
+        titulo_tema = normalizar_tema("ESCRITURA PÚBLICA DE CONFISSÃO DE DÍVIDA")
+        natureza_tema = normalizar_tema("Dação em Pagamento")
 
         sem_excecao = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertTrue(any(o["regra"] == "NATUREZA_TITULO" for o in sem_excecao))
@@ -322,6 +342,22 @@ class TesteConferirProtocolo(unittest.TestCase):
         ocorrencias = conferir_protocolo(
             self._item_registrado(), protocolo, date(2026, 8, 6),
             excecoes_natureza_titulo=excecao_de_outro_caso,
+        )
+        self.assertTrue(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
+
+    def test_excecao_antiga_de_cep_nao_suprime_ocorrencia(self):
+        titulo = "GEORREFERENCIAMENTO"
+        natureza = "Código de Endereçamento Postal - CEP"
+        protocolo = _protocolo_base(
+            protocolo={"protocolo_numero": 185021, "descricao_titulo": titulo},
+            itens_do_pedido=[{
+                "natureza_formal_descricao": natureza,
+                "dados_imovel": {}, "atos_registrados": {"ato_tipo": "A", "ato_numero": 31, "texto": ""},
+            }],
+        )
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            excecoes_natureza_titulo=frozenset({(normalizar_tema(titulo), normalizar_tema(natureza))}),
         )
         self.assertTrue(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
 
@@ -350,6 +386,29 @@ class TesteConferirProtocolo(unittest.TestCase):
         )
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
+
+    def test_protocolo_184994_encontra_venda_e_compra_mesmo_com_cep_antes_na_api(self):
+        protocolo = _protocolo_base(
+            protocolo={"protocolo_numero": 184994, "descricao_titulo": "ESCRITURA PÚBLICA DE VENDA E COMPRA"},
+            itens_do_pedido=[
+                {"natureza_formal_descricao": "Código de Endereçamento Postal - CEP",
+                 "dados_imovel": {"tipo_registro": "M", "numero_registro": 34712},
+                 "atos_registrados": {"ato_tipo": "A", "ato_numero": 6, "texto": ""}},
+                {"natureza_formal_descricao": "Cancelamento de Alienação Fiduciária",
+                 "dados_imovel": {"tipo_registro": "M", "numero_registro": 34712},
+                 "atos_registrados": {"ato_tipo": "A", "ato_numero": 7, "texto": ""}},
+                {"natureza_formal_descricao": "Venda e Compra Imóvel Urbano (Simples)",
+                 "dados_imovel": {"tipo_registro": "M", "numero_registro": 34712},
+                 "atos_registrados": {"ato_tipo": "R", "ato_numero": 8, "texto": ""}},
+            ],
+        )
+        texto = "AV.06-34.712 CEP\nAV.07-34.712 CANCELAMENTO\nR.08-34.712 VENDA E COMPRA"
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            textos_registros={("M", 34712): texto},
+        )
+        self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
+        self.assertFalse(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
 
     def _itens_com_busca(self, numero_registro):
         return [
@@ -393,6 +452,49 @@ class TesteConferirProtocolo(unittest.TestCase):
              "atos_registrados": {"ato_tipo": "A", "ato_numero": 3, "texto": ""}},
             {"natureza_formal_descricao": "Registro", "dados_imovel": imovel,
              "atos_registrados": {"ato_tipo": "R", "ato_numero": 2, "texto": ""}},
+        ])
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            textos_registros={("M", 152): "R.01-152 texto\nAV.03-152 texto\nR.02-152 texto"},
+        )
+        self.assertTrue(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
+
+    def test_ordem_e_a_do_protocolo_mesmo_quando_texto_da_matricula_esta_ordenado(self):
+        imovel = {"tipo_registro": "M", "numero_registro": 34712}
+        protocolo = _protocolo_base(
+            protocolo={
+                "protocolo_numero": 184994,
+                "descricao_titulo": "ESCRITURA PÚBLICA DE VENDA E COMPRA",
+            },
+            itens_do_pedido=[
+                {"natureza_formal_descricao": "Código de Endereçamento Postal - CEP",
+                 "dados_imovel": imovel,
+                 "atos_registrados": {"ato_tipo": "A", "ato_numero": 6, "texto": ""}},
+                {"natureza_formal_descricao": "Venda e Compra Imóvel Urbano (Simples)",
+                 "dados_imovel": imovel,
+                 "atos_registrados": {"ato_tipo": "R", "ato_numero": 8, "texto": ""}},
+                {"natureza_formal_descricao": "Cancelamento de Alienação Fiduciária",
+                 "dados_imovel": imovel,
+                 "atos_registrados": {"ato_tipo": "A", "ato_numero": 7, "texto": ""}},
+            ],
+        )
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            textos_registros={("M", 34712): (
+                "AV.06-34.712 CEP\nAV.07-34.712 CANCELAMENTO\nR.08-34.712 VENDA E COMPRA"
+            )},
+        )
+        ordem = [o for o in ocorrencias if o["regra"] == "ORDEM_NUMERICA"]
+        self.assertEqual(len(ordem), 1)
+        self.assertIn("R.8 seguido de AV.7", ordem[0]["descricao"])
+
+    def test_abertura_m0_participa_da_ordem_do_protocolo(self):
+        imovel = {"tipo_registro": "M", "numero_registro": 39834}
+        protocolo = _protocolo_base(itens_do_pedido=[
+            {"natureza_formal_descricao": "Traslado", "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 1, "texto": ""}},
+            {"natureza_formal_descricao": "Abertura de Matrícula", "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "M", "ato_numero": 0, "texto": ""}},
         ])
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertTrue(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
@@ -459,32 +561,80 @@ class TesteConferirProtocolo(unittest.TestCase):
              "dados_imovel": {"tipo_registro": "M", "numero_registro": 152},
              "atos_registrados": {"ato_tipo": "R", "ato_numero": 2, "texto": ""}},
         ])
-        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            textos_registros={("M", 152): "R.01-152 texto\nAV.03-152 texto\nR.02-152 texto"},
+        )
         self.assertTrue(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
 
-    def test_data_placeholder_xx_e_ocorrencia_grave(self):
+    def test_data_placeholder_xx_e_ignorado_por_enquanto(self):
         protocolo = _protocolo_base()
-        protocolo["itens_do_pedido"][0]["atos_registrados"]["texto"] = "AV. 18-152 - Data: xx.07.2026. Texto do ato."
-        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
-        self.assertTrue(any(o["regra"] == "CAMPO_EM_BRANCO" and "xx" in o["descricao"] for o in ocorrencias))
-
-    def test_fecho_em_branco_e_ocorrencia_grave(self):
-        protocolo = _protocolo_base()
-        protocolo["itens_do_pedido"][0]["atos_registrados"]["texto"] = (
-            "Texto do ato. DOU FÉ. Morrinhos-GO, de de. Oficial: /mws/"
+        protocolo["itens_do_pedido"][0]["dados_imovel"] = {"tipo_registro": "M", "numero_registro": 152}
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            textos_registros={("M", 152): "R.01-152 - Data: xx.07.2026. Texto do ato."},
         )
-        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
-        self.assertTrue(any(o["regra"] == "CAMPO_EM_BRANCO" for o in ocorrencias))
+        self.assertFalse(any(o["regra"] == "CAMPO_EM_BRANCO" and "xx" in o["descricao"] for o in ocorrencias))
+
+    def test_data_do_fecho_em_branco_e_ignorada_por_enquanto(self):
+        protocolo = _protocolo_base()
+        protocolo["itens_do_pedido"][0]["dados_imovel"] = {"tipo_registro": "M", "numero_registro": 152}
+        texto = (
+            "R.01-152 Texto do ato. DOU FÉ. Morrinhos-GO, de de. Oficial: /mws/"
+        )
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            textos_registros={("M", 152): texto},
+        )
+        self.assertFalse(any(o["regra"] == "CAMPO_EM_BRANCO" for o in ocorrencias))
 
     def test_valores_em_branco_geram_ocorrencia_de_atencao(self):
         protocolo = _protocolo_base()
-        protocolo["itens_do_pedido"][0]["atos_registrados"]["texto"] = (
-            "Texto do ato. Selo: . Cotação do ato: emolumentos: R$; ISSQN: R$; Total: R$."
+        protocolo["itens_do_pedido"][0]["dados_imovel"] = {"tipo_registro": "M", "numero_registro": 152}
+        texto = (
+            "R.01-152 Texto do ato. Selo: . Cotação do ato: emolumentos: R$; ISSQN: R$; Total: R$."
         )
-        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            textos_registros={("M", 152): texto},
+        )
         relevantes = [o for o in ocorrencias if o["regra"] == "CAMPO_EM_BRANCO"]
         self.assertTrue(relevantes)
         self.assertTrue(all(o["gravidade"] == "ATENCAO" for o in relevantes))
+
+    def test_valores_em_branco_de_ato_isento_nao_geram_ocorrencia(self):
+        protocolo = _protocolo_base()
+        item = protocolo["itens_do_pedido"][0]
+        item["dados_imovel"] = {"tipo_registro": "M", "numero_registro": 39834}
+        item["detalhes_emolumentos"] = {
+            "emolumentos": 0.0,
+            "fundos": 0.0,
+            "iss": 0.0,
+            "total_do_item": 0.0,
+            "tx_jud": 0.0,
+            "valor_base_calculo": 0.0,
+        }
+        texto = (
+            "R.01-39.834 Texto do ato isento. Selo: . Cotação do ato: "
+            "emolumentos: R$; ISSQN: R$; taxa judiciária: R$; Total: R$."
+        )
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            textos_registros={("M", 39834): texto},
+        )
+        self.assertFalse(any(o["regra"] == "CAMPO_EM_BRANCO" for o in ocorrencias))
+
+    def test_total_zero_isolado_nao_disfarca_custas_em_branco(self):
+        protocolo = _protocolo_base()
+        item = protocolo["itens_do_pedido"][0]
+        item["dados_imovel"] = {"tipo_registro": "M", "numero_registro": 152}
+        item["detalhes_emolumentos"] = {"total_do_item": 0.0}
+        texto = "R.01-152 Texto. Selo: . Cotação: emolumentos: R$; Total: R$."
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            textos_registros={("M", 152): texto},
+        )
+        self.assertTrue(any(o["regra"] == "CAMPO_EM_BRANCO" for o in ocorrencias))
 
     def test_regra_de_data_esta_desativada_em_conferir_protocolo(self):
         # Desativada a pedido: mesmo inferindo a data esperada a partir da
