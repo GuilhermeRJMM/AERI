@@ -77,6 +77,7 @@ class RotaIncraTests(unittest.TestCase):
         self.assertEqual(resultado["itens"][0]["situacaoTri7"], "CANCELADO_DECURSO_PRAZO")
         self.assertEqual(resultado["itens"][1]["situacaoTri7"], "CANCELADO_DECURSO_PRAZO")
         self.assertEqual(resultado["itens"][2]["matriculas"][0]["atos"], ["AV.3"])
+        obter_cliente.return_value.buscar_texto_matricula.assert_not_called()
 
     @patch("backend.app.rotas.incra._LimitadorTaxaTri7.aguardar")
     @patch("backend.app.rotas.incra.registrar_auditoria")

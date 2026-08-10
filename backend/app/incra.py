@@ -45,6 +45,7 @@ def classificar_ato(ato: str) -> tuple[str, str]:
 
 
 ANDAMENTO_CANCELADO_DECURSO = "FINALIZADO DECURSO DE PRAZO"
+ANDAMENTO_FINALIZADO = "FINALIZADO"
 
 
 def _numero_inteiro(valor: object) -> int | None:
@@ -78,6 +79,15 @@ def referencias_matriculas_tri7(protocolo_json: dict) -> set[int]:
         if tipo_registro == "M" and numero and _codigo_ato_tri7(item):
             referencias.add(numero)
     return referencias
+
+
+def protocolo_finalizado_sem_cancelamento(protocolo_json: dict) -> bool:
+    tipos = {
+        _normalizar(str(item.get("andamento_tipo") or ""))
+        for item in (protocolo_json.get("andamentos") or [])
+        if isinstance(item, dict)
+    }
+    return ANDAMENTO_FINALIZADO in tipos and ANDAMENTO_CANCELADO_DECURSO not in tipos
 
 
 def _texto_menciona_protocolo(texto: str, numero_protocolo: int | None) -> bool:
@@ -127,23 +137,6 @@ def resumir_protocolo_tri7(
         if codigo not in atos:
             atos.append(codigo)
 
-    matriculas = OrderedDict()
-    nao_confirmados = 0
-    for numero, codigos in candidatos.items():
-        texto = textos_matriculas.get(numero, "")
-        codigos_texto = _codigos_confirmados_no_texto(texto, numero_protocolo) if texto else set()
-        confirmados = []
-        for codigo in codigos:
-            praticado = codigo in codigos_texto
-            if codigo == "M.0":
-                praticado = bool(texto) and _texto_menciona_protocolo(texto, numero_protocolo)
-            if praticado:
-                confirmados.append(codigo)
-            else:
-                nao_confirmados += 1
-        if confirmados:
-            matriculas[numero] = confirmados
-
     andamentos = [
         item for item in (protocolo_json.get("andamentos") or [])
         if isinstance(item, dict)
@@ -153,6 +146,25 @@ def resumir_protocolo_tri7(
         if _normalizar(str(item.get("andamento_tipo") or "")) == ANDAMENTO_CANCELADO_DECURSO
     ]
     cancelado = bool(cancelamentos)
+    confiar_atos_tri7 = protocolo_finalizado_sem_cancelamento(protocolo_json)
+
+    matriculas = OrderedDict()
+    nao_confirmados = 0
+    for numero, codigos in candidatos.items():
+        texto = textos_matriculas.get(numero, "")
+        codigos_texto = _codigos_confirmados_no_texto(texto, numero_protocolo) if texto else set()
+        confirmados = []
+        for codigo in codigos:
+            praticado = confiar_atos_tri7 or codigo in codigos_texto
+            if codigo == "M.0" and not confiar_atos_tri7:
+                praticado = bool(texto) and _texto_menciona_protocolo(texto, numero_protocolo)
+            if praticado:
+                confirmados.append(codigo)
+            else:
+                nao_confirmados += 1
+        if confirmados:
+            matriculas[numero] = confirmados
+
     ultimo_andamento = max(
         andamentos,
         key=lambda item: str(item.get("data_hora") or ""),

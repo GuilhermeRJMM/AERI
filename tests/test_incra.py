@@ -60,6 +60,33 @@ class ResumoTri7IncraTests(unittest.TestCase):
         self.assertFalse(resultado["cancelado"])
         self.assertEqual(resultado["situacaoTri7"], "PRATICADO")
 
+    def test_finalizado_confirma_vinculos_mesmo_com_texto_desatualizado(self):
+        protocolo = {
+            "protocolo": {"protocolo_numero": 183722},
+            "andamentos": [
+                {"andamento_tipo": "Documento Assinado Digitalmente"},
+                {"andamento_tipo": "Finalizado"},
+            ],
+            "itens_do_pedido": [
+                {
+                    "dados_imovel": {"tipo_registro": "M", "numero_registro": 34897},
+                    "atos_registrados": {"ato_tipo": "R", "ato_numero": 4},
+                },
+                {
+                    "dados_imovel": {"tipo_registro": "M", "numero_registro": 39759},
+                    "atos_registrados": {"ato_tipo": "A", "ato_numero": 1},
+                },
+            ],
+        }
+
+        resultado = resumir_protocolo_tri7(protocolo)
+
+        self.assertEqual(resultado["matriculas"], [
+            {"numero": "34897", "numeroFormatado": "34.897", "atos": ["R.4"]},
+            {"numero": "39759", "numeroFormatado": "39.759", "atos": ["AV.1"]},
+        ])
+        self.assertEqual(resultado["atosVinculadosNaoConfirmados"], 0)
+
     def test_agrupa_e_deduplica_atos_por_matricula(self):
         protocolo = {"protocolo": {"protocolo_numero": 185002}, "andamentos": [], "itens_do_pedido": [
             {"dados_imovel": {"tipo_registro": "M", "numero_registro": 39834},
@@ -111,7 +138,10 @@ class ResumoTri7IncraTests(unittest.TestCase):
     def test_ato_de_protocolo_cancelado_so_vinculado_na_api_nao_e_praticado(self):
         protocolo = {
             "protocolo": {"protocolo_numero": 183124},
-            "andamentos": [{"andamento_tipo": "Finalizado Decurso de Prazo"}],
+            "andamentos": [
+                {"andamento_tipo": "Finalizado"},
+                {"andamento_tipo": "Finalizado Decurso de Prazo"},
+            ],
             "itens_do_pedido": [{
                 "dados_imovel": {"tipo_registro": "M", "numero_registro": 37257},
                 "atos_registrados": {"ato_tipo": "A", "ato_numero": 23},

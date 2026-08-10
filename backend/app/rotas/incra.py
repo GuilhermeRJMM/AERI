@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from backend.app.autenticacao import exigir_permissao, proteger_csrf
 from backend.app.database import preparar_banco
-from backend.app.incra import extrair_protocolos, referencias_matriculas_tri7, resumir_protocolo_tri7
+from backend.app.incra import (
+    extrair_protocolos,
+    protocolo_finalizado_sem_cancelamento,
+    referencias_matriculas_tri7,
+    resumir_protocolo_tri7,
+)
 from backend.app.seguranca_web import registrar_auditoria
 from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7
 
@@ -67,7 +72,12 @@ async def analisar_incra(request: Request, usuario: str = Depends(exigir_permiss
                     protocolo_json = cliente.buscar_protocolo_completo(protocolo)
                     textos_matriculas = {}
                     falhas_textos = set()
-                    for matricula in referencias_matriculas_tri7(protocolo_json):
+                    referencias = (
+                        set()
+                        if protocolo_finalizado_sem_cancelamento(protocolo_json)
+                        else referencias_matriculas_tri7(protocolo_json)
+                    )
+                    for matricula in referencias:
                         if matricula not in cache_textos:
                             limitador.aguardar()
                             try:
