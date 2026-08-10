@@ -2654,3 +2654,32 @@ body.modo-incorporado .layout { padding-top:28px; }
 .contingencia-manual form { display:grid; gap:10px; margin-top:10px; }
 .contingencia-manual p { margin:0; font-size:.7rem; }
 .contingencia-manual textarea { min-height:150px; resize:vertical; padding:12px; border:1px solid rgba(139,152,178,.2); border-radius:12px; background:rgba(12,18,32,.72); color:var(--text-main); font:inherit; }
+
+/* INCRA · enriquecimento de situação, matrículas e atos pela Tri7 */
+.incra-resumo-tri7 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.incra-table-enriquecida { table-layout:fixed; }
+.incra-table-enriquecida th { overflow-wrap:anywhere; }
+.incra-table-enriquecida th:nth-child(1){width:10%}
+.incra-table-enriquecida th:nth-child(2){width:18%}
+.incra-table-enriquecida th:nth-child(3){width:17%}
+.incra-table-enriquecida th:nth-child(4){width:18%}
+.incra-table-enriquecida th:nth-child(5){width:30%}
+.incra-table-enriquecida th:nth-child(6){width:7%;text-align:center}
+.incra-table-enriquecida td { overflow-wrap:anywhere; }
+.incra-status-tri7 { display:inline-flex; align-items:center; max-width:100%; padding:5px 8px; border:1px solid transparent; border-radius:999px; font-size:.66rem; font-weight:800; line-height:1.2; white-space:normal; }
+.incra-status-praticado { color:#86efac; background:rgba(34,197,94,.1); border-color:rgba(34,197,94,.28); }
+.incra-status-cancelado_decurso_prazo { color:#fca5a5; background:rgba(239,68,68,.1); border-color:rgba(239,68,68,.3); }
+.incra-status-sem_ato { color:#cbd5e1; background:rgba(148,163,184,.1); border-color:rgba(148,163,184,.24); }
+.incra-status-nao_localizado,.incra-status-consulta_indisponivel { color:#fde68a; background:rgba(245,158,11,.1); border-color:rgba(245,158,11,.28); }
+.incra-status-detalhe { display:block; margin-top:6px; color:var(--text-muted); font-size:.64rem; line-height:1.3; }
+.incra-matricula-atos { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 10px; padding:6px 8px; border:1px solid rgba(139,152,178,.15); border-radius:8px; background:rgba(12,18,32,.35); }
+.incra-matricula-atos + .incra-matricula-atos { margin-top:5px; }
+.incra-matricula-atos strong { color:var(--text-main); font-size:.7rem; }
+.incra-matricula-atos span { color:var(--accent-green); font-size:.68rem; font-weight:750; text-align:right; }
+.incra-sem-ato { color:var(--text-muted); }
+
+@media(max-width:900px){
+  .incra-resumo-tri7{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .incra-table-enriquecida{min-width:980px}
+}
+@media(max-width:560px){.incra-resumo-tri7{grid-template-columns:1fr}}

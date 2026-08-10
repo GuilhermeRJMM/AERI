@@ -1,6 +1,6 @@
 import {iniciarAnalisador} from './analisador.js?v=20260731-auditoria';
 import {iniciarAutenticacao} from './autenticacao.js?v=20260731-auditoria';
-import {iniciarIncra} from './incra.js';
+import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260804-custas-fluido';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260731-auditoria';
