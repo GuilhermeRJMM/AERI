@@ -294,12 +294,27 @@ def revisar_registro_auxiliar(
         with conexao.cursor() as cursor:
             if resultado["status"] == "OK":
                 item, inserido = _salvar_indice(cursor, numero, resultado["texto"])
+                # Ao incluir manualmente um número acima do limite conhecido,
+                # amplia a faixa da carga inicial sem avançar o cursor. Assim,
+                # a interface reconhece imediatamente o novo limite e a próxima
+                # sincronização ainda percorre eventuais registros intermediários.
+                cursor.execute(
+                    """UPDATE sincronizacao_registros_auxiliares_aeri
+                    SET limite_inicial=GREATEST(limite_inicial,%s),
+                        ultima_sincronizacao=NOW(), atualizado_em=NOW()
+                    WHERE id=1""",
+                    (numero,),
+                )
                 registrar_auditoria_cursor(
                     cursor, request, "revisar_registro_auxiliar", "sucesso", usuario,
                     detalhes={"numero": numero, "novo": inserido, "alterado": item["alterado"]},
                 )
+                estado = _estado_json(cursor)
                 conexao.commit()
-                return {"status": "OK", "item": registro_auxiliar_json(item)}
+                return {
+                    "status": "OK", "novo": inserido,
+                    "item": registro_auxiliar_json(item), "estado": estado,
+                }
 
             if resultado["status"] == "AUSENTE":
                 _limpar_erro(cursor, numero)
@@ -390,6 +405,7 @@ def _executar_sincronizacao(
                 resultados, falha = _consultar_lote_tri7(numeros)
 
                 processados = encontrados = novos = alterados = ausentes = falhas = 0
+                numeros_novos = []
                 erros = []
                 ultimo_processado = None
                 maior_encontrado = estado["ultimo_existente"]
@@ -399,6 +415,8 @@ def _executar_sincronizacao(
                         _item, inserido = _salvar_indice(cursor, numero, resultado["texto"])
                         encontrados += 1
                         novos += int(inserido)
+                        if inserido:
+                            numeros_novos.append(numero)
                         alterados += int(_item["alterado"])
                         maior_encontrado = max(maior_encontrado, numero)
                     elif resultado["status"] == "AUSENTE":
@@ -450,7 +468,8 @@ def _executar_sincronizacao(
                 conexao.commit()
                 return {"modo": modo, "processados": processados, "encontrados": encontrados,
                         "novos": novos, "alterados": alterados, "ausentes": ausentes,
-                        "falhas": falhas, "erros": erros, "falha": falha, "estado": estado_json}
+                        "numerosNovos": numeros_novos, "falhas": falhas, "erros": erros,
+                        "falha": falha, "estado": estado_json}
             finally:
                 conexao.rollback()
                 cursor.execute(

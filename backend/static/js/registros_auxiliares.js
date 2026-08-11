@@ -218,6 +218,12 @@ function alternarSincronizacao() {
 async function buscarNovos() {
     const botao = document.getElementById('btn-regaux-novos');
     botao.disabled = true;
+    const rotuloOriginal = botao.textContent;
+    botao.textContent = 'Consultando…';
+    const primeiroNumero = Number(estadoAtual?.ultimoExistente || 0) + 1;
+    document.getElementById('regaux-lote-status').textContent = primeiroNumero > 1
+        ? `Consultando novos registros a partir do ${formatarNumero(primeiroNumero)}…`
+        : 'Consultando novos Registros Auxiliares na Tri7…';
     try {
         let totalReprocessado = 0;
         // Reprocessa até esvaziar a fila de erros (ou até 20 lotes, como
@@ -239,11 +245,15 @@ async function buscarNovos() {
         });
         atualizarStatus(resultado.estado);
         const reprocessados = totalReprocessado ? ` ${totalReprocessado} falha(s) reprocessada(s).` : '';
-        document.getElementById('regaux-lote-status').textContent = `${resultado.novos} novo(s) Registro(s) Auxiliar(es) encontrado(s).${reprocessados}`;
+        const incluidos = (resultado.numerosNovos || []).length
+            ? ` Incluídos: ${(resultado.numerosNovos || []).map(formatarNumero).join(', ')}.`
+            : '';
+        document.getElementById('regaux-lote-status').textContent = `${resultado.novos} novo(s) Registro(s) Auxiliar(es) encontrado(s).${incluidos}${reprocessados}`;
     } catch (erro) {
         document.getElementById('regaux-lote-status').textContent = erro.message;
     } finally {
         botao.disabled = false;
+        botao.textContent = rotuloOriginal;
     }
 }
 
@@ -259,9 +269,12 @@ async function revisarNumero() {
     document.getElementById('regaux-lote-status').textContent = `Consultando o registro ${numero} na Tri7…`;
     try {
         const resultado = await requisicaoAeri(`/api/registros-auxiliares/${numero}/revisar`, {method:'POST'});
-        document.getElementById('regaux-lote-status').textContent = resultado.item.alterado
-            ? `Registro ${numero} revisado: houve alteração (nova averbação/retificação capturada).`
-            : `Registro ${numero} revisado: sem alterações desde a última consulta.`;
+        if (resultado.estado) atualizarStatus(resultado.estado);
+        document.getElementById('regaux-lote-status').textContent = resultado.novo
+            ? `Registro ${formatarNumero(numero)} incluído no índice com sucesso.`
+            : resultado.item.alterado
+                ? `Registro ${formatarNumero(numero)} revisado: houve alteração (nova averbação/retificação capturada).`
+                : `Registro ${formatarNumero(numero)} revisado: sem alterações desde a última consulta.`;
         campo.value = '';
     } catch (erro) {
         document.getElementById('regaux-lote-status').textContent = erro.message;

@@ -54,10 +54,13 @@ class TesteRevisarRegistroAuxiliar(unittest.TestCase):
         self.assertTrue(any("registros_auxiliares_erros_aeri" in str(chamada) for chamada in cursor.execute.call_args_list))
 
     @patch("backend.app.rotas.registros_auxiliares.registrar_auditoria_cursor")
+    @patch("backend.app.rotas.registros_auxiliares._estado_json", return_value={"limiteInicial": 29461})
     @patch("backend.app.rotas.registros_auxiliares._salvar_indice")
     @patch("backend.app.rotas.registros_auxiliares.conectar")
     @patch("backend.app.rotas.registros_auxiliares.cliente_tri7")
-    def test_regrava_indice_com_texto_atualizado_da_tri7(self, obter_cliente, conectar_mock, salvar_indice, _auditoria):
+    def test_regrava_indice_com_texto_atualizado_da_tri7(
+        self, obter_cliente, conectar_mock, salvar_indice, _estado, _auditoria
+    ):
         obter_cliente.return_value.buscar_texto_registro_auxiliar.return_value = {
             "texto": "R.01 - ALIENAÇÃO DE SOJA... AV.02 - RETIFICAÇÃO: onde se lê SOJA, leia-se MILHO."
         }
@@ -75,10 +78,16 @@ class TesteRevisarRegistroAuxiliar(unittest.TestCase):
         resultado = revisar_registro_auxiliar(29461, request=Mock(), usuario="ADM")
 
         self.assertEqual(resultado["status"], "OK")
+        self.assertFalse(resultado["novo"])
         self.assertEqual(resultado["item"]["numero"], 29461)
         self.assertTrue(resultado["item"]["alterado"])
+        self.assertEqual(resultado["estado"]["limiteInicial"], 29461)
         salvar_indice.assert_called_once()
         self.assertEqual(salvar_indice.call_args.args[1], 29461)
+        self.assertTrue(any(
+            "limite_inicial=GREATEST" in str(chamada)
+            for chamada in _cursor.execute.call_args_list
+        ))
 
 
 if __name__ == "__main__":
