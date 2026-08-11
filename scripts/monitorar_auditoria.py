@@ -19,7 +19,7 @@ def argumentos() -> argparse.Namespace:
         default=RAIZ / "output" / "relatorios" / "auditoria_registral-v4.csv",
     )
     parser.add_argument("--inicio", type=int, default=1)
-    parser.add_argument("--fim", type=int, default=39_767)
+    parser.add_argument("--fim", type=int, default=39_850)
     parser.add_argument("--intervalo", type=float, default=5.0)
     parser.add_argument("--uma-vez", action="store_true")
     return parser.parse_args()

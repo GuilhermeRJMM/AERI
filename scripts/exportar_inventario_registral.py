@@ -649,7 +649,7 @@ def consolidar(destino: Path, resultados: dict[int, dict], inicio: int, fim: int
 def argumentos() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Exporta o inventário registral completo da base Tri7.")
     parser.add_argument("--inicio", type=int, default=1)
-    parser.add_argument("--fim", type=int, default=39_767)
+    parser.add_argument("--fim", type=int, default=39_850)
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--rps", type=float, default=6.0)
     parser.add_argument("--tentativas", type=int, default=6)

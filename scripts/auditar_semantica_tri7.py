@@ -1326,7 +1326,7 @@ def gravar_resumo(caminho: Path, resultados: dict[int, dict], inicio: int, fim: 
 def argumentos() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Audita semanticamente os resultados do AERI na base Tri7.")
     parser.add_argument("--inicio", type=int, default=1)
-    parser.add_argument("--fim", type=int, default=39_767)
+    parser.add_argument("--fim", type=int, default=39_850)
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--rps", type=float, default=2.0)
     parser.add_argument("--tentativas", type=int, default=4)

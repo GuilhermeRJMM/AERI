@@ -1,5 +1,6 @@
 import os
 import unittest
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 from fastapi import HTTPException
@@ -71,6 +72,7 @@ class TesteRotaBuscas(unittest.TestCase):
 
         self.assertEqual("NOME", resposta["tipoBusca"])
         self.assertIn("%FAZENDA 3 IRMAOS%", cursor.comandos[0][1])
+        self.assertNotIn("m.situacao='ATIVA'", cursor.comandos[0][0])
 
     def test_cpf_incompleto_e_recusado(self):
         with self.assertRaises(HTTPException) as contexto:
@@ -86,6 +88,26 @@ class TesteRotaBuscas(unittest.TestCase):
         self.assertEqual("DOCUMENTO_EXATO", resposta["tipoBusca"])
         self.assertNotIn("12345678901", parametros)
         self.assertTrue(any(isinstance(item, str) and len(item) == 64 for item in parametros))
+
+    def test_lista_pendencias_sem_expor_texto_registral(self):
+        cursor = _CursorFalso([{
+            "matricula_numero": 123,
+            "estado": "REVISAR",
+            "prioridade": "P0-CRITICA",
+            "confianca_onus": "ALTA",
+            "confianca_cadeia": "BAIXA",
+            "confianca_imovel": "MEDIA",
+            "alertas": ["CADEIA_DOMINIAL_VAZIA_COM_TRANSFERENCIA"],
+            "complemento_status": "DESATIVADA",
+            "complemento_diagnostico": None,
+            "analisado_em": datetime(2026, 8, 11, tzinfo=timezone.utc),
+        }])
+        with patch.object(buscas, "conectar", return_value=_ConexaoFalsa(cursor)):
+            resposta = buscas.listar_pendencias_auditoria(100, "usuario")
+
+        self.assertEqual(123, resposta[0]["matricula"])
+        self.assertEqual("P0-CRITICA", resposta[0]["prioridade"])
+        self.assertNotIn("texto", resposta[0])
 
 
 if __name__ == "__main__":

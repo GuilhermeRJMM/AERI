@@ -11,6 +11,11 @@ from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_c
 from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria_cursor
 from backend.app.servicos.analise_matricula import analisar_matricula
+from backend.app.servicos.auditoria_integrada import (
+    construir_resumo_auditoria,
+    executar_revisao_complementar,
+    limite_complementar_diario,
+)
 from backend.app.servicos.buscas import (
     construir_indice_matricula,
     hash_documento,
@@ -125,12 +130,123 @@ def _salvar_ausencia(cursor, numero: int, status: str) -> None:
         (numero, status),
     )
     cursor.execute("DELETE FROM proprietarios_matriculas_busca_aeri WHERE matricula_numero=%s", (numero,))
+    cursor.execute("DELETE FROM auditorias_matriculas_aeri WHERE matricula_numero=%s", (numero,))
     _limpar_erro(cursor, numero)
 
 
-def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool, bool]:
+def _salvar_auditoria(cursor, resumo: dict) -> None:
+    cursor.execute(
+        """INSERT INTO auditorias_matriculas_aeri
+        (matricula_numero, resultado_hash, auditoria_hash, estado, prioridade,
+         confianca_onus, confianca_cadeia, confianca_imovel, veredito_onus,
+         veredito_cadeia, veredito_imovel, alertas, metricas, complemento_status)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        ON CONFLICT (matricula_numero) DO UPDATE SET
+            resultado_hash=EXCLUDED.resultado_hash,
+            estado=EXCLUDED.estado, prioridade=EXCLUDED.prioridade,
+            confianca_onus=EXCLUDED.confianca_onus,
+            confianca_cadeia=EXCLUDED.confianca_cadeia,
+            confianca_imovel=EXCLUDED.confianca_imovel,
+            veredito_onus=EXCLUDED.veredito_onus,
+            veredito_cadeia=EXCLUDED.veredito_cadeia,
+            veredito_imovel=EXCLUDED.veredito_imovel,
+            alertas=EXCLUDED.alertas, metricas=EXCLUDED.metricas,
+            complemento_status=CASE
+                WHEN auditorias_matriculas_aeri.auditoria_hash=EXCLUDED.auditoria_hash
+                  AND auditorias_matriculas_aeri.complemento_status='CONCLUIDA'
+                THEN auditorias_matriculas_aeri.complemento_status
+                ELSE EXCLUDED.complemento_status END,
+            complemento_modelo=CASE
+                WHEN auditorias_matriculas_aeri.auditoria_hash=EXCLUDED.auditoria_hash
+                  AND auditorias_matriculas_aeri.complemento_status='CONCLUIDA'
+                THEN auditorias_matriculas_aeri.complemento_modelo ELSE '' END,
+            complemento_diagnostico=CASE
+                WHEN auditorias_matriculas_aeri.auditoria_hash=EXCLUDED.auditoria_hash
+                  AND auditorias_matriculas_aeri.complemento_status='CONCLUIDA'
+                THEN auditorias_matriculas_aeri.complemento_diagnostico ELSE NULL END,
+            complemento_unidades_entrada=CASE
+                WHEN auditorias_matriculas_aeri.auditoria_hash=EXCLUDED.auditoria_hash
+                  AND auditorias_matriculas_aeri.complemento_status='CONCLUIDA'
+                THEN auditorias_matriculas_aeri.complemento_unidades_entrada ELSE 0 END,
+            complemento_unidades_saida=CASE
+                WHEN auditorias_matriculas_aeri.auditoria_hash=EXCLUDED.auditoria_hash
+                  AND auditorias_matriculas_aeri.complemento_status='CONCLUIDA'
+                THEN auditorias_matriculas_aeri.complemento_unidades_saida ELSE 0 END,
+            complemento_tentativas=CASE
+                WHEN auditorias_matriculas_aeri.auditoria_hash=EXCLUDED.auditoria_hash
+                  AND auditorias_matriculas_aeri.complemento_status='CONCLUIDA'
+                THEN auditorias_matriculas_aeri.complemento_tentativas ELSE 0 END,
+            complemento_erro=CASE
+                WHEN auditorias_matriculas_aeri.auditoria_hash=EXCLUDED.auditoria_hash
+                  AND auditorias_matriculas_aeri.complemento_status='CONCLUIDA'
+                THEN auditorias_matriculas_aeri.complemento_erro ELSE '' END,
+            complemento_em=CASE
+                WHEN auditorias_matriculas_aeri.auditoria_hash=EXCLUDED.auditoria_hash
+                  AND auditorias_matriculas_aeri.complemento_status='CONCLUIDA'
+                THEN auditorias_matriculas_aeri.complemento_em ELSE NULL END,
+            auditoria_hash=EXCLUDED.auditoria_hash,
+            analisado_em=NOW(), atualizado_em=NOW()""",
+        (
+            resumo["numero"], resumo["resultado_hash"], resumo["auditoria_hash"],
+            resumo["estado"], resumo["prioridade"], resumo["confianca_onus"],
+            resumo["confianca_cadeia"], resumo["confianca_imovel"],
+            resumo["veredito_onus"], resumo["veredito_cadeia"], resumo["veredito_imovel"],
+            Jsonb(resumo["alertas"]), Jsonb(resumo["metricas"]), resumo["complemento_status"],
+        ),
+    )
+
+
+def _tentar_revisao_complementar(cursor, numero: int, texto: str, resumo: dict) -> bool:
+    if resumo["prioridade"] != "P0-CRITICA" or limite_complementar_diario() <= 0:
+        return False
+    cursor.execute(
+        "SELECT complemento_status FROM auditorias_matriculas_aeri WHERE matricula_numero=%s",
+        (numero,),
+    )
+    item = cursor.fetchone()
+    if not item or item["complemento_status"] != "PENDENTE":
+        return False
+    cursor.execute(
+        """SELECT COUNT(*) AS total FROM auditorias_matriculas_aeri
+        WHERE complemento_status='CONCLUIDA' AND complemento_em >= CURRENT_DATE"""
+    )
+    if cursor.fetchone()["total"] >= limite_complementar_diario():
+        return False
+    cursor.execute(
+        """UPDATE auditorias_matriculas_aeri
+        SET complemento_status='PROCESSANDO', complemento_tentativas=complemento_tentativas+1,
+            complemento_erro='', atualizado_em=NOW() WHERE matricula_numero=%s""",
+        (numero,),
+    )
+    try:
+        complemento = executar_revisao_complementar(texto, resumo)
+        cursor.execute(
+            """UPDATE auditorias_matriculas_aeri SET complemento_status='CONCLUIDA',
+            complemento_modelo=%s, complemento_diagnostico=%s,
+            complemento_unidades_entrada=%s, complemento_unidades_saida=%s,
+            complemento_erro='', complemento_em=NOW(), atualizado_em=NOW()
+            WHERE matricula_numero=%s""",
+            (
+                complemento["modelo"], Jsonb(complemento["diagnostico"]),
+                complemento["unidades_entrada"], complemento["unidades_saida"], numero,
+            ),
+        )
+    except RuntimeError as erro:
+        cursor.execute(
+            """UPDATE auditorias_matriculas_aeri SET complemento_status='FALHA',
+            complemento_erro=%s, complemento_em=NOW(), atualizado_em=NOW()
+            WHERE matricula_numero=%s""",
+            (str(erro)[:240], numero),
+        )
+    return True
+
+
+def _salvar_indice(
+    cursor, numero: int, texto: str, permitir_complemento: bool = False,
+) -> tuple[dict, bool, bool, dict, bool]:
     resultado = analisar_matricula(texto, numero_matricula=str(numero))
     indice = construir_indice_matricula(numero, texto, resultado)
+    resumo_auditoria = construir_resumo_auditoria(numero, texto, resultado)
     cursor.execute(
         "SELECT texto_hash, resultado_hash FROM matriculas_busca_aeri WHERE numero=%s",
         (numero,),
@@ -179,8 +295,13 @@ def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool, bool]:
                 proprietario["origem"], proprietario["confianca"],
             ),
         )
+    _salvar_auditoria(cursor, resumo_auditoria)
+    complemento_executado = bool(
+        permitir_complemento
+        and _tentar_revisao_complementar(cursor, numero, texto, resumo_auditoria)
+    )
     _limpar_erro(cursor, numero)
-    return indice, novo, alterado
+    return indice, novo, alterado, resumo_auditoria, complemento_executado
 
 
 def _estado_json(cursor) -> dict:
@@ -199,6 +320,16 @@ def _estado_json(cursor) -> dict:
     proprietarios = cursor.fetchone()["total"]
     cursor.execute("SELECT COUNT(*) AS total FROM matriculas_busca_erros_aeri")
     erros = cursor.fetchone()["total"]
+    cursor.execute(
+        """SELECT COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE estado='VALIDADA_AUTOMATICAMENTE') AS validadas,
+        COUNT(*) FILTER (WHERE estado='REVISAR') AS revisar,
+        COUNT(*) FILTER (WHERE prioridade='P0-CRITICA') AS criticas,
+        COUNT(*) FILTER (WHERE complemento_status='PENDENTE') AS complemento_pendente,
+        COUNT(*) FILTER (WHERE complemento_status='CONCLUIDA') AS complemento_concluido
+        FROM auditorias_matriculas_aeri"""
+    )
+    auditoria = cursor.fetchone()
     limite = estado["limite_inicial"]
     concluidos = min(max(estado["proximo_inicial"] - 1, 0), limite)
     return {
@@ -212,6 +343,12 @@ def _estado_json(cursor) -> dict:
         "matriculasComTexto": totais["com_texto"],
         "matriculasIgnoradas": totais["ignoradas"],
         "proprietariosAtuais": proprietarios,
+        "auditoriaTotal": auditoria["total"],
+        "auditoriaValidadas": auditoria["validadas"],
+        "auditoriaRevisar": auditoria["revisar"],
+        "auditoriaCriticas": auditoria["criticas"],
+        "complementoPendente": auditoria["complemento_pendente"],
+        "complementoConcluido": auditoria["complemento_concluido"],
         "errosPendentes": erros,
         "progressoInicial": round((concluidos / limite) * 100, 2) if limite else 100,
         "cargaInicialConcluida": estado["proximo_inicial"] > limite,
@@ -256,7 +393,7 @@ def pesquisar_titularidade(
                      ELSE 'NOME_PARCIAL' END AS correspondencia
                 FROM proprietarios_matriculas_busca_aeri p
                 JOIN matriculas_busca_aeri m ON m.numero=p.matricula_numero
-                WHERE m.situacao='ATIVA' AND {filtro}
+                WHERE {filtro}
                 ORDER BY
                     CASE WHEN p.nome_busca=%s THEN 0 ELSE 1 END,
                     p.nome, m.numero DESC LIMIT %s""",
@@ -301,6 +438,37 @@ def listar_erros(_usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
                 "numero": item["numero"], "modo": item["modo"], "erro": item["erro"],
                 "tentativas": item["tentativas"],
                 "ultimaTentativaEm": item["ultima_tentativa_em"].isoformat(),
+            } for item in cursor.fetchall()]
+
+
+@router.get("/auditoria/pendencias")
+def listar_pendencias_auditoria(
+    limite: int = Query(100, ge=1, le=300),
+    _usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """SELECT matricula_numero, estado, prioridade, confianca_onus,
+                confianca_cadeia, confianca_imovel, alertas, complemento_status,
+                complemento_diagnostico, analisado_em
+                FROM auditorias_matriculas_aeri
+                WHERE estado='REVISAR'
+                ORDER BY CASE prioridade WHEN 'P0-CRITICA' THEN 0 ELSE 1 END,
+                         matricula_numero LIMIT %s""",
+                (limite,),
+            )
+            return [{
+                "matricula": item["matricula_numero"],
+                "estado": item["estado"],
+                "prioridade": item["prioridade"],
+                "confiancaOnus": item["confianca_onus"],
+                "confiancaCadeia": item["confianca_cadeia"],
+                "confiancaImovel": item["confianca_imovel"],
+                "alertas": item["alertas"] or [],
+                "analiseComplementar": item["complemento_status"],
+                "diagnosticoComplementar": item["complemento_diagnostico"],
+                "analisadoEm": item["analisado_em"].isoformat(),
             } for item in cursor.fetchall()]
 
 
@@ -358,15 +526,28 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
 
                 resultados, falha_fatal = _consultar_lote(numeros)
                 processados = encontradas = ativas = encerradas = ausentes = falhas = alteradas = 0
+                auditorias_validadas = auditorias_revisar = complementos_executados = 0
+                try:
+                    max_complementos_lote = max(
+                        0, min(int(os.getenv("AERI_REVISAO_COMPLEMENTAR_MAX_LOTE", "1")), 3)
+                    )
+                except ValueError:
+                    max_complementos_lote = 0
                 ultimo_processado = None
                 maior_encontrada = estado["ultimo_conhecido"]
                 erros = []
                 for resultado in resultados:
                     numero = resultado["numero"]
                     if resultado["status"] == "OK":
-                        indice, _novo, alterado = _salvar_indice(cursor, numero, resultado["texto"])
+                        indice, _novo, alterado, auditoria, complemento_executado = _salvar_indice(
+                            cursor, numero, resultado["texto"],
+                            permitir_complemento=complementos_executados < max_complementos_lote,
+                        )
                         encontradas += 1
                         alteradas += int(alterado)
+                        auditorias_validadas += int(auditoria["estado"] == "VALIDADA_AUTOMATICAMENTE")
+                        auditorias_revisar += int(auditoria["estado"] == "REVISAR")
+                        complementos_executados += int(complemento_executado)
                         ativas += int(indice["situacao"] == "ATIVA")
                         encerradas += int(indice["situacao"] == "ENCERRADA")
                         maior_encontrada = max(maior_encontrada, numero)
@@ -411,7 +592,10 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
                     cursor, request, "sincronizar_busca_titularidade", "sucesso", usuario,
                     detalhes={"modo": modo, "processados": processados, "encontradas": encontradas,
                               "ativas": ativas, "encerradas": encerradas, "ausentes": ausentes,
-                              "falhas": falhas, "alteradas": alteradas},
+                              "falhas": falhas, "alteradas": alteradas,
+                              "auditoriasValidadas": auditorias_validadas,
+                              "auditoriasRevisar": auditorias_revisar,
+                              "analisesComplementares": complementos_executados},
                 )
                 estado_json = _estado_json(cursor)
                 conexao.commit()
@@ -419,6 +603,9 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
                     "modo": modo, "processados": processados, "encontradas": encontradas,
                     "ativas": ativas, "encerradas": encerradas, "ausentes": ausentes,
                     "falhas": falhas, "alteradas": alteradas, "erros": erros,
+                    "auditoriasValidadas": auditorias_validadas,
+                    "auditoriasRevisar": auditorias_revisar,
+                    "analisesComplementares": complementos_executados,
                     "falha": falha_fatal, "estado": estado_json,
                 }
             finally:
@@ -459,7 +646,9 @@ def revisar_matricula_busca(
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             if resultado["status"] == "OK":
-                indice, novo, alterado = _salvar_indice(cursor, numero, resultado["texto"])
+                indice, novo, alterado, auditoria, _complemento = _salvar_indice(
+                    cursor, numero, resultado["texto"], permitir_complemento=True,
+                )
                 cursor.execute(
                     """UPDATE sincronizacao_matriculas_busca_aeri
                     SET limite_inicial=GREATEST(limite_inicial,%s),
@@ -469,12 +658,14 @@ def revisar_matricula_busca(
                 registrar_auditoria_cursor(
                     cursor, request, "revisar_matricula_busca", "sucesso", usuario,
                     detalhes={"numero": numero, "novo": novo, "alterado": alterado,
-                              "situacao": indice["situacao"]},
+                              "situacao": indice["situacao"],
+                              "estadoAuditoria": auditoria["estado"]},
                 )
                 estado = _estado_json(cursor)
                 conexao.commit()
                 return {"numero": numero, "novo": novo, "alterado": alterado,
-                        "situacao": indice["situacao"], "estado": estado}
+                        "situacao": indice["situacao"],
+                        "estadoAuditoria": auditoria["estado"], "estado": estado}
             if resultado["status"] in {"NAO_ENCONTRADA", "SEM_TEXTO"}:
                 _salvar_ausencia(cursor, numero, resultado["status"])
                 conexao.commit()

@@ -46,7 +46,7 @@ class TesteServicoBuscas(unittest.TestCase):
         self.assertEqual(64, len(indice["texto_hash"]))
         self.assertNotIn("texto", indice)
 
-    def test_matricula_encerrada_nao_mantem_proprietarios_pesquisaveis(self):
+    def test_matricula_encerrada_mantem_proprietarios_pesquisaveis(self):
         resultado = {
             "proprietarios_atuais": [{"nome": "ANA LÚCIA", "cpf": "111.222.333-44", "proporcao": "100%"}],
             "imovel": {"situacao": {
@@ -61,7 +61,9 @@ class TesteServicoBuscas(unittest.TestCase):
 
         self.assertEqual("ENCERRADA", indice["situacao"])
         self.assertEqual(["200"], indice["matriculas_sucessoras"])
-        self.assertEqual([], indice["proprietarios"])
+        self.assertEqual(1, len(indice["proprietarios"]))
+        self.assertEqual("ANA LÚCIA", indice["proprietarios"][0]["nome"])
+        self.assertEqual("***.***.333-44", indice["proprietarios"][0]["documento_mascarado"])
 
     def test_sem_segredo_recusa_indexar_documento(self):
         with patch.dict(os.environ, {"AERI_BUSCAS_HMAC_KEY": "", "CRON_SECRET": ""}):

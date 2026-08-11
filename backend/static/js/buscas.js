@@ -28,6 +28,10 @@ function atualizarStatus(estado) {
     document.getElementById('buscas-total-ativas').textContent = formatarNumero(estado.matriculasAtivas);
     document.getElementById('buscas-total-encerradas').textContent = formatarNumero(estado.matriculasEncerradas);
     document.getElementById('buscas-total-proprietarios').textContent = formatarNumero(estado.proprietariosAtuais);
+    document.getElementById('buscas-auditoria-total').textContent = formatarNumero(estado.auditoriaTotal);
+    document.getElementById('buscas-auditoria-validadas').textContent = formatarNumero(estado.auditoriaValidadas);
+    document.getElementById('buscas-auditoria-revisar').textContent = formatarNumero(estado.auditoriaRevisar);
+    document.getElementById('buscas-auditoria-criticas').textContent = formatarNumero(estado.auditoriaCriticas);
     document.getElementById('buscas-progresso-texto').textContent = `${progresso.toLocaleString('pt-BR')}%`;
     document.getElementById('buscas-progresso-barra').style.width = `${progresso}%`;
     document.getElementById('buscas-proximo').textContent = estado.cargaInicialConcluida
@@ -41,6 +45,9 @@ function atualizarStatus(estado) {
     document.getElementById('btn-buscas-erros').hidden = !erros;
     document.getElementById('btn-buscas-reprocessar').hidden = !erros;
     if (!erros) document.getElementById('buscas-erros-painel').hidden = true;
+    const pendencias = Number(estado.auditoriaRevisar || 0);
+    document.getElementById('btn-buscas-pendencias').hidden = !pendencias;
+    if (!pendencias) document.getElementById('buscas-pendencias-painel').hidden = true;
 }
 
 function atualizarBotao() {
@@ -67,6 +74,7 @@ export function limparBuscas() {
     revisando = false;
     estadoAtual = null;
     atualizarBotao();
+    document.getElementById('buscas-pendencias-painel').hidden = true;
     document.getElementById('buscas-resultados').innerHTML = '<tr><td colspan="8" class="rotina-vazio">Entre novamente para pesquisar.</td></tr>';
 }
 
@@ -82,8 +90,9 @@ function renderizarResultados(dados) {
     document.getElementById('buscas-resultados').innerHTML = itens.map(item => {
         const correspondencia = item.correspondencia === 'DOCUMENTO_EXATO' ? 'CPF/CNPJ exato'
             : item.correspondencia === 'NOME_EXATO' ? 'Nome exato' : 'Nome parcial';
+        const situacao = String(item.situacao || 'REVISAR').toUpperCase();
         return `<tr>
-            <td data-label="Matrícula"><strong class="buscas-matricula">${formatarNumero(item.matricula)}</strong><small>ATIVA</small></td>
+            <td data-label="Matrícula"><strong class="buscas-matricula">${formatarNumero(item.matricula)}</strong><small class="buscas-situacao" data-situacao="${escaparHtml(situacao)}">${escaparHtml(situacao)}</small></td>
             <td data-label="Proprietário"><strong>${escaparHtml(item.nome)}</strong><small>Confiança ${escaparHtml(item.confianca.toLowerCase())}</small></td>
             <td data-label="Documento">${escaparHtml(item.tipoDocumento || '')} ${escaparHtml(item.documento || 'Não informado')}</td>
             <td data-label="Proporção"><span class="buscas-proporcao">${escaparHtml(item.proporcao)}</span></td>
@@ -92,7 +101,7 @@ function renderizarResultados(dados) {
             <td data-label="Atualização">${new Intl.DateTimeFormat('pt-BR').format(new Date(item.consultadoEm))}</td>
             <td data-label="Ação"><button type="button" class="rotina-btn-secondary buscas-analisar" data-matricula="${item.matricula}">Analisar</button></td>
         </tr>`;
-    }).join('') || '<tr><td colspan="8" class="rotina-vazio">Nenhum imóvel ativo foi encontrado para essa pesquisa.</td></tr>';
+    }).join('') || '<tr><td colspan="8" class="rotina-vazio">Nenhuma matrícula foi encontrada para essa pesquisa.</td></tr>';
 }
 
 async function pesquisar(evento) {
@@ -100,7 +109,7 @@ async function pesquisar(evento) {
     const botao = document.getElementById('btn-buscas-pesquisar');
     const termo = document.getElementById('buscas-termo').value.trim();
     botao.disabled = true;
-    document.getElementById('buscas-resultados').innerHTML = '<tr><td colspan="8" class="rotina-vazio">Pesquisando proprietários atuais no índice registral…</td></tr>';
+    document.getElementById('buscas-resultados').innerHTML = '<tr><td colspan="8" class="rotina-vazio">Pesquisando titulares no índice registral…</td></tr>';
     try {
         renderizarResultados(await requisicaoAeri(`/api/buscas?termo=${encodeURIComponent(termo)}`));
     } catch (erro) {
@@ -113,7 +122,7 @@ async function pesquisar(evento) {
 async function executarIndexacaoInicial() {
     indexando = true;
     atualizarBotao();
-    const limite = Number(document.getElementById('buscas-limite').value || 39767);
+    const limite = Number(document.getElementById('buscas-limite').value || 39850);
     registrarEvento(`Indexação iniciada até a matrícula ${formatarNumero(limite)}.`);
     let falhasTemporarias = 0;
     while (indexando) {
@@ -124,7 +133,7 @@ async function executarIndexacaoInicial() {
             });
             falhasTemporarias = 0;
             atualizarStatus(resultado.estado);
-            const mensagem = resultado.falha || `Lote: ${resultado.processados} consultadas · ${resultado.ativas} ativas · ${resultado.encerradas} encerradas · ${resultado.ausentes} ausentes · ${resultado.falhas} falha(s)`;
+            const mensagem = resultado.falha || `Lote: ${resultado.processados} consultadas · ${resultado.ativas} ativas · ${resultado.encerradas} encerradas · ${resultado.auditoriasValidadas} validadas · ${resultado.auditoriasRevisar} para conferir · ${resultado.falhas} falha(s)`;
             document.getElementById('buscas-status-operacao').textContent = mensagem;
             registrarEvento(mensagem, resultado.falha ? 'erro' : 'sucesso');
             if (resultado.falha || resultado.estado.cargaInicialConcluida || resultado.processados === 0) {
@@ -316,6 +325,46 @@ async function alternarErros() {
     }
 }
 
+function rotuloRevisaoComplementar(status) {
+    const rotulos = {
+        CONCLUIDA: 'Concluída', PENDENTE: 'Pendente', PROCESSANDO: 'Em processamento',
+        FALHA: 'Repetir', DESATIVADA: 'Conferência manual', NAO_NECESSARIA: 'Não necessária',
+    };
+    return rotulos[status] || 'Conferência manual';
+}
+
+async function alternarPendencias() {
+    const painel = document.getElementById('buscas-pendencias-painel');
+    if (!painel.hidden) {
+        painel.hidden = true;
+        return;
+    }
+    const botao = document.getElementById('btn-buscas-pendencias');
+    botao.disabled = true;
+    try {
+        const itens = await requisicaoAeri('/api/buscas/auditoria/pendencias?limite=200');
+        document.getElementById('buscas-pendencias-tbody').innerHTML = itens.map(item => {
+            const alertas = (item.alertas || []).join(', ') || 'Sem alerta detalhado';
+            const conclusao = item.diagnosticoComplementar?.conclusao;
+            const revisao = conclusao ? `${rotuloRevisaoComplementar(item.analiseComplementar)} · ${conclusao}`
+                : rotuloRevisaoComplementar(item.analiseComplementar);
+            return `<tr>
+                <td><strong>${formatarNumero(item.matricula)}</strong></td>
+                <td><span class="buscas-prioridade" data-prioridade="${escaparHtml(item.prioridade)}">${escaparHtml(item.prioridade)}</span></td>
+                <td>${escaparHtml(item.confiancaOnus)}</td><td>${escaparHtml(item.confiancaCadeia)}</td>
+                <td>${escaparHtml(item.confiancaImovel)}</td><td>${escaparHtml(alertas)}</td>
+                <td>${escaparHtml(revisao)}</td>
+                <td><button type="button" class="rotina-btn-secondary buscas-analisar" data-matricula="${item.matricula}">Analisar</button></td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="8" class="rotina-vazio">Nenhuma pendência registral.</td></tr>';
+        painel.hidden = false;
+    } catch (erro) {
+        registrarEvento(erro.message, 'erro');
+    } finally {
+        botao.disabled = false;
+    }
+}
+
 function abrirAnalise(evento) {
     const botao = evento.target.closest('[data-matricula]');
     if (!botao) return;
@@ -333,5 +382,7 @@ export function iniciarBuscas() {
     document.getElementById('btn-buscas-reprocessar').addEventListener('click', reprocessarFalhas);
     document.getElementById('btn-buscas-revisar').addEventListener('click', revisarNumero);
     document.getElementById('btn-buscas-erros').addEventListener('click', alternarErros);
+    document.getElementById('btn-buscas-pendencias').addEventListener('click', alternarPendencias);
     document.getElementById('buscas-resultados').addEventListener('click', abrirAnalise);
+    document.getElementById('buscas-pendencias-tbody').addEventListener('click', abrirAnalise);
 }

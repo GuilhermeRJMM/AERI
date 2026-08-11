@@ -5,7 +5,7 @@ A auditoria completa consulta a Tri7 e deve rodar fora da Vercel, em máquina co
 Exemplo conservador:
 
 ```powershell
-python scripts/auditar_semantica_tri7.py --inicio 1 --fim 39767 --workers 2 --rps 2 --tentativas 4 --saida output/relatorios/auditoria-semantica.csv
+python scripts/auditar_semantica_tri7.py --inicio 1 --fim 39850 --workers 2 --rps 2 --tentativas 4 --saida output/relatorios/auditoria-semantica.csv
 ```
 
 Regras operacionais:

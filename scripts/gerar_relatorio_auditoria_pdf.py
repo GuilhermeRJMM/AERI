@@ -45,7 +45,7 @@ def argumentos() -> argparse.Namespace:
     parser.add_argument("--entrada", type=Path, required=True)
     parser.add_argument("--saida", type=Path, required=True)
     parser.add_argument("--inicio", type=int, default=13001)
-    parser.add_argument("--fim", type=int, default=39767)
+    parser.add_argument("--fim", type=int, default=39850)
     return parser.parse_args()
 
 

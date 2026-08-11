@@ -9,13 +9,14 @@ O AERI é dividido em quatro camadas principais:
 - `backend/app`: regras registrais e infraestrutura compartilhada.
 - `backend/static/js`: módulos da interface, sem JavaScript de negócio dentro do HTML.
 
-O sistema possui atualmente cinco módulos funcionais:
+O sistema possui atualmente seis módulos funcionais:
 
 - **Ônus & Matrícula**: classificação dos atos e cálculo da cadeia dominial.
 - **INCRA**: extração e classificação de protocolos do Relatório Rural.
 - **Informar Custas**: extração dos pedidos de penhor e alienação de grãos do relatório PDF, organização por situação e separação entre filas em andamento e finalizada.
 - **Rotina - Intimação**: controle de intimações, andamento interno, conferência diária e importação/exportação CSV.
 - **Usuários e Acessos**: gestão administrativa de contas, perfis e consulta da auditoria de segurança.
+- **Buscas e auditoria registral**: uma única leitura do texto alimenta o índice de titulares e valida ônus, cadeia dominial e dados do imóvel.
 
 ## Backend
 
@@ -32,6 +33,7 @@ As rotas devem traduzir HTTP para chamadas de serviço. Regras de negócio não 
 ### Serviços e regras
 
 - `servicos/analise_matricula.py`: orquestra o contrato versionado da análise.
+- `servicos/auditoria_integrada.py`: resume a auditoria independente e controla a revisão complementar dos casos críticos.
 - `analise/onus.py`, `analise/cadeia.py` e `analise/imovel.py`: fachadas por domínio sobre as regras registrais validadas.
 - `analise/contrato.py`: versão do motor, hash determinístico e metadados de privacidade.
 - `analise/evidencias.py`: vincula o resultado à origem e a um trecho curto de evidência.
@@ -51,6 +53,8 @@ As intimações são persistidas em `intimacoes_aeri`. O andamento informado pel
 Cada mudança operacional também gera evento append-only em `eventos_intimacao_aeri`. A tabela preserva o tipo, autor, instante e campos afetados, inclusive quando a intimação é excluída, sem copiar credor, devedor ou conteúdo documental para o evento.
 
 Conferências incorretas não criam regras automaticamente. Elas entram em `divergencias_analise_aeri` para revisão administrativa. O registro guarda apenas matrícula, versão/hash do resultado, partes indicadas, contagens e comentário; o texto integral não é persistido.
+
+A auditoria registral integrada reaproveita o texto que já foi consultado para a indexação de titulares. O banco guarda somente hashes, vereditos, confianças, contagens e alertas estruturados. A revisão complementar é opcional, possui limite diário desativado por padrão e recebe documentos previamente mascarados.
 
 O módulo Informar Custas persiste sua fila em `custas_livro3_aeri`. O PDF é processado somente em memória, pedidos já existentes não são sobrescritos pela importação e cada alteração, finalização ou reabertura gera um evento em `eventos_custas_livro3_aeri`.
 

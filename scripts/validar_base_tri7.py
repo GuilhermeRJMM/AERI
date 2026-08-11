@@ -169,12 +169,12 @@ def gravar_resumo(caminho_csv: Path, resultados: dict[int, dict], inicio: int, f
 def argumentos() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Consulta e processa uma faixa de matrículas da Tri7.")
     parser.add_argument("--inicio", type=int, default=1)
-    parser.add_argument("--fim", type=int, default=39_767)
+    parser.add_argument("--fim", type=int, default=39_850)
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--rps", type=float, default=16.0)
     parser.add_argument("--tentativas", type=int, default=4)
     parser.add_argument("--refazer", default="", help="Números separados por vírgula que devem ser reprocessados.")
-    parser.add_argument("--saida", type=Path, default=RAIZ / "output" / "relatorios" / "validacao_tri7_1_39767.csv")
+    parser.add_argument("--saida", type=Path, default=RAIZ / "output" / "relatorios" / "validacao_tri7_1_39850.csv")
     return parser.parse_args()
 
 

@@ -63,26 +63,25 @@ def construir_indice_matricula(numero: int, texto: str, resultado: dict) -> dict
 
     evidencias = resultado.get("evidencias", {}).get("proprietarios", [])
     proprietarios = []
-    if status == "ATIVA":
-        for ordem, item in enumerate(resultado.get("proprietarios_atuais") or [], start=1):
-            nome = re.sub(r"\s+", " ", str(item.get("nome") or "")).strip()
-            nome_busca = normalizar_nome(nome)
-            if not nome_busca:
-                continue
-            documento = item.get("cpf") or ""
-            evidencia = evidencias[ordem - 1] if ordem <= len(evidencias) else {}
-            documento_protegido = hash_documento(documento) if normalizar_documento(documento) else ""
-            proprietarios.append({
-                "ordem": ordem,
-                "nome": nome,
-                "nome_busca": nome_busca,
-                "documento_hash": documento_protegido or None,
-                "documento_mascarado": mascarar_documento(documento),
-                "tipo_documento": tipo_documento(documento),
-                "proporcao": str(item.get("proporcao") or "100%")[:40],
-                "origem": str(evidencia.get("fonte") or "Cadeia dominial")[:80],
-                "confianca": "ALTA" if documento_protegido else "MEDIA",
-            })
+    for ordem, item in enumerate(resultado.get("proprietarios_atuais") or [], start=1):
+        nome = re.sub(r"\s+", " ", str(item.get("nome") or "")).strip()
+        nome_busca = normalizar_nome(nome)
+        if not nome_busca:
+            continue
+        documento = item.get("cpf") or ""
+        evidencia = evidencias[ordem - 1] if ordem <= len(evidencias) else {}
+        documento_protegido = hash_documento(documento) if normalizar_documento(documento) else ""
+        proprietarios.append({
+            "ordem": ordem,
+            "nome": nome,
+            "nome_busca": nome_busca,
+            "documento_hash": documento_protegido or None,
+            "documento_mascarado": mascarar_documento(documento),
+            "tipo_documento": tipo_documento(documento),
+            "proporcao": str(item.get("proporcao") or "100%")[:40],
+            "origem": str(evidencia.get("fonte") or "Cadeia dominial")[:80],
+            "confianca": "ALTA" if documento_protegido else "MEDIA",
+        })
 
     confianca = "ALTA" if proprietarios and all(
         item["confianca"] == "ALTA" for item in proprietarios
