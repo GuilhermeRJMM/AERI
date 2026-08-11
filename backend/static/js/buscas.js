@@ -47,7 +47,10 @@ function atualizarStatus(estado) {
     if (!erros) document.getElementById('buscas-erros-painel').hidden = true;
     const pendencias = Number(estado.auditoriaRevisar || 0);
     document.getElementById('btn-buscas-pendencias').hidden = !pendencias;
-    if (!pendencias) document.getElementById('buscas-pendencias-painel').hidden = true;
+    if (!pendencias) {
+        document.getElementById('buscas-pendencias-painel').hidden = true;
+        document.getElementById('btn-buscas-pendencias').textContent = 'Ver pendências';
+    }
 }
 
 function atualizarBotao() {
@@ -75,6 +78,7 @@ export function limparBuscas() {
     estadoAtual = null;
     atualizarBotao();
     document.getElementById('buscas-pendencias-painel').hidden = true;
+    document.getElementById('btn-buscas-pendencias').textContent = 'Ver pendências';
     document.getElementById('buscas-resultados').innerHTML = '<tr><td colspan="8" class="rotina-vazio">Entre novamente para pesquisar.</td></tr>';
 }
 
@@ -335,12 +339,17 @@ function rotuloRevisaoComplementar(status) {
 
 async function alternarPendencias() {
     const painel = document.getElementById('buscas-pendencias-painel');
+    const botao = document.getElementById('btn-buscas-pendencias');
     if (!painel.hidden) {
         painel.hidden = true;
+        botao.textContent = 'Ver pendências';
         return;
     }
-    const botao = document.getElementById('btn-buscas-pendencias');
+    painel.hidden = false;
+    botao.textContent = 'Ocultar pendências';
     botao.disabled = true;
+    document.getElementById('buscas-pendencias-tbody').innerHTML = '<tr><td colspan="8" class="rotina-vazio">Carregando pendências…</td></tr>';
+    painel.scrollIntoView({behavior:'smooth', block:'nearest'});
     try {
         const itens = await requisicaoAeri('/api/buscas/auditoria/pendencias?limite=200');
         document.getElementById('buscas-pendencias-tbody').innerHTML = itens.map(item => {
@@ -357,9 +366,9 @@ async function alternarPendencias() {
                 <td><button type="button" class="rotina-btn-secondary buscas-analisar" data-matricula="${item.matricula}">Analisar</button></td>
             </tr>`;
         }).join('') || '<tr><td colspan="8" class="rotina-vazio">Nenhuma pendência registral.</td></tr>';
-        painel.hidden = false;
     } catch (erro) {
         registrarEvento(erro.message, 'erro');
+        document.getElementById('buscas-pendencias-tbody').innerHTML = `<tr><td colspan="8" class="rotina-vazio">${escaparHtml(erro.message)}</td></tr>`;
     } finally {
         botao.disabled = false;
     }
