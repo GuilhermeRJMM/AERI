@@ -1,5 +1,6 @@
 import {configurarAcessoAnaliseManual, iniciarAnalisador} from './analisador.js?v=20260810-texto-manual-admin';
 import {iniciarAutenticacao} from './autenticacao.js?v=20260731-auditoria';
+import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260811-buscas-v1';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260804-custas-fluido';
@@ -52,6 +53,10 @@ function fecharSplash() {
                 carregarRegistrosAuxiliares();
                 pararAtualizacoesPeriodicas.push(iniciarAtualizacaoPeriodica(carregarRegistrosAuxiliares, INTERVALO_ATUALIZACAO_MS));
             }
+            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.processar_matricula)) {
+                carregarBuscas();
+                pararAtualizacoesPeriodicas.push(iniciarAtualizacaoPeriodica(carregarBuscas, INTERVALO_ATUALIZACAO_MS));
+            }
             if (cargoAdministrativo(dados.perfil) && !dados.deveTrocarSenha) carregarUsuarios();
             if (!dados.deveTrocarSenha) ativarStatusOnr();
         },
@@ -61,6 +66,7 @@ function fecharSplash() {
             limparIntimacoes();
             limparCustas();
             limparRegistrosAuxiliares();
+            limparBuscas();
             pararStatusOnr();
         },
     });
@@ -69,6 +75,7 @@ function fecharSplash() {
 iniciarNavegacao();
 iniciarStatusOnr();
 iniciarAnalisador();
+iniciarBuscas();
 iniciarIncra();
 iniciarLivroProtocolos();
 iniciarCustas();

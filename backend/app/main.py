@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from backend.app.rotas import (
-    analisador, autenticacao, custas, incra, intimacoes, livro_protocolos, registros_auxiliares,
+    analisador, autenticacao, buscas, custas, incra, intimacoes, livro_protocolos, registros_auxiliares,
     status_onr, usuarios,
 )
 from backend.app.seguranca_web import politica_frame_ancestors
@@ -25,6 +25,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 app.include_router(autenticacao.router)
 app.include_router(analisador.router)
+app.include_router(buscas.router)
 app.include_router(incra.router)
 app.include_router(custas.router)
 app.include_router(registros_auxiliares.router)

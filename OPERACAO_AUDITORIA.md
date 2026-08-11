@@ -44,3 +44,13 @@ Duas ressalvas importantes:
 
 - não é automático nem por webhook — alguém precisa saber que houve uma retificação e disparar isso manualmente;
 - o texto retornado pela Tri7 é cumulativo (R.01 + todas as averbações), e a extração de produto/modalidade só olha presença de palavra-chave no texto inteiro, não "estado atual". Uma retificação que troca o produto (ex.: "onde se lê SOJA, leia-se MILHO") deixa o registro indexado com os dois produtos juntos, não só o corrigido — o registro fica achável em ambos, mas o índice não expressa qual é o valor vigente.
+
+## Busca de titularidade
+
+O módulo **Buscas** cria um índice dos proprietários atuais diretamente a partir do texto das matrículas consultadas na Tri7. O texto integral não é persistido: ficam no Postgres somente o hash SHA-256, o resultado estruturado, a situação da matrícula e os proprietários atuais.
+
+- Configure `AERI_BUSCAS_HMAC_KEY` no Vercel com um segredo aleatório estável de pelo menos 32 caracteres. Se não estiver configurado, o sistema utiliza `CRON_SECRET` como contingência.
+- Não altere esse segredo depois da primeira carga sem reindexar todas as matrículas, pois ele protege o índice exato de CPF/CNPJ.
+- Matrículas encerradas, inexistentes ou sem texto permanecem registradas para auditoria, mas nunca entram nos resultados da busca.
+- A carga inicial deve ser executada pela tela administrativa para terminar em algumas horas. O cron diário funciona como contingência, avança um lote, reprocessa falhas e depois procura matrículas novas e revisa parte do índice.
+- A sincronização registra somente números, contagens e mensagens técnicas; nomes e documentos não são enviados à auditoria.

@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260810-texto-manual-admin">
+    <link rel="stylesheet" href="/static/styles.css?v=20260811-buscas-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -88,6 +88,13 @@
                         <line x1="12" y1="17" x2="12.01" y2="17"/>
                     </svg>
                     <span>Ônus & Matrícula</span>
+                </div>
+
+                <div class="nav-item" data-page="buscas" title="Buscas" hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/><path d="M8 11h6"/><path d="M11 8v6"/>
+                    </svg>
+                    <span>Buscas</span>
                 </div>
 
                 <div class="nav-item" data-page="incra" title="INCRA" hidden>
@@ -191,6 +198,81 @@
                         </div>
                     </div>
 
+                </main>
+            </div>
+
+            <div id="page-buscas" class="page">
+                <main class="layout buscas-layout">
+                    <div class="rotina-header buscas-header">
+                        <div>
+                            <span class="eyebrow">TITULARIDADE PELO TEXTO REGISTRAL</span>
+                            <h1>Busca de imóveis por proprietário</h1>
+                            <p>Localize matrículas ativas pelo nome ou CPF/CNPJ do proprietário atual, sem depender do cadastro de pessoas da Tri7.</p>
+                        </div>
+                    </div>
+
+                    <section id="buscas-sincronizacao" class="buscas-sincronizacao" hidden>
+                        <div class="buscas-resumo">
+                            <article><span>Matrículas analisadas</span><strong id="buscas-total-indexadas">0</strong></article>
+                            <article><span>Ativas</span><strong id="buscas-total-ativas">0</strong></article>
+                            <article><span>Encerradas ignoradas</span><strong id="buscas-total-encerradas">0</strong></article>
+                            <article><span>Proprietários atuais</span><strong id="buscas-total-proprietarios">0</strong></article>
+                        </div>
+                        <div class="buscas-progresso">
+                            <span>Indexação inicial <strong id="buscas-progresso-texto">0%</strong></span>
+                            <div><i id="buscas-progresso-barra"></i></div>
+                            <small id="buscas-proximo">Próxima matrícula: 1 de 39.767</small>
+                        </div>
+                        <div class="buscas-acoes">
+                            <label><span>Última matrícula conhecida</span><input id="buscas-limite" type="number" min="1" value="39767"></label>
+                            <button type="button" class="btn btn-primary" id="btn-buscas-indexar">Iniciar indexação</button>
+                            <button type="button" class="rotina-btn-secondary" id="btn-buscas-novas">Atualizar matrículas novas</button>
+                            <button type="button" class="rotina-btn-secondary" id="btn-buscas-revisar-indice">Revisar índice</button>
+                            <button type="button" class="rotina-btn-secondary" id="btn-buscas-reprocessar" hidden>Reprocessar falhas</button>
+                            <button type="button" class="rotina-btn-secondary" id="btn-buscas-erros" hidden>Ver falhas</button>
+                        </div>
+                        <div class="buscas-acoes buscas-revisar">
+                            <label><span>Revisar uma matrícula agora</span><input id="buscas-numero-revisar" type="number" min="1" placeholder="Ex.: 34901"></label>
+                            <button type="button" class="rotina-btn-secondary" id="btn-buscas-revisar">Revisar agora</button>
+                        </div>
+                        <p id="buscas-atualizado">Carregando situação…</p>
+                        <p id="buscas-status-operacao" aria-live="polite"></p>
+                        <div class="buscas-log" aria-label="Log da indexação">
+                            <strong>Últimos eventos</strong>
+                            <ol id="buscas-log-lista"><li data-tipo="info">Aguardando início da indexação.</li></ol>
+                        </div>
+                        <div id="buscas-erros-painel" class="buscas-erros" hidden>
+                            <table>
+                                <thead><tr><th>Matrícula</th><th>Modo</th><th>Tentativas</th><th>Última tentativa</th><th>Erro</th></tr></thead>
+                                <tbody id="buscas-erros-tbody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="buscas-pesquisa-card">
+                        <form id="form-buscas" class="buscas-form">
+                            <label for="buscas-termo">Nome completo ou CPF/CNPJ</label>
+                            <div>
+                                <span aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+                                <input id="buscas-termo" type="search" minlength="3" maxlength="300" autocomplete="off" placeholder="Ex.: Durval Rodrigues de Bessa ou 000.000.000-00" required>
+                                <button type="submit" class="btn btn-primary" id="btn-buscas-pesquisar">Pesquisar imóveis</button>
+                            </div>
+                            <small>A pesquisa considera somente proprietários atuais de matrículas ativas identificados no texto registral.</small>
+                        </form>
+                    </section>
+
+                    <section class="buscas-resultados-card">
+                        <div class="buscas-resultados-topo">
+                            <div><span class="eyebrow">RESULTADOS</span><h2>Imóveis encontrados</h2></div>
+                            <strong id="buscas-total-resultados">0 resultados</strong>
+                        </div>
+                        <div class="buscas-table-wrap">
+                            <table class="buscas-table">
+                                <thead><tr><th>Matrícula</th><th>Proprietário atual</th><th>Documento</th><th>Proporção</th><th>Origem</th><th>Correspondência</th><th>Atualização</th><th>Ação</th></tr></thead>
+                                <tbody id="buscas-resultados"><tr><td colspan="8" class="rotina-vazio">Informe um nome ou CPF/CNPJ para pesquisar.</td></tr></tbody>
+                            </table>
+                        </div>
+                    </section>
                 </main>
             </div>
 
@@ -586,6 +668,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260811-reg-aux-sync-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20260811-buscas-v1"></script>
 </body>
 </html>
