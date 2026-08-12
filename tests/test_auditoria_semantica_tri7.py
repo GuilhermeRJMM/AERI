@@ -93,6 +93,23 @@ class TesteAuditoriaSemanticaTri7(unittest.TestCase):
 
         self.assertNotIn("ADQUIRENTE_ROTULADO_NAO_EXTRAIDO", resultado["alertas"])
 
+    def test_regularizacao_fundiaria_e_auditada_como_transferencia_integral(self):
+        texto = """
+        IMÓVEL: Lote 16 da Quadra 32, com área de 268,29m².
+        PROPRIETÁRIO: Município de Morrinhos, CNPJ 01.789.551/0001-49.
+        R.01-37.900 - REGULARIZAÇÃO FUNDIÁRIA. OUTORGANTE: Município de
+        Morrinhos, CNPJ 01.789.551/0001-49. OUTORGADO: Joabes Marques Borges,
+        CPF 644.931.051-00. IMÓVEL: O imóvel descrito na matrícula.
+        LEGITIMAÇÃO FUNDIÁRIA: A aquisição da propriedade é originária, de
+        forma plena, sem quaisquer cláusulas ou condições.
+        """
+
+        resultado = auditar_texto(37900, texto)
+
+        self.assertEqual(resultado["atos_transferencia"], 1)
+        self.assertEqual(resultado["titularidade_total"], 100.0)
+        self.assertNotIn("ULTIMA_TRANSFERENCIA_INTEGRAL_DIVERGENTE", resultado["alertas"])
+
     def test_alerta_total_de_titularidade_inconsistente(self):
         resultado = auditar_proprietarios(
             "MATRÍCULA 4. IMÓVEL: Lote 1.",

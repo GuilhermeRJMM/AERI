@@ -1589,6 +1589,30 @@ class TesteProprietarios(unittest.TestCase):
             )
         )
 
+    def test_regularizacao_fundiaria_transfere_dominio_ao_outorgado(self):
+        texto = """
+        IMÓVEL: Lote 16 da Quadra 32, urbano.
+        PROPRIETÁRIO: Município de Morrinhos, inscrito no CNPJ/MF sob o
+        n.º 01.789.551/0001-49.
+        R.01-37.900 - REGULARIZAÇÃO FUNDIÁRIA. OUTORGANTE: Município de
+        Morrinhos, inscrito no CNPJ/MF sob o n.º 01.789.551/0001-49.
+        OUTORGADO: Joabes Marques Borges, brasileiro, solteiro, inscrito no
+        CPF/MF sob o n.º 644.931.051-00. IMÓVEL: O imóvel descrito na matrícula.
+        LEGITIMAÇÃO FUNDIÁRIA: A aquisição da propriedade é originária, de
+        forma plena, sem quaisquer cláusulas ou condições.
+        """
+        atos = [
+            SimpleNamespace(descricao=item["texto"])
+            for item in separar_atos(texto)
+        ]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            [(item["nome"], item["cpf"], item["proporcao"]) for item in resultado],
+            [("Joabes Marques Borges", "644.931.051-00", "100%")],
+        )
+
     def test_fragmentos_de_folio_e_endereco_nao_sao_pessoas(self):
         self.assertEqual(
             extrair_pessoas(

@@ -2179,7 +2179,7 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
         "VENDA E COMPRA", "COMPRA E VENDA", "INVENTARIO", "PARTILHA",
         "SOBREPARTILHA", "DOACAO", "REFORMA AGRARIA", "TITULO DE DOMINIO",
         "USUCAPIAO", "ARREMATACAO", "DACAO", "INTEGRALIZACAO", "PERMUTA",
-        "DIVISAO",
+        "DIVISAO", "REGULARIZACAO FUNDIARIA", "LEGITIMACAO FUNDIARIA",
     ]
     grupos_partilha = _grupos_partilha_integrais(atos)
     indices_agrupados = {
