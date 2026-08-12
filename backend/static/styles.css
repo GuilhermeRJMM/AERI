@@ -78,7 +78,14 @@ body.auth-pending > .app-body {
   visibility: hidden;
 }
 
-/* --- LOGIN --- */
+/* --- LOGIN ---
+   Cores consolidadas aqui a partir dos valores que já estavam vivos na
+   página (confirmados via getComputedStyle): a definição original desta
+   seção era para tema claro e ficava inteiramente sobrescrita por regras
+   de tema escuro mais abaixo no arquivo (agora removidas dali para não
+   duplicar). .login-card label span e .login-erro nunca tinham sido
+   sobrescritos e ficavam com baixo contraste (texto escuro sobre o card
+   escuro) -- corrigido junto. */
 .login-aeri {
   position: fixed;
   inset: 0;
@@ -89,8 +96,9 @@ body.auth-pending > .app-body {
   opacity: 0;
   visibility: hidden;
   background:
-    radial-gradient(circle at 50% 38%, rgba(37, 99, 235, 0.16), transparent 38%),
-    linear-gradient(145deg, #f8fbff, #eaf2ff 55%, #dbeafe);
+    radial-gradient(circle at 50% 36%, rgba(16, 185, 129, 0.16), transparent 34%),
+    radial-gradient(circle at 82% 18%, rgba(37, 99, 235, 0.13), transparent 32%),
+    linear-gradient(145deg, #070b1a 0%, #101827 58%, #172033 100%);
   transition: opacity .35s ease, visibility .35s ease;
 }
 
@@ -100,31 +108,43 @@ body.auth-pending > .app-body {
 }
 
 .login-card {
+  position: relative;
+  overflow: hidden;
   width: min(430px, 100%);
   padding: 34px;
-  border: 1px solid rgba(255,255,255,.85);
-  border-radius: 24px;
-  background: rgba(255,255,255,.82);
-  box-shadow: 0 28px 80px rgba(11,36,84,.16);
-  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.025)),
+    rgba(15, 23, 42, 0.76);
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: var(--text-soft);
   text-align: center;
 }
 
 .login-logo { width: 104px; height: 104px; object-fit: contain; margin-bottom: 14px; }
-.login-card h1 { margin: 8px 0; font-size: 1.65rem; color: #10254b; }
+.login-card h1 { margin: 8px 0; font-size: 1.65rem; color: var(--text-main); }
 .login-card > p { color: var(--text-muted); font-size: .92rem; margin-bottom: 24px; }
 .login-card form { display: grid; gap: 15px; text-align: left; }
 .login-card label { display: grid; gap: 7px; }
-.login-card label span { color: #334155; font-size: .8rem; font-weight: 700; }
+.login-card label span { color: var(--text-soft); font-size: .8rem; font-weight: 700; }
 .login-card input {
   width: 100%; height: 46px; padding: 0 14px;
-  border: 1px solid #cbd5e1; border-radius: 11px;
-  background: rgba(255,255,255,.9); color: var(--text-main); font: inherit;
+  border: 1px solid rgba(139, 152, 178, 0.18); border-radius: 11px;
+  background: rgba(12, 18, 32, 0.72); color: var(--text-main); font: inherit;
   outline: none; transition: border-color .2s, box-shadow .2s;
 }
-.login-card input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+.login-card input:focus {
+  border-color: var(--focus-blue);
+  background: rgba(9, 14, 26, 0.86);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, .25);
+}
 .login-card .btn { width: 100%; justify-content: center; height: 46px; margin-top: 2px; }
-.login-erro { min-height: 18px; color: #b91c1c; font-size: .8rem; text-align: center; }
+.login-erro { min-height: 18px; color: #fca5a5; font-size: .8rem; text-align: center; }
 
 .navbar-user { display: flex; align-items: center; gap: 12px; color: #64748b; font-size: .8rem; font-weight: 700; flex: 0 0 auto; }
 .navbar-user button { border: 0; background: transparent; color: #2563eb; font: inherit; cursor: pointer; }
@@ -1745,15 +1765,13 @@ body::before {
 }
 
 .status-onr-painel,
-.modal-box,
-.login-card {
+.modal-box {
   border: 1px solid rgba(139, 152, 178, 0.18);
   background: rgba(22, 31, 49, 0.98);
   color: var(--text-soft);
 }
 
 .status-onr-cabecalho strong,
-.login-card h1,
 .rotina-form-header h2,
 .aprendizado-cabecalho h3 {
   color: var(--text-main);
@@ -1762,7 +1780,6 @@ body::before {
 .status-onr-painel .status-onr-evento,
 .status-onr-painel ul,
 .status-onr-configuracao,
-.login-card input,
 .rotina-form input,
 .rotina-form select,
 .rotina-check-form input,
@@ -1775,7 +1792,6 @@ body::before {
   color: var(--text-main);
 }
 
-.login-aeri,
 .splash-aeri {
   background:
     radial-gradient(circle at 50% 36%, rgba(16, 185, 129, 0.16), transparent 34%),
@@ -1864,7 +1880,6 @@ body::before {
 .hero p,
 .rotina-header p,
 .page-placeholder p,
-.login-card > p,
 .rotina-form-header p,
 .aprendizado-acoes span {
   color: var(--text-muted);
@@ -1922,7 +1937,6 @@ textarea {
 }
 
 textarea:focus,
-.login-card input:focus,
 .rotina-form input:focus,
 .rotina-form select:focus,
 .rotina-check-form input:focus,
@@ -2155,7 +2169,6 @@ input::placeholder {
 }
 
 .rotina-row-actions .perigo,
-.login-erro,
 .incra-erro {
   color: #fca5a5;
 }
@@ -2197,8 +2210,7 @@ input::placeholder {
 .perfis-resumo > div,
 .aprendizado-painel,
 .card,
-.modal-box,
-.login-card {
+.modal-box {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
