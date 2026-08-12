@@ -444,7 +444,8 @@ def listar_erros(_usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
 @router.get("/auditoria/pendencias")
 def listar_pendencias_auditoria(
     limite: int = Query(100, ge=1, le=300),
-    _usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+    inicio: int = Query(0, ge=0),
+    _usuario: str = Depends(exigir_permissao("revisar_auditoria")),
 ):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
@@ -455,8 +456,8 @@ def listar_pendencias_auditoria(
                 FROM auditorias_matriculas_aeri
                 WHERE estado='REVISAR'
                 ORDER BY CASE prioridade WHEN 'P0-CRITICA' THEN 0 ELSE 1 END,
-                         matricula_numero LIMIT %s""",
-                (limite,),
+                         matricula_numero LIMIT %s OFFSET %s""",
+                (limite, inicio),
             )
             return [{
                 "matricula": item["matricula_numero"],
@@ -633,7 +634,7 @@ def sincronizar_buscas(
 @router.post("/{numero}/revisar", dependencies=[Depends(proteger_csrf)])
 def revisar_matricula_busca(
     numero: int, request: Request,
-    usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+    usuario: str = Depends(exigir_permissao("revisar_auditoria")),
 ):
     if numero <= 0:
         raise HTTPException(status_code=422, detail="Número de matrícula inválido.")

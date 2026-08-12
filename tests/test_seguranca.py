@@ -3,12 +3,14 @@ import asyncio
 import json
 import os
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
-from fastapi import Request, Response
+from fastapi import HTTPException, Request, Response
 
 from backend.app.autenticacao import (
     _derivar_csrf,
+    exigir_permissao,
     hash_senha,
     permissoes_sessao,
     senha_forte,
@@ -88,6 +90,36 @@ class TesteSeguranca(unittest.TestCase):
         self.assertTrue(permissoes["gerenciar_custas"])
         self.assertFalse(permissoes["criar_intimacoes"])
         self.assertTrue(permissoes["conferir_intimacoes"])
+
+    def test_auditor_recebe_somente_acessos_registrais(self):
+        permissoes = permissoes_sessao({
+            "perfil": "AUDITOR",
+            "pode_processar_matricula": False,
+            "pode_revisar_auditoria": False,
+            "pode_gerenciar_custas": True,
+        })
+
+        self.assertTrue(permissoes["processar_matricula"])
+        self.assertTrue(permissoes["revisar_auditoria"])
+        self.assertFalse(permissoes["processar_incra"])
+        self.assertFalse(permissoes["gerenciar_custas"])
+        self.assertFalse(permissoes["ver_intimacoes"])
+
+    def test_auditor_acessa_pendencias_mas_nao_custas(self):
+        request = SimpleNamespace(state=SimpleNamespace(sessao={
+            "perfil": "AUDITOR",
+            "deve_trocar_senha": False,
+            "pode_revisar_auditoria": False,
+            "pode_gerenciar_custas": True,
+        }))
+
+        self.assertEqual(
+            exigir_permissao("revisar_auditoria")(request, "AUDITOR_TESTE"),
+            "AUDITOR_TESTE",
+        )
+        with self.assertRaises(HTTPException) as erro:
+            exigir_permissao("gerenciar_custas")(request, "AUDITOR_TESTE")
+        self.assertEqual(erro.exception.status_code, 403)
 
     def test_csrf_derivado_e_igual_em_qualquer_aba_da_mesma_sessao(self):
         # Antes, o csrf era um valor aleatório re-gerado a cada checagem de

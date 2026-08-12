@@ -7,12 +7,14 @@ const salvamentosUsuarios = new Map();
 const CARGOS = [
     ['ADMIN', 'ADM'],
     ['SUBSTITUTO', 'Substituto'],
+    ['AUDITOR', 'Auditor'],
     ['SUPERVISOR', 'Supervisor'],
     ['CONFERENTE', 'Conferente'],
     ['PRODUTOR', 'Produtor'],
 ];
 const ATRIBUICOES = [
     ['processar_matricula', 'Matrículas'],
+    ['revisar_auditoria', 'Auditoria registral'],
     ['processar_incra', 'INCRA'],
     ['gerenciar_custas', 'Informar Custas'],
     ['ver_intimacoes', 'Ver intimações'],
@@ -36,6 +38,7 @@ function lerPermissoesFormulario() {
 
 function renderizarAtribuicoes(item) {
     if (cargoAdministrativo(item.perfil)) return '<span class="usuario-status ativo">Todas</span>';
+    if (item.perfil === 'AUDITOR') return '<span class="usuario-status ativo">Matrículas e auditoria registral</span>';
     return `<div class="usuario-atribuicoes-lista">${ATRIBUICOES.map(([chave, rotulo]) => `
         <label><input type="checkbox" data-acao="permissao" data-permissao="${chave}" data-usuario="${item.usuario}" ${item.permissoes?.[chave] ? 'checked' : ''}> ${rotulo}</label>
     `).join('')}</div>`;
@@ -47,10 +50,13 @@ function substituirUsuario(atualizado) {
 }
 
 function atualizarAtribuicoesFormulario() {
-    const admin = cargoAdministrativo(document.getElementById('usuario-perfil').value);
+    const perfil = document.getElementById('usuario-perfil').value;
+    const admin = cargoAdministrativo(perfil);
+    const auditor = perfil === 'AUDITOR';
     document.querySelectorAll('[data-permissao-form]').forEach(campo => {
-        campo.disabled = admin;
+        campo.disabled = admin || auditor;
         if (admin) campo.checked = true;
+        if (auditor) campo.checked = ['processar_matricula', 'revisar_auditoria'].includes(campo.dataset.permissaoForm);
     });
 }
 

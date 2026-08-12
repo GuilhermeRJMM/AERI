@@ -9,7 +9,7 @@
 - Token CSRF e validação de origem em todas as operações que alteram estado ou iniciam processamento.
 - Bloqueio por 15 minutos após cinco falhas de login para a mesma combinação de usuário e IP.
 - Auditoria de login, logout, análises e alterações de intimações/custas sem armazenar senhas, textos de matrículas ou o PDF importado.
-- Contas individuais com cargos `ADMIN`, `SUBSTITUTO`, `SUPERVISOR`, `CONFERENTE` e `PRODUTOR`, atribuições operacionais independentes, bloqueio imediato e troca obrigatória de senha temporária.
+- Contas individuais com cargos `ADMIN`, `SUBSTITUTO`, `AUDITOR`, `SUPERVISOR`, `CONFERENTE` e `PRODUTOR`, atribuições operacionais independentes, bloqueio imediato e troca obrigatória de senha temporária.
 - Limite de 5 milhões de caracteres para matrícula, 15 MB para PDF e 16 MB por requisição.
 - Cabeçalhos CSP, HSTS, `nosniff`, política de referência e política de permissões. A incorporação por iframe é bloqueada por padrão e pode ser liberada exclusivamente para a origem exata do SYNC.
 - Consultas SQL parametrizadas, timeout de conexão e segredos somente em variáveis de ambiente.
@@ -54,6 +54,7 @@ Depois de alterar qualquer variável, é obrigatório fazer um novo deployment.
 
 - `ADMIN`: acesso total, gestão de usuários, auditoria, exclusões, análises e manutenção das intimações.
 - `SUBSTITUTO`: acesso administrativo, exceto as restrições adicionais impostas ao cadastro de administradores.
+- `AUDITOR`: acesso fixo e restrito à consulta/processamento de matrículas, visualização das pendências registrais e reprocessamento individual. Não acessa usuários, custas, INCRA, intimações, falhas administrativas ou sincronização em massa.
 - `SUPERVISOR`, `CONFERENTE` e `PRODUTOR`: recebem individualmente as atribuições de processar matrículas/INCRA, gerenciar Informar Custas e visualizar, criar, alterar ou conferir intimações.
 
 Não existe cadastro público. Todo usuário é criado por um administrador e recebe uma senha temporária que deve ser substituída no primeiro acesso.

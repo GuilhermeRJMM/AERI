@@ -234,12 +234,12 @@
                                 <tbody id="buscas-pendencias-tbody"></tbody>
                             </table>
                         </div>
-                        <div class="buscas-progresso">
+                        <div class="buscas-progresso" data-buscas-admin>
                             <span>Indexação inicial <strong id="buscas-progresso-texto">0%</strong></span>
                             <div><i id="buscas-progresso-barra"></i></div>
                             <small id="buscas-proximo">Próxima matrícula: 1 de 39.850</small>
                         </div>
-                        <div class="buscas-acoes">
+                        <div class="buscas-acoes" data-buscas-admin>
                             <label><span>Última matrícula conhecida</span><input id="buscas-limite" type="number" min="1" value="39850"></label>
                             <button type="button" class="btn btn-primary" id="btn-buscas-indexar">Iniciar indexação</button>
                             <button type="button" class="rotina-btn-secondary" id="btn-buscas-novas">Atualizar matrículas novas</button>
@@ -247,17 +247,17 @@
                             <button type="button" class="rotina-btn-secondary" id="btn-buscas-reprocessar" hidden>Reprocessar falhas</button>
                             <button type="button" class="rotina-btn-secondary" id="btn-buscas-erros" hidden>Ver falhas</button>
                         </div>
-                        <div class="buscas-acoes buscas-revisar">
+                        <div class="buscas-acoes buscas-revisar" data-buscas-revisao>
                             <label><span>Revisar uma matrícula agora</span><input id="buscas-numero-revisar" type="number" min="1" placeholder="Ex.: 34901"></label>
                             <button type="button" class="rotina-btn-secondary" id="btn-buscas-revisar">Revisar agora</button>
                         </div>
                         <p id="buscas-atualizado">Carregando situação…</p>
                         <p id="buscas-status-operacao" aria-live="polite"></p>
-                        <div class="buscas-log" aria-label="Log da indexação">
+                        <div class="buscas-log" aria-label="Log da indexação" data-buscas-admin>
                             <strong>Últimos eventos</strong>
                             <ol id="buscas-log-lista"><li data-tipo="info">Aguardando início da indexação.</li></ol>
                         </div>
-                        <div id="buscas-erros-painel" class="buscas-erros" hidden>
+                        <div id="buscas-erros-painel" class="buscas-erros" data-buscas-admin hidden>
                             <table>
                                 <thead><tr><th>Matrícula</th><th>Modo</th><th>Tentativas</th><th>Última tentativa</th><th>Erro</th></tr></thead>
                                 <tbody id="buscas-erros-tbody"></tbody>
@@ -652,10 +652,11 @@
             <form id="form-usuario" class="rotina-form">
                 <label><span>Nome</span><input id="usuario-nome" required maxlength="160"></label>
                 <label><span>Usuário</span><input id="usuario-login" required maxlength="40" pattern="[A-Za-z0-9._-]{3,40}"></label>
-                <label><span>Cargo</span><select id="usuario-perfil"><option value="CONFERENTE">Conferente</option><option value="PRODUTOR">Produtor</option><option value="SUPERVISOR">Supervisor</option><option value="SUBSTITUTO">Substituto</option><option value="ADMIN">ADM</option></select></label>
+                <label><span>Cargo</span><select id="usuario-perfil"><option value="CONFERENTE">Conferente</option><option value="PRODUTOR">Produtor</option><option value="SUPERVISOR">Supervisor</option><option value="AUDITOR">Auditor</option><option value="SUBSTITUTO">Substituto</option><option value="ADMIN">ADM</option></select></label>
                 <fieldset class="usuario-atribuicoes">
                     <legend>Atribuições do cargo operacional</legend>
                     <label><input type="checkbox" data-permissao-form="processar_matricula" checked> Processar matrículas</label>
+                    <label><input type="checkbox" data-permissao-form="revisar_auditoria"> Revisar auditoria registral</label>
                     <label><input type="checkbox" data-permissao-form="processar_incra" checked> Processar relatório do INCRA</label>
                     <label><input type="checkbox" data-permissao-form="gerenciar_custas" checked> Gerenciar Informar Custas</label>
                     <label><input type="checkbox" data-permissao-form="ver_intimacoes" checked> Visualizar intimações</label>
@@ -684,6 +685,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260811-buscas-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20260812-auditor-v1"></script>
 </body>
 </html>

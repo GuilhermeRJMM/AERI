@@ -41,12 +41,14 @@ function atualizarStatus(estado) {
     document.getElementById('buscas-atualizado').textContent = estado.ultimaSincronizacao
         ? `Última atualização: ${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(estado.ultimaSincronizacao))}`
         : 'A indexação ainda não foi iniciada.';
+    const admin = ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil);
+    const podeAuditar = admin || Boolean(window.aeriPermissoes?.revisar_auditoria);
     const erros = Number(estado.errosPendentes || 0);
-    document.getElementById('btn-buscas-erros').hidden = !erros;
-    document.getElementById('btn-buscas-reprocessar').hidden = !erros;
+    document.getElementById('btn-buscas-erros').hidden = !admin || !erros;
+    document.getElementById('btn-buscas-reprocessar').hidden = !admin || !erros;
     if (!erros) document.getElementById('buscas-erros-painel').hidden = true;
     const pendencias = Number(estado.auditoriaRevisar || 0);
-    document.getElementById('btn-buscas-pendencias').hidden = !pendencias;
+    document.getElementById('btn-buscas-pendencias').hidden = !podeAuditar || !pendencias;
     if (!pendencias) {
         document.getElementById('buscas-pendencias-painel').hidden = true;
         document.getElementById('btn-buscas-pendencias').textContent = 'Ver pendências';
@@ -64,7 +66,10 @@ export async function carregarBuscas() {
         || Boolean(window.aeriPermissoes?.processar_matricula);
     if (!autorizado) return;
     const admin = ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil);
-    document.getElementById('buscas-sincronizacao').hidden = !admin;
+    const podeAuditar = admin || Boolean(window.aeriPermissoes?.revisar_auditoria);
+    document.getElementById('buscas-sincronizacao').hidden = !podeAuditar;
+    document.querySelectorAll('[data-buscas-admin]').forEach(elemento => { elemento.hidden = !admin; });
+    document.querySelectorAll('[data-buscas-revisao]').forEach(elemento => { elemento.hidden = !podeAuditar; });
     try {
         atualizarStatus(await requisicaoAeri('/api/buscas/status'));
     } catch (erro) {

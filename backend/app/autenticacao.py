@@ -21,6 +21,7 @@ MAX_TENTATIVAS = 5
 JANELA_TENTATIVAS_MINUTOS = 15
 PERMISSOES = {
     "processar_matricula": "pode_processar_matricula",
+    "revisar_auditoria": "pode_revisar_auditoria",
     "processar_incra": "pode_processar_incra",
     "gerenciar_custas": "pode_gerenciar_custas",
     "ver_intimacoes": "pode_ver_intimacoes",
@@ -29,6 +30,7 @@ PERMISSOES = {
     "conferir_intimacoes": "pode_conferir_intimacoes",
 }
 PERFIS_ADMINISTRATIVOS = {"ADMIN", "SUBSTITUTO"}
+PERMISSOES_AUDITOR = {"processar_matricula", "revisar_auditoria"}
 _argon2 = PasswordHasher(time_cost=2, memory_cost=19_456, parallelism=1)
 _HASH_SIMULADO = _argon2.hash("senha-inexistente-para-tempo-constante")
 
@@ -145,7 +147,8 @@ def _obter_sessao(request: Request) -> dict | None:
         with conexao.cursor() as cursor:
             cursor.execute(
                 """SELECT s.*, u.perfil, u.nome, u.ativo, u.deve_trocar_senha,
-                u.pode_processar_matricula, u.pode_processar_incra, u.pode_gerenciar_custas,
+                u.pode_processar_matricula, u.pode_revisar_auditoria,
+                u.pode_processar_incra, u.pode_gerenciar_custas,
                 u.pode_ver_intimacoes, u.pode_criar_intimacoes,
                 u.pode_alterar_intimacoes, u.pode_conferir_intimacoes
                 FROM sessoes_aeri s JOIN usuarios_aeri u ON u.usuario=s.usuario
@@ -171,6 +174,8 @@ def usuario_atual(request: Request) -> str:
 def permissoes_sessao(sessao: dict) -> dict:
     if sessao["perfil"] in PERFIS_ADMINISTRATIVOS:
         return {chave: True for chave in PERMISSOES}
+    if sessao["perfil"] == "AUDITOR":
+        return {chave: chave in PERMISSOES_AUDITOR for chave in PERMISSOES}
     return {chave: bool(sessao.get(coluna)) for chave, coluna in PERMISSOES.items()}
 
 
@@ -193,7 +198,13 @@ def exigir_permissao(permissao: str):
         sessao = request.state.sessao
         if sessao["deve_trocar_senha"]:
             raise HTTPException(status_code=403, detail="Troque sua senha temporária para continuar.")
-        if sessao["perfil"] in PERFIS_ADMINISTRATIVOS or bool(sessao.get(PERMISSOES[permissao])):
+        if sessao["perfil"] in PERFIS_ADMINISTRATIVOS:
+            return usuario
+        if sessao["perfil"] == "AUDITOR":
+            if permissao in PERMISSOES_AUDITOR:
+                return usuario
+            raise HTTPException(status_code=403, detail="Você não possui permissão para esta operação.")
+        if bool(sessao.get(PERMISSOES[permissao])):
             return usuario
         raise HTTPException(status_code=403, detail="Você não possui permissão para esta operação.")
 

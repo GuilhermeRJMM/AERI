@@ -1,6 +1,6 @@
 import {configurarAcessoAnaliseManual, iniciarAnalisador} from './analisador.js?v=20260810-texto-manual-admin';
 import {iniciarAutenticacao} from './autenticacao.js?v=20260731-auditoria';
-import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260811-buscas-v1';
+import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260812-auditor-v1';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260804-custas-fluido';
@@ -8,7 +8,7 @@ import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimac
 import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
 import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260811-reg-aux-sync-v1';
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260706-status-onr';
-import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260731-auditoria';
+import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260812-auditor-v1';
 import {iniciarAtualizacaoPeriodica} from './util.js';
 
 const INTERVALO_ATUALIZACAO_MS = 5000;

@@ -1,5 +1,11 @@
 # Operação segura da auditoria em lote
 
+## Conferência registral com perfil Auditor
+
+O perfil **AUDITOR** pode consultar a fila de pendências da auditoria registral, abrir a matrícula correspondente na análise e solicitar o reprocessamento individual depois de uma correção do motor. Esse perfil não pode iniciar sincronizações em massa, consultar falhas administrativas nem acessar usuários, custas, INCRA ou intimações.
+
+Para criar a conta, um **ADMIN** deve abrir **Usuários**, selecionar o cargo **Auditor** e fornecer a senha temporária ao responsável por canal seguro. No primeiro acesso, o AERI exige a troca dessa senha.
+
 A auditoria completa consulta a Tri7 e deve rodar fora da Vercel, em máquina controlada, com credenciais somente no ambiente. O script `scripts/auditar_semantica_tri7.py` reaproveita a saída existente e permite retomada sem duplicar matrículas concluídas.
 
 Exemplo conservador:
