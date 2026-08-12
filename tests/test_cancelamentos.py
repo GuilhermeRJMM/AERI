@@ -251,6 +251,23 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(penhora.cancelado_por, "R.07")
         self.assertEqual(adjudicacao.cancela_atos, ["R.03"])
 
+    def test_cancelamento_por_titulo_reconhece_tipos_de_onus_alem_do_subconjunto_antigo(self):
+        # TIPOS_CANCELAVEIS agora deriva de TIPOS_ONUS (regras.py) em vez de
+        # uma lista mantida à mão que ficava atrás dela. ANTICRESE é um tipo
+        # de ônus que nunca esteve na lista antiga -- sem a referência
+        # numérica explícita (R.02), o cancelamento só é encontrado pelo
+        # título se o tipo for reconhecido em TIPOS_CANCELAVEIS.
+        anticrese = ato("R.02", "R.02-49 - ANTICRESE do imóvel objeto da matrícula.")
+        cancelamento = ato(
+            "AV.03",
+            "AV.03-49 - CANCELAMENTO DE ANTICRESE. Fica cancelada a anticrese constante desta matrícula.",
+        )
+
+        aplicar_cancelamentos([anticrese, cancelamento])
+
+        self.assertEqual(anticrese.status, "CANCELADO")
+        self.assertEqual(anticrese.cancelado_por, "AV.03")
+
     def test_erro_de_referencia_nao_cancela_outro_cancelamento(self):
         hipoteca = ato("R.02", "R.02-49 - HIPOTECA do imóvel.")
         cancelamento_antigo = ato("AV.03", "AV.03-49 - CANCELAMENTO da hipoteca do R.02.")

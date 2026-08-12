@@ -1,6 +1,12 @@
 import re
 import unicodedata
 
+from .regras import TIPOS_ONUS
+
+
+def _sem_acentos(texto: str) -> str:
+    return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii").upper()
+
 
 REFERENCIA_ATO = re.compile(
     r"\b(R|AV)\s*[.\-,]*\s*(\d+)(?!\d|\.\d)"
@@ -8,20 +14,17 @@ REFERENCIA_ATO = re.compile(
     re.IGNORECASE,
 )
 CATEGORIAS_CANCELAVEIS = {"ÔNUS", "PUBLICIDADE"}
-TIPOS_CANCELAVEIS = (
-    ("ALIENACAO FIDUCIARIA", "ALIENACAO FIDUCIARIA"),
-    ("HIPOTECA", "HIPOTECA"),
-    ("USUFRUTO", "USUFRUTO"),
-    ("PENHORA", "PENHORA"),
-    ("PENHOR", "PENHOR"),
+# Derivado de TIPOS_ONUS (regras.py) em vez de mantido à mão: uma lista
+# separada ficava sistematicamente atrás de TIPOS_ONUS -- vários tipos de
+# ônus (ANTICRESE, ARRESTO, FIDEICOMISSO, CÉDULA DE CRÉDITO etc.) nunca eram
+# reconhecidos como cancelados aqui, mesmo já sendo reconhecidos como ônus
+# na análise da matrícula. INDISPONIBILIDADE é categoria PUBLICIDADE, não
+# ÔNUS, então continua como acréscimo manual.
+TIPOS_CANCELAVEIS = tuple(
+    (marcador, _sem_acentos(tipo)) for marcador, tipo in TIPOS_ONUS
+) + (
     ("INDISPONIBILIDADE", "INDISPONIBILIDADE"),
-    ("SERVIDAO", "SERVIDAO"),
-    ("CAUCAO", "CAUCAO"),
 )
-
-
-def _sem_acentos(texto: str) -> str:
-    return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii").upper()
 
 
 def _codigo_normalizado(tipo: str, numero: str) -> str:

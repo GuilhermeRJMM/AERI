@@ -113,6 +113,7 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
                     "nome": "Companhia de Habitação de Goiás COHAB-GO",
                     "cpf": "01.274.240/0001-47",
                     "proporcao": "100%",
+                    "proporcao_incerta": False,
                 }
             ],
         )
@@ -319,6 +320,7 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
                     "nome": "LUIS ANTÔNIO PEREIRA CASTILHO",
                     "cpf": "056.882.618-38",
                     "proporcao": "100%",
+                    "proporcao_incerta": False,
                 }
             ],
         )
@@ -356,6 +358,7 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
                     "nome": "Ilda Paulina Machado",
                     "cpf": "413.939.531-15",
                     "proporcao": "100%",
+                    "proporcao_incerta": False,
                 }
             ],
         )
@@ -407,6 +410,7 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
                     "nome": "Luis Antônio Pereira Castilho",
                     "cpf": "056.882.618-38",
                     "proporcao": "100%",
+                    "proporcao_incerta": False,
                 }
             ],
         )
@@ -444,6 +448,7 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
                     "nome": "Ernesto Lopes",
                     "cpf": "190.594.428-49",
                     "proporcao": "100%",
+                    "proporcao_incerta": False,
                 }
             ],
         )
@@ -472,6 +477,7 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
                     "nome": "Clebio Ney de Paula",
                     "cpf": "824.646.851-00",
                     "proporcao": "100%",
+                    "proporcao_incerta": False,
                 }
             ],
         )
@@ -530,12 +536,14 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
                     "nome": "Afonso Gomes Arantes",
                     "cpf": "093.927.421-34",
                     "proporcao": "25%",
-                },
+                    "proporcao_incerta": False,
+                    "proporcao_incerta": False,                },
                 {
                     "nome": "Manoel Antônio de Mendonça",
                     "cpf": "154.412.291-87",
                     "proporcao": "75%",
-                },
+                    "proporcao_incerta": False,
+                    "proporcao_incerta": False,                },
             ],
         )
 
@@ -637,6 +645,7 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
                     "nome": "Companhia de Desenvolvimento Econômico de Goiás - CODEGO",
                     "cpf": "01.285.170/0001-22",
                     "proporcao": "100%",
+                    "proporcao_incerta": False,
                 }
             ],
         )

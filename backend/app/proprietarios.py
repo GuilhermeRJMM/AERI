@@ -250,7 +250,16 @@ def parse_percent(texto):
         (r'\b(?:uma\s+)?quarta\s+parte\s+do\s+im[óo]vel\b', 25.0),
         (r'\b(?:uma\s+)?quinta\s+parte\s+do\s+im[óo]vel\b', 20.0),
         (r'\b(?:um\s+)?sexto\s+do\s+im[óo]vel\b', 100.0 / 6.0),
+        (r'\b(?:um\s+)?s[ée]timo\s+do\s+im[óo]vel\b', 100.0 / 7.0),
+        (r'\b(?:um\s+)?oitavo\s+do\s+im[óo]vel\b', 12.5),
+        (r'\b(?:um\s+)?nono\s+do\s+im[óo]vel\b', 100.0 / 9.0),
+        (r'\b(?:um\s+)?d[ée]cimo\s+do\s+im[óo]vel\b', 10.0),
         (r'\btr[eê]s\s+quart[oa]s?\s+do\s+im[óo]vel\b', 75.0),
+        (r'\bdois\s+ter[çc]os\s+do\s+im[óo]vel\b', 200.0 / 3.0),
+        (r'\btr[eê]s\s+quintos\s+do\s+im[óo]vel\b', 60.0),
+        (r'\bdois\s+quintos\s+do\s+im[óo]vel\b', 40.0),
+        (r'\bquatro\s+quintos\s+do\s+im[óo]vel\b', 80.0),
+        (r'\bcinco\s+sextos\s+do\s+im[óo]vel\b', 500.0 / 6.0),
     )
     for padrao, percentual in fracoes_textuais:
         if re.search(padrao, texto, re.IGNORECASE):
@@ -401,6 +410,39 @@ def parse_percent(texto):
         return 100.0
         
     return 100.0
+
+
+# Sinal amplo (não tenta replicar as ~25 ramificações acima, só pergunta "há
+# algum indício de fração/percentual neste trecho?") usado só para saber se o
+# 100,0 devolvido por parse_percent() veio de evidência real ou do último
+# fallback cego (linha "return 100.0" acima), quando o ato de transferência
+# não menciona nenhuma fração reconhecível — ex.: "dois terços", "um oitavo"
+# fora da lista, ou uma redação totalmente atípica. Deliberadamente permissivo:
+# na dúvida, considera que há evidência, para não gerar alerta de incerteza à
+# toa em cima de casos que o parse_percent já sabe interpretar.
+_PADRAO_SINAL_FRACAO_OU_PERCENTUAL = re.compile(
+    r'\d+(?:[,.]\d+)?\s*%'
+    r'|\d+\s*/\s*\d+'
+    r'|\bmetade\b|\bter[çc]a\s+parte\b|\bquarta\s+parte\b|\bquinta\s+parte\b'
+    r'|\bs[ée]timo\b|\boitavo\b|\bnono\b|\bd[ée]cimo\b|\bsexto\b'
+    r'|\btr[eê]s\s+quart[oa]s?\b|\bdois\s+ter[çc]os\b|\btr[eê]s\s+quintos\b'
+    r'|\bdois\s+quintos\b|\bquatro\s+quintos\b|\bcinco\s+sextos\b'
+    r'|\btotalidade\b|\bintegralidade\b'
+    r'|\bo\s+im[óo]vel\s+(?:constante|objeto)\b'
+    r'|\bpropor[çc][ãa]o\b|\bfra[çc][ãa]o\s+ideal\b|\bparte\s+ideal\b|\bquinh[ãa]o\b',
+    re.IGNORECASE,
+)
+
+
+def percentual_e_presumido(texto: str, percentual: float) -> bool:
+    """True quando parse_percent() devolveu 100.0 sem nenhum sinal textual de
+    fração/percentual no trecho -- ou seja, foi um chute pelo fallback final,
+    não uma leitura real do texto. Usado para marcar a proporção resultante
+    como incerta em vez de assumi-la como certeza."""
+    if percentual != 100.0:
+        return False
+    return not _PADRAO_SINAL_FRACAO_OU_PERCENTUAL.search(texto or "")
+
 
 MARCADOR_PAPEL_NAO_ADQUIRENTE = (
     r"(?:"
@@ -2495,7 +2537,8 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
             continue
         
         percentual_ato = parse_percent(ato.descricao)
-        
+        percentual_presumido = percentual_e_presumido(ato.descricao, percentual_ato)
+
         bloco_adq = extrair_bloco(ato.descricao, "ADQUIRENTE")
         bloco_transm = extrair_bloco(ato.descricao, "TRANSMITENTE")
         
@@ -2727,6 +2770,12 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                 if usar_percentual_individual
                 else percent_por_adq
             )
+            # percentuais_individuais vem de fonte própria (percentual do
+            # próprio adquirente ou distribuição por valores), não do
+            # fallback cego de parse_percent -- só marca incerteza quando o
+            # percent_por_adq (derivado de percentual_ato) é quem está sendo
+            # usado de fato.
+            proporcao_adquirida_incerta = percentual_presumido and not usar_percentual_individual
             ajustar_quinhao_existente = (
                 not houve_debito
                 and chave_a in estado
@@ -2745,6 +2794,7 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                     estado[chave_a]["cpf_original"] = a["cpf"]
                 if not partilha_herdeiro_ja_integral:
                     estado[chave_a]["proporcao"] = proporcao_adquirida
+                    estado[chave_a]["proporcao_incerta"] = proporcao_adquirida_incerta
                 estado[chave_a].pop("proporcao_texto", None)
                 continue
             if chave_a not in estado:
@@ -2760,6 +2810,7 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                     estado[chave_a]["cpf_original"] = a["cpf"]
                 estado[chave_a]["nome"] = a["nome"]
             estado[chave_a]["proporcao"] += proporcao_adquirida
+            estado[chave_a]["proporcao_incerta"] = proporcao_adquirida_incerta
             estado[chave_a].pop("proporcao_texto", None)
 
         if len(estado) == 1:
@@ -2789,7 +2840,8 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
         resultado.append({
             "nome": dados["nome"],
             "cpf": dados["cpf_original"],
-            "proporcao": prop_formatada
+            "proporcao": prop_formatada,
+            "proporcao_incerta": bool(dados.get("proporcao_incerta")),
         })
             
     return resultado

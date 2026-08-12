@@ -441,7 +441,7 @@ class TesteDadosImovel(unittest.TestCase):
         self.assertEqual(valores_por_rotulo(resultado["imovel"]["areas"], "Área"), ["633,5 m²"])
         self.assertEqual(
             resultado["proprietarios_atuais"],
-            [{"nome": "Companhia de Habitação Exemplo", "cpf": "01.274.240/0001-47", "proporcao": "100%"}],
+            [{"nome": "Companhia de Habitação Exemplo", "cpf": "01.274.240/0001-47", "proporcao": "100%", "proporcao_incerta": False}],
         )
 
     def test_desmembramento_integral_em_duas_glebas_encerra_matricula(self):
@@ -452,6 +452,31 @@ class TesteDadosImovel(unittest.TestCase):
         matriculado em duas glebas de terras, contendo a primeira a área de 176,5400ha,
         que foi matriculada sob o n.º 12.015, e a segunda a área de 96,8000ha,
         matriculada sob o n.º 12.016.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(
+            resultado["situacao"],
+            {
+                "status": "ENCERRADA",
+                "origem": "AV.08",
+                "matriculas_sucessoras": ["12.015", "12.016"],
+            },
+        )
+
+    def test_desmembramento_integral_em_duas_lotes_encerra_matricula(self):
+        # O regex de desmembramento integral só reconhecia "GLEBAS"; textos
+        # registrais que descrevem o mesmo desmembramento total em "LOTES"
+        # não encerravam a matrícula sucedida, deixando-a incorretamente
+        # como ATIVA.
+        texto = """
+        MATRÍCULA 1. IMÓVEL: Fazenda Exemplo, com área de 273,3400ha.
+        PROPRIETÁRIO: Pessoa Exemplo.
+        AV.08-1 - DESMEMBRAMENTO E MATRÍCULA. Averba-se o desmembramento do imóvel
+        matriculado em duas lotes de terras, contendo o primeiro a área de 176,5400ha,
+        que foi matriculado sob o n.º 12.015, e o segundo a área de 96,8000ha,
+        matriculado sob o n.º 12.016.
         """
 
         resultado = analisar_matricula(texto)["imovel"]
@@ -618,7 +643,7 @@ class TesteDadosImovel(unittest.TestCase):
         self.assertEqual(resultado["resultado"], "NEGATIVA, PORÉM COM PUBLICIDADE")
         self.assertEqual(
             resultado["proprietarios_atuais"],
-            [{"nome": "Maria Lucia Fernandes da Silva", "cpf": "333.288.701-72", "proporcao": "100%"}],
+            [{"nome": "Maria Lucia Fernandes da Silva", "cpf": "333.288.701-72", "proporcao": "100%", "proporcao_incerta": False}],
         )
         self.assertEqual(valores_por_rotulo(resultado["imovel"]["restricoes"], "Cláusula restritiva"), ["Prazo declarado de 05 anos"])
 

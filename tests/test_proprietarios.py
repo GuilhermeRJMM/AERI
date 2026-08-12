@@ -179,8 +179,48 @@ class TesteProprietarios(unittest.TestCase):
 
         self.assertEqual(
             resultado,
-            [{"nome": "João da Silva", "cpf": "004.338.341-61", "proporcao": "100%"}],
+            [{"nome": "João da Silva", "cpf": "004.338.341-61", "proporcao": "100%", "proporcao_incerta": False}],
         )
+
+    def test_ato_sem_sinal_de_fracao_marca_proporcao_como_incerta(self):
+        # Quando o texto do ato não traz nenhum percentual, fração numérica
+        # ("1/2") ou fração por extenso ("metade", "dois terços" etc.), o
+        # parse_percent() cai no fallback final de 100% -- um chute, não uma
+        # leitura real. proporcao_incerta sinaliza esse chute para a UI/
+        # auditoria em vez de apresentá-lo como certeza absoluta.
+        texto = """
+        MATRÍCULA 900. IMÓVEL: Lote 1.
+        PROPRIETÁRIO: Pessoa Inicial, CPF 004.338.341-61.
+        R.01-900 - COMPRA E VENDA. ADQUIRENTE: Pessoa Nova, CPF 111.222.333-44;
+        sem outras qualificações.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            resultado,
+            [{
+                "nome": "Pessoa Nova",
+                "cpf": "111.222.333-44",
+                "proporcao": "100%",
+                "proporcao_incerta": True,
+            }],
+        )
+
+    def test_ato_com_fracao_por_extenso_nao_marca_proporcao_como_incerta(self):
+        texto = """
+        MATRÍCULA 900. IMÓVEL: Lote 1.
+        PROPRIETÁRIO: Pessoa Inicial, CPF 004.338.341-61.
+        R.01-900 - COMPRA E VENDA. ADQUIRENTE: Pessoa Nova, CPF 111.222.333-44;
+        adquiriu dois terços do imóvel objeto da matrícula.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        por_cpf = {item["cpf"]: item for item in resultado}
+        self.assertFalse(por_cpf["111.222.333-44"]["proporcao_incerta"])
 
     def test_separa_esposa_expressamente_adquirente(self):
         descricao = """
@@ -247,7 +287,8 @@ class TesteProprietarios(unittest.TestCase):
                     "nome": "Rodrigo Lafayette de Godoy",
                     "cpf": "805.212.901-04",
                     "proporcao": "100%",
-                },
+                    "proporcao_incerta": False,
+                    "proporcao_incerta": False,                },
             ],
         )
 
@@ -325,7 +366,7 @@ class TesteProprietarios(unittest.TestCase):
 
         self.assertEqual(
             resultado,
-            [{"nome": "Carlos Eli da Silva", "cpf": "211.721.881-49", "proporcao": "100%"}],
+            [{"nome": "Carlos Eli da Silva", "cpf": "211.721.881-49", "proporcao": "100%", "proporcao_incerta": False}],
         )
 
     def test_adquirentes_separados_por_ponto_e_virgula_e_e(self):
@@ -646,7 +687,7 @@ class TesteProprietarios(unittest.TestCase):
 
         self.assertEqual(
             resultado,
-            [{"nome": "JACI MOREIRA DE ARANTES", "cpf": "052.260.401-30", "proporcao": "100%"}],
+            [{"nome": "JACI MOREIRA DE ARANTES", "cpf": "052.260.401-30", "proporcao": "100%", "proporcao_incerta": False}],
         )
 
     def test_adjudicacao_transfere_propriedade(self):
@@ -664,7 +705,7 @@ class TesteProprietarios(unittest.TestCase):
 
         self.assertEqual(
             resultado,
-            [{"nome": "Jaci Moreira de Arantes", "cpf": "052.260.401-30", "proporcao": "100%"}],
+            [{"nome": "Jaci Moreira de Arantes", "cpf": "052.260.401-30", "proporcao": "100%", "proporcao_incerta": False}],
         )
 
     def test_compra_com_redacao_adquirido_pelo_remove_titulo(self):
@@ -681,7 +722,7 @@ class TesteProprietarios(unittest.TestCase):
 
         self.assertEqual(
             resultado,
-            [{"nome": "Jaci Moreira Arantes", "cpf": "052.260.401-30", "proporcao": "100%"}],
+            [{"nome": "Jaci Moreira Arantes", "cpf": "052.260.401-30", "proporcao": "100%", "proporcao_incerta": False}],
         )
 
     def test_indicacao_de_titularidade_extrai_percentuais_consolidados(self):
@@ -1156,6 +1197,7 @@ class TesteProprietarios(unittest.TestCase):
             "nome": "Carlos Humberto da Silva",
             "cpf": "278.142.031-04",
             "proporcao": "100%",
+            "proporcao_incerta": False,
         }])
 
 
@@ -1195,6 +1237,7 @@ class TesteProprietarios(unittest.TestCase):
             "nome": "Portfólio Desenvolvimento Imobiliário Ltda",
             "cpf": "05.974.994/0001-60",
             "proporcao": "100%",
+            "proporcao_incerta": False,
         }])
 
     def test_inventario_historico_sem_acento_aplica_coube_a(self):
@@ -1214,6 +1257,7 @@ class TesteProprietarios(unittest.TestCase):
             "nome": "Maria de Lourdes Rosa",
             "cpf": "058.362.391",
             "proporcao": "100%",
+            "proporcao_incerta": False,
         }])
 
     def test_livro_auxiliar_nao_cria_pessoa_espuria(self):

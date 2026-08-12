@@ -7,6 +7,7 @@ import sys
 import threading
 import time
 import unicodedata
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -165,6 +166,19 @@ ALERTAS_CRITICOS_IMOVEL = {
     "MATRICULA_NAO_IDENTIFICADA",
 }
 
+# Alertas "críticos" que na prática são heurísticas propensas a falso
+# positivo isolado (um único nome mal formatado, um cancelamento que o
+# regex não conseguiu confirmar por completo) em vez de sinal de dado
+# corrompido. Uma única ocorrência desses não deve, sozinha, empurrar a
+# matrícula para P0-CRÍTICA junto de alertas genuinamente graves (cadeia
+# vazia, titularidade fora de 100%, encerramento não reconhecido etc.);
+# repetição do mesmo alerta cosmético já deixa de ser isolada e continua
+# escalando.
+ALERTAS_CRITICOS_COSMETICOS = {
+    "PROPRIETARIO_NOME_INVALIDO",
+    "CANCELAMENTO_POSSIVELMENTE_INCOMPLETO",
+}
+
 
 def carregar_env_local() -> None:
     caminho = RAIZ / ".env"
@@ -285,8 +299,14 @@ def evidencia_itens(itens: list[dict]) -> list[str]:
 def confianca_dominio(alertas: list[str], criticos: set[str]) -> str:
     if not alertas:
         return "ALTA"
-    if criticos.intersection(alertas):
+    graves = criticos - ALERTAS_CRITICOS_COSMETICOS
+    if graves.intersection(alertas):
         return "BAIXA"
+    cosmeticos_presentes = criticos & ALERTAS_CRITICOS_COSMETICOS & set(alertas)
+    if cosmeticos_presentes:
+        contagem = Counter(alertas)
+        if any(contagem[alerta] > 1 for alerta in cosmeticos_presentes):
+            return "BAIXA"
     return "MEDIA"
 
 
@@ -1041,7 +1061,8 @@ def marcadores_independentes(texto: str) -> dict:
     desmembramento_integral = bool(re.search(
         r"DESMEMBRAMENTO\s+DO\s+IMOVEL(?:\s+OBJETO\s+DA\s+PRESENTE\s+MATRICULA"
         r"|\s+MATRICULADO)?\s+EM\s+"
-        r"(?:DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)\s+GLEBAS\b",
+        r"(?:DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)\s+"
+        r"(?:GLEBAS|LOTES|PARCELAS|AREAS|UNIDADES)\b",
         texto_normalizado,
     )) and "REMANESC" not in texto_normalizado
 
@@ -1100,6 +1121,18 @@ def marcadores_independentes(texto: str) -> dict:
     }
 
 
+# A maioria dos alertas abaixo é gerada comparando a saída do próprio
+# extrator (analisar_matricula/calcular_cadeia_dominial) contra marcadores
+# textuais construídos com os mesmos padrões e o mesmo vocabulário regex do
+# extrator (ex.: marcadores_independentes reaproveita variações do mesmo
+# regex de GLEBAS que dados_imovel.py usa para extrair). Isso não é uma
+# auditoria estruturalmente independente: uma lacuna sistemática no
+# extrator (uma frase real não coberta por nenhum regex) tende a passar
+# despercebida também aqui, porque o "marcador independente" foi escrito
+# com a mesma lente. PROPORCAO_ADQUIRENTE_PRESUMIDA (abaixo) é uma exceção
+# parcial: não tenta confirmar se o extrator acertou o número, só expõe
+# quando ele teve que chutar por falta de qualquer sinal textual --
+# um tipo de checagem que nenhum outro alerta aqui faz.
 def auditar_texto(numero: int, texto: str, resultado: dict | None = None) -> dict:
     inicio = time.monotonic()
     resultado = resultado or analisar_matricula(texto, numero_matricula=str(numero))
@@ -1208,6 +1241,8 @@ def auditar_texto(numero: int, texto: str, resultado: dict | None = None) -> dic
         alertas_cadeia.append("ULTIMA_TRANSFERENCIA_INTEGRAL_DIVERGENTE")
     if auditoria_proprietarios["retificacoes_cpf_atuais_nao_aplicadas"]:
         alertas_cadeia.append("RETIFICACAO_CPF_NAO_APLICADA")
+    if any(item.get("proporcao_incerta") for item in proprietarios):
+        alertas_cadeia.append("PROPORCAO_ADQUIRENTE_PRESUMIDA")
     if any(
         (
             len(re.sub(r"[^A-Z]", "", sem_acentos(item.get("nome", "")))) < 2

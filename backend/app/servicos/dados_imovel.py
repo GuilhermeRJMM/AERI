@@ -213,7 +213,8 @@ def _tem_desmembramento_integral(normalizado: str) -> bool:
     return bool(re.search(
         r"DESMEMBRAMENTO\s+DO\s+IMOVEL(?:\s+OBJETO\s+DA\s+PRESENTE\s+MATRICULA"
         r"|\s+MATRICULADO)?\s+EM\s+"
-        r"(?:DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)\s+GLEBAS\b",
+        r"(?:DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)\s+"
+        r"(?:GLEBAS|LOTES|PARCELAS|AREAS|UNIDADES)\b",
         normalizado,
     )) and "REMANESC" not in normalizado
 
@@ -734,7 +735,8 @@ def _sucessoras_desmembramento_integral(texto: str, normalizado: str) -> list[st
     divisao = re.search(
         r"DESMEMBRAMENTO\s+DO\s+IMOVEL(?:\s+OBJETO\s+DA\s+PRESENTE\s+MATRICULA"
         r"|\s+MATRICULADO)?\s+EM\s+"
-        r"(DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)\s+GLEBAS\b",
+        r"(DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)\s+"
+        r"(?:GLEBAS|LOTES|PARCELAS|AREAS|UNIDADES)\b",
         normalizado,
     )
     if not divisao or not _tem_desmembramento_integral(normalizado):

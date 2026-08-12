@@ -20,6 +20,56 @@ class TesteAuditoriaSemanticaTri7(unittest.TestCase):
 
         self.assertIn("PROPRIETARIO_NOME_INVALIDO", resultado["alertas_cadeia"])
 
+    def test_alerta_cosmetico_isolado_nao_escala_para_p0_critica(self):
+        # PROPRIETARIO_NOME_INVALIDO é um alerta "crítico" que na prática
+        # costuma ser uma heurística isolada (um nome mal extraído em uma
+        # matrícula sem nenhum outro problema), não um sinal de dado
+        # corrompido. Antes, qualquer ocorrência isolada dele bastava para
+        # jogar a matrícula em P0-CRÍTICA junto de problemas realmente
+        # graves (cadeia vazia, titularidade fora de 100% etc.), inflando
+        # a fila de revisão prioritária com falsos positivos cosméticos.
+        texto = (
+            "MATRÍCULA 1.253. PROPRIETÁRIOS: DESCONHECIDO. "
+            "ORIGEM: registro anterior."
+        )
+
+        resultado = auditar_texto(1253, texto)
+
+        self.assertIn("PROPRIETARIO_NOME_INVALIDO", resultado["alertas_cadeia"])
+        self.assertEqual(resultado["confianca_cadeia"], "MEDIA")
+        self.assertEqual(resultado["prioridade_revisao"], "P1-CONFERIR")
+
+    def test_alerta_grave_continua_escalando_para_p0_critica(self):
+        texto = """
+        MATRÍCULA 2. IMÓVEL: Fazenda Exemplo, com área de 10ha.
+        R.01-2 - COMPRA E VENDA. Texto sem qualificação de adquirente disponível.
+        """
+
+        resultado = auditar_texto(2, texto)
+
+        self.assertIn("CADEIA_DOMINIAL_VAZIA_COM_TRANSFERENCIA", resultado["alertas"])
+        self.assertEqual(resultado["confianca_cadeia"], "BAIXA")
+        self.assertEqual(resultado["prioridade_revisao"], "P0-CRITICA")
+
+    def test_proporcao_presumida_gera_alerta_sem_escalar_para_p0(self):
+        # calcular_cadeia_dominial marca proporcao_incerta quando cai no
+        # fallback de 100% sem nenhum sinal textual de fração/percentual.
+        # A auditoria precisa expor isso como alerta (para revisão humana),
+        # mas não deve tratá-lo como confirmação de erro -- é só uma
+        # exposição de incerteza, então fica fora dos alertas críticos.
+        texto = """
+        MATRÍCULA 900. IMÓVEL: Lote 1.
+        PROPRIETÁRIO: Pessoa Inicial, CPF 004.338.341-61.
+        R.01-900 - COMPRA E VENDA. ADQUIRENTE: Pessoa Nova, CPF 111.222.333-44;
+        sem outras qualificações.
+        """
+
+        resultado = auditar_texto(900, texto)
+
+        self.assertIn("PROPORCAO_ADQUIRENTE_PRESUMIDA", resultado["alertas_cadeia"])
+        self.assertEqual(resultado["confianca_cadeia"], "MEDIA")
+        self.assertEqual(resultado["prioridade_revisao"], "P1-CONFERIR")
+
     def test_codigo_rural_de_ccir_nao_e_falso_alerta_de_incra(self):
         texto = """
         IMÓVEL: Fazenda Vera Cruz, com área de 2,4697ha.
