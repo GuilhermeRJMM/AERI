@@ -70,6 +70,16 @@ class TesteServicoBuscas(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "AERI_BUSCAS_HMAC_KEY"):
                 hash_documento("12345678901")
 
+    def test_cron_secret_sozinho_nao_serve_mais_de_fallback(self):
+        # Regressão: CRON_SECRET e AERI_BUSCAS_HMAC_KEY são segredos com
+        # propósitos diferentes (autenticação do cron vs. hash irreversível
+        # dos documentos indexados). Reaproveitar CRON_SECRET como fallback
+        # fazia uma rotação dele (por qualquer motivo relacionado ao cron)
+        # mudar silenciosamente o hash de todo documento já indexado.
+        with patch.dict(os.environ, {"AERI_BUSCAS_HMAC_KEY": "", "CRON_SECRET": "segredo-do-cron-nao-relacionado"}):
+            with self.assertRaisesRegex(RuntimeError, "AERI_BUSCAS_HMAC_KEY"):
+                hash_documento("12345678901")
+
 
 if __name__ == "__main__":
     unittest.main()

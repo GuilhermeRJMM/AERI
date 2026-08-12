@@ -17,11 +17,15 @@ def normalizar_documento(valor: object) -> str:
 
 
 def _segredo_documentos() -> bytes:
-    segredo = os.getenv("AERI_BUSCAS_HMAC_KEY") or os.getenv("CRON_SECRET")
+    # Chave própria, sem fallback para CRON_SECRET: são segredos com
+    # propósitos diferentes (autenticação do cron vs. hash irreversível dos
+    # documentos indexados). Reaproveitar o mesmo segredo para os dois faz
+    # com que rotacionar o CRON_SECRET por qualquer motivo relacionado a ele
+    # mude silenciosamente o hash de todo documento já indexado, tornando a
+    # busca por CPF/CNPJ permanentemente muda sem reindexação.
+    segredo = os.getenv("AERI_BUSCAS_HMAC_KEY")
     if not segredo:
-        raise RuntimeError(
-            "Configure AERI_BUSCAS_HMAC_KEY ou CRON_SECRET para proteger os documentos da busca."
-        )
+        raise RuntimeError("Configure AERI_BUSCAS_HMAC_KEY para proteger os documentos da busca.")
     return segredo.encode("utf-8")
 
 
