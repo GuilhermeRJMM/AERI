@@ -85,6 +85,8 @@ def _tipo_imovel_rural(descricao: str) -> bool:
     """Classifica pelo núcleo da descrição, sem usar confrontantes como tipo."""
     normalizado = _sem_acentos(descricao)
     trecho_inicial = normalizado[:700]
+    if re.search(r"\b(?:PROPRIEDADE\s+URBANA|IMOVEL\s+URBANO)\b", trecho_inicial[:350]):
+        return False
     rural_explicito = bool(re.search(
         r"\b(?:ZONA\s+RURAL|PROPRIEDADE\s+RURAL|IMOVEL\s+RURAL|INCRA|IBRA|"
         r"CCIR|ALQUEIRES?|HECTARES?)\b",
@@ -102,10 +104,22 @@ def _tipo_imovel_rural(descricao: str) -> bool:
             or re.search(r"\bNESTA\s+CIDADE\b", trecho_inicial)
             or re.search(r"\bDISTRITO\s+DE\s+PEQUENAS\s+INDUSTRIAS\b", trecho_inicial)
         )
+    ) or bool(
+        re.search(r"\bNESTA\s+CIDADE\b", trecho_inicial)
+        and re.search(r"\b(?:LOTE|TERRENO\s*,?\s+DESIGNADO\s+LOTE)\b", trecho_inicial)
+        and re.search(r"\b(?:RUA|AVENIDA|RODOVIA|ACESSO|QUADRA|M2)\b", trecho_inicial)
     )
-    if urbano_explicito and not rural_explicito:
+    # Cadastros urbanos antigos tambem eram descritos como "INCRA". Quando
+    # lote, quadra/logradouro e localizacao urbana estao expressos no nucleo
+    # da descricao, essa evidencia prevalece sobre o cadastro historico.
+    if urbano_explicito:
         return False
-    return rural_explicito or bool(re.match(
+    rural_por_localizacao = bool(re.search(
+        r"^(?:MATRICULA\s*[-.:]?\s*[\d.]+.*?REFERENTE\s+AO\s+IMOVEL\s+SITUADO\s+NA\s+)?"
+        r"FAZENDA\b|\bCONSTITUID[OA]\s+DE\s*:\s*UMA\s+CHACARA\b",
+        trecho_inicial[:350],
+    ))
+    return rural_explicito or rural_por_localizacao or bool(re.match(
         r"^(?:UM\s+SITIO\b|(?:AS?\s+)?FAZENDAS?\b|CHACARA\b|ESTANCIA\b|"
         r"GLEBA\s+DE\s+TERRAS\b|LUGAR\s+DENOMINAD[OA]\b)",
         trecho_inicial,
@@ -185,6 +199,10 @@ def _tem_encerramento_explicito(normalizado: str) -> bool:
         ))
         or bool(re.search(r"\bCANCELAMENTO\s+(?:DA\s+|DE\s+)?MATRICULA\b", normalizado))
         or bool(re.search(
+            r"\bENCERRAD[AO]\s+(?:A\s+)?(?:PRESENTE\s+|ESTA\s+)?MATRICULA\b",
+            normalizado,
+        ))
+        or bool(re.search(
             r"\bFICA\s+CANCELAD[AO]\s+(?:A\s+|O\s+)?(?:PRESENTE\s+)?MATRICULA\b",
             normalizado,
         ))
@@ -206,19 +224,49 @@ def _extrair_area_registral(cabecalho: str, rural: bool) -> Optional[str]:
     cabecalho = re.sub(r"\b[aàáâã]rea\b", "área", cabecalho, flags=re.IGNORECASE)
     cabecalho = re.sub(r"\bhá\b", "ha", cabecalho, flags=re.IGNORECASE)
     if rural:
+        totais_descritos = []
+        for total in re.finditer(
+            r"(?:PERFAZENDO\s+O\s+TOTAL\s+DE|TOTALIZANDO)\s*:?[ ]*"
+            r"(\d+)(?:\s*\([^)]*\))?\s*HECTARES?"
+            r"(?:\s*[,E]\s*(\d+)(?:\s*\([^)]*\))?\s*ARES?)?"
+            r"(?:\s*,?\s*E\s*(\d+)(?:\s*\([^)]*\))?\s*CENTIARES?)?",
+            cabecalho,
+            re.IGNORECASE,
+        ):
+            totais_descritos.append(
+                int(total.group(1))
+                + int(total.group(2) or 0) / 100
+                + int(total.group(3) or 0) / 10_000
+            )
+        if totais_descritos:
+            return f"{_formatar_numero(sum(totais_descritos))} ha"
+
+        historica_quatro_grupos = re.search(
+            r"(?:área(?:\s+total)?(?:\s+de)?|com\s+(?:a\s+)?área(?:\s+total)?(?:\s+de)?)"
+            r"\s*([\d.]+)\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,4})"
+            r"\s*(?:ha|hectares?)",
+            cabecalho,
+            re.IGNORECASE,
+        )
+        if historica_quatro_grupos:
+            parte_decimal = "".join(historica_quatro_grupos.group(indice) for indice in (2, 3, 4))
+            hectares = int(historica_quatro_grupos.group(1).replace(".", ""))
+            hectares += int(parte_decimal) / (10 ** len(parte_decimal))
+            return f"{_formatar_numero(hectares)} ha"
+
         historica_decimal = re.search(
-            r"(?:área(?:\s+total)?(?:\s+de)?|com\s+(?:a\s+)?área(?:\s+total)?(?:\s+de)?)\s*(\d+)\s*,\s*(\d{1,2})\s*,\s*(\d{1,4})\s*(?:ha|hectares?)",
+            r"(?:área(?:\s+total)?(?:\s+de)?|com\s+(?:a\s+)?área(?:\s+total)?(?:\s+de)?)\s*([\d.]+)\s*,\s*(\d{1,3})\s*,\s*(\d{1,4})\s*(?:ha|hectares?)",
             cabecalho,
             re.IGNORECASE,
         )
         if historica_decimal:
             parte_decimal = historica_decimal.group(2) + historica_decimal.group(3)
-            hectares = int(historica_decimal.group(1)) + int(parte_decimal) / (10 ** len(parte_decimal))
+            hectares = int(historica_decimal.group(1).replace(".", "")) + int(parte_decimal) / (10 ** len(parte_decimal))
             return f"{_formatar_numero(hectares)} ha"
 
         composta = re.search(
             r"(?:área(?:\s+total)?(?:\s+de)?|com\s+(?:a\s+)?área(?:\s+total)?(?:\s+de)?)\s*(\d+)(?:\s*\([^)]*\))?\s*hectares?\s*(?:,|e)\s*"
-            r"(\d+)(?:\s*\([^)]*\))?\s*ares?\s+e\s*(\d+)(?:\s*\([^)]*\))?\s*(?:centiares?)?",
+            r"(\d+)(?:\s*\([^)]*\))?\s*ares?\s*,?\s*(?:e\s*)?(\d+)(?:\s*\([^)]*\))?\s*(?:centiares?)?",
             cabecalho,
             re.IGNORECASE,
         )
@@ -248,6 +296,17 @@ def _extrair_area_registral(cabecalho: str, rural: bool) -> Optional[str]:
             valor = _valor_decimal(simples.group(1))
             return f"{_formatar_numero(valor)} ha" if valor is not None else None
         # Há imóveis rurais antigos cuja área registral foi expressa em m².
+        rural_metros_historica = re.search(
+            r"(?:área(?:\s+total)?(?:\s+de)?|com\s+(?:a\s+)?área(?:\s+total)?(?:\s+de)?)"
+            r"\s*(\d+)\s*,\s*(\d{3})\s*,\s*(\d{1,2})\s*m[²2]",
+            cabecalho,
+            re.IGNORECASE,
+        )
+        if rural_metros_historica:
+            metros = int(rural_metros_historica.group(1) + rural_metros_historica.group(2))
+            metros += int(rural_metros_historica.group(3)) / 100
+            return f"{_formatar_numero(metros, 2)} m²"
+
         rural_metros = re.search(
             r"(?:área(?:\s+total)?(?:\s+de)?|com\s+(?:a\s+)?área(?:\s+total)?(?:\s+de)?)\s*([\d.,]+)\s*m[²2]",
             cabecalho,
@@ -277,6 +336,8 @@ def _extrair_area_registral(cabecalho: str, rural: bool) -> Optional[str]:
         return f"{_formatar_numero(metros, 2)} m²"
 
     urbana = re.search(r"(?:área(?:\s+total)?(?:\s+de)?|com\s+(?:a\s+)?área(?:\s+total)?(?:\s+de)?)\s*([\d.,]+)\s*m[²2]", cabecalho, re.IGNORECASE)
+    if not urbana:
+        urbana = re.search(r"\bOU\s*([\d.,]+)\s*m[²2]", cabecalho, re.IGNORECASE)
     if urbana:
         valor = _valor_decimal(urbana.group(1))
         return f"{_formatar_numero(valor, 2)} m²" if valor is not None else None
@@ -593,7 +654,14 @@ def _extrair_denominacao_rural(descricao: str) -> Optional[str]:
         descricao,
         re.IGNORECASE,
     )
-    return _compactar(lugar.group(1)) if lugar else None
+    if lugar:
+        return _compactar(lugar.group(1))
+    local_historico = re.match(
+        r"\s*(Córrego\s+[^,;.]+)\s*,\s*(?:Subúrbio|Zona\s+Rural|neste\s+Município)\b",
+        descricao,
+        re.IGNORECASE,
+    )
+    return _compactar(local_historico.group(1)) if local_historico else None
 
 
 def _extrair_area_construida(texto: str, normalizado: str) -> Optional[str]:

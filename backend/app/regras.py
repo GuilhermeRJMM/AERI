@@ -10,6 +10,7 @@ REGRAS = {
     "ANTICRESE": {"categoria": "ÔNUS", "impacta": True},
     "ARROLAMENTO DE BENS": {"categoria": "PUBLICIDADE", "impacta": False},
     "ARRESTO E SEQUESTRO": {"categoria": "ÔNUS", "impacta": True},
+    "ARRESTO": {"categoria": "ÔNUS", "impacta": True},
     "SEQUESTRO": {"categoria": "ÔNUS", "impacta": True},
     "AÇÃO PREMONITÓRIA": {"categoria": "PUBLICIDADE", "impacta": False},
     "ASSUNÇÃO DE DÍVIDA": {"categoria": "ÔNUS", "impacta": True},
@@ -120,6 +121,7 @@ TIPOS_ONUS = [
     ("ALIENACAO FIDUCIARIA", "ALIENAÇÃO FIDUCIÁRIA"),
     ("ANTICRESE", "ANTICRESE"),
     ("ARRESTO E SEQUESTRO", "ARRESTO E SEQUESTRO"),
+    ("ARRESTO", "ARRESTO"),
     ("SEQUESTRO", "SEQUESTRO"),
     ("ASSUNCAO DE DIVIDA", "ASSUNÇÃO DE DÍVIDA"),
     ("ASSUNCAO DE OBRIGACOES", "ASSUNÇÃO DE OBRIGAÇÕES"),
@@ -215,12 +217,76 @@ def classificar(texto, regras_aprendidas=None):
         return ("IGNORAR", False)
 
     titulo_ato = texto_sem_acentos_compacto[:240]
+    cabecalho_formal = titulo_ato.split("NOS TERMOS", 1)[0]
     if any(marcador in titulo_ato for marcador in (
         "INSERCAO DE DADOS DE QUALIFICACAO PESSOAL",
         "ATUALIZACAO DE DADOS DE QUALIFICACAO PESSOAL",
         "RETIFICACAO DE DADOS DE QUALIFICACAO PESSOAL",
     )):
         return ("IGNORAR", False)
+
+    # O título cadastral prevalece sobre a escritura citada como documento de
+    # origem. Assim, uma atualização de CCIR/CAR/CEP não vira usufruto ou
+    # hipoteca apenas porque reproduz o nome do negócio jurídico anterior.
+    if any(marcador in cabecalho_formal for marcador in (
+        "INSCRICAO NO CAR",
+        "CADASTRO AMBIENTAL RURAL",
+        "ATUALIZACAO DO CCIR",
+        "ATUALIZACAO DO CERTIFICADO DE CADASTRO DE IMOVEL RURAL",
+        "CERTIFICADO DE CADASTRO DE IMOVEL RURAL",
+        "ENDERECAMENTO POSTAL",
+        "CODIGO DE ENDERECAMENTO POSTAL",
+    )):
+        return ("IGNORAR", False)
+
+    if any(marcador in cabecalho_formal for marcador in (
+        "CLAUSULA DE INCOMUNICABILIDADE",
+        "CLAUSULA DE INALIENABILIDADE",
+        "CLAUSULA DE IMPENHORABILIDADE",
+        "CLAUSULAS RESTRITIVAS",
+        "CLAUSULA RESTRITIVA",
+    )):
+        return ("PUBLICIDADE", False)
+
+    if "CANCELAMENTO" in cabecalho_formal:
+        return ("CANCELAMENTO", False)
+
+    if "RETIFICACAO" in cabecalho_formal and not re.search(
+        r"\b(?:INCLUID[AO]|ACRESCID[AO]|CONSTITUID[AO])\b.{0,100}\b"
+        r"(?:HIPOTECA|ALIENACAO FIDUCIARIA|GARANTIA)\b",
+        texto_sem_acentos_compacto,
+    ):
+        return ("IGNORAR", False)
+
+    titulo_declarado = re.search(
+        r'\bTITULO\s*:\s*([^.;]{3,180})',
+        texto_sem_acentos_compacto[:1200],
+    )
+    contexto_titulo = " ".join(filter(None, (
+        cabecalho_formal,
+        titulo_ato,
+        titulo_declarado.group(1) if titulo_declarado else "",
+    )))
+    tipo_titulo = identificar_tipo_onus(contexto_titulo)
+    titulo_constitutivo = bool(
+        tipo_titulo
+        and (titulo_declarado is not None or any(marcador in contexto_titulo for marcador in (
+            "ARRESTO", "SEQUESTRO", "PENHORA", "PENHOR ",
+            "ALIENACAO FIDUCIARIA", "INSTITUICAO DE USUFRUTO",
+            "RESERVA DE USUFRUTO", "USUFRUTO VITALICIO",
+            "CEDULA RURAL HIPOTECARIA", "CEDULA HIPOTECARIA",
+            "GARANTIA HIPOTECARIA", "HIPOTECA.", "HIPOTECAS ",
+        )))
+        and not any(marcador in contexto_titulo for marcador in (
+            "ADITIVO", "RE-RATIFICACAO", "RERATIFICACAO",
+            "RETIFICACAO", "REPACTUACAO", "ALTERACAO",
+            "LIBERACAO", "RENUNCIA", "DESISTENCIA",
+            "IMPENHORABILIDADE", "LEVANTAMENTO", "DESVINCULACAO",
+            "EXCLUSAO", "INDICACAO GRAUS", "COMISSAO DE PERMANENCIA",
+        ))
+    )
+    if titulo_constitutivo:
+        return ("ÔNUS", True)
 
     cancelamentos_fortes = (
         "LEVANTAMENTO DE PENHORA",
@@ -328,7 +394,8 @@ def classificar(texto, regras_aprendidas=None):
             r"\b(?:INCLUID[AO]|ACRESCID[AO]|CONSTITUID[AO])\b.{0,100}\b"
             r"(?:HIPOTECA|ALIENACAO FIDUCIARIA|GARANTIA)\b|"
             r"\b(?:NOVA|NOVAS)\s+GARANTIAS?\b|"
-            r"\bPASSA\s+A\s+(?:INTEGRAR|CONSTITUIR)\s+(?:A\s+)?GARANTIA\b",
+            r"\bPASSA\s+A\s+(?:INTEGRAR|CONSTITUIR)\s+(?:A\s+)?GARANTIA\b|"
+            r"\b(?:FOI\s+)?DAD[OA]\s+EM\s+HIPOTECA\b",
             texto_sem_acentos_compacto,
         )
     )
@@ -347,6 +414,15 @@ def classificar(texto, regras_aprendidas=None):
 
     if nova_garantia_no_aditivo:
         return ("ÔNUS", True)
+
+    if (
+        "ADITIVO" in texto_sem_acentos_compacto[:420]
+        and re.search(
+            r"\b(?:RE[ -]?RATIFICACAO|RETIFICACAO(?:\s+E\s+RATIFICACAO)?|RATIFICACAO)\b",
+            texto_sem_acentos_compacto[:420],
+        )
+    ):
+        return ("IGNORAR", False)
 
     if "ALIENACAO FIDUCIARIA SUPERVENIENTE" in titulo_ato:
         return ("ÔNUS", True)

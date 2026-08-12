@@ -350,6 +350,192 @@ class TesteAuditoriaSemanticaTri7(unittest.TestCase):
             resultado["alertas_onus"],
         )
 
+    def test_cancelamento_com_alvo_nao_conflita_com_outra_hipoteca_anterior(self):
+        texto = """
+        MATRÍCULA 12. IMÓVEL: Lote n.º 1, Quadra 2, com área de 300m².
+        PROPRIETÁRIO: Pessoa Exemplo, CPF 004.338.341-61.
+        R.01-12 - HIPOTECA. Primeira garantia.
+        R.02-12 - HIPOTECA. Segunda garantia.
+        AV.03-12 - CANCELAMENTO DE HIPOTECA. Fica cancelada a hipoteca do R.02.
+        """
+        retorno = {
+            "resultado": "POSITIVA PARA ÔNUS",
+            "proprietarios_atuais": [
+                {"nome": "Pessoa Exemplo", "cpf": "004.338.341-61", "proporcao": "100%"}
+            ],
+            "atos": [
+                {
+                    "codigo": "R.01", "descricao": "R.01-12 - HIPOTECA.",
+                    "categoria": "ÔNUS", "tipo_onus": "HIPOTECA", "status": "ATIVO",
+                },
+                {
+                    "codigo": "R.02", "descricao": "R.02-12 - HIPOTECA.",
+                    "categoria": "ÔNUS", "tipo_onus": "HIPOTECA", "status": "CANCELADO",
+                },
+                {
+                    "codigo": "AV.03",
+                    "descricao": "AV.03-12 - CANCELAMENTO DE HIPOTECA do R.02.",
+                    "categoria": "CANCELAMENTO", "status": "ATIVO", "cancela_atos": ["R.02"],
+                },
+            ],
+            "imovel": {
+                "tipo": "URBANO",
+                "situacao": {"status": "ATIVA", "origem": "Matrícula"},
+                "identificacao": [
+                    {"rotulo": "Matrícula", "valor": "12", "origem": "Consulta"},
+                    {"rotulo": "Lote", "valor": "1", "origem": "Cabeçalho"},
+                    {"rotulo": "Quadra", "valor": "2", "origem": "Cabeçalho"},
+                ],
+                "areas": [{"rotulo": "Área", "valor": "300 m²", "origem": "Cabeçalho"}],
+                "cadastros": [],
+            },
+        }
+
+        with patch("scripts.auditar_semantica_tri7.analisar_matricula", return_value=retorno):
+            resultado = auditar_texto(12, texto)
+
+        self.assertNotIn(
+            "CANCELAMENTO_POSSIVELMENTE_INCOMPLETO",
+            resultado["alertas_onus"],
+        )
+
+    def test_aditivo_de_re_ratificacao_nao_e_novo_onus(self):
+        texto = """
+        MATRÍCULA 13. IMÓVEL: Fazenda Exemplo, com área de 10ha.
+        PROPRIETÁRIO: Pessoa Exemplo, CPF 004.338.341-61.
+        R.01-13 - ADITIVO DE RE-RATIFICAÇÃO À CÉDULA RURAL HIPOTECÁRIA.
+        Ficam ratificadas as demais condições da cédula original.
+        """
+        resultado = auditar_texto(13, texto)
+
+        self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", resultado["alertas_onus"])
+
+    def test_anuencia_e_alteracao_de_credor_nao_sao_novos_onus(self):
+        texto = """
+        MATRÍCULA 14. IMÓVEL: Fazenda Exemplo, com área de 10ha.
+        PROPRIETÁRIO: Pessoa Exemplo, CPF 004.338.341-61.
+        AV.01-14 - ANUÊNCIA. O credor hipotecário anui com a venda.
+        AV.02-14 - ALTERAÇÃO DE CREDOR. Atualiza-se a denominação do credor.
+        """
+        resultado = auditar_texto(14, texto)
+
+        self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", resultado["alertas_onus"])
+
+
+    def test_imovel_rural_com_lote_sem_quadra_nao_gera_alerta_urbano(self):
+        texto = """
+        MATRÍCULA 369. IMÓVEL: Lugar denominado Cordeiro, neste Município,
+        constituído de terreno designado lote 3, com 8.160m², cadastrado no
+        INCRA sob o nº 936.120.019.232. PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        auditoria = auditar_texto(369, texto)
+
+        self.assertNotIn("TIPO_IMOVEL_DIVERGENTE", auditoria["alertas"])
+        self.assertNotIn("RUA_NAO_EXTRAIDO", auditoria["alertas"])
+
+    def test_imovel_urbano_nao_exige_cadastros_rurais(self):
+        texto = """
+        MATRÍCULA 560. IMÓVEL: Rua 01, nesta Cidade, lote 07, quadra 13,
+        com área de 240m². Cadastrado no INCRA sob o nº 13/07-SN.
+        PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        auditoria = auditar_texto(560, texto)
+
+        self.assertNotIn("INCRA_NAO_EXTRAIDO", auditoria["alertas"])
+        self.assertNotIn("DENOMINACAO_RURAL_NAO_EXTRAIDO", auditoria["alertas"])
+
+    def test_ccir_totalmente_mascarado_nao_gera_pendencia_de_extracao(self):
+        texto = """
+        MATRÍCULA 10.684. IMÓVEL: Fazenda Buriti, com área de 10ha.
+        PROPRIETÁRIO: Pessoa Teste.
+        AV.01-10.684 - ATUALIZAÇÃO DO CCIR. Código do imóvel rural:
+        xxx.xxx.xxx.xxx-x; área total: x,xxxxha. DOU FÉ.
+        """
+
+        auditoria = auditar_texto(10684, texto)
+
+        self.assertNotIn("CCIR_NAO_EXTRAIDO", auditoria["alertas"])
+
+    def test_area_totalizada_em_duas_glebas_nao_diverge(self):
+        texto = """
+        MATRÍCULA 148. IMÓVEL: Fazenda Almas. A) Gleba com 6 hectares e 50 ares
+        e 127 hectares de campos, perfazendo o total de 133 hectares e 50 ares;
+        B) outra gleba com 11 hectares e 17 hectares, totalizando: 28 hectares,
+        13 ares e 21 centiares. PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        auditoria = auditar_texto(148, texto)
+
+        self.assertNotIn("AREA_REGISTRAL_DIVERGENTE", auditoria["alertas"])
+
+    def test_penhor_rural_de_localizacao_e_confirmado_pela_auditoria(self):
+        texto = """
+        MATRÍCULA 17. IMÓVEL: Fazenda Exemplo. PROPRIETÁRIO: Pessoa Teste.
+        AV.01-17 - PENHOR RURAL/IMÓVEL DE LOCALIZAÇÃO. Procede-se à averbação
+        para constar a existência de bens apenhados localizados no imóvel,
+        conforme penhor integrante de Cédula Rural Pignoratícia.
+        """
+
+        auditoria = auditar_texto(17, texto)
+
+        self.assertNotIn(
+            "ONUS_ATIVO_SEM_CONSTITUICAO_INDEPENDENTE",
+            auditoria["alertas"],
+        )
+
+    def test_venda_com_alienacao_fiduciaria_e_confirmada_pela_auditoria(self):
+        texto = """
+        MATRÍCULA 244. IMÓVEL: Lote 1, Quadra 2. PROPRIETÁRIO: Pessoa Teste.
+        R.06-244 - Escritura de Compra e Venda com financiamento e pacto adjeto
+        de Alienação Fiduciária. O imóvel foi adquirido pelos compradores e
+        dado em garantia fiduciária ao credor.
+        """
+
+        auditoria = auditar_texto(244, texto)
+
+        self.assertNotIn(
+            "ONUS_ATIVO_SEM_CONSTITUICAO_INDEPENDENTE",
+            auditoria["alertas"],
+        )
+
+    def test_extincao_de_hipoteca_e_cancelamento(self):
+        texto = """
+        MATRÍCULA 1.407. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa Teste.
+        R.01-1.407 - HIPOTECA. O imóvel foi dado em hipoteca ao Banco.
+        AV.03-1.407 - EXTINÇÃO DE HIPOTECA. Foi extinta a hipoteca do R.01.
+        """
+
+        auditoria = auditar_texto(1407, texto)
+
+        self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", auditoria["alertas"])
+
+    def test_anuencia_conjugal_no_corpo_nao_esconde_hipoteca(self):
+        texto = """
+        MATRÍCULA 2.149. IMÓVEL: Fazenda Teste. PROPRIETÁRIO: Pessoa Teste.
+        R.25-2.149 - HIPOTECA. PROPRIETÁRIO/HIPOTECANTE/DEVEDOR: Pessoa Teste,
+        com anuência de seu cônjuge. CREDOR: Banco. O imóvel foi dado em hipoteca.
+        """
+
+        auditoria = auditar_texto(2149, texto)
+
+        self.assertNotIn(
+            "ONUS_ATIVO_SEM_CONSTITUICAO_INDEPENDENTE",
+            auditoria["alertas"],
+        )
+
+    def test_adjudicacao_nao_e_novo_onus_por_citar_execucao_hipotecaria(self):
+        texto = """
+        MATRÍCULA 1.929. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa Teste.
+        R.02-1.929 - ADJUDICAÇÃO DE IMÓVEL. Carta extraída dos autos de execução
+        hipotecária, adjudicado à credora hipotecária o imóvel desta matrícula.
+        """
+
+        auditoria = auditar_texto(1929, texto)
+
+        self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", auditoria["alertas"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -573,6 +573,49 @@ class TesteCancelamentos(unittest.TestCase):
         )
         self.assertEqual(classificar(texto), ("ÔNUS", True))
 
+    def test_atualizacao_de_ccir_nao_herda_usufruto_da_escritura_citada(self):
+        texto = (
+            "AV.13 - ATUALIZAÇÃO DO CERTIFICADO DE CADASTRO DE IMÓVEL RURAL - CCIR. "
+            "Nos termos do requerimento contido na Escritura Pública de Doação com "
+            "Reserva de Usufruto Vitalício, atualiza-se o código cadastral."
+        )
+        self.assertEqual(classificar(texto), ("IGNORAR", False))
+
+    def test_clausula_de_incomunicabilidade_nao_herda_usufruto_da_origem(self):
+        texto = (
+            "AV.10 - CLÁUSULA DE INCOMUNICABILIDADE. Conforme escritura de Doação "
+            "com Reserva de Usufruto Vitalício, grava-se a cláusula restritiva."
+        )
+        self.assertEqual(classificar(texto), ("PUBLICIDADE", False))
+
+    def test_cancelamento_de_hipoteca_prevalece_sobre_aditivo_citado(self):
+        texto = (
+            "AV.04 - CANCELAMENTO DE HIPOTECA POR SUBSTITUIÇÃO DO IMÓVEL HIPOTECADO. "
+            "Nos termos do aditivo de retificação e ratificação à Cédula de Crédito Rural."
+        )
+        self.assertEqual(classificar(texto), ("CANCELAMENTO", False))
+
+    def test_aditivo_de_re_ratificacao_sem_nova_garantia_nao_cria_onus(self):
+        texto = (
+            "AV.25 - RE-RATIFICAÇÃO DE REGISTRO. Nos termos do ADITIVO DE "
+            "RE-RATIFICAÇÃO À CÉDULA RURAL PIGNORATÍCIA E HIPOTECÁRIA, "
+            "ficam ratificadas as condições anteriores."
+        )
+        self.assertEqual(classificar(texto), ("IGNORAR", False))
+
+    def test_titulo_constitutivo_prevalece_sobre_cadastro_citado_no_corpo(self):
+        textos = (
+            "R.04 - ARRESTO. Nos termos do mandado, consta também o CCIR do imóvel.",
+            "R.03 - SEQUESTRO E INDISPONIBILIDADE DE BENS. Consta o CEP da parte.",
+            "R.15 - PENHORA. Nos termos do mandado de execução, consta o CCIR.",
+            "R.34 - COMPRA E VENDA COM INSTITUIÇÃO DE USUFRUTO VITALÍCIO. Consta o CEP.",
+            "R.03 - CONTRATO DE VENDA E COMPRA COM ALIENAÇÃO FIDUCIÁRIA. Consta o CCIR.",
+            "R.07 - DEVEDOR: Pessoa. TÍTULO: CÉDULA RURAL HIPOTECÁRIA. Consta o CAR.",
+        )
+        for texto in textos:
+            with self.subTest(texto=texto):
+                self.assertEqual(classificar(texto), ("ÔNUS", True))
+
     def test_indicacao_de_graus_e_credores_nao_duplica_hipotecas(self):
         texto = (
             "AV.45 - INDICAÇÃO GRAUS E CREDORES. Indicam-se os graus atualizados "
@@ -593,6 +636,40 @@ class TesteCancelamentos(unittest.TestCase):
             "AV.01 - HIPOTECA. O imóvel objeto da presente matrícula encontra-se "
             "hipotecado em primeiro grau conforme registro da matrícula de origem."
         )
+        self.assertEqual(classificar(texto), ("ÔNUS", True))
+
+    def test_cancelamento_de_arresto_nao_vira_novo_onus(self):
+        self.assertEqual(
+            classificar(
+                "AV.05 - CANCELAMENTO DE ARRESTO. Certifico que fica cancelado o R.04."
+            ),
+            ("CANCELAMENTO", False),
+        )
+
+    def test_cancelamento_generico_com_garantia_citada_nao_vira_onus(self):
+        self.assertEqual(
+            classificar(
+                "AV.11 - CANCELAMENTO: Nos termos da escritura de abertura de crédito "
+                "com garantia hipotecária, fica cancelado o R.10."
+            ),
+            ("CANCELAMENTO", False),
+        )
+
+    def test_retificacao_de_penhora_nao_cria_segundo_onus(self):
+        self.assertEqual(
+            classificar(
+                "AV.11 - RETIFICAÇÃO: Somente 50% do imóvel objeto do R.10 foi dado em penhora."
+            ),
+            ("IGNORAR", False),
+        )
+
+    def test_aditivo_que_substitui_bem_e_da_imovel_em_hipoteca_cria_onus(self):
+        texto = (
+            "R.20 - TÍTULO: Aditivo de Re-Ratificação à Cédula Rural. "
+            "Em substituição da garantia anterior, foi dado em hipoteca cedular "
+            "de segundo grau o imóvel desta matrícula."
+        )
+
         self.assertEqual(classificar(texto), ("ÔNUS", True))
 
 

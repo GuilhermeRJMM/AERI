@@ -1271,5 +1271,107 @@ class TesteDadosImovel(unittest.TestCase):
         )
 
 
+    def test_incra_historico_nao_transforma_lote_urbano_em_rural(self):
+        texto = """
+        MATRÍCULA 560. IMÓVEL: Rua 01, do Loteamento Vila Operária, Setor
+        Noroeste, nesta Cidade, constituído do lote 07, da quadra 13, com a
+        área de 240m². Cadastrado no INCRA sob o nº 13/07-SN.
+        PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        imovel = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual("URBANO", imovel["tipo"])
+        self.assertEqual(valores_por_rotulo(imovel["identificacao"], "Rua"), ["Rua 01"])
+
+    def test_fazenda_em_cabecalho_legado_e_rural(self):
+        texto = """
+        MATRÍCULA 323 - referente ao imóvel situado na Fazenda Cordeiro,
+        neste Município, constituído de uma gleba com a área de 13.600m².
+        PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        imovel = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual("RURAL", imovel["tipo"])
+        self.assertEqual(valores_por_rotulo(imovel["identificacao"], "Nome"), ["Fazenda Cordeiro"])
+
+    def test_encerrada_esta_matricula_reconhece_encerramento(self):
+        texto = """
+        MATRÍCULA 168. IMÓVEL: Fazenda Exemplo. PROPRIETÁRIO: Pessoa Teste.
+        AV.01-168 - Pela abertura do novo registro, encerrada esta matrícula. DOU FÉ.
+        """
+
+        self.assertEqual(
+            "ENCERRADA",
+            analisar_matricula(texto)["imovel"]["situacao"]["status"],
+        )
+
+    def test_area_rural_com_ares_seguidos_de_virgula(self):
+        texto = """
+        MATRÍCULA 153. IMÓVEL: Fazenda Córrego Fundo, com a área de 223 hectares,
+        66 ares, e 62 centiares. PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área"), ["223,6662 ha"])
+
+    def test_area_rural_historica_em_hectares_com_milhar(self):
+        texto = """
+        MATRÍCULA 2.360. IMÓVEL: Fazendas Araras e Mombucaba, com a área de
+        1.396,20,00 hectares. PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área"), ["1.396,2 ha"])
+
+    def test_area_rural_historica_em_metros_quadrados(self):
+        texto = """
+        MATRÍCULA 4.181. IMÓVEL: Fazenda Morro Alto, com a área de
+        608,332,50m². PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área"), ["608.332,5 m²"])
+
+    def test_area_rural_composta_soma_totais_de_duas_glebas(self):
+        texto = """
+        MATRÍCULA 148. IMÓVEL: Fazenda Almas. A) Gleba com 6 hectares e 50 ares
+        e 127 hectares de campos, perfazendo o total de 133 hectares e 50 ares;
+        B) outra gleba com 11 hectares, 1 are e 66 centiares e 17 hectares,
+        totalizando: 28 hectares, 13 ares e 21 centiares.
+        PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área"), ["161,6321 ha"])
+
+    def test_propriedade_urbana_com_area_historica_nao_e_rural(self):
+        texto = """
+        MATRÍCULA 4.556. IMÓVEL: Sítio do Castelinho, constituído de uma
+        propriedade urbana e seu terreno, com a área de 91,36,74,74 hectares
+        ou 913.674,74m². PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        imovel = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual("URBANO", imovel["tipo"])
+        self.assertEqual(valores_por_rotulo(imovel["areas"], "Área"), ["913.674,74 m²"])
+
+    def test_denominacao_rural_historica_iniciada_por_corrego(self):
+        texto = """
+        MATRÍCULA 255. IMÓVEL: Córrego das Galinhas, Subúrbio de Morrinhos-GO,
+        constituído de uma chácara com 17 hectares. PROPRIETÁRIO: Pessoa Teste.
+        """
+
+        identificacao = analisar_matricula(texto)["imovel"]["identificacao"]
+
+        self.assertEqual(valores_por_rotulo(identificacao, "Nome"), ["Córrego das Galinhas"])
+
+
 if __name__ == "__main__":
     unittest.main()

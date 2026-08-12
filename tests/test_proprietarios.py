@@ -1433,6 +1433,171 @@ class TesteProprietarios(unittest.TestCase):
             [("Jaci Moreira Arantes", "25%"), ("José Cândido Júnior", "75%")],
         )
 
+    def test_percentual_das_partes_prevalece_sobre_valores_monetarios(self):
+        texto = (
+            "em pagamento de sua herança, 25% das partes a saber: "
+            "parte ideal de Cr$1.250,00 na avaliação de Cr$2.500,00 e "
+            "parte ideal de Cr$6.712,50 na avaliação de Cr$16.000,00"
+        )
+        self.assertEqual(parse_percent(texto), 25.0)
+
+    def test_percentual_de_heranca_sobre_quinhao_e_convertido_para_o_imovel(self):
+        texto = (
+            "em pagamento de sua herança 4,1666%, no valor de R$12.635,36, "
+            "sobre 50% no valor de R$303.248,80 do imóvel objeto da matrícula"
+        )
+        self.assertAlmostEqual(parse_percent(texto), 2.0833)
+
+    def test_valor_de_sobrepartilha_sobre_quinhao_e_convertido_para_o_imovel(self):
+        texto = (
+            "em pagamento de sua herança parte ideal no valor de R$10.147,37, "
+            "sobre 6,58% avaliado por R$40.589,48, do imóvel objeto da matrícula"
+        )
+        self.assertAlmostEqual(parse_percent(texto), 1.645, places=3)
+
+    def test_partilha_de_vinte_e_cinco_porcento_das_partes_substitui_o_autor(self):
+        texto = """
+        MATRÍCULA 45. IMÓVEL: Fazenda rural.
+        PROPRIETÁRIOS: Valdemar Naves Pereira, CPF 052.255.151-00; e
+        Marcília Rosa Naves, CPF 058.374.561-04.
+        R.15-45 - FORMAL DE PARTILHA dos bens deixados por falecimento de
+        Valdemar Naves Pereira. Coube à herdeira Rosana Naves,
+        CPF 251.645.891-68, em pagamento de sua herança, 25% das partes a
+        saber: parte ideal de Cr$1.250,00 na avaliação de Cr$2.500,00 e parte
+        ideal de Cr$6.712,50 na avaliação de Cr$16.000,00 sobre o imóvel.
+        R.16-45 - FORMAL DE PARTILHA dos bens deixados por falecimento de
+        Valdemar Naves Pereira. Coube à herdeira Rosidelma Naves,
+        CPF 375.562.901-15, em pagamento de sua herança, 25% das partes a
+        saber: parte ideal de Cr$1.250,00 na avaliação de Cr$2.500,00 e parte
+        ideal de Cr$6.712,50 na avaliação de Cr$16.000,00 sobre o imóvel.
+        R.17-45 - FORMAL DE PARTILHA dos bens deixados por falecimento de
+        Valdemar Naves Pereira. Coube à herdeira Réginer Naves,
+        CPF 773.864.501-68, em pagamento de sua herança, 25% das partes a
+        saber: parte ideal de Cr$1.250,00 na avaliação de Cr$2.500,00 e parte
+        ideal de Cr$6.712,50 na avaliação de Cr$16.000,00 sobre o imóvel.
+        R.18-45 - FORMAL DE PARTILHA dos bens deixados por falecimento de
+        Valdemar Naves Pereira. Coube ao herdeiro Rogério Naves,
+        CPF 391.769.831-53, em pagamento de sua herança, 25% das partes a
+        saber: parte ideal de Cr$1.250,00 na avaliação de Cr$2.500,00 e parte
+        ideal de Cr$6.712,50 na avaliação de Cr$16.000,00 sobre o imóvel.
+        """
+        atos = [
+            SimpleNamespace(descricao=item["texto"])
+            for item in separar_atos(texto)
+        ]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            [(item["nome"], item["proporcao"]) for item in resultado],
+            [
+                ("Marcília Rosa Naves", "50%"),
+                ("Rosana Naves", "12,50%"),
+                ("Rosidelma Naves", "12,50%"),
+                ("Réginer Naves", "12,50%"),
+                ("Rogério Naves", "12,50%"),
+            ],
+        )
+
+    def test_duas_partes_percentuais_sao_somadas(self):
+        texto = (
+            "duas partes correspondentes a 8,33% sobre 50% do imóvel "
+            "foram transmitidas aos adquirentes"
+        )
+        self.assertAlmostEqual(parse_percent(texto), 16.66)
+
+    def test_doacao_historica_extrai_doadores_apos_em_doacao_feita_por(self):
+        texto = (
+            "o imóvel foi adquirido por Ana Um, menor púbere, Bruno Dois e "
+            "Carla Três, menores impúberes, em doação feita por Valdivino Alves, "
+            "CPF 111.222.333-44 e sua mulher Geralda Maria, CPF 555.666.777-88; "
+            "brasileiros, casados."
+        )
+        transmitentes = extrair_pessoas(extrair_bloco(texto, "TRANSMITENTE"))
+        self.assertEqual(
+            [item["nome"] for item in transmitentes],
+            ["Valdivino Alves", "Geralda Maria"],
+        )
+
+    def test_lista_mista_de_menores_nao_cria_pessoa_chamada_menor_pubere(self):
+        bloco = (
+            "Maria Madalena da Costa, menor púbere, Evaldo Alves da Costa, "
+            "Edvar Alves da Costa e Divina Aparecida da Costa, menores impúberes, "
+            "brasileiros, estudantes"
+        )
+        pessoas = extrair_pessoas(bloco)
+        self.assertEqual(
+            [item["nome"] for item in pessoas],
+            [
+                "Maria Madalena da Costa",
+                "Evaldo Alves da Costa",
+                "Edvar Alves da Costa",
+                "Divina Aparecida da Costa",
+            ],
+        )
+
+    def test_duas_partes_monetarias_sao_somadas_sobre_avaliacao(self):
+        texto = (
+            "duas partes de Cr$810.234,00 e Cr$419.883,00, na avaliação "
+            "de Cr$1.550.000,00 sobre o imóvel"
+        )
+        self.assertAlmostEqual(parse_percent(texto), 79.3623870967742)
+
+    def test_permuta_historica_extrai_segundos_permutantes(self):
+        texto = (
+            "o imóvel passou a pertencer aos primeiros permutantes Comprador Um e "
+            "Compradora Dois, sendo transmitentes os segundos permutantes Maria Um, "
+            "CPF 111.222.333-44 e João Dois, CPF 555.666.777-88, neste ato assistidos "
+            "por seu representante, pelo valor declarado."
+        )
+        transmitentes = extrair_pessoas(extrair_bloco(texto, "TRANSMITENTE"))
+        self.assertEqual(
+            [item["nome"] for item in transmitentes],
+            ["Maria Um", "João Dois"],
+        )
+
+    def test_dois_grupos_de_menores_com_documento_coletivo_sao_separados(self):
+        bloco = (
+            "Maria Madalena da Costa e Evaldo Alves da Costa, menores púberes, "
+            "estudantes; Edvar Alves Costa e Divina Aparecida da Costa, menores "
+            "impúberes brasileiros, portadores do CPF nº 136.513.231-53"
+        )
+        pessoas = extrair_pessoas(bloco)
+        self.assertEqual(
+            [item["nome"] for item in pessoas],
+            [
+                "Maria Madalena da Costa",
+                "Evaldo Alves da Costa",
+                "Edvar Alves Costa",
+                "Divina Aparecida da Costa",
+            ],
+        )
+
+    def test_nome_historico_com_vogal_omitida_permanece_compativel(self):
+        self.assertTrue(
+            nomes_compativeis(
+                "Agnaldo Fernandes de Melo",
+                "Aguinaldo Fernandes de Melo",
+            )
+        )
+
+    def test_nome_historico_com_i_ou_y_final_permanece_compativel(self):
+        self.assertTrue(
+            nomes_compativeis(
+                "Adeny Belchior de Souza",
+                "Adeni Belchior de Souza",
+            )
+        )
+
+    def test_fragmentos_de_folio_e_endereco_nao_sao_pessoas(self):
+        self.assertEqual(
+            extrair_pessoas(
+                "no Livro 193, brasileiro, CPF 111.222.333-44; "
+                "Setor Aeroporto, brasileiro, CPF 555.666.777-88"
+            ),
+            [],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

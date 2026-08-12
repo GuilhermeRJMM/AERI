@@ -73,6 +73,40 @@ def parse_percent(texto):
         quota = parse_percentual_declarado(percentual_resultante_da_quota.group(2))
         return fator / 100.0 * quota
 
+    # Inventários podem declarar primeiro o percentual interno do quinhão e,
+    # depois, a fração que esse quinhão representa no imóvel. Ex.: 4,1666%
+    # ``sobre 50% ... do imóvel`` corresponde a 2,0833% do todo, não a
+    # 4,1666%. A restrição a "em pagamento" evita alterar redações em que
+    # percentuais independentes apenas aparecem próximos no mesmo ato.
+    percentual_sobre_quinhao = re.search(
+        r'\bem\s+pagamento\b.{0,500}?'
+        r'(\d+(?:[,.]\d+)?)\s*%.{0,500}?'
+        r'\bsobre\s+(\d+(?:[,.]\d+)?)\s*%.{0,240}?'
+        r'\bdo\s+im[óo]vel\b',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if percentual_sobre_quinhao:
+        percentual = parse_percentual_declarado(percentual_sobre_quinhao.group(1))
+        quinhao = parse_percentual_declarado(percentual_sobre_quinhao.group(2))
+        return percentual / 100.0 * quinhao
+
+    parte_monetaria_sobre_quinhao = re.search(
+        r'\bparte\s+ideal\s+(?:no\s+valor\s+)?de\s*'
+        r'(?:[A-Z]{1,3}\$?\s*)?([\d.,]+).*?'
+        r'\bsobre\s+(\d+(?:[,.]\d+)?)\s*%\s*'
+        r'(?:do\s+im[óo]vel\s+)?avaliad[oa]\s+por\s*'
+        r'(?:[A-Z]{1,3}\$?\s*)?([\d.,]+)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if parte_monetaria_sobre_quinhao:
+        parte = parse_valor_monetario(parte_monetaria_sobre_quinhao.group(1))
+        quinhao = parse_percentual_declarado(parte_monetaria_sobre_quinhao.group(2))
+        total = parse_valor_monetario(parte_monetaria_sobre_quinhao.group(3))
+        if parte is not None and total and 0 < parte <= total:
+            return parte / total * quinhao
+
     percentual_correspondente_total = re.search(
         r'(?:o\s+que\s+)?corresponde\s+a\s+'
         r'(\d+(?:[,.]\d+)?)\s*%\s+do\s+im[óo]vel',
@@ -81,6 +115,57 @@ def parse_percent(texto):
     )
     if percentual_correspondente_total:
         return parse_percentual_declarado(percentual_correspondente_total.group(1))
+
+    percentual_das_partes = re.search(
+        r'(\d+(?:[,.]\d+)?)\s*%\s+das\s+partes?\s+a\s+saber\b',
+        texto,
+        re.I,
+    )
+    if percentual_das_partes:
+        return parse_percentual_declarado(percentual_das_partes.group(1))
+
+    multiplas_partes_percentuais = re.search(
+        r'(?:(\d+)|\b(duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez))\s+'
+        r'partes?\s+(?:ideais?\s+)?correspondentes?\s+a\s*'
+        r'(\d+(?:[,.]\d+)?)\s*%',
+        texto,
+        re.I,
+    )
+    if multiplas_partes_percentuais:
+        quantidades = {
+            "duas": 2, "tres": 3, "três": 3, "quatro": 4, "cinco": 5,
+            "seis": 6, "sete": 7, "oito": 8, "nove": 9, "dez": 10,
+        }
+        quantidade = (
+            int(multiplas_partes_percentuais.group(1))
+            if multiplas_partes_percentuais.group(1)
+            else quantidades[limpar_nome(multiplas_partes_percentuais.group(2)).lower()]
+        )
+        percentual = quantidade * parse_percentual_declarado(
+            multiplas_partes_percentuais.group(3)
+        )
+        if percentual <= 100.1:
+            return percentual
+
+    duas_partes_monetarias = re.search(
+        r'\bduas\s+partes?(?:\s+ideais?)?\s+de\s*'
+        r'(?:[A-Z]{1,3}\$?\s*)?([\d.,]+)\s+e\s+'
+        r'(?:[A-Z]{1,3}\$?\s*)?([\d.,]+).*?'
+        r'na\s+avalia(?:a)?[çc][ãa]o\s+de\s*'
+        r'(?:[A-Z]{1,3}\$?\s*)?([\d.,]+)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if duas_partes_monetarias:
+        primeira, segunda, total = (
+            parse_valor_monetario(valor)
+            for valor in duas_partes_monetarias.groups()
+        )
+        if (
+            primeira is not None and segunda is not None and total
+            and 0 < primeira + segunda <= total + 0.01
+        ):
+            return (primeira + segunda) / total * 100.0
 
     percentual_sobre_parte = re.search(
         r'(\d+(?:[,.]\d+)?)\s*%\s+da\s+parte\s+ideal\s+de\s*'
@@ -507,6 +592,16 @@ def extrair_bloco(texto, tipo):
 
     elif tipo == "TRANSMITENTE":
         m = re.search(
+            r'\bsendo\s+transmitentes?\s+os\s+segundos?\s+permutantes?\s+(.*?)'
+            r'(?=\bneste\s+ato\s+(?:assistid|representad)|\bpelo\s+valor\b|'
+            r'\bcondi[çc][õo]es\b|\bO\s+referido\b|\Z)',
+            texto,
+            re.I | re.DOTALL,
+        )
+        if m:
+            return m.group(1).strip().rstrip(';, ')
+
+        m = re.search(
             r'\bim[óo]vel\s+objeto\s+da\s+presente\s+matr[íi]cula\s+'
             r'de\s+propriedade\s+de\s+(.*?)(?=,\s*avaliad[oa]\b)',
             texto,
@@ -573,7 +668,7 @@ def extrair_bloco(texto, tipo):
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(
-            r'por\s+doa[çc][ãa]o\s+feita\s+por\s+(.*?)'
+            r'(?:por|em)\s+doa[çc][ãa]o\s+feita\s+por\s+(.*?)'
             r'(?=\bno\s+valor\b|\bpelo\s+valor\b|\bsem\s+condi[çc][õo]es\b|;|\.\s*O\s+referido|\Z)',
             texto,
             re.I | re.DOTALL,
@@ -622,17 +717,45 @@ def extrair_pessoas(texto_bloco):
     # Escrituras antigas podem qualificar coletivamente uma lista de menores
     # e informar documento apenas para o pai/representante. Nesse caso os
     # nomes anteriores a "menores" são os adquirentes; o representante não é.
+    texto_lista_menores = re.sub(
+        r',\s*menor\s+(?:p.beres?|imp.beres?)\s*,',
+        ', ',
+        texto_bloco,
+        flags=re.I,
+    )
     lista_menores = re.match(
         r'^\s*(?P<nomes>[A-ZÀ-Ú][^;]{3,300}?)\s+menores?\s+'
         r'(?:púberes?|impúberes?)\b',
-        texto_bloco,
+        texto_lista_menores,
         re.I | re.DOTALL,
     )
     partes_coletivas = []
-    if lista_menores:
+    marcadores_menores = re.findall(
+        r'\bmenores?\s+(?:p.beres?|imp.beres?)\b', texto_bloco, re.I,
+    )
+    if lista_menores and len(marcadores_menores) == 1:
         partes_coletivas = [
             nome.strip(' ,;')
             for nome in re.split(r'\s*,\s*|\s+e\s+', lista_menores.group("nomes"))
+            if len(nome.strip(' ,;').split()) >= 2
+        ]
+    elif marcadores_menores:
+        trecho_menores = re.split(
+            r'\bbrasileir[oa]s?\b|\bresidentes?\b|\bportadores?\b|'
+            r'\bneste\s+ato\b',
+            texto_bloco,
+            maxsplit=1,
+            flags=re.I,
+        )[0]
+        trecho_menores = re.sub(
+            r',?\s*menores?\s+(?:p.beres?|imp.beres?)\s*(?:,?\s*estudantes?)?\s*[,;]?',
+            '; ',
+            trecho_menores,
+            flags=re.I,
+        )
+        partes_coletivas = [
+            nome.strip(' ,;')
+            for nome in re.split(r'\s*;\s*|\s*,\s*|\s+e\s+', trecho_menores)
             if len(nome.strip(' ,;').split()) >= 2
         ]
 
@@ -866,6 +989,21 @@ def extrair_pessoas(texto_bloco):
         nome = re.sub(r'(?:;\s*|\s+)e\s*$', '', nome, flags=re.I)
         nome = re.sub(r'^s\s*:\s*', '', nome, flags=re.I)
         nome = nome.strip(' ,.()')
+
+        # Fragmentos de referência tabular, endereço ou fólio podem ficar
+        # entre dois nomes quando o traslado histórico perdeu delimitadores.
+        # Eles não representam pessoas e não podem entrar na cadeia dominial.
+        nome_normalizado = limpar_nome(nome)
+        if (
+            re.match(r'^(?:NO\s+)?LIVRO\s+\d', nome_normalizado)
+            or re.match(r'^\d[\d./-]*\s+E\s+V$', nome_normalizado)
+            or re.match(
+                r'^(?:SETOR|BAIRRO|JARDIM|LOTEAMENTO|RUA|AVENIDA|ALAMEDA|'
+                r'TRAVESSA|RODOVIA)\b',
+                nome_normalizado,
+            )
+        ):
+            continue
         
         if re.match(r'^(?:CPF|CNPJ|CIC|RG)\b', nome, re.I):
             continue
@@ -1387,6 +1525,11 @@ def nomes_compativeis(nome_a, nome_b):
     fonetico_b = sem_particulas_b.replace("Z", "S")
     if fonetico_a == fonetico_b:
         return True
+    # Variação histórica de grafia e OCR no fim de nomes próprios:
+    # Adeni/Adeny, Darci/Darcy. Só aceitamos quando todo o restante do nome é
+    # idêntico, evitando aproximar pessoas distintas por mera semelhança.
+    if re.sub(r'Y\b', 'I', fonetico_a) == re.sub(r'Y\b', 'I', fonetico_b):
+        return True
     if len(nome_a) <= 5 or len(nome_b) <= 5:
         return False
     if nome_a in nome_b:
@@ -1399,7 +1542,7 @@ def nomes_compativeis(nome_a, nome_b):
     tokens_a = [item for item in sem_particulas_a.split() if item]
     tokens_b = [item for item in sem_particulas_b.split() if item]
     curto, longo = (tokens_a, tokens_b) if len(tokens_a) <= len(tokens_b) else (tokens_b, tokens_a)
-    if len(curto) < 2 or SequenceMatcher(None, curto[0], longo[0]).ratio() < 0.9:
+    if len(curto) < 2 or SequenceMatcher(None, curto[0], longo[0]).ratio() < 0.85:
         return False
     posicao = 0
     usados = []
@@ -2081,8 +2224,16 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
                     for descricao in descricoes
                 )
             )
+            percentuais_das_partes_do_autor = all(
+                re.search(
+                    r'\d+(?:[,.]\d+)?\s*%\s+das\s+partes?\s+a\s+saber\b',
+                    descricao,
+                    re.I,
+                )
+                for descricao in descricoes
+            )
             if (
-                not percentuais_sobre_imovel
+                (not percentuais_sobre_imovel or percentuais_das_partes_do_autor)
                 and assinatura.startswith((prefixo_autor, prefixo_espolio))
             ):
                 prefixo = (

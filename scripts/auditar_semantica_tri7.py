@@ -230,6 +230,22 @@ def area_em_metros_quadrados(valor: str) -> float | None:
 
 def area_registral_independente(texto: str) -> float | None:
     descricao = descricao_cabecalho_imovel(texto)
+    totais_descritos = []
+    for total in re.finditer(
+        r"(?:PERFAZENDO\s+O\s+TOTAL\s+DE|TOTALIZANDO)\s*:?[ ]*"
+        r"(\d+)(?:\s*\([^)]*\))?\s*HECTARES?"
+        r"(?:\s*[,E]\s*(\d+)(?:\s*\([^)]*\))?\s*ARES?)?"
+        r"(?:\s*,?\s*E\s*(\d+)(?:\s*\([^)]*\))?\s*CENTIARES?)?",
+        descricao,
+    ):
+        totais_descritos.append(
+            int(total.group(1))
+            + int(total.group(2) or 0) / 100
+            + int(total.group(3) or 0) / 10_000
+        )
+    if totais_descritos:
+        return sum(totais_descritos) * 10_000
+
     composta = re.search(
         r"\bAREA(?:\s+TOTAL)?\s*(?:DE|:)?\s*(\d+)(?:\s*\([^)]*\))?\s*"
         r"HECTARES?\s*(?:,|E)\s*(\d+)(?:\s*\([^)]*\))?\s*ARES?"
@@ -479,6 +495,7 @@ MARCADORES_CANCELAMENTO = (
     "LIBERACAO DO GRAVAME",
     "BAIXA DA HIPOTECA",
     "EXTINCAO DA DIVIDA",
+    "EXTINCAO DE HIPOTECA",
     "DIVIDA ORIGINARIA FOI CONSIDERADA EXTINTA",
     "LEVANTAMENTO DE PENHORA",
     "LIBERACAO DE HIPOTECA",
@@ -502,6 +519,15 @@ MARCADORES_CANCELAMENTO = (
 
 def _cancelamento_explicito(ato_normalizado: str) -> bool:
     cabecalho = ato_normalizado[:500]
+    # Retificações frequentemente apenas reproduzem a palavra "cancelamento"
+    # ao corrigir o texto de um ato anterior. Elas não promovem nova baixa.
+    indice_retificacao = cabecalho.find("RETIFICACAO")
+    indice_cancelamento = cabecalho.find("CANCELAMENTO")
+    if (
+        0 <= indice_retificacao < 180
+        and (indice_cancelamento < 0 or indice_retificacao < indice_cancelamento)
+    ):
+        return False
     if "DESVINCULAD" in cabecalho and "PROAGRO" in cabecalho and not any(
         marcador in cabecalho
         for marcador in ("CANCELAMENTO", "LIBERACAO", "LEVANTAMENTO", "QUITACAO")
@@ -540,6 +566,7 @@ def _cancelamento_explicito(ato_normalizado: str) -> bool:
 def _ato_constitui_onus(ato_normalizado: str) -> bool:
     """Leitura independente e conservadora dos sinais constitutivos do ato."""
     cabecalho = ato_normalizado[:600]
+    cabecalho_formal = cabecalho.split("NOS TERMOS", 1)[0]
     if _cancelamento_explicito(ato_normalizado) or "RETIFICACAO DE CPF" in cabecalho:
         return False
     if any(marcador in cabecalho[:260] for marcador in (
@@ -554,14 +581,43 @@ def _ato_constitui_onus(ato_normalizado: str) -> bool:
         ato_normalizado,
     ):
         return True
+    if re.search(
+        r"\bCONFISSAO\s+E\s+ASSUNCAO\s+DE\s+DIVIDAS?\b.{0,80}\b"
+        r"GARANTIAS?\s+(?:PIGNORATICIA\s+E\s+)?HIPOTECARIA\b",
+        cabecalho,
+    ):
+        return True
+    if re.search(
+        r"\b(?:DAO|DA|DADO|DADA|DADOS|DADAS)\s+EM\s+HIPOTECA\b",
+        ato_normalizado,
+    ):
+        return True
+    # Aditivos de retificação/ratificação preservam o gravame original.
+    # Só são constitutivos quando o próprio texto declara inclusão, acréscimo
+    # ou constituição de nova garantia (tratado logo acima).
+    if "ADITIVO" in cabecalho_formal and re.search(
+        r"\b(?:RE[ -]?RATIFICACAO|RETIFICACAO(?:\s+E\s+RATIFICACAO)?|RATIFICACAO)\b",
+        cabecalho,
+    ):
+        return False
+    if any(expressao in cabecalho_formal for expressao in (
+        "CLAUSULAS DE INALIENABILIDADE E IMPENHORABILIDADE",
+        "INALIENABILIDADE E IMPENHORABILIDADE",
+        "CLAUSULA DE INCOMUNICABILIDADE",
+    )):
+        return False
+    if re.search(
+        r"\bANUENCIA(?:\s+DO\s+CREDOR\s+HIPOTECARIO)?\s*[.:]",
+        cabecalho_formal[:220],
+    ):
+        return False
     if any(expressao in cabecalho[:350] for expressao in (
-        "IMOVEL DE LOCALIZACAO",
+        "LIBERACAO DE IMOVEL",
         "LIBERACAO E SUBSTITUICAO DA AREA HIPOTECADA",
         "TRANSFERENCIA DE HIPOTECA",
         "SUB ROGACAO DE DIVIDA HIPOTECARIA",
         "SUB SUB ROGACAO DE DIVIDA HIPOTECARIA",
         "DESMEMBRAMENTO E MATRICULA",
-        "ANUENCIA DO CREDOR HIPOTECARIO",
         "RATIFICACAO DE AREA",
         "RETIFICACAO DE AREA",
         "LIBERACAO DE IMOVEL HIPOTECADO",
@@ -570,6 +626,7 @@ def _ato_constitui_onus(ato_normalizado: str) -> bool:
         "EXCLUSAO DE BENS VINCULADOS",
         "QUITACAO DE PROMISSORIA",
         "INDICACAO GRAUS E CREDORES",
+        "ALTERACAO DE CREDOR",
     )):
         return False
     if re.search(
@@ -616,9 +673,6 @@ def _ato_constitui_onus(ato_normalizado: str) -> bool:
         "ENDERECAMENTO POSTAL",
         "INSCRICAO NO CAR",
         "DIREITOS DECORRENTES DE ALIENACAO FIDUCIARIA",
-        "CLAUSULAS DE INALIENABILIDADE E IMPENHORABILIDADE",
-        "INALIENABILIDADE E IMPENHORABILIDADE",
-        "CLAUSULA DE INCOMUNICABILIDADE",
     )):
         return False
     menciona_titulo_transmissao = any(termo in cabecalho[:500] for termo in (
@@ -629,11 +683,9 @@ def _ato_constitui_onus(ato_normalizado: str) -> bool:
         "PARTILHA",
         "ADJUDICACAO",
         "ARREMATACAO",
+        "CONSOLIDACAO DA PROPRIEDADE",
     ))
-    transferencia_principal = menciona_titulo_transmissao and bool(re.search(
-        r"\b(?:FOI\s+ADQUIRID[OA]|ADQUIRIU\s+POR|ADQUIRENTES?\s*:|OUTORGADOS?\s*:|COUBE\s+(?:A|AO|AOS)\s+)",
-        ato_normalizado,
-    ))
+    transferencia_principal = menciona_titulo_transmissao
     titulo_onus_explicito = any(termo in cabecalho[:250] for termo in (
         "HIPOTECA.",
         "ALIENACAO FIDUCIARIA.",
@@ -646,13 +698,26 @@ def _ato_constitui_onus(ato_normalizado: str) -> bool:
         "OBJETO DA GARANTIA",
         "CREDOR FIDUCIARIO",
         "CREDORA FIDUCIARIA",
+    )) or bool(re.search(
+        r"\bHIPOTECA(?:\s+DE\s+\d{1,2}[º°O]?\s+GRAU|\s*[.:])",
+        cabecalho[:220],
     ))
     usufruto_reservado_na_transmissao = any(expressao in ato_normalizado for expressao in (
         "RESERVA DE USUFRUTO",
         "RESERVA PARA SI O DIREITO AO USUFRUTO",
         "RESERVARAM PARA SI O DIREITO DO USUFRUTO",
     ))
-    if transferencia_principal and not titulo_onus_explicito and not usufruto_reservado_na_transmissao:
+    onus_no_titulo_da_transmissao = any(expressao in cabecalho[:280] for expressao in (
+        "ALIENACAO FIDUCIARIA",
+        "GARANTIA HIPOTECARIA",
+        "CONSTITUICAO DE GARANTIA HIPOTECARIA",
+    ))
+    if (
+        transferencia_principal
+        and not titulo_onus_explicito
+        and not usufruto_reservado_na_transmissao
+        and not onus_no_titulo_da_transmissao
+    ):
         return False
     if any(expressao in ato_normalizado for expressao in (
         "PROPRIEDADE FIDUCIARIA",
@@ -695,7 +760,14 @@ def _ato_constitui_onus(ato_normalizado: str) -> bool:
         ))
 
     if re.search(r"\bPENHOR\b", ato_normalizado):
-        return "PENHOR" in cabecalho[:300] or "DADO EM PENHOR" in ato_normalizado
+        return (
+            "PENHOR" in cabecalho[:300]
+            or "DADO EM PENHOR" in ato_normalizado
+            or "BENS APENHADOS LOCALIZADOS NO IMOVEL" in ato_normalizado
+        )
+
+    if "VINCULAD" in cabecalho[:350] and "CEDULA" in ato_normalizado:
+        return True
 
     if "USUFRUTO" in ato_normalizado:
         return "USUFRUTO" in cabecalho or any(expressao in ato_normalizado for expressao in (
@@ -856,7 +928,11 @@ def auditar_onus(texto: str, resultado: dict) -> dict:
             if marcador in descricao
             and re.search(rf"\bCANCELAD[AO]\b.{{0,80}}\b{marcador}\b", descricao)
         }
-        if tipos_cancelados and any(
+        # Sem uma referência textual, o motor pode ter baixado apenas uma das
+        # representações duplicadas do mesmo gravame (ex.: doação com reserva
+        # e registro autônomo do usufruto). Quando o ato indica R./AV. específico,
+        # outro ônus anterior do mesmo tipo é independente e não constitui erro.
+        if tipos_cancelados and not alvos_esperados and any(
             sem_acentos(ativo.get("tipo_onus", "")) in tipos_cancelados
             and posicoes.get(id(ativo), -1) < posicoes.get(id(ato), len(atos_aeri))
             for ativo in ativos
@@ -937,6 +1013,16 @@ def marcadores_independentes(texto: str) -> dict:
         for candidato in candidatos_numero_predial
     )
 
+    ccir_com_codigo = any(
+        "CCIR" in ato
+        and bool(re.search(
+            r"(?:CODIGO\s+DO\s+IMOVEL\s+RURAL|N[.\sº°O]*DO\s+CCIR)"
+            r"[^\d]{0,80}\d",
+            ato,
+        ))
+        for ato in atos_normalizados
+    )
+
     encerramento_explicito = bool(re.search(
         r"(?:FICA|FICANDO|FOI|E|SEJA)?(?:\s+EM\s+CONSEQUENCIA)?\s*"
         r"ENCERRAD[AO]\s+(?:A\s+)?(?:PRESENTE\s+|ESTA\s+)?MATRICULA"
@@ -985,10 +1071,7 @@ def marcadores_independentes(texto: str) -> dict:
             or re.search(r"\bIMOVEL\b.{0,100}\bPOSSUI\b.{0,100}\bCEP\b", ato, re.DOTALL)
             for ato in atos_normalizados
         ) or bool(re.search(r"\bCEP\b", descricao_imovel)),
-        "marcador_ccir": any(
-            "CCIR" in ato and ("CODIGO DO IMOVEL RURAL" in ato or "N.º DO CCIR" in ato or "N. DO CCIR" in ato)
-            for ato in atos_normalizados
-        ),
+        "marcador_ccir": ccir_com_codigo,
         "marcador_car": any("CADASTRO AMBIENTAL RURAL" in ato or "INSCRICAO NO CAR" in ato for ato in atos_normalizados),
         "marcador_rua": bool(re.search(
             r"\b(?:RUA|AVENIDA|ALAMEDA|TRAVESSA|PRACA|RODOVIA|VIELA|BECO)\b",
@@ -1040,6 +1123,7 @@ def auditar_texto(numero: int, texto: str, resultado: dict | None = None) -> dic
         "extraiu_incra": contem_rotulo(cadastros, {"INCRA"}),
     }
     situacao = str((imovel.get("situacao") or {}).get("status", ""))
+    tipo_imovel = sem_acentos(imovel.get("tipo", ""))
     alertas_imovel = []
     if (marcadores["marcador_encerramento_explicito"] or marcadores["marcador_desmembramento_integral"]) and situacao != "ENCERRADA":
         alertas_imovel.append("ENCERRAMENTO_NAO_RECONHECIDO")
@@ -1049,12 +1133,20 @@ def auditar_texto(numero: int, texto: str, resultado: dict | None = None) -> dic
         "lote", "quadra", "area", "area_construida", "cci", "cep", "ccir", "car",
         "rua", "numero_predial", "setor", "denominacao_rural", "incra",
     ):
+        if tipo_imovel == "RURAL" and nome in {"rua", "numero_predial", "setor"}:
+            continue
+        if tipo_imovel == "URBANO" and nome in {"ccir", "car", "denominacao_rural", "incra"}:
+            continue
         if marcadores[f"marcador_{nome}"] and not extraidos[f"extraiu_{nome}"]:
             alertas_imovel.append(f"{nome.upper()}_NAO_EXTRAIDO")
 
-    tipo_imovel = sem_acentos(imovel.get("tipo", ""))
     descricao_imovel = descricao_cabecalho_imovel(texto)
-    if tipo_imovel == "RURAL" and re.search(r"\b(?:LOTE|QUADRA)\b", descricao_imovel[:350]):
+    if (
+        tipo_imovel == "RURAL"
+        and re.search(r"\bLOTE\b", descricao_imovel[:350])
+        and re.search(r"\bQUADRA\b", descricao_imovel[:350])
+        and re.search(r"\b(?:NESTA\s+CIDADE|RUA|AVENIDA|LOTEAMENTO)\b", descricao_imovel[:350])
+    ):
         alertas_imovel.append("TIPO_IMOVEL_DIVERGENTE")
 
     area_extraida = area_em_metros_quadrados(
