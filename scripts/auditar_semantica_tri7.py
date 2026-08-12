@@ -17,6 +17,7 @@ sys.path.insert(0, str(RAIZ))
 
 from backend.app.parser import separar_atos
 from backend.app.proprietarios import (
+    MARCADOR_PAPEL_NAO_ADQUIRENTE,
     extrair_bloco,
     extrair_pessoas,
     extrair_proprietario_inicial,
@@ -299,7 +300,9 @@ ROTULO_ADQUIRENTE_INDEPENDENTE = re.compile(
     r"OUTORGADOS?|DONAT[ÁA]RI[OA]S?|ADJUDICANTES?|"
     r"ARREMATANTES?|COMPRADOR(?:ES)?)\s*:\s*(.*?)"
     r"(?=\b(?:IM[ÓO]VEL|OBJETO|ORIGEM|FORMA\s+DO\s+T[ÍI]TULO|"
-    r"TRANSMITENTES?|OUTORGANTES?|DOADORES?)\s*:|\*NOTA|\bDOU\s+F[ÉE]\b|$)",
+    r"TRANSMITENTES?|OUTORGANTES?|DOADORES?)\s*:|"
+    + MARCADOR_PAPEL_NAO_ADQUIRENTE +
+    r"|\*NOTA|\bDOU\s+F[ÉE]\b|$)",
     re.IGNORECASE | re.DOTALL,
 )
 

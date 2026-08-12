@@ -1007,6 +1007,39 @@ class TesteProprietarios(unittest.TestCase):
 
         self.assertEqual([pessoa["nome"] for pessoa in pessoas], ["Danielle Corcelli Gomes"])
 
+    def test_papeis_instrumentais_nao_entram_como_adquirentes(self):
+        complementos = (
+            "Compareceram como INTERVENIENTES ANUENTES na qualidade de filhos e genro",
+            "INTERVENIENTE/GARANTE",
+            "ANUENTE",
+            "GARANTIDORA",
+            "FIADOR",
+            "AVALISTA",
+            "COOBRIGADO",
+            "TERCEIRO GARANTIDOR",
+            "DEVEDOR FIDUCIANTE",
+            "CREDORA FIDUCIÁRIA",
+            "HIPOTECANTE",
+            "MUTUÁRIO",
+            "EMITENTE",
+        )
+
+        for papel in complementos:
+            with self.subTest(papel=papel):
+                texto = (
+                    "R.05 - COMPRA E VENDA. ADQUIRENTE: Pessoa Compradora, "
+                    "CPF 111.222.333-44. "
+                    f"{papel}: Pessoa Participante, CPF 555.666.777-88. "
+                    "IMÓVEL: a totalidade do imóvel."
+                )
+
+                pessoas = extrair_pessoas(extrair_bloco(texto, "ADQUIRENTE"))
+
+                self.assertEqual(
+                    [pessoa["nome"] for pessoa in pessoas],
+                    ["Pessoa Compradora"],
+                )
+
     def test_menores_coadquirentes_sao_separados_sem_incluir_representante(self):
         bloco = (
             "Diego Corcelli Gomes, menor impúbere, CI 4267870 e Danielle Corcelli "

@@ -402,6 +402,21 @@ def parse_percent(texto):
         
     return 100.0
 
+MARCADOR_PAPEL_NAO_ADQUIRENTE = (
+    r"(?:"
+    r"(?:\bCOMPAREC(?:ERAM|EU|EM|E)\s+(?:(?:AINDA|TAMB[ÉE]M)\s+)*(?:COMO\s+)?)?"
+    r"\bINTERVENIENTES?\b[^:;.\n]{0,180}:"
+    r"|(?:^|[.;]\s*)"
+    r"(?:\bCOMPAREC(?:ERAM|EU|EM|E)\s+(?:(?:AINDA|TAMB[ÉE]M)\s+)*(?:COMO\s+)?)?"
+    r"\b(?:ANUENTES?|GARANTES?|GARANTIDOR(?:A|ES|AS)?|FIADOR(?:A|ES|AS)?|"
+    r"AVALISTAS?|COOBRIGAD[OA]S?|TERCEIROS?\s+GARANTIDOR(?:A|ES|AS)?|"
+    r"DEVEDOR(?:A|ES|AS)?(?:\s+(?:FIDUCIANTE|SOLID[ÁA]RI[OA]))?|"
+    r"CREDOR(?:A|ES|AS)?(?:\s+FIDUCI[ÁA]RI[OA]S?)?|HIPOTECANTES?|"
+    r"MUTU[ÁA]RI[OA]S?|EMITENTES?)\b[^:;.\n]{0,140}:"
+    r")"
+)
+
+
 def extrair_bloco(texto, tipo):
     if tipo == "ADQUIRENTE":
         # Nas divisões, a lista de "outorgados" pode reunir todos os
@@ -443,8 +458,9 @@ def extrair_bloco(texto, tipo):
             r'OUTORGADOS?|DONAT[ÁA]RI[OA]S?|ADJUDICANTES?|'
             r'ARREMATANTES?|COMPRADOR(?:ES)?)\s*:\s*(.*?)'
             r'(?=\b(?:IM[ÓO]VEL|OBJETO|ORIGEM|FORMA\s+DO\s+T[ÍI]TULO|'
-            r'TRANSMITENTES?|OUTORGANTES?|DOADORES?|INTERVENIENTES?(?:\s+ANUENTES?)?)\s*:|'
-            r'\*NOTA|\bDOU\s+F[ÉE]\b|\Z)',
+            r'TRANSMITENTES?|OUTORGANTES?|DOADORES?)\s*:|'
+            + MARCADOR_PAPEL_NAO_ADQUIRENTE +
+            r'|\*NOTA|\bDOU\s+F[ÉE]\b|\Z)',
             texto,
             re.I | re.DOTALL,
         )
@@ -683,6 +699,15 @@ def extrair_bloco(texto, tipo):
 def extrair_pessoas(texto_bloco):
     pessoas = []
     if not texto_bloco: return pessoas
+    # Participantes instrumentais podem vir depois dos compradores sem um
+    # novo rótulo simples (por exemplo: "Compareceram como INTERVENIENTES
+    # ANUENTES na qualidade de filhos:"). Eles não integram a aquisição.
+    texto_bloco = re.split(
+        MARCADOR_PAPEL_NAO_ADQUIRENTE,
+        texto_bloco,
+        maxsplit=1,
+        flags=re.I | re.DOTALL,
+    )[0].strip().rstrip(';, ')
     # Em traslados antigos, uma coproprietária pode aparecer sem documento
     # próprio entre a qualificação do vendedor anterior e a do marido:
     # ``... CPF. Vera Maria; filha de ... e seu marido Antônio, CPF ... e
