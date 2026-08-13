@@ -2209,615 +2209,13 @@ def _expandir_subatos_repetidos_para_cadeia(atos):
     return expandidos
 
 
-def calcular_cadeia_dominial(atos, texto_integral=""):
-    atos = _expandir_subatos_repetidos_para_cadeia(atos)
-    estado = {}
-    
-    if texto_integral:
-        atos_separados = separar_atos(texto_integral)
-        if atos_separados:
-            inicio_primeiro_ato = texto_integral.find(atos_separados[0]["texto"])
-            cabecalho = texto_integral[:inicio_primeiro_ato] if inicio_primeiro_ato >= 0 else texto_integral
-        else:
-            cabecalho = texto_integral
-        
-        iniciais = extrair_proprietario_inicial(cabecalho)
-        if iniciais:
-            percentuais_iniciais = [
-                pessoa.get("percentual") for pessoa in iniciais
-            ]
-            usar_percentuais_declarados = (
-                all(percentual is not None for percentual in percentuais_iniciais)
-                and abs(sum(percentuais_iniciais) - 100.0) <= 0.2
-            )
-            fração = 100.0 / len(iniciais)
-            for p in iniciais:
-                chave = padronizar_chave(p["cpf"], p["nome"])
-                estado[chave] = {
-                    "nome": p["nome"],
-                    "cpf_original": p["cpf"],
-                    "proporcao": (
-                        p["percentual"]
-                        if usar_percentuais_declarados else fração
-                    ),
-                }
+def _formatar_resultado_cadeia(estado):
+    """Converte o estado interno na lista pública de proprietários atuais.
 
-    atos_transmissao = [
-        "VENDA E COMPRA", "COMPRA E VENDA", "INVENTARIO", "PARTILHA",
-        "SOBREPARTILHA", "DOACAO", "REFORMA AGRARIA", "TITULO DE DOMINIO",
-        "USUCAPIAO", "ARREMATACAO", "DACAO", "INTEGRALIZACAO", "PERMUTA",
-        "DIVISAO", "REGULARIZACAO FUNDIARIA", "LEGITIMACAO FUNDIARIA",
-    ]
-    grupos_partilha = _grupos_partilha_integrais(atos)
-    indices_agrupados = {
-        indice_ato
-        for inicio, (fim, _, _) in grupos_partilha.items()
-        for indice_ato in range(inicio + 1, fim)
-    }
-
-    for indice_ato, ato in enumerate(atos):
-        if indice_ato in indices_agrupados:
-            continue
-        if indice_ato in grupos_partilha:
-            _, itens, descricoes = grupos_partilha[indice_ato]
-            escala = 1.0
-            chave_substituida = None
-            assinatura = _assinatura_partilha(descricoes[0]) or ''
-            prefixo_autor = 'AUTOR DA HERANCA:'
-            prefixo_espolio = 'ESPOLIO TRANSMITENTE:'
-            percentuais_declarados = [
-                parse_percent(descricao) for descricao in descricoes
-            ]
-            percentuais_sobre_imovel = (
-                abs(sum(percentuais_declarados) - 100.0) <= 0.2
-                and all(
-                    (
-                        re.search(
-                            r'\bparte\s+(?:ideal|correspondente)\s+(?:a|de)\s*'
-                            r'\d+(?:[,.]\d+)?\s*%.{0,800}?'
-                            r'\b(?:sobre|do)\s+(?:o\s+)?im[óo]vel\b',
-                            descricao,
-                            re.I | re.DOTALL,
-                        )
-                        or re.search(
-                            r'\bparte\s+ideal\s+de\s*(?:[A-Z]{1,3}\$?\s*)?'
-                            r'[\d.,]+.{0,120}?\b(?:avalia[çc][ãa]o|avaliad[oa])'
-                            r'\s+(?:de|em)\s*(?:[A-Z]{1,3}\$?\s*)?[\d.,]+'
-                            r'.{0,180}?\b(?:no|sobre\s+o)\s+im[óo]vel\b',
-                            descricao,
-                            re.I | re.DOTALL,
-                        )
-                    )
-                    for descricao in descricoes
-                )
-            )
-            percentuais_das_partes_do_autor = all(
-                re.search(
-                    r'\d+(?:[,.]\d+)?\s*%\s+das\s+partes?\s+a\s+saber\b',
-                    descricao,
-                    re.I,
-                )
-                for descricao in descricoes
-            )
-            if (
-                (not percentuais_sobre_imovel or percentuais_das_partes_do_autor)
-                and assinatura.startswith((prefixo_autor, prefixo_espolio))
-            ):
-                prefixo = (
-                    prefixo_autor
-                    if assinatura.startswith(prefixo_autor)
-                    else prefixo_espolio
-                )
-                autor = assinatura[len(prefixo):].strip()
-                chave_substituida = next(
-                    (
-                        chave for chave, dados in estado.items()
-                        if nomes_compativeis(dados['nome'], autor)
-                    ),
-                    None,
-                )
-            if (
-                not percentuais_sobre_imovel
-                and not chave_substituida
-                and assinatura.startswith(prefixo_espolio)
-            ):
-                quota = next(
-                    (
-                        parse_percentual_declarado(valor)
-                        for valor in re.findall(
-                            r'\bquota\s*\(\s*(\d+(?:[,.]\d+)?)\s*%\s*\)',
-                            ' '.join(descricoes),
-                            re.I,
-                        )
-                    ),
-                    None,
-                )
-                chaves_adquirentes = {
-                    encontrar_chave_no_estado(adquirente, estado)
-                    for adquirentes, _ in itens
-                    for adquirente in adquirentes
-                }
-                candidatos = [
-                    chave for chave in chaves_adquirentes
-                    if (
-                        chave in estado
-                        and quota is not None
-                        and abs(estado[chave]['proporcao'] - quota) <= 0.02
-                    )
-                ]
-                if len(candidatos) == 1:
-                    chave_substituida = candidatos[0]
-                if not chave_substituida and quota is not None:
-                    nomes_adquirentes = [
-                        limpar_nome(adquirente["nome"])
-                        for adquirentes, _ in itens
-                        for adquirente in adquirentes
-                    ]
-                    candidatos_por_nome_e_quota = [
-                        chave for chave, dados in estado.items()
-                        if (
-                            abs(dados["proporcao"] - quota) <= 0.02
-                            and any(
-                                limpar_nome(dados["nome"]).split()[:2]
-                                == nome_adquirente.split()[:2]
-                                for nome_adquirente in nomes_adquirentes
-                            )
-                        )
-                    ]
-                    if len(candidatos_por_nome_e_quota) == 1:
-                        chave_substituida = candidatos_por_nome_e_quota[0]
-            if not percentuais_sobre_imovel and not chave_substituida:
-                meeiro = re.search(
-                    r'coube\s+ao\s+vi[úu]vo\s+meeiro\s+([^,;]+)',
-                    descricoes[0],
-                    re.I,
-                )
-                if meeiro:
-                    nome_meeiro = meeiro.group(1).strip()
-                    chave_substituida = next(
-                        (
-                            chave for chave, dados in estado.items()
-                            if nomes_compativeis(dados['nome'], nome_meeiro)
-                        ),
-                        None,
-                    )
-            if chave_substituida:
-                escala = estado[chave_substituida]['proporcao'] / 100.0
-                del estado[chave_substituida]
-            else:
-                estado.clear()
-            for adquirentes, percentual in itens:
-                percentual_individual = percentual * escala / len(adquirentes)
-                for adquirente in adquirentes:
-                    chave = chave_para_incluir(adquirente, estado)
-                    if chave not in estado:
-                        estado[chave] = {
-                            "nome": adquirente["nome"],
-                            "cpf_original": adquirente["cpf"],
-                            "proporcao": 0.0,
-                        }
-                    estado[chave]["proporcao"] += percentual_individual
-            continue
-
-        titulares_retorno = extrair_retorno_status_quo_ante(ato.descricao)
-        if titulares_retorno:
-            estado.clear()
-            proporcao_retorno = 100.0 / len(titulares_retorno)
-            for titular in titulares_retorno:
-                chave = padronizar_chave(titular["cpf"], titular["nome"])
-                estado[chave] = {
-                    "nome": titular["nome"],
-                    "cpf_original": titular["cpf"],
-                    "proporcao": proporcao_retorno,
-                }
-            continue
-
-        novo_nome = extrair_alteracao_nome(ato.descricao)
-        if novo_nome:
-            compativeis = [
-                chave for chave, dados in estado.items()
-                if nomes_compativeis(dados["nome"], novo_nome)
-            ]
-            if not compativeis:
-                documento_alteracao = re.search(
-                    r'\b(?:CPF|CNPJ|CGC)(?:/MF)?\b[^\d]{0,30}([\d.\-/]{9,20})',
-                    ato.descricao,
-                    re.I,
-                )
-                documento_limpo = (
-                    re.sub(r'\D', '', documento_alteracao.group(1))
-                    if documento_alteracao else ""
-                )
-                if documento_limpo:
-                    compativeis = [
-                        chave for chave, dados in estado.items()
-                        if re.sub(r'\D', '', dados.get("cpf_original", "")) == documento_limpo
-                    ]
-            if len(compativeis) == 1:
-                estado[compativeis[0]]["nome"] = novo_nome
-
-        indicados = extrair_indicacao_titularidade(ato.descricao)
-        total_indicado = sum(item["percentual"] for item in indicados)
-        if indicados and abs(total_indicado - 100.0) <= 0.2:
-            estado_anterior = estado.copy()
-            estado.clear()
-            for indicado in indicados:
-                chave_anterior = encontrar_chave_no_estado(indicado, estado_anterior)
-                documento_anterior = (
-                    estado_anterior[chave_anterior].get("cpf_original")
-                    if chave_anterior else None
-                )
-                chave = chave_para_incluir(indicado, estado)
-                estado[chave] = {
-                    "nome": indicado["nome"],
-                    "cpf_original": documento_anterior or indicado["cpf"],
-                    "proporcao": indicado["percentual"],
-                    "proporcao_texto": indicado["proporcao_texto"],
-                }
-            continue
-
-        credores_consolidados = extrair_credor_consolidacao(ato.descricao)
-        if credores_consolidados:
-            estado.clear()
-            proporcao = 100.0 / len(credores_consolidados)
-            for credor in credores_consolidados:
-                chave = padronizar_chave(credor["cpf"], credor["nome"])
-                estado[chave] = {
-                    "nome": credor["nome"],
-                    "cpf_original": credor["cpf"],
-                    "proporcao": proporcao
-                }
-            continue
-
-        retificados = extrair_retificacoes_cpf(ato.descricao)
-        if retificados:
-            for pessoa in retificados:
-                nome_retificado = limpar_nome(pessoa["nome"])
-                chave_encontrada = None
-                for chave, dados in estado.items():
-                    nome_atual = limpar_nome(dados["nome"])
-                    if (
-                        nome_retificado == nome_atual
-                        or nome_retificado in nome_atual
-                        or nome_atual in nome_retificado
-                        or nomes_compativeis(pessoa["nome"], dados["nome"])
-                    ):
-                        chave_encontrada = chave
-                        break
-                if not chave_encontrada:
-                    continue
-                dados = estado.pop(chave_encontrada)
-                dados["cpf_original"] = pessoa["cpf"]
-                nova_chave = padronizar_chave(pessoa["cpf"], dados["nome"])
-                if nova_chave in estado:
-                    estado[nova_chave]["proporcao"] += dados["proporcao"]
-                    estado[nova_chave]["cpf_original"] = pessoa["cpf"]
-                else:
-                    estado[nova_chave] = dados
-
-        if _aplicar_desquite(ato.descricao, estado):
-            continue
-
-        descricao_normalizada = limpar_nome(ato.descricao)
-        if (
-            "ESTREMACAO" in descricao_normalizada
-            and "MATRICULA AUTONOMA" in descricao_normalizada
-        ):
-            titular_extremado = re.search(
-                r'pertencente\s+exclusivamente\s+a\s+([^,;]+)',
-                ato.descricao,
-                re.I,
-            )
-            if titular_extremado:
-                nome_extremado = titular_extremado.group(1).strip()
-                chave_extremada = next(
-                    (
-                        chave for chave, dados in estado.items()
-                        if nomes_compativeis(dados["nome"], nome_extremado)
-                    ),
-                    None,
-                )
-                if chave_extremada:
-                    del estado[chave_extremada]
-                    if "REMANESCENTE" in descricao_normalizada and estado:
-                        total_remanescente = sum(
-                            dados["proporcao"] for dados in estado.values()
-                        )
-                        if total_remanescente > 0:
-                            fator_remanescente = 100.0 / total_remanescente
-                            for dados in estado.values():
-                                dados["proporcao"] *= fator_remanescente
-                                dados.pop("proporcao_texto", None)
-            continue
-
-        if (
-            not any(x in descricao_normalizada for x in atos_transmissao)
-            and "ADJUDICA" not in descricao_normalizada
-        ):
-            continue
-        
-        percentual_ato = parse_percent(ato.descricao)
-        percentual_presumido = percentual_e_presumido(ato.descricao, percentual_ato)
-
-        bloco_adq = extrair_bloco(ato.descricao, "ADQUIRENTE")
-        bloco_transm = extrair_bloco(ato.descricao, "TRANSMITENTE")
-        
-        adquirentes = extrair_pessoas(bloco_adq)
-        adquirentes = enriquecer_documentos_adquirentes(
-            adquirentes,
-            ato.descricao,
-        )
-        transmitentes = extrair_pessoas(bloco_transm)
-        
-        if not adquirentes:
-            continue
-
-        distribuicao_grupos = _distribuicao_percentual_por_grupos(
-            ato.descricao, adquirentes
-        )
-        if distribuicao_grupos:
-            estado.clear()
-            for adquirente, percentual_individual in distribuicao_grupos:
-                chave = chave_para_incluir(adquirente, estado)
-                estado[chave] = {
-                    "nome": adquirente["nome"],
-                    "cpf_original": adquirente["cpf"],
-                    "proporcao": percentual_individual,
-                }
-            continue
-
-        distribuicao_areas = _distribuicao_percentual_por_areas(
-            ato.descricao, adquirentes
-        )
-        if distribuicao_areas:
-            estado.clear()
-            for adquirente, percentual_individual in distribuicao_areas:
-                chave = chave_para_incluir(adquirente, estado)
-                estado[chave] = {
-                    "nome": adquirente["nome"],
-                    "cpf_original": adquirente["cpf"],
-                    "proporcao": percentual_individual,
-                }
-            continue
-
-        distribuicao_valores_adquirentes = _percentuais_por_valores_em_trecho(
-            ato.descricao,
-            adquirentes,
-            r'\bsendo\s*:',
-        )
-
-        percentual_final_cada = re.search(
-            r'passaram\s+a\s+ser\s+os\s+[úu]nicos\s+propriet[áa]rios.*?'
-            r'propor[çc][ãa]o\s+de\s*(\d+(?:[,.]\d+)?)\s*%\s+para\s+cada\s+um',
-            ato.descricao,
-            re.I | re.DOTALL,
-        )
-        if percentual_final_cada:
-            percentual_cada = float(percentual_final_cada.group(1).replace(',', '.'))
-            if abs(percentual_cada * len(adquirentes) - 100.0) <= 0.2:
-                estado.clear()
-                for adquirente in adquirentes:
-                    chave = chave_para_incluir(adquirente, estado)
-                    estado[chave] = {
-                        "nome": adquirente["nome"],
-                        "cpf_original": adquirente["cpf"],
-                        "proporcao": percentual_cada,
-                    }
-                continue
-            
-        if (
-            len(distribuicao_valores_adquirentes) == len(adquirentes)
-            and abs(sum(percentual for _, percentual in distribuicao_valores_adquirentes) - percentual_ato) <= 0.2
-        ):
-            percentual_por_pessoa = {
-                id(pessoa): percentual
-                for pessoa, percentual in distribuicao_valores_adquirentes
-            }
-            percentuais_individuais = [percentual_por_pessoa.get(id(a)) for a in adquirentes]
-        else:
-            percentuais_individuais = [a.get("percentual") for a in adquirentes]
-        usar_percentual_individual = all(p is not None for p in percentuais_individuais)
-        if usar_percentual_individual:
-            percentual_ato = sum(percentuais_individuais)
-        percent_por_adq = percentual_ato / len(adquirentes)
-        descricao_limpa = limpar_nome(ato.descricao)
-        adquirente_limpo = limpar_nome(bloco_adq)
-        adquirente_e_meeiro = (
-            "MEACAO" in adquirente_limpo
-            or "MEEIR" in adquirente_limpo
-            or bool(re.search(
-                r'\bcoube\s+ao\s+vi[úu]vo\s+meeiro\b',
-                ato.descricao,
-                re.I,
-            ))
-        )
-        partilha_meacao = (
-            any(
-                termo in descricao_limpa
-                for termo in ("INVENTARIO", "PARTILHA", "ADJUDICACAO")
-            )
-            and adquirente_e_meeiro
-        )
-        partilha_divorcio = (
-            "DIVORCIO" in descricao_limpa
-            and ("ATRIBUID" in descricao_limpa or "PERTENCENDO" in descricao_limpa)
-        )
-        partilha_de_espolio_com_quinhao = (
-            ("INVENTARIO" in descricao_limpa or "PARTILHA" in descricao_limpa)
-            and "ESPOLIO" in descricao_limpa
-            and "TRANSMITENTE" in descricao_limpa
-            and percentual_ato < 99.0
-        )
-        partilha_herdeiro_ja_integral = (
-            ("INVENTARIO" in descricao_limpa or "PARTILHA" in descricao_limpa)
-            and "BENS DEIXADOS POR FALECIMENTO" in descricao_limpa
-            and percentual_ato < 99.0
-        )
-        houve_debito = False
-        
-        if percentual_ato >= 99.0:
-            estado.clear()
-        else:
-            chaves_debito = []
-            estado_com_chaves = [
-                {"nome": dados["nome"], "_chave": chave}
-                for chave, dados in estado.items()
-            ]
-            debitos_por_valor = _percentuais_por_valores_em_trecho(
-                ato.descricao,
-                estado_com_chaves,
-                r'vendid[oa]\s+da\s+seguinte\s+maneira\s*:',
-            )
-            debitos_individualizados = _debitos_individualizados_por_percentual(
-                ato.descricao,
-                estado,
-            )
-            if (
-                debitos_individualizados
-                and abs(
-                    sum(percentual for _, percentual in debitos_individualizados)
-                    - percentual_ato
-                ) <= 0.2
-            ):
-                for chave, percentual in debitos_individualizados:
-                    houve_debito = (
-                        _debitar_percentual(estado, [chave], percentual) > 0.0
-                    ) or houve_debito
-            elif (
-                debitos_por_valor
-                and abs(sum(percentual for _, percentual in debitos_por_valor) - percentual_ato) <= 0.2
-            ):
-                for pessoa_estado, percentual in debitos_por_valor:
-                    houve_debito = (
-                        _debitar_percentual(
-                            estado,
-                            [pessoa_estado["_chave"]],
-                            percentual,
-                        ) > 0.0
-                    ) or houve_debito
-            elif transmitentes:
-                for t in transmitentes:
-                    chave_encontrada = encontrar_chave_no_estado(t, estado)
-                    if chave_encontrada and chave_encontrada not in chaves_debito:
-                        chaves_debito.append(chave_encontrada)
-
-            if (
-                not houve_debito
-                and not chaves_debito
-                and partilha_de_espolio_com_quinhao
-                and not partilha_meacao
-                and re.search(
-                    r'\b100\s*%\s+da\s+quota\s*\(',
-                    ato.descricao,
-                    re.I,
-                )
-                and len(adquirentes) == 1
-            ):
-                chave_adquirente = chave_para_incluir(adquirentes[0], estado)
-                candidatos_quinhao = [
-                    chave for chave, dados in estado.items()
-                    if (
-                        chave != chave_adquirente
-                        and abs(dados["proporcao"] - percentual_ato) <= 0.02
-                    )
-                ]
-                if len(candidatos_quinhao) == 1:
-                    chaves_debito = candidatos_quinhao
-
-            if not houve_debito and not chaves_debito and len(estado) == 1:
-                unica_chave = next(iter(estado))
-                if (
-                    abs(estado[unica_chave]["proporcao"] - 100.0) <= 0.2
-                    and estado[unica_chave]["proporcao"] + 0.1 >= percentual_ato
-                    and not any(
-                        nomes_compativeis(estado[unica_chave]["nome"], adquirente["nome"])
-                        for adquirente in adquirentes
-                    )
-                ):
-                    chaves_debito = [unica_chave]
-
-            # Em alguns traslados antigos o transmitente ficou apenas no título
-            # antecedente. Quando um coproprietário já cadastrado adquire a parte
-            # exata que completa seus 100%, a contrapartida só pode sair dos
-            # demais saldos atuais, que juntos continuam totalizando 100%.
-            if (
-                not houve_debito
-                and not chaves_debito
-                and len(adquirentes) == 1
-                and not (partilha_meacao or partilha_divorcio)
-            ):
-                chave_adquirente = chave_para_incluir(adquirentes[0], estado)
-                total_atual = sum(item["proporcao"] for item in estado.values())
-                saldo_adquirente = estado.get(chave_adquirente, {}).get("proporcao", 0.0)
-                outras_chaves = [chave for chave in estado if chave != chave_adquirente]
-                if (
-                    chave_adquirente in estado
-                    and abs(total_atual - 100.0) <= 0.2
-                    and abs(saldo_adquirente + percentual_ato - 100.0) <= 0.2
-                    and sum(estado[chave]["proporcao"] for chave in outras_chaves) + 0.1 >= percentual_ato
-                ):
-                    chaves_debito = outras_chaves
-
-            if not houve_debito and chaves_debito:
-                houve_debito = _debitar_percentual(
-                    estado, chaves_debito, percentual_ato
-                ) > 0.0
-        
-        for indice_adquirente, a in enumerate(adquirentes):
-            chave_a = chave_para_incluir(a, estado)
-            proporcao_adquirida = (
-                percentuais_individuais[indice_adquirente]
-                if usar_percentual_individual
-                else percent_por_adq
-            )
-            # percentuais_individuais vem de fonte própria (percentual do
-            # próprio adquirente ou distribuição por valores), não do
-            # fallback cego de parse_percent -- só marca incerteza quando o
-            # percent_por_adq (derivado de percentual_ato) é quem está sendo
-            # usado de fato.
-            proporcao_adquirida_incerta = percentual_presumido and not usar_percentual_individual
-            ajustar_quinhao_existente = (
-                not houve_debito
-                and chave_a in estado
-                and (
-                    partilha_meacao
-                    or partilha_divorcio
-                    or (
-                        partilha_herdeiro_ja_integral
-                        and estado[chave_a]["proporcao"] >= 99.0
-                    )
-                )
-            )
-            if ajustar_quinhao_existente:
-                estado[chave_a]["nome"] = a["nome"]
-                if re.sub(r'\D', '', a.get("cpf", "")):
-                    estado[chave_a]["cpf_original"] = a["cpf"]
-                if not partilha_herdeiro_ja_integral:
-                    estado[chave_a]["proporcao"] = proporcao_adquirida
-                    estado[chave_a]["proporcao_incerta"] = proporcao_adquirida_incerta
-                estado[chave_a].pop("proporcao_texto", None)
-                continue
-            if chave_a not in estado:
-                estado[chave_a] = {"nome": a["nome"], "cpf_original": a["cpf"], "proporcao": 0.0}
-            else:
-                documento_novo = re.sub(r'\D', '', a.get("cpf", ""))
-                documento_atual = re.sub(r'\D', '', estado[chave_a].get("cpf_original", ""))
-                documento_atual_repetido = documento_atual and sum(
-                    re.sub(r'\D', '', item.get("cpf_original", "")) == documento_atual
-                    for item in estado.values()
-                ) > 1
-                if documento_novo and (not documento_atual or documento_atual_repetido):
-                    estado[chave_a]["cpf_original"] = a["cpf"]
-                estado[chave_a]["nome"] = a["nome"]
-            estado[chave_a]["proporcao"] += proporcao_adquirida
-            estado[chave_a]["proporcao_incerta"] = proporcao_adquirida_incerta
-            estado[chave_a].pop("proporcao_texto", None)
-
-        if len(estado) == 1:
-            unico = next(iter(estado.values()))
-            if 100.0 < unico["proporcao"] <= 125.0:
-                unico["proporcao"] = 100.0
-            
+    Descarta saldos residuais (<= 0,01%), trunca cada proporção para baixo em
+    duas casas e devolve os centésimos perdidos no truncamento aos últimos da
+    lista, para que a soma exibida feche 100% quando o total real já fechava.
+    """
     ativos = [dados for dados in estado.values() if dados["proporcao"] > 0.01]
     proporcoes = [math.floor(dados["proporcao"] * 100 + 1e-9) / 100 for dados in ativos]
     total_original = sum(dados["proporcao"] for dados in ativos)
@@ -2843,5 +2241,769 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
             "proporcao": prop_formatada,
             "proporcao_incerta": bool(dados.get("proporcao_incerta")),
         })
-            
+
     return resultado
+
+
+def _aplicar_proprietarios_iniciais(estado, texto_integral):
+    """Semeia o estado com os proprietários declarados no cabeçalho da matrícula.
+
+    Só usa os percentuais escritos no texto quando todos estão presentes e
+    somam 100%; caso contrário divide o imóvel em partes iguais.
+    """
+    if not texto_integral:
+        return
+
+    atos_separados = separar_atos(texto_integral)
+    if atos_separados:
+        inicio_primeiro_ato = texto_integral.find(atos_separados[0]["texto"])
+        cabecalho = texto_integral[:inicio_primeiro_ato] if inicio_primeiro_ato >= 0 else texto_integral
+    else:
+        cabecalho = texto_integral
+
+    iniciais = extrair_proprietario_inicial(cabecalho)
+    if not iniciais:
+        return
+
+    percentuais_iniciais = [pessoa.get("percentual") for pessoa in iniciais]
+    usar_percentuais_declarados = (
+        all(percentual is not None for percentual in percentuais_iniciais)
+        and abs(sum(percentuais_iniciais) - 100.0) <= 0.2
+    )
+    fração = 100.0 / len(iniciais)
+    for p in iniciais:
+        chave = padronizar_chave(p["cpf"], p["nome"])
+        estado[chave] = {
+            "nome": p["nome"],
+            "cpf_original": p["cpf"],
+            "proporcao": (
+                p["percentual"]
+                if usar_percentuais_declarados else fração
+            ),
+        }
+
+
+def _aplicar_retorno_status_quo_ante(estado, ato):
+    """Cancelamento que devolve o imóvel aos titulares anteriores ao ato desfeito.
+
+    Devolve True quando reconheceu o retorno e já reconstruiu o estado.
+    """
+    titulares_retorno = extrair_retorno_status_quo_ante(ato.descricao)
+    if not titulares_retorno:
+        return False
+
+    estado.clear()
+    proporcao_retorno = 100.0 / len(titulares_retorno)
+    for titular in titulares_retorno:
+        chave = padronizar_chave(titular["cpf"], titular["nome"])
+        estado[chave] = {
+            "nome": titular["nome"],
+            "cpf_original": titular["cpf"],
+            "proporcao": proporcao_retorno,
+        }
+    return True
+
+
+def _aplicar_alteracao_de_nome(estado, ato):
+    """Averbação que só troca o nome de um titular (casamento, razão social...).
+
+    Não encerra o processamento do ato: o mesmo texto ainda pode conter
+    transmissão, por isso não devolve nada.
+    """
+    novo_nome = extrair_alteracao_nome(ato.descricao)
+    if not novo_nome:
+        return
+
+    compativeis = [
+        chave for chave, dados in estado.items()
+        if nomes_compativeis(dados["nome"], novo_nome)
+    ]
+    if not compativeis:
+        documento_alteracao = re.search(
+            r'\b(?:CPF|CNPJ|CGC)(?:/MF)?\b[^\d]{0,30}([\d.\-/]{9,20})',
+            ato.descricao,
+            re.I,
+        )
+        documento_limpo = (
+            re.sub(r'\D', '', documento_alteracao.group(1))
+            if documento_alteracao else ""
+        )
+        if documento_limpo:
+            compativeis = [
+                chave for chave, dados in estado.items()
+                if re.sub(r'\D', '', dados.get("cpf_original", "")) == documento_limpo
+            ]
+    if len(compativeis) == 1:
+        estado[compativeis[0]]["nome"] = novo_nome
+
+
+def _aplicar_indicacao_titularidade(estado, ato):
+    """Ato que declara explicitamente a titularidade completa e atual do imóvel.
+
+    Só substitui o estado quando os percentuais declarados fecham 100%.
+    Devolve True quando assumiu a titularidade declarada.
+    """
+    indicados = extrair_indicacao_titularidade(ato.descricao)
+    total_indicado = sum(item["percentual"] for item in indicados)
+    if not indicados or abs(total_indicado - 100.0) > 0.2:
+        return False
+
+    estado_anterior = estado.copy()
+    estado.clear()
+    for indicado in indicados:
+        chave_anterior = encontrar_chave_no_estado(indicado, estado_anterior)
+        documento_anterior = (
+            estado_anterior[chave_anterior].get("cpf_original")
+            if chave_anterior else None
+        )
+        chave = chave_para_incluir(indicado, estado)
+        estado[chave] = {
+            "nome": indicado["nome"],
+            "cpf_original": documento_anterior or indicado["cpf"],
+            "proporcao": indicado["percentual"],
+            "proporcao_texto": indicado["proporcao_texto"],
+        }
+    return True
+
+
+def _aplicar_consolidacao_fiduciaria(estado, ato):
+    """Consolidação da propriedade fiduciária: o credor passa a ser dono pleno.
+
+    Devolve True quando reconheceu a consolidação.
+    """
+    credores_consolidados = extrair_credor_consolidacao(ato.descricao)
+    if not credores_consolidados:
+        return False
+
+    estado.clear()
+    proporcao = 100.0 / len(credores_consolidados)
+    for credor in credores_consolidados:
+        chave = padronizar_chave(credor["cpf"], credor["nome"])
+        estado[chave] = {
+            "nome": credor["nome"],
+            "cpf_original": credor["cpf"],
+            "proporcao": proporcao
+        }
+    return True
+
+
+def _aplicar_retificacoes_cpf(estado, ato):
+    """Averbação que corrige/completa o documento de um titular já cadastrado.
+
+    Não encerra o processamento do ato, por isso não devolve nada.
+    """
+    for pessoa in extrair_retificacoes_cpf(ato.descricao):
+        nome_retificado = limpar_nome(pessoa["nome"])
+        chave_encontrada = None
+        for chave, dados in estado.items():
+            nome_atual = limpar_nome(dados["nome"])
+            if (
+                nome_retificado == nome_atual
+                or nome_retificado in nome_atual
+                or nome_atual in nome_retificado
+                or nomes_compativeis(pessoa["nome"], dados["nome"])
+            ):
+                chave_encontrada = chave
+                break
+        if not chave_encontrada:
+            continue
+        dados = estado.pop(chave_encontrada)
+        dados["cpf_original"] = pessoa["cpf"]
+        nova_chave = padronizar_chave(pessoa["cpf"], dados["nome"])
+        if nova_chave in estado:
+            estado[nova_chave]["proporcao"] += dados["proporcao"]
+            estado[nova_chave]["cpf_original"] = pessoa["cpf"]
+        else:
+            estado[nova_chave] = dados
+
+
+def _aplicar_estremacao(estado, ato, descricao_normalizada):
+    """Estremação: a parte de um condômino sai para matrícula autônoma.
+
+    O titular estremado deixa esta matrícula; se o texto indicar que o que
+    ficou é o remanescente, os saldos restantes são renormalizados para 100%.
+    Devolve True quando o ato é uma estremação (mesmo sem titular localizado).
+    """
+    if not (
+        "ESTREMACAO" in descricao_normalizada
+        and "MATRICULA AUTONOMA" in descricao_normalizada
+    ):
+        return False
+
+    titular_extremado = re.search(
+        r'pertencente\s+exclusivamente\s+a\s+([^,;]+)',
+        ato.descricao,
+        re.I,
+    )
+    if titular_extremado:
+        nome_extremado = titular_extremado.group(1).strip()
+        chave_extremada = next(
+            (
+                chave for chave, dados in estado.items()
+                if nomes_compativeis(dados["nome"], nome_extremado)
+            ),
+            None,
+        )
+        if chave_extremada:
+            del estado[chave_extremada]
+            if "REMANESCENTE" in descricao_normalizada and estado:
+                total_remanescente = sum(
+                    dados["proporcao"] for dados in estado.values()
+                )
+                if total_remanescente > 0:
+                    fator_remanescente = 100.0 / total_remanescente
+                    for dados in estado.values():
+                        dados["proporcao"] *= fator_remanescente
+                        dados.pop("proporcao_texto", None)
+    return True
+
+
+def _aplicar_partilha_integral_agrupada(estado, grupo):
+    """Partilha cujos quinhões estão espalhados em vários atos consecutivos.
+
+    _grupos_partilha_integrais() já reuniu os atos do mesmo inventário. Aqui
+    decide-se de quem sai o imóvel partilhado: quando dá para identificar o
+    autor da herança/espólio/meeiro entre os titulares atuais, só o quinhão
+    dessa pessoa é redistribuído (escalado pela fração que ela tinha); caso
+    contrário a partilha alcança o imóvel inteiro e o estado é zerado.
+    """
+    _, itens, descricoes = grupo
+    escala = 1.0
+    chave_substituida = None
+    assinatura = _assinatura_partilha(descricoes[0]) or ''
+    prefixo_autor = 'AUTOR DA HERANCA:'
+    prefixo_espolio = 'ESPOLIO TRANSMITENTE:'
+    percentuais_declarados = [
+        parse_percent(descricao) for descricao in descricoes
+    ]
+    percentuais_sobre_imovel = (
+        abs(sum(percentuais_declarados) - 100.0) <= 0.2
+        and all(
+            (
+                re.search(
+                    r'\bparte\s+(?:ideal|correspondente)\s+(?:a|de)\s*'
+                    r'\d+(?:[,.]\d+)?\s*%.{0,800}?'
+                    r'\b(?:sobre|do)\s+(?:o\s+)?im[óo]vel\b',
+                    descricao,
+                    re.I | re.DOTALL,
+                )
+                or re.search(
+                    r'\bparte\s+ideal\s+de\s*(?:[A-Z]{1,3}\$?\s*)?'
+                    r'[\d.,]+.{0,120}?\b(?:avalia[çc][ãa]o|avaliad[oa])'
+                    r'\s+(?:de|em)\s*(?:[A-Z]{1,3}\$?\s*)?[\d.,]+'
+                    r'.{0,180}?\b(?:no|sobre\s+o)\s+im[óo]vel\b',
+                    descricao,
+                    re.I | re.DOTALL,
+                )
+            )
+            for descricao in descricoes
+        )
+    )
+    percentuais_das_partes_do_autor = all(
+        re.search(
+            r'\d+(?:[,.]\d+)?\s*%\s+das\s+partes?\s+a\s+saber\b',
+            descricao,
+            re.I,
+        )
+        for descricao in descricoes
+    )
+    if (
+        (not percentuais_sobre_imovel or percentuais_das_partes_do_autor)
+        and assinatura.startswith((prefixo_autor, prefixo_espolio))
+    ):
+        prefixo = (
+            prefixo_autor
+            if assinatura.startswith(prefixo_autor)
+            else prefixo_espolio
+        )
+        autor = assinatura[len(prefixo):].strip()
+        chave_substituida = next(
+            (
+                chave for chave, dados in estado.items()
+                if nomes_compativeis(dados['nome'], autor)
+            ),
+            None,
+        )
+    if (
+        not percentuais_sobre_imovel
+        and not chave_substituida
+        and assinatura.startswith(prefixo_espolio)
+    ):
+        quota = next(
+            (
+                parse_percentual_declarado(valor)
+                for valor in re.findall(
+                    r'\bquota\s*\(\s*(\d+(?:[,.]\d+)?)\s*%\s*\)',
+                    ' '.join(descricoes),
+                    re.I,
+                )
+            ),
+            None,
+        )
+        chaves_adquirentes = {
+            encontrar_chave_no_estado(adquirente, estado)
+            for adquirentes, _ in itens
+            for adquirente in adquirentes
+        }
+        candidatos = [
+            chave for chave in chaves_adquirentes
+            if (
+                chave in estado
+                and quota is not None
+                and abs(estado[chave]['proporcao'] - quota) <= 0.02
+            )
+        ]
+        if len(candidatos) == 1:
+            chave_substituida = candidatos[0]
+        if not chave_substituida and quota is not None:
+            nomes_adquirentes = [
+                limpar_nome(adquirente["nome"])
+                for adquirentes, _ in itens
+                for adquirente in adquirentes
+            ]
+            candidatos_por_nome_e_quota = [
+                chave for chave, dados in estado.items()
+                if (
+                    abs(dados["proporcao"] - quota) <= 0.02
+                    and any(
+                        limpar_nome(dados["nome"]).split()[:2]
+                        == nome_adquirente.split()[:2]
+                        for nome_adquirente in nomes_adquirentes
+                    )
+                )
+            ]
+            if len(candidatos_por_nome_e_quota) == 1:
+                chave_substituida = candidatos_por_nome_e_quota[0]
+    if not percentuais_sobre_imovel and not chave_substituida:
+        meeiro = re.search(
+            r'coube\s+ao\s+vi[úu]vo\s+meeiro\s+([^,;]+)',
+            descricoes[0],
+            re.I,
+        )
+        if meeiro:
+            nome_meeiro = meeiro.group(1).strip()
+            chave_substituida = next(
+                (
+                    chave for chave, dados in estado.items()
+                    if nomes_compativeis(dados['nome'], nome_meeiro)
+                ),
+                None,
+            )
+    if chave_substituida:
+        escala = estado[chave_substituida]['proporcao'] / 100.0
+        del estado[chave_substituida]
+    else:
+        estado.clear()
+    for adquirentes, percentual in itens:
+        percentual_individual = percentual * escala / len(adquirentes)
+        for adquirente in adquirentes:
+            chave = chave_para_incluir(adquirente, estado)
+            if chave not in estado:
+                estado[chave] = {
+                    "nome": adquirente["nome"],
+                    "cpf_original": adquirente["cpf"],
+                    "proporcao": 0.0,
+                }
+            estado[chave]["proporcao"] += percentual_individual
+
+
+# Naturezas de ato que efetivamente transferem domínio. Um ato cuja descrição
+# não cite nenhuma delas (nem adjudicação) não altera a titularidade.
+ATOS_TRANSMISSAO = (
+    "VENDA E COMPRA", "COMPRA E VENDA", "INVENTARIO", "PARTILHA",
+    "SOBREPARTILHA", "DOACAO", "REFORMA AGRARIA", "TITULO DE DOMINIO",
+    "USUCAPIAO", "ARREMATACAO", "DACAO", "INTEGRALIZACAO", "PERMUTA",
+    "DIVISAO", "REGULARIZACAO FUNDIARIA", "LEGITIMACAO FUNDIARIA",
+)
+
+
+def _substituir_estado_por_distribuicao(estado, distribuicao):
+    """Zera o estado e o reconstrói a partir de pares (adquirente, percentual)."""
+    estado.clear()
+    for adquirente, percentual_individual in distribuicao:
+        chave = chave_para_incluir(adquirente, estado)
+        estado[chave] = {
+            "nome": adquirente["nome"],
+            "cpf_original": adquirente["cpf"],
+            "proporcao": percentual_individual,
+        }
+
+
+def _aplicar_distribuicao_explicita(estado, ato, adquirentes):
+    """Aquisições em que o próprio ato já diz a fração final de cada adquirente.
+
+    Cobre três redações: distribuição por grupos, por áreas e a fórmula
+    "passaram a ser os únicos proprietários (...) na proporção de X% para cada
+    um". Em todas o ato define a titularidade inteira, então o estado anterior
+    é substituído. Devolve True quando alguma delas foi reconhecida.
+    """
+    distribuicao_grupos = _distribuicao_percentual_por_grupos(
+        ato.descricao, adquirentes
+    )
+    if distribuicao_grupos:
+        _substituir_estado_por_distribuicao(estado, distribuicao_grupos)
+        return True
+
+    distribuicao_areas = _distribuicao_percentual_por_areas(
+        ato.descricao, adquirentes
+    )
+    if distribuicao_areas:
+        _substituir_estado_por_distribuicao(estado, distribuicao_areas)
+        return True
+
+    percentual_final_cada = re.search(
+        r'passaram\s+a\s+ser\s+os\s+[úu]nicos\s+propriet[áa]rios.*?'
+        r'propor[çc][ãa]o\s+de\s*(\d+(?:[,.]\d+)?)\s*%\s+para\s+cada\s+um',
+        ato.descricao,
+        re.I | re.DOTALL,
+    )
+    if percentual_final_cada:
+        percentual_cada = float(percentual_final_cada.group(1).replace(',', '.'))
+        if abs(percentual_cada * len(adquirentes) - 100.0) <= 0.2:
+            _substituir_estado_por_distribuicao(
+                estado,
+                [(adquirente, percentual_cada) for adquirente in adquirentes],
+            )
+            return True
+
+    return False
+
+
+def _medir_aquisicao(ato, bloco_adq, adquirentes, percentual_ato,
+                     percentual_presumido, distribuicao_valores_adquirentes):
+    """Reúne, num só lugar, tudo que decide como a aquisição será aplicada.
+
+    Define de onde sai a fração de cada adquirente (percentual próprio,
+    distribuição por valores ou divisão igual do percentual do ato) e
+    classifica a natureza da partilha -- meação, divórcio, quinhão de espólio
+    e herdeiro que já constava integral --, casos em que o adquirente
+    substitui o quinhão que já tinha em vez de somar a ele.
+    """
+    if (
+        len(distribuicao_valores_adquirentes) == len(adquirentes)
+        and abs(sum(percentual for _, percentual in distribuicao_valores_adquirentes) - percentual_ato) <= 0.2
+    ):
+        percentual_por_pessoa = {
+            id(pessoa): percentual
+            for pessoa, percentual in distribuicao_valores_adquirentes
+        }
+        percentuais_individuais = [percentual_por_pessoa.get(id(a)) for a in adquirentes]
+    else:
+        percentuais_individuais = [a.get("percentual") for a in adquirentes]
+    usar_individual = all(p is not None for p in percentuais_individuais)
+    if usar_individual:
+        percentual_ato = sum(percentuais_individuais)
+
+    descricao_limpa = limpar_nome(ato.descricao)
+    adquirente_limpo = limpar_nome(bloco_adq)
+    adquirente_e_meeiro = (
+        "MEACAO" in adquirente_limpo
+        or "MEEIR" in adquirente_limpo
+        or bool(re.search(
+            r'\bcoube\s+ao\s+vi[úu]vo\s+meeiro\b',
+            ato.descricao,
+            re.I,
+        ))
+    )
+    de_inventario_ou_partilha = (
+        "INVENTARIO" in descricao_limpa or "PARTILHA" in descricao_limpa
+    )
+    return SimpleNamespace(
+        percentual=percentual_ato,
+        percentual_presumido=percentual_presumido,
+        percentuais_individuais=percentuais_individuais,
+        usar_individual=usar_individual,
+        percent_por_adquirente=percentual_ato / len(adquirentes),
+        meacao=(
+            any(
+                termo in descricao_limpa
+                for termo in ("INVENTARIO", "PARTILHA", "ADJUDICACAO")
+            )
+            and adquirente_e_meeiro
+        ),
+        divorcio=(
+            "DIVORCIO" in descricao_limpa
+            and ("ATRIBUID" in descricao_limpa or "PERTENCENDO" in descricao_limpa)
+        ),
+        espolio_com_quinhao=(
+            de_inventario_ou_partilha
+            and "ESPOLIO" in descricao_limpa
+            and "TRANSMITENTE" in descricao_limpa
+            and percentual_ato < 99.0
+        ),
+        herdeiro_ja_integral=(
+            de_inventario_ou_partilha
+            and "BENS DEIXADOS POR FALECIMENTO" in descricao_limpa
+            and percentual_ato < 99.0
+        ),
+    )
+
+
+def _debitar_alienantes(estado, ato, adquirentes, transmitentes, aquisicao):
+    """Retira dos titulares atuais a fração que este ato transmitiu.
+
+    Acima de 99% a transmissão alcança o imóvel inteiro e o estado é
+    zerado. Abaixo disso é preciso descobrir de quem sai a fração, em
+    ordem de confiança: débitos individualizados por percentual, débitos
+    por valores declarados, transmitentes nomeados no ato e, por fim,
+    algumas inferências para redações antigas que omitem o alienante.
+    Devolve True quando algum saldo foi efetivamente debitado.
+    """
+    houve_debito = False
+    if aquisicao.percentual >= 99.0:
+        estado.clear()
+    else:
+        chaves_debito = []
+        estado_com_chaves = [
+            {"nome": dados["nome"], "_chave": chave}
+            for chave, dados in estado.items()
+        ]
+        debitos_por_valor = _percentuais_por_valores_em_trecho(
+            ato.descricao,
+            estado_com_chaves,
+            r'vendid[oa]\s+da\s+seguinte\s+maneira\s*:',
+        )
+        debitos_individualizados = _debitos_individualizados_por_percentual(
+            ato.descricao,
+            estado,
+        )
+        if (
+            debitos_individualizados
+            and abs(
+                sum(percentual for _, percentual in debitos_individualizados)
+                - aquisicao.percentual
+            ) <= 0.2
+        ):
+            for chave, percentual in debitos_individualizados:
+                houve_debito = (
+                    _debitar_percentual(estado, [chave], percentual) > 0.0
+                ) or houve_debito
+        elif (
+            debitos_por_valor
+            and abs(sum(percentual for _, percentual in debitos_por_valor) - aquisicao.percentual) <= 0.2
+        ):
+            for pessoa_estado, percentual in debitos_por_valor:
+                houve_debito = (
+                    _debitar_percentual(
+                        estado,
+                        [pessoa_estado["_chave"]],
+                        percentual,
+                    ) > 0.0
+                ) or houve_debito
+        elif transmitentes:
+            for t in transmitentes:
+                chave_encontrada = encontrar_chave_no_estado(t, estado)
+                if chave_encontrada and chave_encontrada not in chaves_debito:
+                    chaves_debito.append(chave_encontrada)
+
+        if (
+            not houve_debito
+            and not chaves_debito
+            and aquisicao.espolio_com_quinhao
+            and not aquisicao.meacao
+            and re.search(
+                r'\b100\s*%\s+da\s+quota\s*\(',
+                ato.descricao,
+                re.I,
+            )
+            and len(adquirentes) == 1
+        ):
+            chave_adquirente = chave_para_incluir(adquirentes[0], estado)
+            candidatos_quinhao = [
+                chave for chave, dados in estado.items()
+                if (
+                    chave != chave_adquirente
+                    and abs(dados["proporcao"] - aquisicao.percentual) <= 0.02
+                )
+            ]
+            if len(candidatos_quinhao) == 1:
+                chaves_debito = candidatos_quinhao
+
+        if not houve_debito and not chaves_debito and len(estado) == 1:
+            unica_chave = next(iter(estado))
+            if (
+                abs(estado[unica_chave]["proporcao"] - 100.0) <= 0.2
+                and estado[unica_chave]["proporcao"] + 0.1 >= aquisicao.percentual
+                and not any(
+                    nomes_compativeis(estado[unica_chave]["nome"], adquirente["nome"])
+                    for adquirente in adquirentes
+                )
+            ):
+                chaves_debito = [unica_chave]
+
+        # Em alguns traslados antigos o transmitente ficou apenas no título
+        # antecedente. Quando um coproprietário já cadastrado adquire a parte
+        # exata que completa seus 100%, a contrapartida só pode sair dos
+        # demais saldos atuais, que juntos continuam totalizando 100%.
+        if (
+            not houve_debito
+            and not chaves_debito
+            and len(adquirentes) == 1
+            and not (aquisicao.meacao or aquisicao.divorcio)
+        ):
+            chave_adquirente = chave_para_incluir(adquirentes[0], estado)
+            total_atual = sum(item["proporcao"] for item in estado.values())
+            saldo_adquirente = estado.get(chave_adquirente, {}).get("proporcao", 0.0)
+            outras_chaves = [chave for chave in estado if chave != chave_adquirente]
+            if (
+                chave_adquirente in estado
+                and abs(total_atual - 100.0) <= 0.2
+                and abs(saldo_adquirente + aquisicao.percentual - 100.0) <= 0.2
+                and sum(estado[chave]["proporcao"] for chave in outras_chaves) + 0.1 >= aquisicao.percentual
+            ):
+                chaves_debito = outras_chaves
+
+        if not houve_debito and chaves_debito:
+            houve_debito = _debitar_percentual(
+                estado, chaves_debito, aquisicao.percentual
+            ) > 0.0
+    return houve_debito
+
+
+def _creditar_adquirentes(estado, adquirentes, aquisicao, houve_debito):
+    """Lança a fração adquirida para cada adquirente do ato.
+
+    Nos casos de meação, divórcio e herdeiro já integral o quinhão é
+    substituído em vez de somado -- o texto está redescrevendo a parte
+    que a pessoa passa a ter, não acrescentando outra.
+    """
+    for indice_adquirente, a in enumerate(adquirentes):
+        chave_a = chave_para_incluir(a, estado)
+        proporcao_adquirida = (
+            aquisicao.percentuais_individuais[indice_adquirente]
+            if aquisicao.usar_individual
+            else aquisicao.percent_por_adquirente
+        )
+        # aquisicao.percentuais_individuais vem de fonte própria (percentual do
+        # próprio adquirente ou distribuição por valores), não do
+        # fallback cego de parse_percent -- só marca incerteza quando o
+        # aquisicao.percent_por_adquirente (derivado de aquisicao.percentual) é quem está sendo
+        # usado de fato.
+        proporcao_adquirida_incerta = aquisicao.percentual_presumido and not aquisicao.usar_individual
+        ajustar_quinhao_existente = (
+            not houve_debito
+            and chave_a in estado
+            and (
+                aquisicao.meacao
+                or aquisicao.divorcio
+                or (
+                    aquisicao.herdeiro_ja_integral
+                    and estado[chave_a]["proporcao"] >= 99.0
+                )
+            )
+        )
+        if ajustar_quinhao_existente:
+            estado[chave_a]["nome"] = a["nome"]
+            if re.sub(r'\D', '', a.get("cpf", "")):
+                estado[chave_a]["cpf_original"] = a["cpf"]
+            if not aquisicao.herdeiro_ja_integral:
+                estado[chave_a]["proporcao"] = proporcao_adquirida
+                estado[chave_a]["proporcao_incerta"] = proporcao_adquirida_incerta
+            estado[chave_a].pop("proporcao_texto", None)
+            continue
+        if chave_a not in estado:
+            estado[chave_a] = {"nome": a["nome"], "cpf_original": a["cpf"], "proporcao": 0.0}
+        else:
+            documento_novo = re.sub(r'\D', '', a.get("cpf", ""))
+            documento_atual = re.sub(r'\D', '', estado[chave_a].get("cpf_original", ""))
+            documento_atual_repetido = documento_atual and sum(
+                re.sub(r'\D', '', item.get("cpf_original", "")) == documento_atual
+                for item in estado.values()
+            ) > 1
+            if documento_novo and (not documento_atual or documento_atual_repetido):
+                estado[chave_a]["cpf_original"] = a["cpf"]
+            estado[chave_a]["nome"] = a["nome"]
+        estado[chave_a]["proporcao"] += proporcao_adquirida
+        estado[chave_a]["proporcao_incerta"] = proporcao_adquirida_incerta
+        estado[chave_a].pop("proporcao_texto", None)
+
+    if len(estado) == 1:
+        unico = next(iter(estado.values()))
+        if 100.0 < unico["proporcao"] <= 125.0:
+            unico["proporcao"] = 100.0
+
+
+def calcular_cadeia_dominial(atos, texto_integral=""):
+    atos = _expandir_subatos_repetidos_para_cadeia(atos)
+    estado = {}
+
+    _aplicar_proprietarios_iniciais(estado, texto_integral)
+
+    grupos_partilha = _grupos_partilha_integrais(atos)
+    indices_agrupados = {
+        indice_ato
+        for inicio, (fim, _, _) in grupos_partilha.items()
+        for indice_ato in range(inicio + 1, fim)
+    }
+
+    for indice_ato, ato in enumerate(atos):
+        if indice_ato in indices_agrupados:
+            continue
+        if indice_ato in grupos_partilha:
+            _aplicar_partilha_integral_agrupada(estado, grupos_partilha[indice_ato])
+            continue
+
+        if _aplicar_retorno_status_quo_ante(estado, ato):
+            continue
+
+        # Não encerra o ato: o mesmo texto ainda pode conter transmissão.
+        _aplicar_alteracao_de_nome(estado, ato)
+
+        if _aplicar_indicacao_titularidade(estado, ato):
+            continue
+
+        if _aplicar_consolidacao_fiduciaria(estado, ato):
+            continue
+
+        # Também não encerra o ato.
+        _aplicar_retificacoes_cpf(estado, ato)
+
+        if _aplicar_desquite(ato.descricao, estado):
+            continue
+
+        descricao_normalizada = limpar_nome(ato.descricao)
+        if _aplicar_estremacao(estado, ato, descricao_normalizada):
+            continue
+
+        if (
+            not any(x in descricao_normalizada for x in ATOS_TRANSMISSAO)
+            and "ADJUDICA" not in descricao_normalizada
+        ):
+            continue
+        
+        percentual_ato = parse_percent(ato.descricao)
+        percentual_presumido = percentual_e_presumido(ato.descricao, percentual_ato)
+
+        bloco_adq = extrair_bloco(ato.descricao, "ADQUIRENTE")
+        bloco_transm = extrair_bloco(ato.descricao, "TRANSMITENTE")
+        
+        adquirentes = extrair_pessoas(bloco_adq)
+        adquirentes = enriquecer_documentos_adquirentes(
+            adquirentes,
+            ato.descricao,
+        )
+        transmitentes = extrair_pessoas(bloco_transm)
+        
+        if not adquirentes:
+            continue
+
+        if _aplicar_distribuicao_explicita(estado, ato, adquirentes):
+            continue
+
+        distribuicao_valores_adquirentes = _percentuais_por_valores_em_trecho(
+            ato.descricao,
+            adquirentes,
+            r'\bsendo\s*:',
+        )
+
+        aquisicao = _medir_aquisicao(
+            ato, bloco_adq, adquirentes, percentual_ato,
+            percentual_presumido, distribuicao_valores_adquirentes,
+        )
+
+        houve_debito = _debitar_alienantes(
+            estado, ato, adquirentes, transmitentes, aquisicao
+        )
+        _creditar_adquirentes(estado, adquirentes, aquisicao, houve_debito)
+            
+    return _formatar_resultado_cadeia(estado)

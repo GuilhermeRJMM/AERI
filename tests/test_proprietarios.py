@@ -182,6 +182,57 @@ class TesteProprietarios(unittest.TestCase):
             [{"nome": "João da Silva", "cpf": "004.338.341-61", "proporcao": "100%", "proporcao_incerta": False}],
         )
 
+    def test_consolidacao_fiduciaria_transfere_imovel_ao_credor(self):
+        # Requisito do AGENTS.md ("tratar consolidação da propriedade
+        # fiduciária como transferência integral ao credor fiduciário
+        # indicado") que não tinha nenhum teste na suíte: o caminho inteiro
+        # de extrair_credor_consolidacao() rodava sem cobertura.
+        texto = """
+        MATRÍCULA 1.500. IMÓVEL: Lote 7, Quadra 3.
+        PROPRIETÁRIO: Antonio Devedor Silva, CPF 004.338.341-61.
+        R.08-1.500 - CONSOLIDAÇÃO DA PROPRIEDADE. Nos termos do artigo 26 da Lei
+        9.514/97, consolidou-se a propriedade plena do imóvel em favor da credora
+        fiduciária Banco Exemplo S/A, inscrita no CNPJ/MF sob o n.º
+        60.746.948/0001-12, em razão do inadimplemento. DOU FÉ.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            resultado,
+            [{
+                "nome": "Banco Exemplo S/A",
+                "cpf": "60.746.948/0001-12",
+                "proporcao": "100%",
+                "proporcao_incerta": False,
+            }],
+        )
+
+    def test_alteracao_de_nome_renomeia_titular_sem_mexer_na_proporcao(self):
+        # Outro caminho sem cobertura na suíte: extrair_alteracao_nome().
+        # A averbação só troca o nome -- documento e proporção continuam.
+        texto = """
+        MATRÍCULA 1.600. IMÓVEL: Lote 9, Quadra 4.
+        PROPRIETÁRIA: Maria Aparecida Souza, CPF 052.260.401-30.
+        AV.03-1.600 - ALTERAÇÃO DO NOME. Procede-se à alteração do nome da
+        proprietária para Maria Aparecida Souza Lima, em razão de casamento,
+        conforme certidão apresentada. DOU FÉ.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            resultado,
+            [{
+                "nome": "Maria Aparecida Souza Lima",
+                "cpf": "052.260.401-30",
+                "proporcao": "100%",
+                "proporcao_incerta": False,
+            }],
+        )
+
     def test_ato_sem_sinal_de_fracao_marca_proporcao_como_incerta(self):
         # Quando o texto do ato não traz nenhum percentual, fração numérica
         # ("1/2") ou fração por extenso ("metade", "dois terços" etc.), o
