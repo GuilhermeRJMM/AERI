@@ -5,6 +5,9 @@ import re
 import unicodedata
 
 
+HASH_DOCUMENTOS_VERSAO = 1
+
+
 def normalizar_nome(valor: object) -> str:
     texto = unicodedata.normalize("NFKD", str(valor or ""))
     texto = "".join(caractere for caractere in texto if not unicodedata.combining(caractere))
@@ -27,6 +30,11 @@ def _segredo_documentos() -> bytes:
     if not segredo:
         raise RuntimeError("Configure AERI_BUSCAS_HMAC_KEY para proteger os documentos da busca.")
     return segredo.encode("utf-8")
+
+
+def validar_configuracao_buscas() -> None:
+    """Falha antes de consultar a Tri7 quando a chave do índice não existe."""
+    _segredo_documentos()
 
 
 def hash_documento(valor: object) -> str:

@@ -15,9 +15,22 @@ export async function requisicaoAeri(url, opcoes = {}) {
         throw new Error('Sua sessão expirou. Entre novamente.');
     }
     if (resposta.status === 204) return null;
-    const dados = await resposta.json();
-    if (!resposta.ok) {
-        throw new Error(dados.detail || dados.erro || 'Não foi possível concluir a operação.');
+    const tipoConteudo = resposta.headers.get('content-type') || '';
+    let dados = {};
+    if (tipoConteudo.includes('application/json')) {
+        try {
+            dados = await resposta.json();
+        } catch (_erro) {
+            dados = {};
+        }
+    } else {
+        const texto = (await resposta.text()).trim();
+        if (resposta.ok && texto) dados = {resultado: texto};
     }
-    return dados;
+    if (!resposta.ok) {
+        const erro = new Error(dados.detail || dados.erro || 'O servidor não conseguiu concluir a operação. Tente novamente mais tarde.');
+        erro.status = resposta.status;
+        throw erro;
+    }
+    return dados.resultado ?? dados;
 }

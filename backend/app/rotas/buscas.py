@@ -17,10 +17,12 @@ from backend.app.servicos.auditoria_integrada import (
     limite_complementar_diario,
 )
 from backend.app.servicos.buscas import (
+    HASH_DOCUMENTOS_VERSAO,
     construir_indice_matricula,
     hash_documento,
     normalizar_documento,
     normalizar_nome,
+    validar_configuracao_buscas,
 )
 from backend.app.servicos.tri7 import (
     AutenticacaoTri7Falhou,
@@ -122,12 +124,14 @@ def _registrar_erro(cursor, numero: int, modo: str, erro: Exception) -> None:
 def _salvar_ausencia(cursor, numero: int, status: str) -> None:
     cursor.execute(
         """INSERT INTO matriculas_busca_aeri
-        (numero, situacao, confianca, quantidade_proprietarios)
-        VALUES (%s,%s,'BAIXA',0)
+        (numero, situacao, confianca, quantidade_proprietarios, documentos_hash_versao)
+        VALUES (%s,%s,'BAIXA',0,%s)
         ON CONFLICT (numero) DO UPDATE SET
             texto_hash=NULL, resultado_hash=NULL, situacao=EXCLUDED.situacao,
-            quantidade_proprietarios=0, confianca='BAIXA', consultado_em=NOW(), atualizado_em=NOW()""",
-        (numero, status),
+            quantidade_proprietarios=0, confianca='BAIXA',
+            documentos_hash_versao=EXCLUDED.documentos_hash_versao,
+            consultado_em=NOW(), atualizado_em=NOW()""",
+        (numero, status, HASH_DOCUMENTOS_VERSAO),
     )
     cursor.execute("DELETE FROM proprietarios_matriculas_busca_aeri WHERE matricula_numero=%s", (numero,))
     cursor.execute("DELETE FROM auditorias_matriculas_aeri WHERE matricula_numero=%s", (numero,))
@@ -262,14 +266,16 @@ def _salvar_indice(
     cursor.execute(
         """INSERT INTO matriculas_busca_aeri
         (numero, texto_hash, resultado_hash, situacao, situacao_origem,
-         matriculas_sucessoras, quantidade_proprietarios, confianca, motor_versao)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+         matriculas_sucessoras, quantidade_proprietarios, confianca, motor_versao,
+         documentos_hash_versao)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT (numero) DO UPDATE SET
             texto_hash=EXCLUDED.texto_hash, resultado_hash=EXCLUDED.resultado_hash,
             situacao=EXCLUDED.situacao, situacao_origem=EXCLUDED.situacao_origem,
             matriculas_sucessoras=EXCLUDED.matriculas_sucessoras,
             quantidade_proprietarios=EXCLUDED.quantidade_proprietarios,
             confianca=EXCLUDED.confianca, motor_versao=EXCLUDED.motor_versao,
+            documentos_hash_versao=EXCLUDED.documentos_hash_versao,
             consultado_em=NOW(),
             atualizado_em=CASE
                 WHEN matriculas_busca_aeri.texto_hash IS DISTINCT FROM EXCLUDED.texto_hash
@@ -279,6 +285,7 @@ def _salvar_indice(
             numero, indice["texto_hash"], indice["resultado_hash"], indice["situacao"],
             indice["situacao_origem"], Jsonb(indice["matriculas_sucessoras"]),
             indice["quantidade_proprietarios"], indice["confianca"], indice["motor_versao"],
+            HASH_DOCUMENTOS_VERSAO,
         ),
     )
     cursor.execute("DELETE FROM proprietarios_matriculas_busca_aeri WHERE matricula_numero=%s", (numero,))
@@ -312,8 +319,13 @@ def _estado_json(cursor) -> dict:
         COUNT(*) FILTER (WHERE situacao='ATIVA') AS ativas,
         COUNT(*) FILTER (WHERE situacao='ENCERRADA') AS encerradas,
         COUNT(*) FILTER (WHERE texto_hash IS NOT NULL) AS com_texto,
+        COUNT(*) FILTER (
+            WHERE texto_hash IS NOT NULL
+              AND documentos_hash_versao IS DISTINCT FROM %s
+        ) AS hashes_legados,
         COUNT(*) FILTER (WHERE situacao IN ('NAO_ENCONTRADA','SEM_TEXTO','INEXISTENTE')) AS ignoradas
-        FROM matriculas_busca_aeri"""
+        FROM matriculas_busca_aeri""",
+        (HASH_DOCUMENTOS_VERSAO,),
     )
     totais = cursor.fetchone()
     cursor.execute("SELECT COUNT(*) AS total FROM proprietarios_matriculas_busca_aeri")
@@ -341,6 +353,7 @@ def _estado_json(cursor) -> dict:
         "matriculasAtivas": totais["ativas"],
         "matriculasEncerradas": totais["encerradas"],
         "matriculasComTexto": totais["com_texto"],
+        "documentosPendentesReindexacao": totais["hashes_legados"],
         "matriculasIgnoradas": totais["ignoradas"],
         "proprietariosAtuais": proprietarios,
         "auditoriaTotal": auditoria["total"],
@@ -384,6 +397,22 @@ def pesquisar_titularidade(
 
     with conectar() as conexao:
         with conexao.cursor() as cursor:
+            if documento:
+                cursor.execute(
+                    """SELECT COUNT(*) AS total FROM matriculas_busca_aeri
+                    WHERE texto_hash IS NOT NULL
+                      AND documentos_hash_versao IS DISTINCT FROM %s""",
+                    (HASH_DOCUMENTOS_VERSAO,),
+                )
+                if cursor.fetchone()["total"]:
+                    raise HTTPException(
+                        status_code=503,
+                        detail=(
+                            "A busca por CPF/CNPJ está temporariamente indisponível enquanto "
+                            "os documentos são reindexados com a nova chave de segurança. "
+                            "A pesquisa por nome continua disponível."
+                        ),
+                    )
             cursor.execute(
                 f"""SELECT m.numero, m.situacao, m.confianca AS confianca_matricula,
                 m.consultado_em, p.nome, p.documento_mascarado, p.tipo_documento,
@@ -474,6 +503,13 @@ def listar_pendencias_auditoria(
 
 
 def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Request, usuario: str) -> dict:
+    try:
+        validar_configuracao_buscas()
+    except RuntimeError as erro:
+        raise HTTPException(
+            status_code=503,
+            detail="Indexação indisponível: configuração de segurança ausente no servidor.",
+        ) from erro
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
@@ -506,17 +542,26 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
                 elif modo == "REVISAO":
                     cursor.execute(
                         """SELECT numero FROM matriculas_busca_aeri
-                        WHERE texto_hash IS NOT NULL AND numero >= %s ORDER BY numero LIMIT %s""",
-                        (estado["proximo_revisao"], tamanho),
+                        WHERE texto_hash IS NOT NULL
+                          AND documentos_hash_versao IS DISTINCT FROM %s
+                        ORDER BY numero LIMIT %s""",
+                        (HASH_DOCUMENTOS_VERSAO, tamanho),
                     )
                     numeros = [item["numero"] for item in cursor.fetchall()]
-                    if len(numeros) < tamanho:
+                    if not numeros:
                         cursor.execute(
                             """SELECT numero FROM matriculas_busca_aeri
-                            WHERE texto_hash IS NOT NULL AND numero < %s ORDER BY numero LIMIT %s""",
-                            (estado["proximo_revisao"], tamanho - len(numeros)),
+                            WHERE texto_hash IS NOT NULL AND numero >= %s ORDER BY numero LIMIT %s""",
+                            (estado["proximo_revisao"], tamanho),
                         )
-                        numeros.extend(item["numero"] for item in cursor.fetchall())
+                        numeros = [item["numero"] for item in cursor.fetchall()]
+                        if len(numeros) < tamanho:
+                            cursor.execute(
+                                """SELECT numero FROM matriculas_busca_aeri
+                                WHERE texto_hash IS NOT NULL AND numero < %s ORDER BY numero LIMIT %s""",
+                                (estado["proximo_revisao"], tamanho - len(numeros)),
+                            )
+                            numeros.extend(item["numero"] for item in cursor.fetchall())
                 else:
                     cursor.execute(
                         """SELECT numero FROM matriculas_busca_erros_aeri
@@ -638,6 +683,13 @@ def revisar_matricula_busca(
 ):
     if numero <= 0:
         raise HTTPException(status_code=422, detail="Número de matrícula inválido.")
+    try:
+        validar_configuracao_buscas()
+    except RuntimeError as erro:
+        raise HTTPException(
+            status_code=503,
+            detail="Revisão indisponível: configuração de segurança ausente no servidor.",
+        ) from erro
     resultados, falha = _consultar_lote([numero])
     if falha:
         raise HTTPException(status_code=502, detail=falha)

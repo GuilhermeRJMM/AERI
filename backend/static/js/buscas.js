@@ -37,6 +37,10 @@ function atualizarStatus(estado) {
     document.getElementById('buscas-proximo').textContent = estado.cargaInicialConcluida
         ? 'Indexação inicial concluída'
         : `Próxima matrícula: ${formatarNumero(estado.proximoInicial)} de ${formatarNumero(estado.limiteInicial)}`;
+    const documentosPendentes = Number(estado.documentosPendentesReindexacao || 0);
+    if (documentosPendentes) {
+        document.getElementById('buscas-proximo').textContent += ` · ${formatarNumero(documentosPendentes)} documento(s) aguardando reindexação segura`;
+    }
     document.getElementById('buscas-limite').value = estado.limiteInicial;
     document.getElementById('buscas-atualizado').textContent = estado.ultimaSincronizacao
         ? `Última atualização: ${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(estado.ultimaSincronizacao))}`
@@ -152,7 +156,7 @@ async function executarIndexacaoInicial() {
             await new Promise(resolve => window.setTimeout(resolve, 180));
         } catch (erro) {
             const mensagem = erro.message || 'Falha temporária na indexação.';
-            if (/sess[aã]o expirou|permiss[aã]o|troque sua senha/i.test(mensagem)) {
+            if (/sess[aã]o expirou|permiss[aã]o|troque sua senha|configura[cç][aã]o de seguran[cç]a ausente/i.test(mensagem)) {
                 document.getElementById('buscas-status-operacao').textContent = mensagem;
                 registrarEvento(`Indexação interrompida: ${mensagem}`, 'erro');
                 break;
@@ -190,10 +194,15 @@ function alternarIndexacao() {
 async function executarRevisao() {
     revisando = true;
     atualizarBotaoRevisao();
-    const totalEsperado = Number(estadoAtual?.matriculasComTexto || 0);
+    const totalEsperado = Number(
+        estadoAtual?.documentosPendentesReindexacao || estadoAtual?.matriculasComTexto || 0
+    );
     let totalProcessado = 0;
     let falhasTemporarias = 0;
-    registrarEvento(`Revisão iniciada para ${formatarNumero(totalEsperado)} matrícula(s) com texto.`);
+    const migrandoDocumentos = Number(estadoAtual?.documentosPendentesReindexacao || 0) > 0;
+    registrarEvento(migrandoDocumentos
+        ? `Reindexação segura iniciada para ${formatarNumero(totalEsperado)} matrícula(s).`
+        : `Revisão iniciada para ${formatarNumero(totalEsperado)} matrícula(s) com texto.`);
     while (revisando && totalProcessado < totalEsperado) {
         try {
             const resultado = await requisicaoAeri('/api/buscas/sincronizar', {
@@ -209,8 +218,14 @@ async function executarRevisao() {
             if (resultado.falha || resultado.processados === 0) break;
             await new Promise(resolve => window.setTimeout(resolve, 180));
         } catch (erro) {
+            const mensagemErro = erro.message || 'Falha temporária na revisão.';
+            if (/configura[cç][aã]o de seguran[cç]a ausente/i.test(mensagemErro)) {
+                document.getElementById('buscas-status-operacao').textContent = mensagemErro;
+                registrarEvento(`Revisão interrompida: ${mensagemErro}`, 'erro');
+                break;
+            }
             falhasTemporarias += 1;
-            const mensagem = `${erro.message || 'Falha temporária na revisão.'} Nova tentativa (${falhasTemporarias}/5).`;
+            const mensagem = `${mensagemErro} Nova tentativa (${falhasTemporarias}/5).`;
             registrarEvento(mensagem, 'alerta');
             if (falhasTemporarias >= 5) break;
             await new Promise(resolve => window.setTimeout(resolve, 2000 * falhasTemporarias));

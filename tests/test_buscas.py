@@ -9,6 +9,7 @@ from backend.app.servicos.buscas import (
     mascarar_documento,
     normalizar_documento,
     normalizar_nome,
+    validar_configuracao_buscas,
 )
 
 
@@ -79,6 +80,11 @@ class TesteServicoBuscas(unittest.TestCase):
         with patch.dict(os.environ, {"AERI_BUSCAS_HMAC_KEY": "", "CRON_SECRET": "segredo-do-cron-nao-relacionado"}):
             with self.assertRaisesRegex(RuntimeError, "AERI_BUSCAS_HMAC_KEY"):
                 hash_documento("12345678901")
+
+    def test_validacao_antecipa_ausencia_da_chave_do_indice(self):
+        with patch.dict(os.environ, {"AERI_BUSCAS_HMAC_KEY": ""}):
+            with self.assertRaisesRegex(RuntimeError, "AERI_BUSCAS_HMAC_KEY"):
+                validar_configuracao_buscas()
 
 
 if __name__ == "__main__":

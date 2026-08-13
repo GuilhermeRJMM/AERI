@@ -25,6 +25,9 @@ class _CursorFalso:
     def fetchall(self):
         return self.linhas
 
+    def fetchone(self):
+        return {"total": 0}
+
 
 class _ConexaoFalsa:
     def __init__(self, cursor):
@@ -84,10 +87,20 @@ class TesteRotaBuscas(unittest.TestCase):
         with patch.object(buscas, "conectar", return_value=_ConexaoFalsa(cursor)):
             resposta = buscas.pesquisar_titularidade("123.456.789-01", 100, "usuario")
 
-        parametros = cursor.comandos[0][1]
+        parametros = cursor.comandos[-1][1]
         self.assertEqual("DOCUMENTO_EXATO", resposta["tipoBusca"])
         self.assertNotIn("12345678901", parametros)
         self.assertTrue(any(isinstance(item, str) and len(item) == 64 for item in parametros))
+
+    def test_documento_fica_bloqueado_durante_migracao_dos_hashes(self):
+        cursor = _CursorFalso()
+        cursor.fetchone = lambda: {"total": 3}
+        with patch.object(buscas, "conectar", return_value=_ConexaoFalsa(cursor)):
+            with self.assertRaises(HTTPException) as contexto:
+                buscas.pesquisar_titularidade("123.456.789-01", 100, "usuario")
+
+        self.assertEqual(503, contexto.exception.status_code)
+        self.assertIn("reindexados", contexto.exception.detail)
 
     def test_lista_pendencias_sem_expor_texto_registral(self):
         cursor = _CursorFalso([{
