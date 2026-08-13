@@ -5,6 +5,7 @@ from backend.app.parser import separar_atos
 from backend.app.proprietarios import (
     calcular_cadeia_dominial,
     extrair_bloco,
+    extrair_credor_consolidacao,
     extrair_indicacao_titularidade,
     extrair_pessoas,
     extrair_proprietario_inicial,
@@ -208,6 +209,48 @@ class TesteProprietarios(unittest.TestCase):
                 "proporcao_incerta": False,
             }],
         )
+
+    def test_consolidacao_no_masculino_tambem_transfere_ao_credor(self):
+        # Regressão: o padrão exigia "credor[ao]", ou seja, só reconhecia
+        # "credora fiduciária". A redação masculina -- "em favor do credor
+        # fiduciário Banco X" --, que é a mais comum, não casava, e a
+        # consolidação era ignorada em silêncio: o devedor continuava
+        # aparecendo como proprietário do imóvel já consolidado.
+        texto = """
+        MATRÍCULA 1.501. IMÓVEL: Lote 8, Quadra 3.
+        PROPRIETÁRIO: Antonio Devedor Silva, CPF 004.338.341-61.
+        R.09-1.501 - CONSOLIDAÇÃO DA PROPRIEDADE. Consolidou-se a propriedade
+        plena do imóvel em favor do credor fiduciário Banco Exemplo S/A,
+        inscrito no CNPJ/MF sob o n.º 60.746.948/0001-12. DOU FÉ.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            resultado,
+            [{
+                "nome": "Banco Exemplo S/A",
+                "cpf": "60.746.948/0001-12",
+                "proporcao": "100%",
+                "proporcao_incerta": False,
+            }],
+        )
+
+    def test_consolidacao_nao_confunde_outros_credores_e_papeis(self):
+        # A flexibilização do sufixo não pode passar a capturar qualquer
+        # "em favor de": só credor fiduciário caracteriza consolidação.
+        for trecho in (
+            "em favor do arrematante Banco Exemplo S/A",
+            "em favor do credor quirografário Banco Exemplo S/A",
+        ):
+            with self.subTest(trecho=trecho):
+                texto = (
+                    "R.09-1.502 - CONSOLIDAÇÃO DA PROPRIEDADE. Consolidou-se a "
+                    f"propriedade plena do imóvel {trecho}, inscrito no CNPJ/MF "
+                    "sob o n.º 60.746.948/0001-12. DOU FÉ."
+                )
+                self.assertEqual(extrair_credor_consolidacao(texto), [])
 
     def test_alteracao_de_nome_renomeia_titular_sem_mexer_na_proporcao(self):
         # Outro caminho sem cobertura na suíte: extrair_alteracao_nome().

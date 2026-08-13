@@ -1384,15 +1384,22 @@ def extrair_credor_consolidacao(texto):
     if not re.search(r'CONSOLIDA[ÇC][ÃA]O\s+DA\s+PROPRIEDADE', texto, re.I):
         return []
 
+    # credor[ao]? com o sufixo opcional: antes exigia "credora"/"credoro" e
+    # por isso a forma masculina "em favor do credor fiduciário Banco X" --
+    # a redação mais comum -- nunca casava. A consolidação era ignorada em
+    # silêncio e o devedor continuava figurando como proprietário.
     m = re.search(
-        r'em\s+favor\s+d[oa]\s+credor[ao]\s+fiduci[áa]ri[oa]\s+([^,]+),'
+        r'em\s+favor\s+d[oa]\s+credor[ao]?\s+fiduci[áa]ri[oa]\s+([^,]+),'
         r'.*?(?:CNPJ|CPF)(?:/MF)?\s+sob\s+o\s+n[.º°o]*\s*([\d.\-/]{9,20})',
         texto,
         re.I | re.DOTALL
     )
     if not m:
         return []
-    return [{"nome": m.group(1).strip(), "cpf": m.group(2).strip()}]
+    # rstrip('.'): a classe [\d.\-/] do documento engole o ponto final da
+    # frase quando o número encerra o período ("...sob o n.º 00.000.000/0001-00.
+    # DOU FÉ."), gerando um CNPJ/CPF malformado no resultado.
+    return [{"nome": m.group(1).strip(), "cpf": m.group(2).strip().rstrip('.')}]
 
 def contem_indicacao_titularidade(texto):
     texto_limpo = limpar_nome(texto)
