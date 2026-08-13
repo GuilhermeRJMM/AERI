@@ -9,11 +9,14 @@ from unittest.mock import patch
 from fastapi import HTTPException, Request, Response
 
 from backend.app.autenticacao import (
+    COOKIE_SESSAO,
     _derivar_csrf,
     exigir_permissao,
     hash_senha,
     permissoes_sessao,
+    proteger_csrf,
     senha_forte,
+    usuario_atual,
     verificar_senha,
 )
 from backend.app.seguranca_web import (
@@ -138,6 +141,32 @@ class TesteSeguranca(unittest.TestCase):
 
     def test_csrf_derivado_difere_entre_sessoes_distintas(self):
         self.assertNotEqual(_derivar_csrf("sessao-a"), _derivar_csrf("sessao-b"))
+
+    def test_proteger_csrf_e_usuario_atual_reaproveitam_a_mesma_busca_de_sessao(self):
+        # proteger_csrf roda antes de usuario_atual em toda rota de escrita
+        # (ex.: salvar um pedido em Informar Custas). Antes, cada um buscava
+        # a sessão no banco por conta própria -- duas conexões novas e duas
+        # consultas redundantes por clique. Agora devem compartilhar a
+        # mesma busca via request.state.sessao.
+        token_sessao = "token-de-sessao-teste"
+        requisicao = _requisicao_com_cabecalhos({
+            "cookie": f"{COOKIE_SESSAO}={token_sessao}",
+            "x-csrf-token": _derivar_csrf(token_sessao),
+        })
+        sessao_falsa = {
+            "usuario": "conferente",
+            "perfil": "CONFERENTE",
+            "deve_trocar_senha": False,
+            "pode_gerenciar_custas": True,
+        }
+        with patch(
+            "backend.app.autenticacao._obter_sessao", return_value=sessao_falsa
+        ) as mock_obter_sessao:
+            proteger_csrf(requisicao)
+            usuario = usuario_atual(requisicao)
+
+        self.assertEqual(usuario, "conferente")
+        mock_obter_sessao.assert_called_once()
 
     def test_iframe_permanece_bloqueado_sem_origem_sync(self):
         with patch.dict(os.environ, {}, clear=False):

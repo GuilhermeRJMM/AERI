@@ -163,11 +163,24 @@ def _obter_sessao(request: Request) -> dict | None:
     return sessao
 
 
+def _sessao_da_requisicao(request: Request) -> dict | None:
+    # proteger_csrf e usuario_atual precisam da mesma sessão numa mesma
+    # requisição (a rota de escrita típica usa os dois). Sem esse
+    # compartilhamento, cada um buscava a sessão do zero -- conexão nova,
+    # SELECT com JOIN e UPDATE de último acesso, duas vezes -- dobrando o
+    # custo de banco de toda ação de salvar/gravar do sistema.
+    sessao = getattr(request.state, "sessao", None)
+    if sessao is None:
+        sessao = _obter_sessao(request)
+        if sessao:
+            request.state.sessao = sessao
+    return sessao
+
+
 def usuario_atual(request: Request) -> str:
-    sessao = _obter_sessao(request)
+    sessao = _sessao_da_requisicao(request)
     if not sessao:
         raise HTTPException(status_code=401, detail="Faça login para continuar.")
-    request.state.sessao = sessao
     return sessao["usuario"]
 
 
@@ -214,7 +227,7 @@ def exigir_permissao(permissao: str):
 def proteger_csrf(request: Request) -> None:
     validar_origem(request)
     token_sessao = request.cookies.get(COOKIE_SESSAO, "")
-    sessao = getattr(request.state, "sessao", None) or _obter_sessao(request)
+    sessao = _sessao_da_requisicao(request)
     cabecalho = request.headers.get("x-csrf-token", "")
     if not sessao or not token_sessao or not cabecalho:
         raise HTTPException(status_code=403, detail="Validação de segurança expirada.")
