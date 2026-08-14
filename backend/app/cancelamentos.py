@@ -10,7 +10,7 @@ def _sem_acentos(texto: str) -> str:
 
 REFERENCIA_ATO = re.compile(
     r"\b(R|AV)\s*[.\-,]*\s*(\d+)(?!\d|\.\d)"
-    r"(?:\s*-\s*(\d{1,10}))?",
+    r"(?:\s*-\s*(\d(?:[\d.]{0,12}\d)?))?",
     re.IGNORECASE,
 )
 CATEGORIAS_CANCELAVEIS = {"ÔNUS", "PUBLICIDADE"}
@@ -33,6 +33,10 @@ def _codigo_normalizado(tipo: str, numero: str) -> str:
 
 def _codigo_exibicao(tipo: str, numero: str) -> str:
     return f"{tipo.upper()}.{int(numero):02d}"
+
+
+def _numero_sem_pontuacao(numero: str) -> str:
+    return str(int(re.sub(r"\D", "", numero)))
 
 
 def _codigo_ato_exibicao(codigo: str) -> str:
@@ -65,7 +69,7 @@ def _referencias(texto: str, matricula: str | None) -> list[str]:
     ocorrencias = list(REFERENCIA_ATO.finditer(texto))
     for referencia in ocorrencias:
         sufixo = referencia.group(3)
-        if sufixo and matricula and str(int(sufixo)) != matricula:
+        if sufixo and matricula and _numero_sem_pontuacao(sufixo) != matricula:
             continue
         codigo = _codigo_normalizado(referencia.group(1), referencia.group(2))
         if codigo not in referencias:
@@ -79,8 +83,12 @@ def _referencias(texto: str, matricula: str | None) -> list[str]:
             if referencia.group(1).upper() != "R":
                 continue
             trecho = texto[referencia.end():referencia.end() + 120]
-            for abreviada in re.finditer(r"(?:,|;|\be\b)\s*0*(\d+)\s*-\s*(\d{1,10})\b", trecho, re.IGNORECASE):
-                if str(int(abreviada.group(2))) == matricula:
+            for abreviada in re.finditer(
+                r"(?:,|;|\be\b)\s*0*(\d+)\s*-\s*(\d(?:[\d.]{0,12}\d)?)",
+                trecho,
+                re.IGNORECASE,
+            ):
+                if _numero_sem_pontuacao(abreviada.group(2)) == matricula:
                     codigo = _codigo_normalizado("R", abreviada.group(1))
                     if codigo not in referencias:
                         referencias.append(codigo)

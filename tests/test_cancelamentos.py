@@ -237,6 +237,53 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(hipoteca.cancelado_por, "AV.03")
         self.assertEqual(cancelamento.cancela_atos, ["R.02"])
 
+    def test_cancelamentos_da_matricula_10151_aceitam_sufixo_pontuado(self):
+        historicos = [
+            ato(
+                f"R.{numero}",
+                f"R.{numero}-10.151 - CÉDULA RURAL HIPOTECÁRIA. "
+                "OBJETO DA GARANTIA: Em hipoteca cedular, o imóvel.",
+            )
+            for numero in (2, 3, 4, 11, 14, 15, 17, 18, 19, 20, 21, 22, 23)
+        ]
+        cancelamentos = [
+            ato("AV.09", "AV.09-10.151 - CANCELAMENTO da hipoteca do R-4-10.151."),
+            ato("AV.10", "AV.10-10.151 - CANCELAMENTO das hipotecas dos R-2-10.151 e R-3-10.151."),
+            ato("AV.12", "AV.12-10.151 - CANCELAMENTO da hipoteca do R-11-10.151."),
+            ato("AV.16", "AV.16-10.151 - CANCELAMENTO das hipotecas do R-14 e R-15-10.151."),
+            ato("AV.24", "AV.24-10.151 - CANCELAMENTO da hipoteca do R-22-10.151."),
+            ato("AV.25", "AV.25-10.151 - CANCELAMENTO da hipoteca do R-23-10.151."),
+            ato("AV.26", "AV.26-10.151 - CANCELAMENTO da hipoteca do R-17-10.151."),
+            ato("AV.27", "AV.27-10.151 - CANCELAMENTO da hipoteca do R-18-10.151."),
+            ato("AV.28", "AV.28-10.151 - CANCELAMENTO da hipoteca do R-19-10.151."),
+            ato("AV.29", "AV.29-10.151 - CANCELAMENTO da hipoteca do R-20-10.151."),
+            ato("AV.30", "AV.30-10.151 - CANCELAMENTO da hipoteca do R-21-10.151."),
+        ]
+        penhoras_atuais = [
+            ato("R.46", "R.46-10.151 - PENHORA do imóvel objeto da matrícula."),
+            ato("R.51", "R.51-10.151 - PENHORA do imóvel objeto da matrícula."),
+        ]
+
+        aplicar_cancelamentos(historicos + cancelamentos + penhoras_atuais)
+
+        self.assertTrue(all(item.status == "CANCELADO" for item in historicos))
+        self.assertTrue(all(item.status == "ATIVO" for item in penhoras_atuais))
+
+    def test_referencia_pontuada_de_outra_matricula_nao_cancela_ato_local(self):
+        hipoteca = ato(
+            "R.04",
+            "R.04-10.151 - CÉDULA RURAL HIPOTECÁRIA. "
+            "OBJETO DA GARANTIA: Em hipoteca cedular, o imóvel.",
+        )
+        cancelamento = ato(
+            "AV.09",
+            "AV.09-10.151 - CANCELAMENTO do ato R-4-10.152.",
+        )
+
+        aplicar_cancelamentos([hipoteca, cancelamento])
+
+        self.assertEqual(hipoteca.status, "ATIVO")
+
 
     def test_adjudicacao_pode_cancelar_penhora_na_nota(self):
         penhora = ato("R.03", "R.03 - PENHORA do imóvel objeto da matrícula.")

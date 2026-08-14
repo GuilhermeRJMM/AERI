@@ -865,7 +865,8 @@ def extrair_pessoas(texto_bloco):
         else:
             partes_conjuges = re.split(
                 r'\s*,?\s*e\s*,?\s+(?:(?:seu|sua)\s+'
-                r'(?:c[oô]njuge|mulher|marido|espos[oa])|(?:seu|sua)\s*/\s*m)\s+',
+                r'(?:c[oô]njuge|companheir[oa]|mulher|marido|espos[oa])|'
+                r'(?:seu|sua)\s*/\s*m)\s+',
                 texto_bloco,
                 flags=re.I,
             )
@@ -2975,6 +2976,8 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
         if (
             not any(x in descricao_normalizada for x in ATOS_TRANSMISSAO)
             and "ADJUDICA" not in descricao_normalizada
+            and "FOI ADQUIRIDO POR" not in descricao_normalizada
+            and "FOI ADQUIRIDA POR" not in descricao_normalizada
         ):
             continue
         
