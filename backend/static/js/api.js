@@ -25,12 +25,15 @@ export async function requisicaoAeri(url, opcoes = {}) {
         }
     } else {
         const texto = (await resposta.text()).trim();
-        if (resposta.ok && texto) dados = {resultado: texto};
+        dados = texto;
     }
     if (!resposta.ok) {
-        const erro = new Error(dados.detail || dados.erro || 'O servidor não conseguiu concluir a operação. Tente novamente mais tarde.');
+        const detalhe = dados && typeof dados === 'object'
+            ? dados.detail || dados.erro
+            : '';
+        const erro = new Error(detalhe || 'O servidor não conseguiu concluir a operação. Tente novamente mais tarde.');
         erro.status = resposta.status;
         throw erro;
     }
-    return dados.resultado ?? dados;
+    return dados;
 }

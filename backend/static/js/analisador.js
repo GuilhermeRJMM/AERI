@@ -70,13 +70,17 @@ function formatarProprietario(proprietario, indice) {
 }
 
 function renderizarAtos(dados) {
-    return dados.atos.map((ato, indice) => `
+    const atos = Array.isArray(dados?.atos) ? dados.atos : [];
+    if (!atos.length) {
+        return '<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.95rem">Nenhum ato registral identificado.</div>';
+    }
+    return atos.map((ato, indice) => `
         <div class="card ${ato.status === 'CANCELADO' ? 'card-cancelado' : ''}">
             <div class="card-header">
                 <div class="codigo">${escaparHtml(ato.codigo)}</div>
                 <div class="badge ${classeCategoria(ato.categoria)}">${escaparHtml(ato.categoria)}</div>
             </div>
-            <div class="texto">${escaparHtml(resumo(ato, dados.atos))}</div>
+            <div class="texto">${escaparHtml(resumo(ato, atos))}</div>
             ${detalheOnus(ato)}
             <div class="status-ato">Status: <strong>${escaparHtml(ato.status)}</strong></div>
             ${blocoEvidencia(dados.evidencias?.atos?.[indice])}
@@ -303,12 +307,16 @@ function renderizarFeedback() {
 }
 
 function renderizarResultado(dados) {
+    if (!dados || typeof dados !== 'object' || Array.isArray(dados)) {
+        throw new Error('O servidor retornou a análise em formato inválido. Atualize a página e tente novamente.');
+    }
     ultimoResultado = dados;
     let cor = '#16a34a';
     let fundo = '#f0fdf4';
     if (dados.resultado === 'POSITIVA PARA ÔNUS') { cor = '#dc2626'; fundo = '#fef2f2'; }
     else if (dados.resultado === 'NEGATIVA, PORÉM COM PUBLICIDADE') { cor = '#0284c7'; fundo = '#f0f9ff'; }
-    const proprietarios = dados.proprietarios_atuais || [];
+    const atos = Array.isArray(dados.atos) ? dados.atos : [];
+    const proprietarios = Array.isArray(dados.proprietarios_atuais) ? dados.proprietarios_atuais : [];
     document.getElementById('modal-conteudo').innerHTML = `
         <div class="resultado fade-in">
             <div class="topo" style="border-left:5px solid ${cor};background-color:${fundo}">
@@ -319,7 +327,7 @@ function renderizarResultado(dados) {
                 <button type="button" class="rotina-btn-secondary" data-acao="exportar-relatorio">Exportar relatório</button>
             </div>
             <div class="tabs-container">
-                <button class="tab-btn active" data-tab="tab-atos">Atos Registrais (${dados.atos.length})</button>
+                <button class="tab-btn active" data-tab="tab-atos">Atos Registrais (${atos.length})</button>
                 <button class="tab-btn" data-tab="tab-imovel">Imóvel</button>
                 <button class="tab-btn" data-tab="tab-prop">Proprietários (${proprietarios.length})</button>
             </div>
