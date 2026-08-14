@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAPA-ONR</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fundo: #ffffff; --texto: #1a1a1a; --borda: #d8d8d8; --fraco: #666;
+    --painel: #f7f7f8; --acento: #1d4ed8; --ok-f: #e6f5ea; --ok-t: #14532d;
+    --bad-f: #fdeaea; --bad-t: #7f1d1d; --aviso: #92400e; --aviso-f: #fff7ed;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fundo: #131316; --texto: #ececf1; --borda: #34343c; --fraco: #a1a1aa;
+            --painel: #1c1c21; --acento: #7ea2ff; --ok-f: #10291a; --ok-t: #a7f3c0;
+            --bad-f: #2b1212; --bad-t: #fca5a5; --aviso: #fbbf24; --aviso-f: #2a1f0c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fundo); color: var(--texto);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { border-bottom: 1px solid var(--borda); padding: 14px 20px; }
+  header h1 { margin: 0 0 2px; font-size: 1.05rem; }
+  header p { margin: 0; color: var(--fraco); font-size: .85rem; }
+  main { padding: 18px 20px 60px; max-width: 1180px; }
+  h2 { font-size: .95rem; margin: 26px 0 8px; }
+  h3 { font-size: .9rem; margin: 20px 0 6px; }
+  h4 { font-size: .82rem; margin: 14px 0 4px; color: var(--fraco); text-transform: uppercase; letter-spacing: .04em; }
+  textarea { width: 100%; min-height: 190px; padding: 10px; border: 1px solid var(--borda);
+             border-radius: 6px; background: var(--painel); color: var(--texto);
+             font: 12.5px/1.5 ui-monospace, Consolas, monospace; resize: vertical; }
+  input[type=text], select { width: 100%; padding: 5px 7px; border: 1px solid var(--borda);
+             border-radius: 5px; background: var(--fundo); color: var(--texto); font-size: .84rem; }
+  button { border: 1px solid var(--borda); background: var(--painel); color: var(--texto);
+           padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: .85rem; }
+  button:hover { border-color: var(--acento); }
+  button.ligado { background: var(--acento); color: #fff; border-color: var(--acento); }
+  .abas { display: flex; gap: 6px; margin: 4px 0 0; }
+  .linha-botoes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+  .cabecalho-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 12px 0; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 14px; margin: 8px 0 4px; }
+  .campo { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .campo label { font-size: .74rem; color: var(--fraco); font-family: ui-monospace, Consolas, monospace; }
+  .evidencia { color: var(--fraco); font-size: .7rem; font-family: ui-monospace, Consolas, monospace;
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tabela { width: 100%; border-collapse: collapse; font-size: .82rem; margin: 8px 0; display: block; overflow-x: auto; }
+  .tabela th { text-align: left; font-size: .72rem; color: var(--fraco); font-weight: 600;
+               border-bottom: 1px solid var(--borda); padding: 5px 6px; white-space: nowrap; }
+  .tabela td { padding: 3px 6px; border-bottom: 1px solid var(--borda); vertical-align: middle; }
+  .tabela.pessoas td { min-width: 88px; }
+  .trecho { color: var(--fraco); font-family: ui-monospace, Consolas, monospace; font-size: .72rem;
+            max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .linha-evidencia td { border-bottom: none; padding-top: 0; }
+  .alerta { color: var(--bad-t); font-weight: 600; }
+  .barra-atos { display: flex; gap: 10px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
+  details.ato { border: 1px solid var(--borda); border-radius: 8px; padding: 8px 12px; margin: 8px 0; background: var(--painel); }
+  details.ato > summary { cursor: pointer; font-size: .87rem; }
+  details.texto-ato pre { white-space: pre-wrap; font-size: .74rem; background: var(--fundo);
+                          padding: 8px; border-radius: 6px; border: 1px solid var(--borda); max-height: 260px; overflow: auto; }
+  .status { padding: 10px 13px; border-radius: 7px; font-weight: 600; margin: 12px 0; font-size: .88rem; }
+  .status.ok { background: var(--ok-f); color: var(--ok-t); }
+  .status.bad { background: var(--bad-f); color: var(--bad-t); }
+  .aviso, .aviso-item { background: var(--aviso-f); color: var(--aviso); padding: 8px 11px;
+                        border-radius: 6px; font-size: .82rem; }
+  .aviso-item { background: none; padding: 1px 0; }
+  ul.erros { list-style: none; padding: 0; margin: 6px 0; font-size: .82rem; }
+  ul.erros li { padding: 2px 0; border-bottom: 1px solid var(--borda); }
+  ul.vigente { list-style: none; padding: 0; font-size: .84rem; }
+  ul.vigente li { padding: 1px 0; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: .78rem; color: var(--acento); }
+  pre.json { background: var(--painel); border: 1px solid var(--borda); border-radius: 7px;
+             padding: 11px; font-size: .74rem; max-height: 460px; overflow: auto; }
+  .vazio { color: var(--fraco); font-size: .85rem; }
+  .passo { border-left: 3px solid var(--borda); padding-left: 13px; margin: 22px 0; }
+  .acoes { display: flex; gap: 8px; margin: 10px 0; }
+  small.nota { color: var(--fraco); font-size: .76rem; display: block; margin-top: 4px; }
+  body.aeri-embedded {
+    color-scheme: dark;
+    --fundo: #101728;
+    --texto: #edf2ff;
+    --borda: #2b3850;
+    --fraco: #98a5bd;
+    --painel: #151f33;
+    --acento: #6757f2;
+    --ok-f: #102d28;
+    --ok-t: #86efac;
+    --bad-f: #35191f;
+    --bad-t: #fca5a5;
+    --aviso: #fde68a;
+    --aviso-f: #33270f;
+  }
+  body.aeri-embedded header { display: none; }
+  body.aeri-embedded main { max-width: none; padding: 18px 20px 34px; }
+  body.aeri-embedded .passo:first-of-type { margin-top: 0; }
+  body.aeri-embedded #texto,
+  body.aeri-embedded #btn-ler,
+  body.aeri-embedded #btn-exemplo,
+  body.aeri-embedded #btn-exemplo-urbano { display: none; }
+  #origem-aeri { margin-top: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Conversor ONR - matricula para JSON de importacao</h1>
+  <p>Le a matricula inteira, exporta apenas os atos escolhidos e valida contra o schema oficial do Anexo II antes de liberar o arquivo.</p>
+  <div class="abas">
+    <button data-aba="converter" class="ligado">Converter matricula</button>
+    <button data-aba="validar">Validar JSON existente</button>
+  </div>
+</header>
+
+<main>
+<div id="alerta-carga" class="status bad" hidden></div>
+
+<section data-painel="converter">
+  <div class="passo">
+    <h2>1. Identificacao da matricula</h2>
+    <div class="cabecalho-form">
+      <div class="campo"><label for="cns">cns (6 digitos)</label><input type="text" id="cns" value="026187"></div>
+      <div class="campo"><label for="tipo-imovel">tipo do imovel</label>
+        <select id="tipo-imovel">
+          <option value="rural" selected>2 - Rural</option>
+          <option value="urbano">1 - Urbano</option>
+        </select>
+      </div>
+      <div class="campo"><label for="municipio">municipio da serventia</label>
+        <select id="municipio">
+          <option value="Morrinhos-GO" selected>Morrinhos-GO (5213806)</option>
+          <option value="Goiania-GO">Goiania-GO (5208707)</option>
+          <option value="Caldas Novas-GO">Caldas Novas-GO (5204706)</option>
+          <option value="Buriti Alegre-GO">Buriti Alegre-GO (5203807)</option>
+          <option value="Piracanjuba-GO">Piracanjuba-GO (5217104)</option>
+          <option value="Goiatuba-GO">Goiatuba-GO (5209101)</option>
+        </select>
+      </div>
+      <div class="campo"><label for="versao">version do arquivo</label>
+        <select id="versao">
+          <option value="1.2.0" selected>1.2.0 - aceito pelo schema publicado</option>
+          <option value="1.3.0">1.3.0 - manual atual (schema ainda nao publicado)</option>
+        </select>
+      </div>
+    </div>
+    <div id="origem-aeri" class="status ok" hidden>Aguardando uma consulta do AERI.</div>
+    <textarea id="texto" placeholder="Cole aqui o texto integral da matricula, do ato 1 ao ultimo. A leitura completa e o que permite apurar area, CAR/CCIR/CIB e regime de bens vigentes, mesmo que voce exporte um unico ato."></textarea>
+    <div class="linha-botoes">
+      <button id="btn-ler" class="ligado">Ler matricula</button>
+      <button id="btn-exemplo">Exemplo rural</button>
+      <button id="btn-exemplo-urbano">Exemplo urbano</button>
+      <span id="contagem" class="vazio"></span>
+    </div>
+  </div>
+
+  <div class="passo">
+    <h2>2. Atos reconhecidos - marque o que sera exportado</h2>
+    <div id="lista-atos"></div>
+    <div id="estado-vigente"></div>
+  </div>
+
+  <div class="passo">
+    <h2>3. Revisao</h2>
+    <small class="nota">O que o parser encontrou vem preenchido, com o trecho de origem abaixo do campo.
+      Campos em branco que a regra exige aparecem como pendencia no passo 4 - nunca sao preenchidos por conta propria.</small>
+    <div id="correcoes"></div>
+    <div id="ficha-imovel"></div>
+    <div id="fichas-atos"></div>
+  </div>
+
+  <div class="passo">
+    <h2>4. Validar e exportar</h2>
+    <div class="linha-botoes"><button id="btn-gerar" class="ligado">Validar e gerar JSON</button></div>
+    <div id="resultado"></div>
+  </div>
+</section>
+
+<section data-painel="validar" hidden>
+  <div class="passo">
+    <h2>Validar um JSON ja gerado</h2>
+    <small class="nota">Confere um arquivo de remessa contra o schema oficial (rural ou urbano, detectado automaticamente)
+      e agrupa os erros por campo. Util para auditar remessas antigas antes do envio.</small>
+    <div class="linha-botoes"><input type="file" id="arquivo-externo" accept=".json,application/json"></div>
+    <textarea id="json-externo" placeholder="ou cole o conteudo do JSON aqui"></textarea>
+    <div class="linha-botoes"><button id="btn-validar" class="ligado">Validar</button></div>
+    <div id="saida-validador"></div>
+  </div>
+</section>
+</main>
+
+<script src="src/enums.js"></script>
+<script src="src/documento.js"></script>
+<script src="src/validator.js"></script>
+<script src="src/parser.js"></script>
+<script src="src/extrator.js"></script>
+<script src="src/builder.js"></script>
+<script src="schemas/rural.schema.js"></script>
+<script src="schemas/urbano.schema.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>

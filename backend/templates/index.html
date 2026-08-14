@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260811-buscas-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260814-mapa-onr-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -90,6 +90,13 @@
                     <span>Ônus & Matrícula</span>
                 </div>
 
+                <div class="nav-item" data-page="mapaonr" title="MAPA-ONR" hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h5M8 16h8"/><path d="m15 11 2 2 3-4"/>
+                    </svg>
+                    <span>MAPA-ONR</span>
+                </div>
+
                 <div class="nav-item" data-page="buscas" title="Buscas" hidden>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/><path d="M8 11h6"/><path d="M11 8v6"/>
@@ -144,9 +151,6 @@
 
             </nav>
 
-            <div class="sidebar-logo">
-                <img src="/static/aeri-sidebar-transparent.png" alt="AERI" class="sidebar-logo-img">
-            </div>
         </aside>
         <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" aria-label="Fechar menu" tabindex="-1"></button>
 
@@ -198,6 +202,40 @@
                         </div>
                     </div>
 
+                </main>
+            </div>
+
+            <div id="page-mapaonr" class="page">
+                <main class="layout mapa-onr-layout">
+                    <div class="rotina-header mapa-onr-header">
+                        <div>
+                            <span class="eyebrow">ITN 003/2025 · ONR</span>
+                            <h1>MAPA-ONR</h1>
+                            <p>Consulte uma matrícula diretamente na Tri7, revise os atos reconhecidos e gere o JSON validado no schema oficial.</p>
+                        </div>
+                    </div>
+
+                    <section class="mapa-onr-consulta">
+                        <form id="form-mapa-onr" class="mapa-onr-form">
+                            <label for="mapa-onr-matricula">Número da matrícula</label>
+                            <div>
+                                <span aria-hidden="true"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+                                <input id="mapa-onr-matricula" type="text" inputmode="numeric" autocomplete="off" maxlength="14" pattern="[0-9. ]{1,14}" placeholder="Ex.: 10.151" required>
+                                <button id="btn-mapa-onr-consultar" type="submit" class="btn btn-primary">Consultar e converter</button>
+                            </div>
+                        </form>
+                        <p id="mapa-onr-status" class="mapa-onr-status" role="status" aria-live="polite">Informe a matrícula para iniciar.</p>
+                    </section>
+
+                    <section class="mapa-onr-conversor" aria-label="Conversor MAPA-ONR">
+                        <iframe
+                            id="mapa-onr-frame"
+                            title="Conversor de matrícula para JSON do ONR"
+                            src="/static/mapa_onr/index.html?embedded=1&amp;v=20260814-1"
+                            sandbox="allow-scripts allow-downloads allow-forms"
+                            loading="lazy"
+                        ></iframe>
+                    </section>
                 </main>
             </div>
 
@@ -685,6 +723,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260812-auditor-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20260814-mapa-onr-v1"></script>
 </body>
 </html>

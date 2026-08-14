@@ -15,6 +15,7 @@ function aplicarPermissoesSidebar(dados) {
     const admin = ['ADMIN', 'SUBSTITUTO'].includes(dados.perfil);
     const permissoes = dados.permissoes || {};
     definirModuloVisivel('onus', admin || Boolean(permissoes.processar_matricula));
+    definirModuloVisivel('mapaonr', admin || Boolean(permissoes.processar_matricula));
     definirModuloVisivel('buscas', admin || Boolean(permissoes.processar_matricula));
     definirModuloVisivel('incra', admin || Boolean(permissoes.processar_incra));
     definirModuloVisivel('livroproto', admin || Boolean(permissoes.processar_matricula));

@@ -907,26 +907,6 @@ textarea::-webkit-scrollbar-thumb:hover {
   opacity: 1;
 }
 
-.sidebar-logo {
-  margin-top: auto;
-  height: 208px;
-  padding: 10px 0 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.sidebar-logo-img {
-  width: 285px;
-  height: auto;
-  object-fit: contain;
-  flex-shrink: 0;
-  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.18));
-  animation: logoFadeIn 0.7s ease-out both;
-}
-
 .sidebar-backdrop {
   display: none;
   position: fixed;
@@ -943,8 +923,7 @@ body.sidebar-recolhida .sidebar {
 }
 
 body.sidebar-recolhida .sidebar-label,
-body.sidebar-recolhida .nav-item span,
-body.sidebar-recolhida .sidebar-logo {
+body.sidebar-recolhida .nav-item span {
   display: none;
 }
 
@@ -976,7 +955,6 @@ body.sidebar-recolhida .nav-item {
   body.sidebar-recolhida .sidebar { width: min(280px, 84vw); padding: 24px 12px; }
   body.sidebar-recolhida .sidebar-label { display: block; }
   body.sidebar-recolhida .nav-item span { display: inline; }
-  body.sidebar-recolhida .sidebar-logo { display: flex; }
   body.sidebar-recolhida .nav-item { justify-content: flex-start; padding-inline: 14px; }
 
   .navbar-content { padding-inline: 14px; }
@@ -1007,7 +985,6 @@ body.sidebar-recolhida .nav-item {
   .splash-logo,
   .splash-glow,
   .splash-progress span,
-  .sidebar-logo-img,
   .btn-primary {
     animation: none;
   }
@@ -1845,10 +1822,6 @@ body::before {
   border-color: rgba(65, 216, 143, 0.28);
   color: var(--accent-green);
   box-shadow: inset 0 0 0 1px rgba(65, 216, 143, 0.04);
-}
-
-.sidebar-logo {
-  border-top-color: rgba(139, 152, 178, 0.14);
 }
 
 .sidebar-backdrop {
@@ -2840,4 +2813,85 @@ body.modo-incorporado .layout { padding-top:28px; }
   .buscas-acoes label,.buscas-acoes input,.buscas-acoes button{width:100%}
   .buscas-form > div{grid-template-columns:1fr}
   .buscas-form > div > span{display:none}
+}
+
+/* --- MAPA-ONR · CONVERSÃO ITN 003/2025 --- */
+.mapa-onr-layout { max-width: 1540px; }
+.mapa-onr-header { margin-bottom: 18px; }
+.mapa-onr-consulta {
+  margin-bottom: 16px;
+  padding: 20px;
+  border: 1px solid rgba(103,87,242,.24);
+  border-radius: 16px;
+  background: linear-gradient(135deg,rgba(103,87,242,.1),rgba(8,13,24,.72));
+  box-shadow: var(--glass-shadow);
+}
+.mapa-onr-form > label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--text-soft);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.mapa-onr-form > div {
+  display: grid;
+  grid-template-columns: auto minmax(220px,1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.mapa-onr-form > div > span {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  color: #a89ef8;
+  border: 1px solid rgba(103,87,242,.22);
+  border-radius: 11px;
+  background: rgba(103,87,242,.09);
+}
+.mapa-onr-form input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(139,152,178,.22);
+  border-radius: 11px;
+  outline: none;
+  background: rgba(8,13,24,.52);
+  color: var(--text-main);
+  font: 600 .9rem Outfit,sans-serif;
+}
+.mapa-onr-form input:focus {
+  border-color: rgba(103,87,242,.75);
+  box-shadow: 0 0 0 3px rgba(103,87,242,.12);
+}
+.mapa-onr-status {
+  min-height: 18px;
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: .72rem;
+}
+.mapa-onr-status[data-tipo="carregando"] { color: #c4b5fd; }
+.mapa-onr-status[data-tipo="sucesso"] { color: #86efac; }
+.mapa-onr-status[data-tipo="erro"] { color: #fca5a5; }
+.mapa-onr-conversor {
+  min-height: 720px;
+  overflow: hidden;
+  border: 1px solid rgba(139,152,178,.18);
+  border-radius: 16px;
+  background: #131316;
+  box-shadow: var(--glass-shadow);
+}
+.mapa-onr-conversor iframe {
+  display: block;
+  width: 100%;
+  min-height: 720px;
+  border: 0;
+  background: #131316;
+}
+@media(max-width:720px) {
+  .mapa-onr-form > div { grid-template-columns: 1fr; }
+  .mapa-onr-form > div > span { display: none; }
+  .mapa-onr-form button { width: 100%; }
+  .mapa-onr-conversor iframe { min-height: 720px; }
 }

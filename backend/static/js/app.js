@@ -3,6 +3,7 @@ import {iniciarAutenticacao} from './autenticacao.js?v=20260731-auditoria';
 import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260812-auditor-v1';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js';
+import {iniciarMapaOnr, limparMapaOnr} from './mapa_onr.js?v=20260814-mapa-onr-v1';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260804-custas-fluido';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260810-nota-desistencia-v3';
 import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
@@ -67,6 +68,7 @@ function fecharSplash() {
             limparCustas();
             limparRegistrosAuxiliares();
             limparBuscas();
+            limparMapaOnr();
             pararStatusOnr();
         },
     });
@@ -78,6 +80,7 @@ iniciarAnalisador();
 iniciarBuscas();
 iniciarIncra();
 iniciarLivroProtocolos();
+iniciarMapaOnr();
 iniciarCustas();
 iniciarRegistrosAuxiliares();
 iniciarIntimacoes();
