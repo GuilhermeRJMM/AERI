@@ -24,6 +24,7 @@
 - `AERI_ORIGIN`: origem exata de produção, por exemplo `https://aeri.vercel.app`, sem barra no final.
 - `SYNC_ORIGINS`: lista separada por vírgulas das origens exatas usadas pelo SYNC, sem caminho ou barra no final. HTTPS é obrigatório para domínios públicos; HTTP é aceito somente para `.local`, localhost e IPs privados/loopback. As origens também estão declaradas no cabeçalho CSP do `vercel.json`; as duas configurações devem permanecer iguais. `SYNC_ORIGIN` continua aceito para compatibilidade quando houver apenas uma origem.
 - `AERI_AUDIT_RETENTION_DAYS`: retenção dos eventos de auditoria, entre 30 e 730 dias; padrão 180.
+- `MAPA_ONR_MODO_ANALISE`: use `hibrido` (padrão) para a conferência semântica de confrontantes ou `legado` para restaurar imediatamente o extrator original.
 
 Depois de alterar qualquer variável, é obrigatório fazer um novo deployment.
 
@@ -54,7 +55,7 @@ Depois de alterar qualquer variável, é obrigatório fazer um novo deployment.
 
 - `ADMIN`: acesso total, gestão de usuários, auditoria, exclusões, análises e manutenção das intimações.
 - `SUBSTITUTO`: acesso administrativo, exceto as restrições adicionais impostas ao cadastro de administradores.
-- `AUDITOR`: acesso fixo e restrito à consulta/processamento de matrículas, visualização das pendências registrais e reprocessamento individual. Não acessa usuários, custas, INCRA, intimações, falhas administrativas ou sincronização em massa.
+- `AUDITOR`: acesso fixo e restrito à consulta/processamento de matrículas, visualização das pendências registrais e reprocessamento individual. O acesso ao MAPA-ONR é uma atribuição individual que pode ser ligada ou desligada por um administrador. Não acessa usuários, custas, INCRA, intimações, falhas administrativas ou sincronização em massa.
 - `SUPERVISOR`, `CONFERENTE` e `PRODUTOR`: recebem individualmente as atribuições de processar matrículas/INCRA, gerenciar Informar Custas e visualizar, criar, alterar ou conferir intimações.
 
 Não existe cadastro público. Todo usuário é criado por um administrador e recebe uma senha temporária que deve ser substituída no primeiro acesso.

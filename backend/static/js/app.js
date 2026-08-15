@@ -1,15 +1,15 @@
 import {configurarAcessoAnaliseManual, iniciarAnalisador} from './analisador.js?v=20260810-texto-manual-admin';
-import {iniciarAutenticacao} from './autenticacao.js?v=20260731-auditoria';
+import {iniciarAutenticacao} from './autenticacao.js?v=20260815-permissao-mapa-onr-v1';
 import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260812-auditor-v1';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js';
-import {iniciarMapaOnr, limparMapaOnr} from './mapa_onr.js?v=20260814-mapa-onr-v1';
+import {configurarAcessoMapaOnr, iniciarMapaOnr, limparMapaOnr} from './mapa_onr.js?v=20260815-permissao-v1';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260804-custas-fluido';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260810-nota-desistencia-v3';
 import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
 import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260811-reg-aux-sync-v1';
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260706-status-onr';
-import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260812-auditor-v1';
+import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260815-permissao-mapa-onr-v1';
 import {iniciarAtualizacaoPeriodica} from './util.js';
 
 const INTERVALO_ATUALIZACAO_MS = 5000;
@@ -40,6 +40,11 @@ function fecharSplash() {
     iniciarAutenticacao({
         aoEntrar: dados => {
             configurarAcessoAnaliseManual(dados.perfil);
+            configurarAcessoMapaOnr(
+                !dados.deveTrocarSenha && (
+                    cargoAdministrativo(dados.perfil) || Boolean(dados.permissoes?.acessar_mapa_onr)
+                ),
+            );
             exigirTrocaSenha(dados.deveTrocarSenha);
             pararAtualizacoesAoVivo();
             if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.ver_intimacoes)) {
@@ -69,6 +74,7 @@ function fecharSplash() {
             limparRegistrosAuxiliares();
             limparBuscas();
             limparMapaOnr();
+            configurarAcessoMapaOnr(false);
             pararStatusOnr();
         },
     });

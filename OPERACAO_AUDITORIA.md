@@ -2,7 +2,7 @@
 
 ## Conferência registral com perfil Auditor
 
-O perfil **AUDITOR** pode consultar a fila de pendências da auditoria registral, abrir a matrícula correspondente na análise e solicitar o reprocessamento individual depois de uma correção do motor. Esse perfil não pode iniciar sincronizações em massa, consultar falhas administrativas nem acessar usuários, custas, INCRA ou intimações.
+O perfil **AUDITOR** pode consultar a fila de pendências da auditoria registral, abrir a matrícula correspondente na análise e solicitar o reprocessamento individual depois de uma correção do motor. O MAPA-ONR é liberado separadamente por usuário na administração de acessos. Esse perfil não pode iniciar sincronizações em massa, consultar falhas administrativas nem acessar usuários, custas, INCRA ou intimações.
 
 Para criar a conta, um **ADMIN** deve abrir **Usuários**, selecionar o cargo **Auditor** e fornecer a senha temporária ao responsável por canal seguro. No primeiro acesso, o AERI exige a troca dessa senha.
 

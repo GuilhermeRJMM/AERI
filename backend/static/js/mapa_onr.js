@@ -52,6 +52,7 @@ async function consultar(evento) {
             numeroMatricula: resultado.numero_matricula,
             tipoImovel: resultado.tipo_imovel,
             texto: resultado.texto,
+            contextoAeri: resultado.contexto_aeri,
         });
         atualizarStatus('Matrícula recebida. O MAPA-ONR está reconhecendo os atos…', 'carregando');
     } catch (erro) {
@@ -97,6 +98,22 @@ export function limparMapaOnr() {
     if (entrada) entrada.value = '';
     atualizarStatus('Informe a matrícula para iniciar.');
     enviarAoConversor({tipo: 'AERI_MAPA_ONR_LIMPAR'});
+}
+
+
+export function configurarAcessoMapaOnr(permitido) {
+    const frame = elementos().frame;
+    if (!frame) return;
+    const origem = frame.dataset.src;
+    if (permitido && origem && frame.getAttribute('src') !== origem) {
+        frame.setAttribute('src', origem);
+        return;
+    }
+    if (!permitido && frame.hasAttribute('src')) {
+        framePronto = false;
+        cargaPendente = null;
+        frame.removeAttribute('src');
+    }
 }
 
 

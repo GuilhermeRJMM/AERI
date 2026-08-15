@@ -22,6 +22,7 @@ JANELA_TENTATIVAS_MINUTOS = 15
 PERMISSOES = {
     "processar_matricula": "pode_processar_matricula",
     "revisar_auditoria": "pode_revisar_auditoria",
+    "acessar_mapa_onr": "pode_acessar_mapa_onr",
     "processar_incra": "pode_processar_incra",
     "gerenciar_custas": "pode_gerenciar_custas",
     "ver_intimacoes": "pode_ver_intimacoes",
@@ -31,6 +32,7 @@ PERMISSOES = {
 }
 PERFIS_ADMINISTRATIVOS = {"ADMIN", "SUBSTITUTO"}
 PERMISSOES_AUDITOR = {"processar_matricula", "revisar_auditoria"}
+PERMISSOES_OPCIONAIS_AUDITOR = {"acessar_mapa_onr"}
 _argon2 = PasswordHasher(time_cost=2, memory_cost=19_456, parallelism=1)
 _HASH_SIMULADO = _argon2.hash("senha-inexistente-para-tempo-constante")
 
@@ -148,6 +150,7 @@ def _obter_sessao(request: Request) -> dict | None:
             cursor.execute(
                 """SELECT s.*, u.perfil, u.nome, u.ativo, u.deve_trocar_senha,
                 u.pode_processar_matricula, u.pode_revisar_auditoria,
+                u.pode_acessar_mapa_onr,
                 u.pode_processar_incra, u.pode_gerenciar_custas,
                 u.pode_ver_intimacoes, u.pode_criar_intimacoes,
                 u.pode_alterar_intimacoes, u.pode_conferir_intimacoes
@@ -188,7 +191,16 @@ def permissoes_sessao(sessao: dict) -> dict:
     if sessao["perfil"] in PERFIS_ADMINISTRATIVOS:
         return {chave: True for chave in PERMISSOES}
     if sessao["perfil"] == "AUDITOR":
-        return {chave: chave in PERMISSOES_AUDITOR for chave in PERMISSOES}
+        return {
+            chave: (
+                chave in PERMISSOES_AUDITOR
+                or (
+                    chave in PERMISSOES_OPCIONAIS_AUDITOR
+                    and bool(sessao.get(PERMISSOES[chave]))
+                )
+            )
+            for chave in PERMISSOES
+        }
     return {chave: bool(sessao.get(coluna)) for chave, coluna in PERMISSOES.items()}
 
 
@@ -214,7 +226,13 @@ def exigir_permissao(permissao: str):
         if sessao["perfil"] in PERFIS_ADMINISTRATIVOS:
             return usuario
         if sessao["perfil"] == "AUDITOR":
-            if permissao in PERMISSOES_AUDITOR:
+            if (
+                permissao in PERMISSOES_AUDITOR
+                or (
+                    permissao in PERMISSOES_OPCIONAIS_AUDITOR
+                    and bool(sessao.get(PERMISSOES[permissao]))
+                )
+            ):
                 return usuario
             raise HTTPException(status_code=403, detail="Você não possui permissão para esta operação.")
         if bool(sessao.get(PERMISSOES[permissao])):

@@ -47,7 +47,7 @@ async def seguranca_http(request: Request, call_next):
     resposta.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
     resposta.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     frame_ancestors = politica_frame_ancestors()
-    if request.url.path.startswith("/static/mapa_onr/") and frame_ancestors == "'none'":
+    if request.url.path == "/api/mapa-onr/conversor" and frame_ancestors == "'none'":
         frame_ancestors = "'self'"
     resposta.headers["Content-Security-Policy"] = (
         "default-src 'self'; base-uri 'self'; form-action 'self'; "
@@ -58,7 +58,7 @@ async def seguranca_http(request: Request, call_next):
     )
     if (
         request.url.path.startswith("/api/")
-        or request.url.path.startswith("/static/mapa_onr/")
+        or request.url.path == "/api/mapa-onr/conversor"
         or request.url.path in {"/analisar", "/analisar-incra"}
     ):
         resposta.headers["Cache-Control"] = "no-store"

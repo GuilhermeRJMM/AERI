@@ -27,6 +27,7 @@ from backend.app.seguranca_web import (
     politica_samesite_sessao,
 )
 from backend.app.main import seguranca_http
+from backend.app.rotas.usuarios import _validar_permissoes
 
 
 def _requisicao_com_cabecalhos(cabecalhos: dict[str, str]) -> Request:
@@ -99,11 +100,13 @@ class TesteSeguranca(unittest.TestCase):
             "perfil": "AUDITOR",
             "pode_processar_matricula": False,
             "pode_revisar_auditoria": False,
+            "pode_acessar_mapa_onr": False,
             "pode_gerenciar_custas": True,
         })
 
         self.assertTrue(permissoes["processar_matricula"])
         self.assertTrue(permissoes["revisar_auditoria"])
+        self.assertFalse(permissoes["acessar_mapa_onr"])
         self.assertFalse(permissoes["processar_incra"])
         self.assertFalse(permissoes["gerenciar_custas"])
         self.assertFalse(permissoes["ver_intimacoes"])
@@ -113,6 +116,7 @@ class TesteSeguranca(unittest.TestCase):
             "perfil": "AUDITOR",
             "deve_trocar_senha": False,
             "pode_revisar_auditoria": False,
+            "pode_acessar_mapa_onr": False,
             "pode_gerenciar_custas": True,
         }))
 
@@ -123,6 +127,33 @@ class TesteSeguranca(unittest.TestCase):
         with self.assertRaises(HTTPException) as erro:
             exigir_permissao("gerenciar_custas")(request, "AUDITOR_TESTE")
         self.assertEqual(erro.exception.status_code, 403)
+
+    def test_mapa_onr_e_permissao_opcional_do_auditor(self):
+        sessao = {
+            "perfil": "AUDITOR",
+            "deve_trocar_senha": False,
+            "pode_acessar_mapa_onr": True,
+        }
+        request = SimpleNamespace(state=SimpleNamespace(sessao=sessao))
+
+        self.assertTrue(permissoes_sessao(sessao)["acessar_mapa_onr"])
+        self.assertEqual(
+            exigir_permissao("acessar_mapa_onr")(request, "AUDITOR_TESTE"),
+            "AUDITOR_TESTE",
+        )
+
+    def test_validacao_do_auditor_preserva_mapa_e_bloqueia_outros_opcionais(self):
+        permissoes = _validar_permissoes({
+            "permissoes": {
+                "acessar_mapa_onr": True,
+                "gerenciar_custas": True,
+            }
+        }, "AUDITOR")
+
+        self.assertTrue(permissoes["pode_processar_matricula"])
+        self.assertTrue(permissoes["pode_revisar_auditoria"])
+        self.assertTrue(permissoes["pode_acessar_mapa_onr"])
+        self.assertFalse(permissoes["pode_gerenciar_custas"])
 
     def test_csrf_derivado_e_igual_em_qualquer_aba_da_mesma_sessao(self):
         # Antes, o csrf era um valor aleatório re-gerado a cada checagem de

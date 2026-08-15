@@ -231,7 +231,7 @@
                         <iframe
                             id="mapa-onr-frame"
                             title="Conversor de matrícula para JSON do ONR"
-                            src="/static/mapa_onr/index.html?embedded=1&amp;v=20260814-1"
+                            data-src="/api/mapa-onr/conversor?embedded=1&amp;v=20260815-permissao-v1"
                             sandbox="allow-scripts allow-downloads allow-forms"
                             loading="lazy"
                         ></iframe>
@@ -695,6 +695,7 @@
                     <legend>Atribuições do cargo operacional</legend>
                     <label><input type="checkbox" data-permissao-form="processar_matricula" checked> Processar matrículas</label>
                     <label><input type="checkbox" data-permissao-form="revisar_auditoria"> Revisar auditoria registral</label>
+                    <label><input type="checkbox" data-permissao-form="acessar_mapa_onr"> Acessar MAPA-ONR</label>
                     <label><input type="checkbox" data-permissao-form="processar_incra" checked> Processar relatório do INCRA</label>
                     <label><input type="checkbox" data-permissao-form="gerenciar_custas" checked> Gerenciar Informar Custas</label>
                     <label><input type="checkbox" data-permissao-form="ver_intimacoes" checked> Visualizar intimações</label>
@@ -723,6 +724,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260814-mapa-onr-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20260815-permissao-mapa-onr-v1"></script>
 </body>
 </html>

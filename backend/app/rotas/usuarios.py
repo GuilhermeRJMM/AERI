@@ -6,6 +6,7 @@ from psycopg.errors import UniqueViolation
 from backend.app.autenticacao import (
     PERMISSOES,
     PERMISSOES_AUDITOR,
+    PERMISSOES_OPCIONAIS_AUDITOR,
     PERFIS_ADMINISTRATIVOS,
     exigir_perfis,
     hash_senha,
@@ -49,12 +50,18 @@ def _validar_usuario(dados: dict, exigir_senha: bool = True) -> tuple[str, str, 
 def _validar_permissoes(dados: dict, perfil: str) -> dict:
     if perfil in PERFIS_ADMINISTRATIVOS:
         return {coluna: True for coluna in PERMISSOES.values()}
+    permissoes = dados.get("permissoes") or {}
     if perfil == "AUDITOR":
         return {
-            coluna: chave in PERMISSOES_AUDITOR
+            coluna: (
+                chave in PERMISSOES_AUDITOR
+                or (
+                    chave in PERMISSOES_OPCIONAIS_AUDITOR
+                    and bool(permissoes.get(chave, False))
+                )
+            )
             for chave, coluna in PERMISSOES.items()
         }
-    permissoes = dados.get("permissoes") or {}
     return {
         coluna: bool(permissoes.get(chave, False))
         for chave, coluna in PERMISSOES.items()
@@ -94,13 +101,15 @@ def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_per
                     """INSERT INTO usuarios_aeri
                     (usuario, nome, perfil, senha_hash, deve_trocar_senha,
                     pode_processar_matricula, pode_revisar_auditoria,
+                    pode_acessar_mapa_onr,
                     pode_processar_incra, pode_gerenciar_custas, pode_ver_intimacoes,
                     pode_criar_intimacoes, pode_alterar_intimacoes, pode_conferir_intimacoes)
-                    VALUES (%s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
+                    VALUES (%s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
                     (
                         usuario, nome, perfil, hash_senha(senha),
                         permissoes["pode_processar_matricula"],
                         permissoes["pode_revisar_auditoria"],
+                        permissoes["pode_acessar_mapa_onr"],
                         permissoes["pode_processar_incra"],
                         permissoes["pode_gerenciar_custas"],
                         permissoes["pode_ver_intimacoes"],
@@ -138,6 +147,7 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
             cursor.execute(
                 """UPDATE usuarios_aeri SET nome=%s, perfil=%s, ativo=%s,
                 pode_processar_matricula=%s, pode_revisar_auditoria=%s,
+                pode_acessar_mapa_onr=%s,
                 pode_processar_incra=%s, pode_gerenciar_custas=%s, pode_ver_intimacoes=%s,
                 pode_criar_intimacoes=%s, pode_alterar_intimacoes=%s, pode_conferir_intimacoes=%s,
                 atualizado_em=NOW()
@@ -146,6 +156,7 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
                     nome, perfil, ativo,
                     permissoes["pode_processar_matricula"],
                     permissoes["pode_revisar_auditoria"],
+                    permissoes["pode_acessar_mapa_onr"],
                     permissoes["pode_processar_incra"],
                     permissoes["pode_gerenciar_custas"],
                     permissoes["pode_ver_intimacoes"],

@@ -15,6 +15,7 @@ const CARGOS = [
 const ATRIBUICOES = [
     ['processar_matricula', 'Matrículas'],
     ['revisar_auditoria', 'Auditoria registral'],
+    ['acessar_mapa_onr', 'MAPA-ONR'],
     ['processar_incra', 'INCRA'],
     ['gerenciar_custas', 'Informar Custas'],
     ['ver_intimacoes', 'Ver intimações'],
@@ -38,7 +39,10 @@ function lerPermissoesFormulario() {
 
 function renderizarAtribuicoes(item) {
     if (cargoAdministrativo(item.perfil)) return '<span class="usuario-status ativo">Todas</span>';
-    if (item.perfil === 'AUDITOR') return '<span class="usuario-status ativo">Matrículas e auditoria registral</span>';
+    if (item.perfil === 'AUDITOR') return `<div class="usuario-atribuicoes-lista">
+        <span class="usuario-status ativo">Matrículas e auditoria registral</span>
+        <label><input type="checkbox" data-acao="permissao" data-permissao="acessar_mapa_onr" data-usuario="${item.usuario}" ${item.permissoes?.acessar_mapa_onr ? 'checked' : ''}> MAPA-ONR</label>
+    </div>`;
     return `<div class="usuario-atribuicoes-lista">${ATRIBUICOES.map(([chave, rotulo]) => `
         <label><input type="checkbox" data-acao="permissao" data-permissao="${chave}" data-usuario="${item.usuario}" ${item.permissoes?.[chave] ? 'checked' : ''}> ${rotulo}</label>
     `).join('')}</div>`;
@@ -54,9 +58,10 @@ function atualizarAtribuicoesFormulario() {
     const admin = cargoAdministrativo(perfil);
     const auditor = perfil === 'AUDITOR';
     document.querySelectorAll('[data-permissao-form]').forEach(campo => {
-        campo.disabled = admin || auditor;
+        const mapaOnr = campo.dataset.permissaoForm === 'acessar_mapa_onr';
+        campo.disabled = admin || (auditor && !mapaOnr);
         if (admin) campo.checked = true;
-        if (auditor) campo.checked = ['processar_matricula', 'revisar_auditoria'].includes(campo.dataset.permissaoForm);
+        if (auditor && !mapaOnr) campo.checked = ['processar_matricula', 'revisar_auditoria'].includes(campo.dataset.permissaoForm);
     });
 }
 
