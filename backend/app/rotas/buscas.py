@@ -1,4 +1,5 @@
 import hmac
+import math
 import os
 import re
 import threading
@@ -380,8 +381,9 @@ def _estado_json(cursor) -> dict:
 @router.get("")
 def pesquisar_titularidade(
     termo: str = Query(..., min_length=3, max_length=300),
-    limite: int = Query(100, ge=1, le=200),
+    limite: int = Query(50, ge=1, le=100),
     _usuario: str = Depends(exigir_permissao("processar_matricula")),
+    pagina: int = Query(1, ge=1),
 ):
     documento = normalizar_documento(termo) if not any(caractere.isalpha() for caractere in termo) else ""
     parametros = []
@@ -422,6 +424,15 @@ def pesquisar_titularidade(
                         ),
                     )
             cursor.execute(
+                f"""SELECT COUNT(*) AS total
+                FROM proprietarios_matriculas_busca_aeri p
+                JOIN matriculas_busca_aeri m ON m.numero=p.matricula_numero
+                WHERE {filtro}""",
+                tuple(parametros),
+            )
+            total = int(cursor.fetchone()["total"] or 0)
+            deslocamento = (pagina - 1) * limite
+            cursor.execute(
                 f"""SELECT m.numero, m.situacao, m.confianca AS confianca_matricula,
                 m.consultado_em, p.nome, p.documento_mascarado, p.tipo_documento,
                 p.proporcao, p.origem, p.confianca,
@@ -433,14 +444,21 @@ def pesquisar_titularidade(
                 WHERE {filtro}
                 ORDER BY
                     CASE WHEN p.nome_busca=%s THEN 0 ELSE 1 END,
-                    p.nome, m.numero DESC LIMIT %s""",
-                (tipo_busca, normalizar_nome(termo), tipo_busca, *parametros, normalizar_nome(termo), limite),
+                    p.nome, m.numero DESC LIMIT %s OFFSET %s""",
+                (
+                    tipo_busca, normalizar_nome(termo), tipo_busca,
+                    *parametros, normalizar_nome(termo), limite, deslocamento,
+                ),
             )
             itens = cursor.fetchall()
     return {
         "termo": termo.strip(),
         "tipoBusca": tipo_busca,
         "quantidade": len(itens),
+        "total": total,
+        "pagina": pagina,
+        "porPagina": limite,
+        "totalPaginas": math.ceil(total / limite) if total else 0,
         "itens": [
             {
                 "matricula": item["numero"], "nome": item["nome"],

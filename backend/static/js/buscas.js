@@ -6,6 +6,7 @@ let estadoAtual = null;
 let indexando = false;
 let revisando = false;
 let reprocessandoPendencias = false;
+let buscaAtual = {termo:'', pagina:1, totalPaginas:0};
 
 function formatarNumero(valor) {
     return new Intl.NumberFormat('pt-BR').format(Number(valor || 0));
@@ -88,8 +89,10 @@ export function limparBuscas() {
     revisando = false;
     reprocessandoPendencias = false;
     estadoAtual = null;
+    buscaAtual = {termo:'', pagina:1, totalPaginas:0};
     atualizarBotao();
     document.getElementById('buscas-pendencias-painel').hidden = true;
+    document.getElementById('buscas-paginacao').hidden = true;
     document.getElementById('btn-buscas-pendencias').textContent = 'Ver pendências';
     document.getElementById('buscas-resultados').innerHTML = '<tr><td colspan="8" class="rotina-vazio">Entre novamente para pesquisar.</td></tr>';
 }
@@ -157,7 +160,20 @@ function atualizarBotaoRevisao() {
 
 function renderizarResultados(dados) {
     const itens = dados.itens || [];
-    document.getElementById('buscas-total-resultados').textContent = `${itens.length} ${itens.length === 1 ? 'resultado' : 'resultados'}`;
+    const total = Number(dados.total ?? itens.length);
+    const pagina = Number(dados.pagina || 1);
+    const totalPaginas = Number(dados.totalPaginas || 0);
+    const inicio = total ? ((pagina - 1) * Number(dados.porPagina || 50)) + 1 : 0;
+    const fim = total ? inicio + itens.length - 1 : 0;
+    buscaAtual = {termo:String(dados.termo || buscaAtual.termo), pagina, totalPaginas};
+    document.getElementById('buscas-total-resultados').textContent = total
+        ? `${inicio}–${fim} de ${formatarNumero(total)} resultados`
+        : '0 resultados';
+    const paginacao = document.getElementById('buscas-paginacao');
+    paginacao.hidden = totalPaginas <= 1;
+    document.getElementById('buscas-pagina-atual').textContent = `Página ${pagina} de ${totalPaginas || 1}`;
+    document.getElementById('btn-buscas-anterior').disabled = pagina <= 1;
+    document.getElementById('btn-buscas-proxima').disabled = pagina >= totalPaginas;
     document.getElementById('buscas-resultados').innerHTML = itens.map(item => {
         const correspondencia = item.correspondencia === 'DOCUMENTO_EXATO' ? 'CPF/CNPJ exato'
             : item.correspondencia === 'NOME_EXATO' ? 'Nome exato' : 'Nome parcial';
@@ -175,19 +191,34 @@ function renderizarResultados(dados) {
     }).join('') || '<tr><td colspan="8" class="rotina-vazio">Nenhuma matrícula foi encontrada para essa pesquisa.</td></tr>';
 }
 
-async function pesquisar(evento) {
-    evento.preventDefault();
+async function executarPesquisa(pagina = 1) {
     const botao = document.getElementById('btn-buscas-pesquisar');
-    const termo = document.getElementById('buscas-termo').value.trim();
+    const termo = buscaAtual.termo || document.getElementById('buscas-termo').value.trim();
     botao.disabled = true;
+    document.getElementById('btn-buscas-anterior').disabled = true;
+    document.getElementById('btn-buscas-proxima').disabled = true;
     document.getElementById('buscas-resultados').innerHTML = '<tr><td colspan="8" class="rotina-vazio">Pesquisando titulares no índice registral…</td></tr>';
     try {
-        renderizarResultados(await requisicaoAeri(`/api/buscas?termo=${encodeURIComponent(termo)}`));
+        renderizarResultados(await requisicaoAeri(`/api/buscas?termo=${encodeURIComponent(termo)}&pagina=${pagina}&limite=50`));
     } catch (erro) {
         document.getElementById('buscas-resultados').innerHTML = `<tr><td colspan="8" class="rotina-vazio">${escaparHtml(erro.message)}</td></tr>`;
     } finally {
         botao.disabled = false;
     }
+}
+
+async function pesquisar(evento) {
+    evento.preventDefault();
+    buscaAtual = {termo:document.getElementById('buscas-termo').value.trim(), pagina:1, totalPaginas:0};
+    await executarPesquisa(1);
+}
+
+function paginaAnterior() {
+    if (buscaAtual.pagina > 1) executarPesquisa(buscaAtual.pagina - 1);
+}
+
+function proximaPagina() {
+    if (buscaAtual.pagina < buscaAtual.totalPaginas) executarPesquisa(buscaAtual.pagina + 1);
 }
 
 async function executarIndexacaoInicial() {
@@ -519,6 +550,8 @@ function abrirAnalise(evento) {
 
 export function iniciarBuscas() {
     document.getElementById('form-buscas').addEventListener('submit', pesquisar);
+    document.getElementById('btn-buscas-anterior').addEventListener('click', paginaAnterior);
+    document.getElementById('btn-buscas-proxima').addEventListener('click', proximaPagina);
     document.getElementById('btn-buscas-indexar').addEventListener('click', alternarIndexacao);
     document.getElementById('btn-buscas-novas').addEventListener('click', atualizarNovas);
     document.getElementById('btn-buscas-revisar-indice').addEventListener('click', alternarRevisao);

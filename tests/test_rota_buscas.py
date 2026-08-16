@@ -78,21 +78,41 @@ class TesteRotaBuscas(unittest.TestCase):
     def test_nome_com_numero_continua_sendo_pesquisado_como_nome(self):
         cursor = _CursorFalso()
         with patch.object(buscas, "conectar", return_value=_ConexaoFalsa(cursor)):
-            resposta = buscas.pesquisar_titularidade("FAZENDA 3 IRMÃOS", 100, "usuario")
+            resposta = buscas.pesquisar_titularidade("FAZENDA 3 IRMÃOS", 100, "usuario", 1)
 
         self.assertEqual("NOME", resposta["tipoBusca"])
         self.assertIn("%FAZENDA 3 IRMAOS%", cursor.comandos[0][1])
         self.assertNotIn("m.situacao='ATIVA'", cursor.comandos[0][0])
 
+    def test_busca_pagina_resultados_e_informa_total(self):
+        cursor = _CursorFalso([{
+            "numero": 8, "situacao": "ATIVA", "confianca_matricula": "ALTA",
+            "consultado_em": datetime(2026, 8, 16, tzinfo=timezone.utc),
+            "nome": "MUNICÍPIO DE MORRINHOS", "documento_mascarado": "",
+            "tipo_documento": "", "proporcao": "100%", "origem": "R.1",
+            "confianca": "MEDIA", "correspondencia": "NOME_EXATO",
+        }])
+        cursor.fetchone = lambda: {"total": 58}
+        with patch.object(buscas, "conectar", return_value=_ConexaoFalsa(cursor)):
+            resposta = buscas.pesquisar_titularidade(
+                "Municipio de Morrinhos", 50, "usuario", 2
+            )
+
+        self.assertEqual(58, resposta["total"])
+        self.assertEqual(2, resposta["pagina"])
+        self.assertEqual(2, resposta["totalPaginas"])
+        self.assertEqual(1, resposta["quantidade"])
+        self.assertEqual((50, 50), cursor.comandos[-1][1][-2:])
+
     def test_cpf_incompleto_e_recusado(self):
         with self.assertRaises(HTTPException) as contexto:
-            buscas.pesquisar_titularidade("123.456", 100, "usuario")
+            buscas.pesquisar_titularidade("123.456", 100, "usuario", 1)
         self.assertEqual(422, contexto.exception.status_code)
 
     def test_documento_exato_usa_hash_e_nao_envia_cpf_ao_banco(self):
         cursor = _CursorFalso()
         with patch.object(buscas, "conectar", return_value=_ConexaoFalsa(cursor)):
-            resposta = buscas.pesquisar_titularidade("123.456.789-01", 100, "usuario")
+            resposta = buscas.pesquisar_titularidade("123.456.789-01", 100, "usuario", 1)
 
         parametros = cursor.comandos[-1][1]
         self.assertEqual("DOCUMENTO_EXATO", resposta["tipoBusca"])
@@ -104,7 +124,7 @@ class TesteRotaBuscas(unittest.TestCase):
         cursor.fetchone = lambda: {"total": 3}
         with patch.object(buscas, "conectar", return_value=_ConexaoFalsa(cursor)):
             with self.assertRaises(HTTPException) as contexto:
-                buscas.pesquisar_titularidade("123.456.789-01", 100, "usuario")
+                buscas.pesquisar_titularidade("123.456.789-01", 100, "usuario", 1)
 
         self.assertEqual(503, contexto.exception.status_code)
         self.assertIn("reindexados", contexto.exception.detail)
