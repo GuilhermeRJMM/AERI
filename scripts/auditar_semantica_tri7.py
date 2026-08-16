@@ -599,6 +599,24 @@ def _ato_constitui_onus(ato_normalizado: str) -> bool:
     cabecalho_formal = cabecalho.split("NOS TERMOS", 1)[0]
     if _cancelamento_explicito(ato_normalizado) or "RETIFICACAO DE CPF" in cabecalho:
         return False
+    if any(expressao in cabecalho[:320] for expressao in (
+        "LIBERACAO PARCIAL DE GARANTIA",
+        "LIBERACAO PARCIAL DA GARANTIA",
+        "PERMUTA DE BENS HIPOTECARIOS",
+        "PERMUTA DE BENS HIPOTECADOS",
+    )):
+        return False
+    referencias_matriculas = set(re.findall(
+        r"\b(?:R|AV)\s*[.\-]?\s*\d+\s*-\s*(\d{1,10})\b",
+        ato_normalizado,
+    ))
+    if (
+        "EM SUBSTITUICAO DA GARANTIA" in ato_normalizado
+        and len(referencias_matriculas) >= 2
+    ):
+        # A nova hipoteca pertence à outra matrícula citada; nesta matrícula,
+        # o aditivo apenas substitui/libera a garantia anterior.
+        return False
     if any(marcador in cabecalho[:260] for marcador in (
         "INSERCAO DE DADOS DE QUALIFICACAO PESSOAL",
         "ATUALIZACAO DE DADOS DE QUALIFICACAO PESSOAL",

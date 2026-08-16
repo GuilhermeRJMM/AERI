@@ -500,6 +500,35 @@ class TesteAuditoriaSemanticaTri7(unittest.TestCase):
         resultado = auditar_texto(153, texto)
         self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", resultado["alertas_onus"])
 
+    def test_substituicao_da_garantia_por_outra_matricula_nao_e_novo_onus(self):
+        texto = """
+        MATRÍCULA 282. IMÓVEL: Fazenda. PROPRIETÁRIO: Pessoa Exemplo.
+        AV.05-282 - ADITIVO. Em substituição da garantia constituída no
+        R.02-282, os devedores dão neste ato em hipoteca o imóvel registrado
+        sob o R.04-684, pertencente a outra matrícula.
+        """
+        resultado = auditar_texto(282, texto)
+        self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", resultado["alertas_onus"])
+
+    def test_liberacao_parcial_com_hipoteca_no_remanescente_nao_e_novo_onus(self):
+        texto = """
+        MATRÍCULA 329. IMÓVEL: Fazenda. PROPRIETÁRIO: Pessoa Exemplo.
+        AV.10-329 - LIBERAÇÃO PARCIAL DE GARANTIA HIPOTECÁRIA. A gleba fica
+        liberada, permanecendo em vigor a hipoteca cedular apenas sobre a área
+        remanescente, conforme o R.08-329.
+        """
+        resultado = auditar_texto(329, texto)
+        self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", resultado["alertas_onus"])
+
+    def test_permuta_de_bem_hipotecado_com_liberacao_nao_e_novo_onus(self):
+        texto = """
+        MATRÍCULA 335. IMÓVEL: Fazenda. PROPRIETÁRIO: Pessoa Exemplo.
+        AV.05-335 - PERMUTA DE BENS HIPOTECÁRIOS. Foi liberado da garantia o
+        imóvel objeto da presente matrícula, recebendo em troca outra fazenda.
+        """
+        resultado = auditar_texto(335, texto)
+        self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", resultado["alertas_onus"])
+
     def test_anuencia_e_alteracao_de_credor_nao_sao_novos_onus(self):
         texto = """
         MATRÍCULA 14. IMÓVEL: Fazenda Exemplo, com área de 10ha.
