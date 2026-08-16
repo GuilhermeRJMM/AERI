@@ -148,6 +148,26 @@ class TesteRotaBuscas(unittest.TestCase):
         self.assertTrue(resposta["meta"]["documentosMascarados"])
         self.assertFalse(resposta["meta"]["textoPersistido"])
 
+    def test_diagnostico_detalhado_expoe_somente_nomes_e_percentuais_por_ato(self):
+        texto = (
+            "MATRÍCULA 123. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa Inicial.\n\n"
+            "R.01-123 - Morrinhos, 1 de janeiro de 2020. COMPRA E VENDA. O "
+            "imóvel foi adquirido por Pessoa Atual, CPF 123.456.789-01, por "
+            "compra feita a Pessoa Inicial.\n---"
+        )
+        request = SimpleNamespace()
+        with patch.object(
+            buscas, "_consultar_lote",
+            return_value=([{"numero": 123, "status": "OK", "texto": texto}], None),
+        ), patch.object(buscas, "registrar_auditoria"):
+            resposta = buscas.diagnosticar_pendencia_auditoria(
+                123, request, "auditor", detalhar=True
+            )
+
+        self.assertEqual("R.01", resposta["cadeiaPassos"][0]["codigo"])
+        self.assertNotIn("documento", resposta["cadeiaPassos"][0]["proprietarios"][0])
+        self.assertNotIn("123.456.789-01", str(resposta["cadeiaPassos"]))
+
     def test_reprocessamento_de_pendencias_avanca_cursor_e_resume_estados(self):
         cursor = _CursorFalso([
             {"matricula_numero": 40},

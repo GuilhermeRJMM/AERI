@@ -11,6 +11,7 @@ from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_c
 from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
 from backend.app.analise.onus import processar_atos
+from backend.app.proprietarios import calcular_cadeia_dominial
 from backend.app.servicos.analise_matricula import analisar_matricula
 from backend.app.servicos.auditoria_integrada import (
     construir_resumo_auditoria,
@@ -510,6 +511,7 @@ def diagnosticar_pendencia_auditoria(
     numero: int,
     request: Request,
     usuario: str = Depends(exigir_permissao("revisar_auditoria")),
+    detalhar: bool = Query(False),
 ):
     """Reconsulta uma matrícula sem persistir o texto e devolve atos mascarados.
 
@@ -571,6 +573,21 @@ def diagnosticar_pendencia_auditoria(
         }),
         "meta": {"textoPersistido": False, "documentosMascarados": True},
     }
+    if detalhar is True:
+        resposta["cadeiaPassos"] = [
+            {
+                "codigo": ato.codigo,
+                "proprietarios": [
+                    {
+                        "nome": item.get("nome", ""),
+                        "proporcao": item.get("proporcao", ""),
+                        "proporcaoIncerta": bool(item.get("proporcao_incerta")),
+                    }
+                    for item in calcular_cadeia_dominial(atos[:indice], texto)
+                ],
+            }
+            for indice, ato in enumerate(atos, start=1)
+        ]
     registrar_auditoria(
         request, "diagnosticar_pendencia_matricula", "sucesso", usuario, str(numero)
     )
