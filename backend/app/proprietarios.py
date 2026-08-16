@@ -2857,6 +2857,13 @@ def _medir_aquisicao(ato, bloco_adq, adquirentes, percentual_ato,
     adquirente_e_meeiro = (
         "MEACAO" in adquirente_limpo
         or "MEEIR" in adquirente_limpo
+        or (
+            "COUBE" in descricao_limpa
+            and any(
+                qualificacao in descricao_limpa
+                for qualificacao in ("VIUVA MEEIRA", "VIUVO MEEIRO")
+            )
+        )
         or bool(re.search(
             r'\bcoube\s+(?:a|ao|à|á)\s+vi[úu]v[oa]\s+meeir[oa]\b',
             ato.descricao,
