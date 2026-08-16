@@ -118,7 +118,7 @@ async function alternarReprocessamentoPendencias() {
         try {
             const resultado = await requisicaoAeri('/api/buscas/auditoria/reprocessar', {
                 method:'POST', headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({apos, tamanho:30}),
+                body:JSON.stringify({apos, tamanho:60}),
             });
             falhasConsecutivas = 0;
             atualizarStatus(resultado.estado);

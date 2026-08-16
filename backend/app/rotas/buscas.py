@@ -45,6 +45,7 @@ router = APIRouter(
 )
 LEASE_SEGUNDOS = 300
 MAX_WORKERS_TRI7 = 3
+MAX_WORKERS_REPROCESSAMENTO = 6
 REQUISICOES_POR_SEGUNDO_TRI7 = 3.0
 
 
@@ -81,13 +82,15 @@ def _consultar_matricula(numero: int, limitador: _LimitadorTaxa, cancelar: threa
         return {"numero": numero, "status": "ERRO", "erro": erro}
 
 
-def _consultar_lote(numeros: list[int]) -> tuple[list[dict], str | None]:
+def _consultar_lote(
+    numeros: list[int], max_workers: int = MAX_WORKERS_TRI7
+) -> tuple[list[dict], str | None]:
     if not numeros:
         return [], None
     limitador = _LimitadorTaxa(REQUISICOES_POR_SEGUNDO_TRI7)
     cancelar = threading.Event()
     por_numero = {}
-    with ThreadPoolExecutor(max_workers=min(MAX_WORKERS_TRI7, len(numeros))) as executor:
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(numeros))) as executor:
         futuros = {
             executor.submit(_consultar_matricula, numero, limitador, cancelar): numero
             for numero in numeros
@@ -603,7 +606,7 @@ def reprocessar_pendencias_auditoria(
     """Reexecuta um lote da fila atual sem perder a posição de retomada."""
     try:
         apos = max(0, int(dados.get("apos", 0) or 0))
-        tamanho = max(1, min(int(dados.get("tamanho", 20) or 20), 30))
+        tamanho = max(1, min(int(dados.get("tamanho", 20) or 20), 60))
     except (TypeError, ValueError) as erro:
         raise HTTPException(status_code=422, detail="Parâmetros de reprocessamento inválidos.") from erro
     try:
@@ -647,7 +650,9 @@ def reprocessar_pendencias_auditoria(
                         "estado": estado,
                     }
 
-                resultados, falha_fatal = _consultar_lote(numeros)
+                resultados, falha_fatal = _consultar_lote(
+                    numeros, max_workers=MAX_WORKERS_REPROCESSAMENTO
+                )
                 processados = validadas = ainda_pendentes = falhas = 0
                 ultimo_processado = apos
                 erros = []
