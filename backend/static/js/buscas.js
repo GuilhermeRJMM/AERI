@@ -441,7 +441,10 @@ async function alternarPendencias() {
                 <td>${escaparHtml(item.confiancaOnus)}</td><td>${escaparHtml(item.confiancaCadeia)}</td>
                 <td>${escaparHtml(item.confiancaImovel)}</td><td>${escaparHtml(alertas)}</td>
                 <td>${escaparHtml(revisao)}</td>
-                <td><button type="button" class="rotina-btn-secondary buscas-analisar" data-matricula="${item.matricula}">Analisar</button></td>
+                <td class="buscas-pendencia-acoes">
+                    <button type="button" class="rotina-btn-secondary" data-diagnostico="${item.matricula}">Diagnóstico</button>
+                    <button type="button" class="rotina-btn-secondary buscas-analisar" data-matricula="${item.matricula}">Analisar</button>
+                </td>
             </tr>`;
         }).join('') || '<tr><td colspan="8" class="rotina-vazio">Nenhuma pendência registral.</td></tr>';
     } catch (erro) {
@@ -450,6 +453,59 @@ async function alternarPendencias() {
     } finally {
         botao.disabled = false;
     }
+}
+
+function renderizarDiagnostico(dados) {
+    const proprietarios = (dados.proprietarios || []).map(item => `
+        <li><strong>${escaparHtml(item.nome)}</strong> · ${escaparHtml(item.proporcao || 'proporção não informada')}${item.proporcaoIncerta ? ' · proporção presumida' : ''}</li>
+    `).join('') || '<li>Nenhum proprietário extraído.</li>';
+    const alertas = String(dados.auditoria?.alertas || '').split(';').filter(Boolean);
+    const atos = (dados.atos || []).map(ato => `
+        <details class="analise-evidencia">
+            <summary>${escaparHtml(ato.codigo)} · ${escaparHtml(ato.categoria)} · ${escaparHtml(ato.status)}</summary>
+            <blockquote>${escaparHtml(ato.descricao)}</blockquote>
+            <small>Tipo: ${escaparHtml(ato.tipoOnus || 'não classificado')}${ato.canceladoPor ? ` · cancelado por ${escaparHtml(ato.canceladoPor)}` : ''}</small>
+        </details>
+    `).join('');
+    document.getElementById('modal-conteudo').innerHTML = `
+        <div class="resultado auditoria-diagnostico">
+            <span class="eyebrow">DIAGNÓSTICO REGISTRAL MASCARADO</span>
+            <h2>Matrícula ${formatarNumero(dados.numero)}</h2>
+            <p>${escaparHtml(dados.resultado || '')} · ${escaparHtml(dados.publicidade || '')}</p>
+            <section><h3>Alertas</h3><p>${alertas.map(escaparHtml).join(', ') || 'Nenhum alerta.'}</p></section>
+            <section><h3>Proprietários extraídos</h3><ul>${proprietarios}</ul></section>
+            <details class="analise-evidencia"><summary>Cabeçalho registral</summary><blockquote>${escaparHtml(dados.cabecalho || '')}</blockquote></details>
+            <section><h3>Atos</h3>${atos || '<p>Nenhum ato separado.</p>'}</section>
+            <p class="buscas-diagnostico-meta">O texto não foi persistido e CPF/CNPJ foram mascarados.</p>
+        </div>`;
+    document.getElementById('modal-resultado').classList.add('aberta');
+}
+
+async function diagnosticarPendencia(botao) {
+    const numero = Number(botao.dataset.diagnostico);
+    botao.disabled = true;
+    const textoOriginal = botao.textContent;
+    botao.textContent = 'Consultando…';
+    try {
+        const dados = await requisicaoAeri(`/api/buscas/auditoria/${numero}/diagnostico`, {
+            method:'POST', headers:{'Content-Type':'application/json'}, body:'{}',
+        });
+        renderizarDiagnostico(dados);
+    } catch (erro) {
+        registrarEvento(`Diagnóstico ${formatarNumero(numero)}: ${erro.message}`, 'erro');
+    } finally {
+        botao.disabled = false;
+        botao.textContent = textoOriginal;
+    }
+}
+
+function tratarAcaoPendencia(evento) {
+    const diagnostico = evento.target.closest('[data-diagnostico]');
+    if (diagnostico) {
+        diagnosticarPendencia(diagnostico);
+        return;
+    }
+    abrirAnalise(evento);
 }
 
 function abrirAnalise(evento) {
@@ -472,5 +528,5 @@ export function iniciarBuscas() {
     document.getElementById('btn-buscas-pendencias').addEventListener('click', alternarPendencias);
     document.getElementById('btn-buscas-reprocessar-pendencias').addEventListener('click', alternarReprocessamentoPendencias);
     document.getElementById('buscas-resultados').addEventListener('click', abrirAnalise);
-    document.getElementById('buscas-pendencias-tbody').addEventListener('click', abrirAnalise);
+    document.getElementById('buscas-pendencias-tbody').addEventListener('click', tratarAcaoPendencia);
 }
