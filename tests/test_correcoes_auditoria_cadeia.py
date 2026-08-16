@@ -5,6 +5,7 @@ from backend.app.proprietarios import (
     calcular_cadeia_dominial,
     extrair_indicacao_titularidade,
     extrair_proprietario_inicial,
+    nomes_compativeis,
     parse_percent,
 )
 
@@ -14,6 +15,11 @@ def ato(descricao):
 
 
 class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
+    def test_grafia_historica_wilsom_e_wilson_identifica_mesma_pessoa(self):
+        self.assertTrue(
+            nomes_compativeis('Wilsom Alves da Costa', 'Wilson Alves da Costa')
+        )
+
     def test_cabecalho_aceita_prorietarios_com_erro_historico(self):
         texto = (
             "MATRÍCULA 7.388. PRORIETÁRIOS: 1) Pedro Nunes de Azeredo, CPF "
@@ -730,6 +736,55 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
                     "proporcao_incerta": False,
                 }
             ],
+        )
+
+
+    def test_partilha_da_viuva_meeira_nao_duplica_quinhao_existente(self):
+        texto = (
+            "MATRÍCULA 81. IMÓVEL: lote. PROPRIETÁRIOS: Luzia Alves da "
+            "Costa Barros, na proporção de 16,67%; Maria Alves da Costa "
+            "Santos, na proporção de 83,33%. ORIGEM: registro anterior."
+        )
+        descricao = (
+            "FORMAL DE PARTILHA dos bens deixados por falecimento de Joedes "
+            "Ferreira de Barros; coube à viúva meeira Luzia Alves da Costa "
+            "Barros, em pagamento de sua meação, parte correspondente a "
+            "16,67% do imóvel."
+        )
+
+        resultado = calcular_cadeia_dominial([ato(descricao)], texto)
+
+        self.assertEqual(
+            {item['nome']: item['proporcao'] for item in resultado},
+            {
+                'Luzia Alves da Costa Barros': '16,67%',
+                'Maria Alves da Costa Santos': '83,33%',
+            },
+        )
+
+    def test_espolio_substitui_quinhao_de_herdeiro_que_ja_constava(self):
+        texto = (
+            "MATRÍCULA 128. IMÓVEL: lote. PROPRIETÁRIOS: Ellen Carneiro Vale, "
+            "na proporção de 50%; Tania Maria Carneiro do Vale, na proporção "
+            "de 50%. ORIGEM: registro anterior."
+        )
+        descricao = (
+            "INVENTÁRIO/PARTILHA. TRANSMITENTE: O Espólio de Cristovão do "
+            "Vale. ADQUIRENTES: 1) Tania Maria Carneiro do Vale, parte "
+            "correspondente a 7,14% do imóvel; 2) Lucia Carneiro Vale, parte "
+            "correspondente a 42,86% do imóvel. IMÓVEL: A proporção de 50% "
+            "do imóvel descrito na matrícula."
+        )
+
+        resultado = calcular_cadeia_dominial([ato(descricao)], texto)
+
+        self.assertEqual(
+            {item['nome']: item['proporcao'] for item in resultado},
+            {
+                'Ellen Carneiro Vale': '50%',
+                'Tania Maria Carneiro do Vale': '7,14%',
+                'Lucia Carneiro Vale': '42,86%',
+            },
         )
 
 

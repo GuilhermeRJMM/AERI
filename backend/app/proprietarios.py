@@ -1617,6 +1617,16 @@ def nomes_compativeis(nome_a, nome_b):
     tokens_a = [item for item in sem_particulas_a.split() if item]
     tokens_b = [item for item in sem_particulas_b.split() if item]
     curto, longo = (tokens_a, tokens_b) if len(tokens_a) <= len(tokens_b) else (tokens_b, tokens_a)
+    # Erro antigo recorrente: Wilson/Wilsom. A tolerância fica restrita à
+    # troca final M/N, com todos os demais prenomes e sobrenomes idênticos.
+    if (
+        len(tokens_a) == len(tokens_b)
+        and len(tokens_a[0]) >= 5
+        and tokens_a[0][:-1] == tokens_b[0][:-1]
+        and {tokens_a[0][-1], tokens_b[0][-1]} <= {'M', 'N'}
+        and tokens_a[1:] == tokens_b[1:]
+    ):
+        return True
     if len(curto) < 2 or SequenceMatcher(None, curto[0], longo[0]).ratio() < 0.85:
         return False
     posicao = 0
@@ -2848,7 +2858,7 @@ def _medir_aquisicao(ato, bloco_adq, adquirentes, percentual_ato,
         "MEACAO" in adquirente_limpo
         or "MEEIR" in adquirente_limpo
         or bool(re.search(
-            r'\bcoube\s+ao\s+vi[úu]vo\s+meeiro\b',
+            r'\bcoube\s+(?:a|ao|à|á)\s+vi[úu]v[oa]\s+meeir[oa]\b',
             ato.descricao,
             re.I,
         ))
@@ -2962,6 +2972,31 @@ def _debitar_alienantes(estado, ato, adquirentes, transmitentes, aquisicao):
                 if (
                     chave != chave_adquirente
                     and abs(dados["proporcao"] - aquisicao.percentual) <= 0.02
+                )
+            ]
+            if len(candidatos_quinhao) == 1:
+                chaves_debito = candidatos_quinhao
+
+        # Quando o espólio não constava nominalmente no estado anterior, mas
+        # exatamente um herdeiro já figurava com a mesma fração transmitida,
+        # essa fração é substituída pela partilha em vez de ser somada outra vez.
+        if (
+            not houve_debito
+            and not chaves_debito
+            and aquisicao.espolio_com_quinhao
+            and abs(sum(item['proporcao'] for item in estado.values()) - 100.0) <= 0.2
+        ):
+            chaves_adquirentes = {
+                encontrar_chave_no_estado(adquirente, estado)
+                for adquirente in adquirentes
+            }
+            candidatos_quinhao = [
+                chave for chave in chaves_adquirentes
+                if (
+                    chave in estado
+                    and abs(
+                        estado[chave]['proporcao'] - aquisicao.percentual
+                    ) <= 0.02
                 )
             ]
             if len(candidatos_quinhao) == 1:
