@@ -176,6 +176,41 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
             {"Ana Silva": "50%", "Bruno Silva": "50%"},
         )
 
+    def test_divisao_encerrada_confere_titulares_pelas_areas_sucessoras(self):
+        atos = [
+            ato(
+                "COMPRA E VENDA. ADQUIRENTES: Rosana das Graças Garcia Naves; "
+                "Réginer Aparecida Garcia Naves; Rosidelma Garcia Naves; "
+                "Rogério Marcos Garcia Naves; Vivaldo de Souza Machado. "
+                "IMÓVEL: 100% do imóvel."
+            ),
+            ato(
+                "DIVISÃO AMIGÁVEL. O imóvel foi dividido em 04 lotes: a 1ª "
+                "com a área de 71,89,09 ha; matriculada sob o nº 21.522, "
+                "atribuída à Rosana das Graças Garcia Naves, Réginer Aparecida "
+                "Garcia Naves, Rosidelma Garcia Naves e Rogério Marcos Garcia "
+                "Naves; a 2ª com a área de 11,98,18 ha; matriculada sob o nº "
+                "21.523, atribuída à Rosana das Graças Garcia Naves, Réginer "
+                "Aparecida Garcia Naves, Rosidelma Garcia Naves e Rogério "
+                "Marcos Garcia Naves; a 3ª com a área de 03,17,55 ha; "
+                "matriculada sob o nº 21.524, atribuída à Vivaldo de Souza "
+                "Machado; e a 4ª com a área de 56,73,36 ha; matriculada sob o "
+                "nº 21.525, atribuída à Vivaldo de Souza Machado; ficando em "
+                "consequência encerrada esta matrícula."
+            ),
+        ]
+
+        resultado = calcular_cadeia_dominial(atos)
+        proporcoes = {item['nome']: item['proporcao'] for item in resultado}
+
+        self.assertEqual(proporcoes['Vivaldo de Souza Machado'], '41,67%')
+        self.assertEqual(proporcoes['Rosana das Graças Garcia Naves'], '14,58%')
+        self.assertEqual(proporcoes['Réginer Aparecida Garcia Naves'], '14,58%')
+        self.assertEqual(proporcoes['Rosidelma Garcia Naves'], '14,58%')
+        # O centésimo residual é atribuído ao último titular para a soma
+        # apresentada fechar exatamente em 100%.
+        self.assertEqual(proporcoes['Rogério Marcos Garcia Naves'], '14,59%')
+
     def test_permuta_com_passou_a_pertencer(self):
         descricao = (
             "PERMUTA. O imóvel constante da presente matrícula passou a "

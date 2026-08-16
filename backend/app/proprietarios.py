@@ -2527,6 +2527,85 @@ def _divisao_abre_sucessoras_e_encerra_origem(descricao_normalizada):
     )
 
 
+def _area_historica_em_hectares(valor):
+    """Converte tanto 71,8909 quanto a grafia registral 71,89,09."""
+    partes = re.findall(r'\d+', valor)
+    if not partes:
+        return None
+    if len(partes) >= 3 and len(partes[1]) == 2:
+        return float(partes[0]) + float(partes[1]) / 100 + float(partes[2]) / 10000
+    numero = valor.replace('.', '').replace(',', '.')
+    try:
+        return float(numero)
+    except ValueError:
+        return None
+
+
+def _aplicar_divisao_em_matriculas_sucessoras(estado, ato, descricao_normalizada):
+    """Confere a titularidade final pela área dos quinhões que sucedem a origem.
+
+    Nas divisões antigas, a última averbação pode ser a fonte mais precisa da
+    titularidade: ela relaciona cada nova matrícula, sua área e a pessoa a quem
+    o quinhão foi atribuído. A matrícula de origem já está encerrada, mas a
+    auditoria ainda precisa fechar em 100% sem carregar arredondamentos ou
+    interpretações monetárias de partilhas anteriores.
+    """
+    if not _divisao_abre_sucessoras_e_encerra_origem(descricao_normalizada):
+        return False
+
+    quinhoes = re.findall(
+        r'\bcom\s+a\s+\S*rea\s+de\s+([\d.,]+)\s*ha\s*;\s*'
+        r'matriculad\S*\s+sob\b[^;,]*[,;]\s*atribu\S*\s+\S+\s+([^;]+)',
+        ato.descricao,
+        re.I | re.DOTALL,
+    )
+    if len(quinhoes) < 2:
+        # Continua sendo um ato de encerramento, não uma nova transmissão na
+        # matrícula de origem. Se a redação não trouxer áreas suficientes,
+        # preserva-se o estado anterior, como já ocorria.
+        return True
+
+    distribuicao = {}
+    for valor_area, titulares in quinhoes:
+        area = _area_historica_em_hectares(valor_area)
+        nomes = [
+            trecho.strip(' .;:-')
+            for trecho in re.split(r'\s*,\s*|\s+e\s+', titulares, flags=re.I)
+            if trecho.strip(' .;:-')
+        ]
+        pessoas = []
+        for nome in nomes:
+            extraidas = extrair_pessoas(nome)
+            if not extraidas:
+                continue
+            pessoa = dict(extraidas[0])
+            chave_anterior = encontrar_chave_no_estado(pessoa, estado)
+            if chave_anterior:
+                pessoa['cpf'] = estado[chave_anterior]['cpf_original']
+            pessoas.append(pessoa)
+        if not area or not pessoas:
+            return True
+        area_individual = area / len(pessoas)
+        for pessoa in pessoas:
+            chave = chave_para_incluir(pessoa, distribuicao)
+            if chave not in distribuicao:
+                distribuicao[chave] = {
+                    'nome': pessoa['nome'],
+                    'cpf_original': pessoa['cpf'],
+                    'proporcao': 0.0,
+                }
+            distribuicao[chave]['proporcao'] += area_individual
+
+    area_total = sum(item['proporcao'] for item in distribuicao.values())
+    if area_total <= 0:
+        return True
+    estado.clear()
+    for chave, item in distribuicao.items():
+        item['proporcao'] = item['proporcao'] / area_total * 100.0
+        estado[chave] = item
+    return True
+
+
 def _aplicar_partilha_integral_agrupada(estado, grupo):
     """Partilha cujos quinhões estão espalhados em vários atos consecutivos.
 
@@ -3033,7 +3112,9 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
         descricao_normalizada = limpar_nome(ato.descricao)
         if _aplicar_desmembramento_por_divisao(estado, ato, descricao_normalizada):
             continue
-        if _divisao_abre_sucessoras_e_encerra_origem(descricao_normalizada):
+        if _aplicar_divisao_em_matriculas_sucessoras(
+            estado, ato, descricao_normalizada
+        ):
             continue
         if _aplicar_estremacao(estado, ato, descricao_normalizada):
             continue
