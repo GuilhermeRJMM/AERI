@@ -641,7 +641,7 @@ def reprocessar_pendencias_auditoria(
                     cursor.execute(
                         """SELECT matricula_numero FROM auditorias_matriculas_aeri
                         WHERE estado='REVISAR' AND matricula_numero > %s
-                          AND alertas && %s::text[]
+                          AND alertas ?| %s::text[]
                         ORDER BY matricula_numero LIMIT %s""",
                         (apos, alertas, tamanho),
                     )
