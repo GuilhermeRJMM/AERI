@@ -138,5 +138,32 @@ class TesteTipoOnus(unittest.TestCase):
         self.assertEqual(resultado["atos"][0]["tipo_onus"], "CÉDULA")
 
 
+    def test_vinculo_antigo_sem_verbo_auxiliar_e_com_inscricoes_respectivas(self):
+        texto = """
+        AV.01-126 - O imóvel acima descrito vinculado ao Banco do Brasil S/A,
+        pelas Cédulas de 1º, 2º e 3º graus, emitidas em datas distintas e
+        inscritas respectivamente sob os nºs 2.303, 2.747 e 3.227.
+        """
+
+        resultado = analisar_matricula(texto, numero_matricula="126")
+
+        self.assertEqual(resultado["resultado"], "POSITIVA PARA ÔNUS")
+        self.assertEqual(resultado["atos"][0]["categoria"], "ÔNUS")
+        self.assertEqual(resultado["atos"][0]["tipo_onus"], "CÉDULA")
+
+    def test_erro_historico_procedo_do_registro_da_penhora_configura_onus(self):
+        texto = """
+        R.06-207 - Nos termos do mandado judicial, procedo do registro da
+        penhora do imóvel constante da presente matrícula, para assegurar o
+        pagamento da dívida ao exequente.
+        """
+
+        resultado = analisar_matricula(texto, numero_matricula="207")
+
+        self.assertEqual(resultado["resultado"], "POSITIVA PARA ÔNUS")
+        self.assertEqual(resultado["atos"][0]["categoria"], "ÔNUS")
+        self.assertEqual(resultado["atos"][0]["tipo_onus"], "PENHORA")
+
+
 if __name__ == "__main__":
     unittest.main()

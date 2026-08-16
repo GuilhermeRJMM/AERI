@@ -509,7 +509,7 @@ def classificar(texto, regras_aprendidas=None):
         return ("ÔNUS", True)
 
     if re.search(
-        r"\b(?:PROCEDO|PROCEDE-SE)\s+AO\s+REGISTRO\s+DA\s+PENHORA\b|"
+        r"\b(?:PROCEDO|PROCEDE-SE)\s+(?:AO|DO)\s+REGISTRO\s+DA\s+PENHORA\b|"
         r"\bPROCEDID[OA]\s+AO\s+REGISTRO\s+DA\s+PENHORA\b|"
         r"\bIMOVEL\b.{0,100}\bFOI\s+PENHORAD[OA]\b",
         texto_sem_acentos_compacto,
@@ -530,11 +530,15 @@ def classificar(texto, regras_aprendidas=None):
     # o grau e o vencimento deixam claro que não é uma mera citação.
     if (
         re.search(
-            r"\bIMOVEL\b.{0,80}\b(?:ESTA|ACHA-SE|SE ACHA|FICA)\s+VINCULAD[OA]\b",
+            r"\bIMOVEL\b.{0,100}\b(?:(?:ESTA|ACHA-SE|SE ACHA|FICA)\s+)?"
+            r"VINCULAD[OA]\b",
             texto_sem_acentos_compacto[:500],
         )
         and "CEDUL" in texto_sem_acentos_compacto
-        and re.search(r"\bINSCRIT[AO]S?\s+SOB\b", texto_sem_acentos_compacto)
+        and re.search(
+            r"\bINSCRIT[AO]S?\s+(?:RESPECTIVAMENTE\s+)?SOB\b",
+            texto_sem_acentos_compacto,
+        )
         and not any(
             _sem_acentos(palavra) in texto_sem_acentos_compacto
             for palavra in PALAVRAS_CANCELAMENTO
