@@ -420,7 +420,9 @@ def classificar(texto, regras_aprendidas=None):
             r"(?:HIPOTECA|ALIENACAO FIDUCIARIA|GARANTIA)\b|"
             r"\b(?:NOVA|NOVAS)\s+GARANTIAS?\b|"
             r"\bPASSA\s+A\s+(?:INTEGRAR|CONSTITUIR)\s+(?:A\s+)?GARANTIA\b|"
-            r"\b(?:FOI\s+)?DAD[OA]\s+EM\s+HIPOTECA\b",
+            r"\b(?:FOI\s+)?DAD[OA]\s+EM\s+HIPOTECA\b|"
+            r"\b(?:PARA\s+)?REFORCO\s+(?:DA|DE)\s+GARANTIA\b.{0,220}"
+            r"\b(?:DAO|DA|DADO|DADA|DADOS|DADAS)\s+EM\s+HIPOTECA\b",
             texto_sem_acentos_compacto,
         )
     )
@@ -524,19 +526,27 @@ def classificar(texto, regras_aprendidas=None):
     ):
         return ("ÔNUS", True)
 
+    if re.search(
+        r"\b(?:PARA\s+)?REFORCO\s+(?:DA|DE)\s+GARANTIA\b.{0,220}"
+        r"\b(?:DAO|DA|DADO|DADA|DADOS|DADAS)\s+EM\s+HIPOTECA\b",
+        texto_sem_acentos_compacto,
+    ):
+        return ("ÔNUS", True)
+
     # Nas matrículas abertas na década de 1970 é comum o traslado do
     # gravame aparecer somente como "o imóvel está vinculado ... pela cédula",
     # sem repetir se a cédula era hipotecária ou pignoratícia. A inscrição,
     # o grau e o vencimento deixam claro que não é uma mera citação.
     if (
         re.search(
-            r"\bIMOVEL\b.{0,100}\b(?:(?:ESTA|ACHA-SE|SE ACHA|FICA)\s+)?"
-            r"VINCULAD[OA]\b",
+            r"(?:\bIMOVEL\b.{0,100}\b(?:(?:ESTA|ACHA-SE|SE ACHA|FICA)\s+)?|"
+            r"\bDITOS\s+BENS\b.{0,60}\b(?:JA\s+)?SE\s+ACHAM\s+)"
+            r"VINCULAD[OA]S?\b",
             texto_sem_acentos_compacto[:500],
         )
         and "CEDUL" in texto_sem_acentos_compacto
         and re.search(
-            r"\bINSCRIT[AO]S?\s+(?:RESPECTIVAMENTE\s+)?SOB\b",
+            r"\bINSCRIT[AO]S?\s+(?:RESPECTIVAMENTE\s*,?\s+)?SOB\b",
             texto_sem_acentos_compacto,
         )
         and not any(

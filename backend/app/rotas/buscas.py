@@ -1,5 +1,6 @@
 import hmac
 import os
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -609,6 +610,12 @@ def reprocessar_pendencias_auditoria(
         tamanho = max(1, min(int(dados.get("tamanho", 20) or 20), 60))
     except (TypeError, ValueError) as erro:
         raise HTTPException(status_code=422, detail="Parâmetros de reprocessamento inválidos.") from erro
+    alertas = [
+        item.strip().upper()
+        for item in (dados.get("alertas") or [])
+        if isinstance(item, str)
+        and re.fullmatch(r"[A-Z0-9_\-]{3,100}", item.strip().upper())
+    ]
     try:
         validar_configuracao_buscas()
     except RuntimeError as erro:
@@ -630,12 +637,21 @@ def reprocessar_pendencias_auditoria(
                 raise HTTPException(status_code=409, detail="Já existe uma indexação em andamento.")
             conexao.commit()
             try:
-                cursor.execute(
-                    """SELECT matricula_numero FROM auditorias_matriculas_aeri
-                    WHERE estado='REVISAR' AND matricula_numero > %s
-                    ORDER BY matricula_numero LIMIT %s""",
-                    (apos, tamanho),
-                )
+                if alertas:
+                    cursor.execute(
+                        """SELECT matricula_numero FROM auditorias_matriculas_aeri
+                        WHERE estado='REVISAR' AND matricula_numero > %s
+                          AND alertas && %s::text[]
+                        ORDER BY matricula_numero LIMIT %s""",
+                        (apos, alertas, tamanho),
+                    )
+                else:
+                    cursor.execute(
+                        """SELECT matricula_numero FROM auditorias_matriculas_aeri
+                        WHERE estado='REVISAR' AND matricula_numero > %s
+                        ORDER BY matricula_numero LIMIT %s""",
+                        (apos, tamanho),
+                    )
                 numeros = [item["matricula_numero"] for item in cursor.fetchall()]
                 if not numeros:
                     estado = _estado_json(cursor)

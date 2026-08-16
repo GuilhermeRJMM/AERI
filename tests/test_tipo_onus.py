@@ -164,6 +164,34 @@ class TesteTipoOnus(unittest.TestCase):
         self.assertEqual(resultado["atos"][0]["categoria"], "ÔNUS")
         self.assertEqual(resultado["atos"][0]["tipo_onus"], "PENHORA")
 
+    def test_vinculo_historico_plural_com_virgula_antes_de_sob(self):
+        texto = """
+        AV.01-143 - O imóvel acima descrito está vinculado ao Banco do Brasil,
+        pelas cédulas de 1º, 2º e 3º graus, inscritas respectivamente, sob os
+        nºs 2.491, 3.119 e 3.137.
+        """
+        resultado = analisar_matricula(texto, numero_matricula="143")
+        self.assertEqual(resultado["resultado"], "POSITIVA PARA ÔNUS")
+        self.assertEqual(resultado["atos"][0]["tipo_onus"], "CÉDULA")
+
+    def test_ditos_bens_ja_se_acham_vinculados_configura_onus(self):
+        texto = """
+        AV.01-280 - Ditos bens já se acham vinculados ao Banco do Brasil pela
+        cédula de 1º grau, inscrita sob o nº 2.383.
+        """
+        resultado = analisar_matricula(texto, numero_matricula="280")
+        self.assertEqual(resultado["resultado"], "POSITIVA PARA ÔNUS")
+
+    def test_aditivo_com_reforco_expresso_de_hipoteca_constitui_onus(self):
+        texto = """
+        R.145-153 - TÍTULO: Aditivo de Re-Ratificação a Cédula Rural.
+        OBJETO DA GARANTIA: Para reforço de garantia, dão em HIPOTECA CEDULAR
+        DE 8º GRAU o imóvel constante desta matrícula.
+        """
+        resultado = analisar_matricula(texto, numero_matricula="153")
+        self.assertEqual(resultado["resultado"], "POSITIVA PARA ÔNUS")
+        self.assertEqual(resultado["atos"][0]["tipo_onus"], "HIPOTECA")
+
 
 if __name__ == "__main__":
     unittest.main()

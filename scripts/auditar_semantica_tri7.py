@@ -611,6 +611,17 @@ def _ato_constitui_onus(ato_normalizado: str) -> bool:
         ato_normalizado,
     ):
         return True
+    if any(expressao in cabecalho[:320] for expressao in (
+        "RENEGOCIACAO DA DIVIDA",
+        "RENEGOCIACAO DE DIVIDA",
+        "REPACTUACAO DA DIVIDA",
+        "REPACTUACAO DE DIVIDA",
+    )) and not re.search(
+        r"\b(?:INCLUID[AO]|ACRESCID[AO]|CONSTITUID[AO]|REFORCO)\b.{0,220}\b"
+        r"(?:HIPOTECA|ALIENACAO FIDUCIARIA|GARANTIA)\b",
+        ato_normalizado,
+    ):
+        return False
     if re.search(
         r"\bCONFISSAO\s+E\s+ASSUNCAO\s+DE\s+DIVIDAS?\b.{0,80}\b"
         r"GARANTIAS?\s+(?:PIGNORATICIA\s+E\s+)?HIPOTECARIA\b",

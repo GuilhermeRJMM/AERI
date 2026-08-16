@@ -490,6 +490,16 @@ class TesteAuditoriaSemanticaTri7(unittest.TestCase):
 
         self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", resultado["alertas_onus"])
 
+    def test_renegociacao_nao_e_nova_constituicao_de_onus(self):
+        texto = """
+        MATRÍCULA 153. IMÓVEL: Fazenda. PROPRIETÁRIO: Pessoa Exemplo.
+        AV.105-153 - RENEGOCIAÇÃO DA DÍVIDA E ALTERAÇÃO DO PRAZO DE VENCIMENTO.
+        A dívida objeto do R.95 fica renegociada. O título anterior era uma
+        confissão e assunção de dívida com garantia hipotecária.
+        """
+        resultado = auditar_texto(153, texto)
+        self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", resultado["alertas_onus"])
+
     def test_anuencia_e_alteracao_de_credor_nao_sao_novos_onus(self):
         texto = """
         MATRÍCULA 14. IMÓVEL: Fazenda Exemplo, com área de 10ha.
