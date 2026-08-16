@@ -577,6 +577,115 @@ def diagnosticar_pendencia_auditoria(
     return resposta
 
 
+@router.post("/auditoria/reprocessar", dependencies=[Depends(proteger_csrf)])
+def reprocessar_pendencias_auditoria(
+    dados: dict,
+    request: Request,
+    usuario: str = Depends(exigir_permissao("revisar_auditoria")),
+):
+    """Reexecuta um lote da fila atual sem perder a posição de retomada."""
+    try:
+        apos = max(0, int(dados.get("apos", 0) or 0))
+        tamanho = max(1, min(int(dados.get("tamanho", 20) or 20), 30))
+    except (TypeError, ValueError) as erro:
+        raise HTTPException(status_code=422, detail="Parâmetros de reprocessamento inválidos.") from erro
+    try:
+        validar_configuracao_buscas()
+    except RuntimeError as erro:
+        raise HTTPException(
+            status_code=503,
+            detail="Reprocessamento indisponível: configuração de segurança ausente no servidor.",
+        ) from erro
+
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """UPDATE sincronizacao_matriculas_busca_aeri SET travado_em=NOW()
+                WHERE id=1 AND (travado_em IS NULL OR travado_em < NOW() - make_interval(secs => %s))
+                RETURNING id""",
+                (LEASE_SEGUNDOS,),
+            )
+            if cursor.fetchone() is None:
+                conexao.commit()
+                raise HTTPException(status_code=409, detail="Já existe uma indexação em andamento.")
+            conexao.commit()
+            try:
+                cursor.execute(
+                    """SELECT matricula_numero FROM auditorias_matriculas_aeri
+                    WHERE estado='REVISAR' AND matricula_numero > %s
+                    ORDER BY matricula_numero LIMIT %s""",
+                    (apos, tamanho),
+                )
+                numeros = [item["matricula_numero"] for item in cursor.fetchall()]
+                if not numeros:
+                    estado = _estado_json(cursor)
+                    conexao.commit()
+                    return {
+                        "processados": 0,
+                        "validadas": 0,
+                        "aindaPendentes": 0,
+                        "falhas": 0,
+                        "proximo": apos,
+                        "concluido": True,
+                        "estado": estado,
+                    }
+
+                resultados, falha_fatal = _consultar_lote(numeros)
+                processados = validadas = ainda_pendentes = falhas = 0
+                ultimo_processado = apos
+                erros = []
+                for resultado in resultados:
+                    numero = resultado["numero"]
+                    if resultado["status"] == "OK":
+                        _indice, _novo, _alterado, auditoria, _complemento = _salvar_indice(
+                            cursor, numero, resultado["texto"], permitir_complemento=False,
+                        )
+                        validadas += int(auditoria["estado"] == "VALIDADA_AUTOMATICAMENTE")
+                        ainda_pendentes += int(auditoria["estado"] == "REVISAR")
+                    elif resultado["status"] in {"NAO_ENCONTRADA", "SEM_TEXTO"}:
+                        _salvar_ausencia(cursor, numero, resultado["status"])
+                        validadas += 1
+                    else:
+                        _registrar_erro(cursor, numero, "AUDITORIA", resultado["erro"])
+                        falhas += 1
+                        erros.append({"numero": numero, "erro": str(resultado["erro"])[:180]})
+                    processados += 1
+                    ultimo_processado = numero
+
+                registrar_auditoria_cursor(
+                    cursor,
+                    request,
+                    "reprocessar_pendencias_auditoria",
+                    "sucesso" if not falha_fatal else "parcial",
+                    usuario,
+                    detalhes={
+                        "processados": processados,
+                        "validadas": validadas,
+                        "aindaPendentes": ainda_pendentes,
+                        "falhas": falhas,
+                        "de": numeros[0],
+                        "ate": ultimo_processado,
+                    },
+                )
+                estado = _estado_json(cursor)
+                conexao.commit()
+                return {
+                    "processados": processados,
+                    "validadas": validadas,
+                    "aindaPendentes": ainda_pendentes,
+                    "falhas": falhas,
+                    "erros": erros,
+                    "falha": falha_fatal,
+                    "proximo": ultimo_processado,
+                    "concluido": False,
+                    "estado": estado,
+                }
+            finally:
+                conexao.rollback()
+                cursor.execute("UPDATE sincronizacao_matriculas_busca_aeri SET travado_em=NULL WHERE id=1")
+                conexao.commit()
+
+
 def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Request, usuario: str) -> dict:
     try:
         validar_configuracao_buscas()

@@ -5,6 +5,7 @@ import {escaparHtml} from './util.js';
 let estadoAtual = null;
 let indexando = false;
 let revisando = false;
+let reprocessandoPendencias = false;
 
 function formatarNumero(valor) {
     return new Intl.NumberFormat('pt-BR').format(Number(valor || 0));
@@ -53,6 +54,7 @@ function atualizarStatus(estado) {
     if (!erros) document.getElementById('buscas-erros-painel').hidden = true;
     const pendencias = Number(estado.auditoriaRevisar || 0);
     document.getElementById('btn-buscas-pendencias').hidden = !podeAuditar || !pendencias;
+    document.getElementById('btn-buscas-reprocessar-pendencias').hidden = !podeAuditar || !pendencias;
     if (!pendencias) {
         document.getElementById('buscas-pendencias-painel').hidden = true;
         document.getElementById('btn-buscas-pendencias').textContent = 'Ver pendências';
@@ -84,11 +86,67 @@ export async function carregarBuscas() {
 export function limparBuscas() {
     indexando = false;
     revisando = false;
+    reprocessandoPendencias = false;
     estadoAtual = null;
     atualizarBotao();
     document.getElementById('buscas-pendencias-painel').hidden = true;
     document.getElementById('btn-buscas-pendencias').textContent = 'Ver pendências';
     document.getElementById('buscas-resultados').innerHTML = '<tr><td colspan="8" class="rotina-vazio">Entre novamente para pesquisar.</td></tr>';
+}
+
+function atualizarBotaoPendencias() {
+    const botao = document.getElementById('btn-buscas-reprocessar-pendencias');
+    botao.textContent = reprocessandoPendencias ? 'Pausar reprocessamento' : 'Reprocessar pendências';
+    botao.classList.toggle('pausar', reprocessandoPendencias);
+}
+
+async function alternarReprocessamentoPendencias() {
+    if (reprocessandoPendencias) {
+        reprocessandoPendencias = false;
+        atualizarBotaoPendencias();
+        registrarEvento('Pausa solicitada para a fila de auditoria.');
+        return;
+    }
+    reprocessandoPendencias = true;
+    atualizarBotaoPendencias();
+    let apos = 0;
+    let total = 0;
+    let validadas = 0;
+    let falhasConsecutivas = 0;
+    registrarEvento('Reprocessamento da fila de auditoria iniciado.');
+    while (reprocessandoPendencias) {
+        try {
+            const resultado = await requisicaoAeri('/api/buscas/auditoria/reprocessar', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({apos, tamanho:30}),
+            });
+            falhasConsecutivas = 0;
+            atualizarStatus(resultado.estado);
+            total += Number(resultado.processados || 0);
+            validadas += Number(resultado.validadas || 0);
+            apos = Number(resultado.proximo || apos);
+            const mensagem = `${formatarNumero(total)} reprocessadas · ${formatarNumero(validadas)} liberadas da fila · até a matrícula ${formatarNumero(apos)}`;
+            document.getElementById('buscas-status-operacao').textContent = mensagem;
+            registrarEvento(mensagem, resultado.falhas ? 'erro' : 'sucesso');
+            if (resultado.falha) throw new Error(resultado.falha);
+            if (resultado.concluido || !resultado.processados) {
+                reprocessandoPendencias = false;
+                registrarEvento('Fila de auditoria reprocessada por completo.', 'sucesso');
+                await carregarBuscas();
+                break;
+            }
+        } catch (erro) {
+            falhasConsecutivas += 1;
+            registrarEvento(`Falha temporária na auditoria: ${erro.message}`, 'erro');
+            if ([401, 403, 409].includes(erro.status) || falhasConsecutivas >= 3) {
+                reprocessandoPendencias = false;
+                document.getElementById('buscas-status-operacao').textContent = `Reprocessamento interrompido: ${erro.message}`;
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 2500 * falhasConsecutivas));
+        }
+    }
+    atualizarBotaoPendencias();
 }
 
 function atualizarBotaoRevisao() {
@@ -412,6 +470,7 @@ export function iniciarBuscas() {
     document.getElementById('btn-buscas-revisar').addEventListener('click', revisarNumero);
     document.getElementById('btn-buscas-erros').addEventListener('click', alternarErros);
     document.getElementById('btn-buscas-pendencias').addEventListener('click', alternarPendencias);
+    document.getElementById('btn-buscas-reprocessar-pendencias').addEventListener('click', alternarReprocessamentoPendencias);
     document.getElementById('buscas-resultados').addEventListener('click', abrirAnalise);
     document.getElementById('buscas-pendencias-tbody').addEventListener('click', abrirAnalise);
 }

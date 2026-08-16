@@ -477,6 +477,19 @@ class TesteAuditoriaSemanticaTri7(unittest.TestCase):
 
         self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", resultado["alertas_onus"])
 
+    def test_vinculo_historico_por_cedula_e_classificado(self):
+        texto = """
+        MATRÍCULA 40. IMÓVEL: Fazenda Exemplo, com área de 10ha.
+        PROPRIETÁRIO: Pessoa Exemplo, CPF 004.338.341-61.
+        AV.01-40 - O imóvel acima está vinculado ao Banco do Brasil S/A,
+        pela Cédula de 1º grau, emitida em 23/07/1975, vencível em 23/07/1976,
+        inscrita sob o nº 3.507, fls. 192, Livro 9-E deste Cartório.
+        """
+
+        resultado = auditar_texto(40, texto)
+
+        self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", resultado["alertas_onus"])
+
     def test_anuencia_e_alteracao_de_credor_nao_sao_novos_onus(self):
         texto = """
         MATRÍCULA 14. IMÓVEL: Fazenda Exemplo, com área de 10ha.

@@ -112,6 +112,21 @@ class TesteTipoOnus(unittest.TestCase):
         self.assertEqual(resultado["atos"][0]["tipo_onus"], "SEQUESTRO")
         self.assertEqual(resultado["atos"][0]["status"], "ATIVO")
 
+    def test_vinculo_historico_por_cedula_configura_onus(self):
+        texto = """
+        MATRÍCULA 40. IMÓVEL: Fazenda Exemplo. PROPRIETÁRIO: Pessoa Teste.
+        AV.01-40 - O imóvel acima está vinculado ao Banco do Brasil S/A,
+        pela Cédula de 1º grau, emitida em 23/07/1975, vencível em 23/07/1976,
+        inscrita sob o nº 3.507, fls. 192, Livro 9-E deste Cartório.
+        """
+
+        resultado = analisar_matricula(texto, numero_matricula="40")
+
+        self.assertEqual(resultado["resultado"], "POSITIVA PARA ÔNUS")
+        self.assertEqual(resultado["atos"][0]["categoria"], "ÔNUS")
+        self.assertEqual(resultado["atos"][0]["tipo_onus"], "CÉDULA")
+        self.assertEqual(resultado["atos"][0]["status"], "ATIVO")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2744,6 +2744,7 @@ body.modo-incorporado .layout { padding-top:28px; }
 .buscas-resumo strong { display:block; margin-top:4px; color:#fff; font-size:1.55rem; }
 .buscas-auditoria-topo { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; margin-top:18px; padding-top:16px; border-top:1px dashed rgba(139,152,178,.2); }
 .buscas-auditoria-topo p { margin:4px 0 0; color:var(--text-muted); font-size:.7rem; }
+.buscas-auditoria-acoes { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
 .buscas-auditoria-resumo { margin-top:10px; }
 .buscas-auditoria-resumo article:nth-child(2) strong { color:#86efac; }
 .buscas-auditoria-resumo article:nth-child(3) strong { color:#fde68a; }

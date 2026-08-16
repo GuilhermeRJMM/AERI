@@ -163,6 +163,9 @@ def identificar_tipo_onus(texto):
         if padrao in texto_sem_acentos:
             return tipo
 
+    if re.search(r"\bCEDULAS?\s+DE\s+(?:\d{1,2}\s*[oOaA]?|PRIMEIR[AO]|SEGUND[AO]|TERCEIR[AO])\s+GRAU\b", texto_sem_acentos):
+        return "CÉDULA"
+
     return None
 
 def extrair_grau_hipoteca(texto):
@@ -516,6 +519,24 @@ def classificar(texto, regras_aprendidas=None):
         and "CEDUL" in texto_sem_acentos_compacto
         and "HIPOTEC" in texto_sem_acentos_compacto
         and not any(_sem_acentos(palavra) in texto_sem_acentos_compacto for palavra in PALAVRAS_CANCELAMENTO)
+    ):
+        return ("ÔNUS", True)
+
+    # Nas matrículas abertas na década de 1970 é comum o traslado do
+    # gravame aparecer somente como "o imóvel está vinculado ... pela cédula",
+    # sem repetir se a cédula era hipotecária ou pignoratícia. A inscrição,
+    # o grau e o vencimento deixam claro que não é uma mera citação.
+    if (
+        re.search(
+            r"\bIMOVEL\b.{0,80}\b(?:ESTA|ACHA-SE|SE ACHA|FICA)\s+VINCULAD[OA]\b",
+            texto_sem_acentos_compacto[:500],
+        )
+        and "CEDUL" in texto_sem_acentos_compacto
+        and re.search(r"\bINSCRIT[AO]S?\s+SOB\b", texto_sem_acentos_compacto)
+        and not any(
+            _sem_acentos(palavra) in texto_sem_acentos_compacto
+            for palavra in PALAVRAS_CANCELAMENTO
+        )
     ):
         return ("ÔNUS", True)
     if any(marcador in titulo_ato for marcador in (

@@ -43,6 +43,12 @@ class _ConexaoFalsa:
     def cursor(self):
         return self._cursor
 
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
 
 class _ClienteTri7Falso:
     def buscar_texto_matricula(self, numero):
@@ -141,6 +147,38 @@ class TesteRotaBuscas(unittest.TestCase):
         self.assertEqual("[DOCUMENTO]", resposta["proprietarios"][0]["documento"])
         self.assertTrue(resposta["meta"]["documentosMascarados"])
         self.assertFalse(resposta["meta"]["textoPersistido"])
+
+    def test_reprocessamento_de_pendencias_avanca_cursor_e_resume_estados(self):
+        cursor = _CursorFalso([
+            {"matricula_numero": 40},
+            {"matricula_numero": 41},
+        ])
+        cursor.fetchone = lambda: {"id": 1}
+        resultados = [
+            {"numero": 40, "status": "OK", "texto": "matricula 40"},
+            {"numero": 41, "status": "OK", "texto": "matricula 41"},
+        ]
+        retornos_indice = [
+            ({}, False, True, {"estado": "VALIDADA_AUTOMATICAMENTE"}, False),
+            ({}, False, True, {"estado": "REVISAR"}, False),
+        ]
+        request = SimpleNamespace()
+        with patch.object(buscas, "conectar", return_value=_ConexaoFalsa(cursor)), patch.object(
+            buscas, "validar_configuracao_buscas"
+        ), patch.object(buscas, "_consultar_lote", return_value=(resultados, None)), patch.object(
+            buscas, "_salvar_indice", side_effect=retornos_indice
+        ), patch.object(buscas, "_estado_json", return_value={"auditoriaRevisar": 1}), patch.object(
+            buscas, "registrar_auditoria_cursor"
+        ):
+            resposta = buscas.reprocessar_pendencias_auditoria(
+                {"apos": 0, "tamanho": 30}, request, "auditor"
+            )
+
+        self.assertEqual(2, resposta["processados"])
+        self.assertEqual(1, resposta["validadas"])
+        self.assertEqual(1, resposta["aindaPendentes"])
+        self.assertEqual(41, resposta["proximo"])
+        self.assertFalse(resposta["concluido"])
 
 
 if __name__ == "__main__":
