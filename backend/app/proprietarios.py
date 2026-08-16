@@ -3058,7 +3058,11 @@ def _creditar_adquirentes(estado, adquirentes, aquisicao, houve_debito):
     que a pessoa passa a ter, não acrescentando outra.
     """
     for indice_adquirente, a in enumerate(adquirentes):
-        chave_a = chave_para_incluir(a, estado)
+        chave_a = (
+            encontrar_chave_no_estado(a, estado)
+            if aquisicao.meacao or aquisicao.divorcio
+            else None
+        ) or chave_para_incluir(a, estado)
         proporcao_adquirida = (
             aquisicao.percentuais_individuais[indice_adquirente]
             if aquisicao.usar_individual

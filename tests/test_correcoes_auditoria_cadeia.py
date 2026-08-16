@@ -742,13 +742,13 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
     def test_partilha_da_viuva_meeira_nao_duplica_quinhao_existente(self):
         texto = (
             "MATRÍCULA 81. IMÓVEL: lote. PROPRIETÁRIOS: Luzia Alves da "
-            "Costa Barros, na proporção de 16,67%; Maria Alves da Costa "
+            "Costa Barros, CPF 111.111.111-11, na proporção de 16,67%; Maria Alves da Costa "
             "Santos, na proporção de 83,33%. ORIGEM: registro anterior."
         )
         descricao = (
             "FORMAL DE PARTILHA dos bens deixados por falecimento de Joedes "
             "Ferreira de Barros; coube à viúva meeira Luzia Alves da Costa "
-            "Barros, em pagamento de sua meação, parte correspondente a "
+            "Barros, CPF 222.222.222-22, em pagamento de sua meação, parte correspondente a "
             "16,67% do imóvel."
         )
 
