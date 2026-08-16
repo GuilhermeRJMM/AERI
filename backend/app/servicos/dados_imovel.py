@@ -225,13 +225,22 @@ def _extrair_area_registral(cabecalho: str, rural: bool) -> Optional[str]:
     cabecalho = re.sub(r"\b[aàáâã]rea\b", "área", cabecalho, flags=re.IGNORECASE)
     cabecalho = re.sub(r"\bhá\b", "ha", cabecalho, flags=re.IGNORECASE)
     if rural:
+        # Depois de "cabendo aos proprietários", matrículas antigas repetem
+        # a área de cada quinhão. Esses subtotais explicam a divisão da área
+        # registral e não podem ser somados novamente ao total do imóvel.
+        contexto_totais = re.split(
+            r"\bCABENDO\s+AO?S?\s+PROPRIET",
+            cabecalho,
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0]
         totais_descritos = []
         for total in re.finditer(
             r"(?:PERFAZENDO\s+O\s+TOTAL\s+DE|TOTALIZANDO)\s*:?[ ]*"
             r"(\d+)(?:\s*\([^)]*\))?\s*HECTARES?"
             r"(?:\s*[,E]\s*(\d+)(?:\s*\([^)]*\))?\s*ARES?)?"
             r"(?:\s*,?\s*E\s*(\d+)(?:\s*\([^)]*\))?\s*CENTIARES?)?",
-            cabecalho,
+            contexto_totais,
             re.IGNORECASE,
         ):
             totais_descritos.append(

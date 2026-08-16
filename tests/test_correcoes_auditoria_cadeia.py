@@ -129,6 +129,53 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
 
         self.assertEqual(resultado[0]["nome"], "Itelvina Pires da Costa")
 
+    def test_desmembramento_por_divisao_retira_titular_do_remanescente(self):
+        atos = [
+            ato(
+                "COMPRA E VENDA. ADQUIRENTES: Ana Silva, CPF 111.111.111-11, "
+                "na proporção de 60%; Bruno Silva, CPF 222.222.222-22, na "
+                "proporção de 40%. IMÓVEL: 100% do imóvel."
+            ),
+            ato(
+                "MATRÍCULA. Em virtude de divisão, desmembrou-se desta "
+                "matrícula uma gleba de terras, que foi matriculada sob o nº "
+                "14.432, pertencente a Ana Silva. O referido é verdade e dou fé."
+            ),
+        ]
+
+        resultado = calcular_cadeia_dominial(atos)
+
+        self.assertEqual(
+            resultado,
+            [{
+                "nome": "Bruno Silva",
+                "cpf": "222.222.222-22",
+                "proporcao": "100%",
+                "proporcao_incerta": False,
+            }],
+        )
+
+    def test_divisao_que_abre_sucessoras_nao_recredita_beneficiarios(self):
+        atos = [
+            ato(
+                "COMPRA E VENDA. ADQUIRENTES: Ana Silva, CPF 111.111.111-11; "
+                "Bruno Silva, CPF 222.222.222-22. IMÓVEL: 100% do imóvel."
+            ),
+            ato(
+                "DIVISÃO AMIGÁVEL. O imóvel foi dividido em duas glebas: "
+                "a primeira, matriculada sob o nº 21.522, atribuída a Ana Silva; "
+                "a segunda, matriculada sob o nº 21.523, atribuída a Carla "
+                "Souza; ficando em consequência encerrada esta matrícula."
+            ),
+        ]
+
+        resultado = calcular_cadeia_dominial(atos)
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {"Ana Silva": "50%", "Bruno Silva": "50%"},
+        )
+
     def test_permuta_com_passou_a_pertencer(self):
         descricao = (
             "PERMUTA. O imóvel constante da presente matrícula passou a "

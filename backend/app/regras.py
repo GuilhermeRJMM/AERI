@@ -163,6 +163,8 @@ def identificar_tipo_onus(texto):
         if padrao in texto_sem_acentos:
             return tipo
 
+    if "VINCULAD" in texto_sem_acentos and "CEDUL" in texto_sem_acentos:
+        return "CÉDULA"
     if re.search(r"\bCEDULAS?\s+DE\s+(?:\d{1,2}\s*[oOaA]?|PRIMEIR[AO]|SEGUND[AO]|TERCEIR[AO])\s+GRAU\b", texto_sem_acentos):
         return "CÉDULA"
 

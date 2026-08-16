@@ -2466,6 +2466,67 @@ def _aplicar_estremacao(estado, ato, descricao_normalizada):
     return True
 
 
+def _renormalizar_remanescente(estado):
+    total = sum(dados["proporcao"] for dados in estado.values())
+    if total <= 0:
+        return
+    fator = 100.0 / total
+    for dados in estado.values():
+        dados["proporcao"] *= fator
+        dados.pop("proporcao_texto", None)
+
+
+def _aplicar_desmembramento_por_divisao(estado, ato, descricao_normalizada):
+    """Retira o condômino cuja gleba foi levada para matrícula autônoma.
+
+    Nas divisões antigas, a averbação diz que se desmembrou "uma gleba ...
+    pertencente a Fulano". Isso não transfere a gleba a Fulano: ela já era
+    dele e deixa a matrícula originária. O remanescente passa a representar
+    100% apenas entre os titulares que ficaram.
+    """
+    if not (
+        "EM VIRTUDE DE DIVISAO" in descricao_normalizada
+        and re.search(r"\bDESMEMBROU-SE\s+DESTA\s+MATRICULA\b", descricao_normalizada)
+        and "MATRICULAD" in descricao_normalizada
+        and "PERTENCENTE A" in descricao_normalizada
+    ):
+        return False
+
+    trecho = re.search(
+        r"\bpertencente\s+(?:a|ao|aos|as)\s+(.+?)"
+        r"(?=\bO\s+referido\s+e\s+verdade\b|\bDou\s+fe\b|$)",
+        ato.descricao,
+        re.I | re.DOTALL,
+    )
+    if trecho:
+        titulares_destacados = trecho.group(1).strip(" .;:-")
+        chaves = [
+            chave
+            for chave, dados in estado.items()
+            if nomes_compativeis(dados["nome"], titulares_destacados)
+            or limpar_nome(dados["nome"]) in limpar_nome(titulares_destacados)
+        ]
+        for chave in chaves:
+            del estado[chave]
+        if chaves and estado:
+            _renormalizar_remanescente(estado)
+    # Mesmo quando o nome antigo não foi localizado, a averbação não é
+    # uma aquisição no remanescente e não deve cair no fluxo de transmissão.
+    return True
+
+
+def _divisao_abre_sucessoras_e_encerra_origem(descricao_normalizada):
+    return bool(
+        "DIVISAO" in descricao_normalizada
+        and len(re.findall(r"\bMATRICULAD[AO]\s+SOB\b", descricao_normalizada)) >= 2
+        and re.search(r"\bENCERRAD[AO]\s+(?:ESTA|A\s+PRESENTE)\s+MATRICULA\b", descricao_normalizada)
+        and not re.search(
+            r"\bCOUBE\s+EXCLUSIVAMENTE\b.{0,300}\b(?:PRESENTE\s+MATRICULA|QUINHAO\s+CONSTANTE)\b",
+            descricao_normalizada,
+        )
+    )
+
+
 def _aplicar_partilha_integral_agrupada(estado, grupo):
     """Partilha cujos quinhões estão espalhados em vários atos consecutivos.
 
@@ -2970,6 +3031,10 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
             continue
 
         descricao_normalizada = limpar_nome(ato.descricao)
+        if _aplicar_desmembramento_por_divisao(estado, ato, descricao_normalizada):
+            continue
+        if _divisao_abre_sucessoras_e_encerra_origem(descricao_normalizada):
+            continue
         if _aplicar_estremacao(estado, ato, descricao_normalizada):
             continue
 

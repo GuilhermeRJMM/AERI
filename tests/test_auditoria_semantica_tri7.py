@@ -550,6 +550,20 @@ class TesteAuditoriaSemanticaTri7(unittest.TestCase):
 
         self.assertNotIn("AREA_REGISTRAL_DIVERGENTE", auditoria["alertas"])
 
+    def test_area_total_nao_e_somada_novamente_com_quinhoes(self):
+        texto = """
+        MATRÍCULA 144. IMÓVEL: Fazenda Bom Jardim, com 206 hectares, 9 ares
+        e 10 centiares de culturas e 524 hectares, 79 ares e 12 centiares de
+        campos, totalizando: 730 hectares, 88 ares e 22 centiares, cabendo aos
+        proprietários: Iolanda, totalizando 282,5511 hectares; Iara,
+        totalizando 149,4437 hectares; e Décio, totalizando: 149 hectares,
+        44 ares e 37 centiares. PROPRIETÁRIOS: Iolanda e outros.
+        """
+
+        auditoria = auditar_texto(144, texto)
+
+        self.assertNotIn("AREA_REGISTRAL_DIVERGENTE", auditoria["alertas"])
+
     def test_penhor_rural_de_localizacao_e_confirmado_pela_auditoria(self):
         texto = """
         MATRÍCULA 17. IMÓVEL: Fazenda Exemplo. PROPRIETÁRIO: Pessoa Teste.

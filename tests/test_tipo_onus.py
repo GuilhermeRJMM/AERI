@@ -127,6 +127,16 @@ class TesteTipoOnus(unittest.TestCase):
         self.assertEqual(resultado["atos"][0]["tipo_onus"], "CÉDULA")
         self.assertEqual(resultado["atos"][0]["status"], "ATIVO")
 
+    def test_vinculo_por_varias_cedulas_recebe_tipo_generico(self):
+        texto = """
+        AV.01-33 - O imóvel está vinculado ao Banco do Brasil pelas Cédulas
+        de 1º, 2º e 3º graus, inscritas sob os nºs 2.451, 3.100 e 3.160.
+        """
+
+        resultado = analisar_matricula(texto, numero_matricula="33")
+
+        self.assertEqual(resultado["atos"][0]["tipo_onus"], "CÉDULA")
+
 
 if __name__ == "__main__":
     unittest.main()

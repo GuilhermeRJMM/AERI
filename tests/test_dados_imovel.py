@@ -1375,6 +1375,20 @@ class TesteDadosImovel(unittest.TestCase):
 
         self.assertEqual(valores_por_rotulo(areas, "Área"), ["161,6321 ha"])
 
+    def test_area_total_nao_soma_quinhoes_descritos_aos_proprietarios(self):
+        texto = """
+        MATRÍCULA 144. IMÓVEL: Fazenda Bom Jardim, com 206 hectares, 9 ares
+        e 10 centiares de culturas e 524 hectares, 79 ares e 12 centiares de
+        campos, totalizando: 730 hectares, 88 ares e 22 centiares, cabendo aos
+        proprietários: Iolanda, totalizando 282,5511 hectares; Iara,
+        totalizando 149,4437 hectares; e Décio, totalizando: 149 hectares,
+        44 ares e 37 centiares. PROPRIETÁRIOS: Iolanda e outros.
+        """
+
+        areas = analisar_matricula(texto)["imovel"]["areas"]
+
+        self.assertEqual(valores_por_rotulo(areas, "Área"), ["730,8822 ha"])
+
     def test_propriedade_urbana_com_area_historica_nao_e_rural(self):
         texto = """
         MATRÍCULA 4.556. IMÓVEL: Sítio do Castelinho, constituído de uma

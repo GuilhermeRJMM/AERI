@@ -247,13 +247,18 @@ def area_em_metros_quadrados(valor: str) -> float | None:
 
 def area_registral_independente(texto: str) -> float | None:
     descricao = descricao_cabecalho_imovel(texto)
+    contexto_totais = re.split(
+        r"\bCABENDO\s+AO?S?\s+PROPRIET",
+        descricao,
+        maxsplit=1,
+    )[0]
     totais_descritos = []
     for total in re.finditer(
         r"(?:PERFAZENDO\s+O\s+TOTAL\s+DE|TOTALIZANDO)\s*:?[ ]*"
         r"(\d+)(?:\s*\([^)]*\))?\s*HECTARES?"
         r"(?:\s*[,E]\s*(\d+)(?:\s*\([^)]*\))?\s*ARES?)?"
         r"(?:\s*,?\s*E\s*(\d+)(?:\s*\([^)]*\))?\s*CENTIARES?)?",
-        descricao,
+        contexto_totais,
     ):
         totais_descritos.append(
             int(total.group(1))
