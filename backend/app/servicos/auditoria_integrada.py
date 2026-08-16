@@ -75,7 +75,8 @@ def limite_complementar_diario() -> int:
     return max(0, min(limite, 500))
 
 
-def _texto_minimizado(texto: str) -> str:
+def mascarar_documentos_texto(texto: str) -> str:
+    """Remove documentos pessoais antes de expor texto a uma revisão técnica."""
     texto = re.sub(
         r"(?<!\d)\d{2}[\s.\-/]*\d{3}[\s.\-/]*\d{3}[\s.\-/]*\d{4}[\s.\-/]*\d{2}(?!\d)",
         "[CNPJ]", texto,
@@ -84,6 +85,27 @@ def _texto_minimizado(texto: str) -> str:
         r"(?<!\d)\d{3}[\s.\-]*\d{3}[\s.\-]*\d{3}[\s.\-]*\d{2}(?!\d)",
         "[CPF]", texto,
     )
+    return texto
+
+
+def mascarar_documentos_estrutura(valor: object) -> object:
+    """Aplica a máscara recursivamente em contratos, evidências e listas."""
+    if isinstance(valor, str):
+        return mascarar_documentos_texto(valor)
+    if isinstance(valor, list):
+        return [mascarar_documentos_estrutura(item) for item in valor]
+    if isinstance(valor, tuple):
+        return tuple(mascarar_documentos_estrutura(item) for item in valor)
+    if isinstance(valor, dict):
+        return {
+            chave: mascarar_documentos_estrutura(item)
+            for chave, item in valor.items()
+        }
+    return valor
+
+
+def _texto_minimizado(texto: str) -> str:
+    texto = mascarar_documentos_texto(texto)
     limite = 24_000
     if len(texto) <= limite:
         return texto

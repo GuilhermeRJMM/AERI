@@ -231,6 +231,8 @@ def classificar(texto, regras_aprendidas=None):
     if any(marcador in cabecalho_formal for marcador in (
         "INSCRICAO NO CAR",
         "CADASTRO AMBIENTAL RURAL",
+        "ATUALIZACAO DE DESIGNACAO CADASTRAL DO IMOVEL",
+        "ATUALIZACAO DA DESIGNACAO CADASTRAL DO IMOVEL",
         "ATUALIZACAO DO CCIR",
         "ATUALIZACAO DO CERTIFICADO DE CADASTRO DE IMOVEL RURAL",
         "CERTIFICADO DE CADASTRO DE IMOVEL RURAL",
@@ -238,6 +240,22 @@ def classificar(texto, regras_aprendidas=None):
         "CODIGO DE ENDERECAMENTO POSTAL",
     )):
         return ("IGNORAR", False)
+
+    # Óbito e adjudicação atualizam a cadeia dominial. A referência à
+    # escritura de origem não constitui novamente o usufruto nela descrito.
+    if any(marcador in cabecalho_formal for marcador in (
+        "OBITO",
+        "ADJUDICACAO",
+    )):
+        return ("IGNORAR", False)
+
+    if (
+        "LEIL" in texto_sem_acentos_compacto
+        and "NEGATIV" in texto_sem_acentos_compacto
+        and "DIVIDA ORIGINARIA" in texto_sem_acentos_compacto
+        and "EXTINT" in texto_sem_acentos_compacto
+    ):
+        return ("CANCELAMENTO", False)
 
     if any(marcador in cabecalho_formal for marcador in (
         "CLAUSULA DE INCOMUNICABILIDADE",
@@ -306,6 +324,8 @@ def classificar(texto, regras_aprendidas=None):
         "LIBERADA DO GRAVAME",
         "FICOU EXCLUIDO DA AV",
         "FICOU EXCLUIDA DA AV",
+        "LIBEROU E DESVINCULOU DA GARANTIA HIPOTECARIA",
+        "LIBEROU E DESVINCULOU DA GARANTIA",
     )
     cancelamentos_por_titulo = (
         "SUBSTITUICAO DE GARANTIA",

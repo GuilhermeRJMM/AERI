@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from backend.app.cancelamentos import aplicar_cancelamentos
 from backend.app.regras import REGRAS, classificar
+from backend.app.servicos.analise_matricula import analisar_matricula
 
 
 def ato(codigo, descricao):
@@ -735,6 +736,64 @@ class TesteCancelamentos(unittest.TestCase):
         )
 
         self.assertEqual(classificar(texto), ("ÔNUS", True))
+
+    def test_atualizacao_de_designacao_nao_herda_usufruto_citado(self):
+        texto = (
+            "AV.06-914 - ATUALIZAÇÃO DE DESIGNAÇÃO CADASTRAL DO IMÓVEL. "
+            "Nos termos da Escritura de Inventário, Partilha e Doação com "
+            "Reserva de Usufruto, atualiza-se o número cadastral."
+        )
+        self.assertEqual(classificar(texto), ("IGNORAR", False))
+
+    def test_obito_e_adjudicacao_nao_repetem_usufruto_da_escritura(self):
+        textos = (
+            "AV.07-914 - ÓBITO. Conforme Escritura de Doação com Reserva de Usufruto, faleceu o titular.",
+            "R.08-914 - ADJUDICAÇÃO. Conforme Escritura de Doação com Reserva de Usufruto, coube o imóvel ao adjudicante.",
+        )
+        for texto in textos:
+            with self.subTest(texto=texto):
+                self.assertEqual(classificar(texto), ("IGNORAR", False))
+
+    def test_liberacao_e_desvinculacao_nao_cria_nova_hipoteca(self):
+        texto = (
+            "AV.04-32 - DESVINCULAÇÃO E LIBERAÇÃO DE IMÓVEL. O credor liberou e "
+            "desvinculou da garantia hipotecária o imóvel objeto desta matrícula."
+        )
+        self.assertEqual(classificar(texto), ("CANCELAMENTO", False))
+
+    def test_venda_nao_duplica_alienacao_registrada_no_ato_seguinte(self):
+        texto = """
+        MATRÍCULA 1.330. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa Inicial.
+        R.04-1.330 - Protocolo n.º 164.207. VENDA E COMPRA. TÍTULO: Instrumento
+        Particular de Venda e Compra com Garantia de Alienação Fiduciária.
+        ADQUIRENTE: Pessoa Compradora.
+        R.05-1.330 - Protocolo n.º 164.207. ALIENAÇÃO FIDUCIÁRIA. DEVEDOR
+        FIDUCIANTE: Pessoa Compradora. CREDOR FIDUCIÁRIO: Banco Exemplo.
+        OBJETO DA GARANTIA: Em alienação fiduciária, o imóvel desta matrícula.
+        """
+        resultado = analisar_matricula(texto)
+        alienacoes = [
+            ato for ato in resultado["atos"]
+            if ato.get("tipo_onus") == "ALIENAÇÃO FIDUCIÁRIA"
+        ]
+        self.assertEqual(["R.05"], [ato["codigo"] for ato in alienacoes])
+
+    def test_leiloes_negativos_extinguem_alienacao_sem_referencia(self):
+        texto = """
+        MATRÍCULA 3.538. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa Devedora.
+        R.07-3.538 - ALIENAÇÃO FIDUCIÁRIA. DEVEDOR FIDUCIANTE: Pessoa Devedora.
+        CREDORA FIDUCIÁRIA: Caixa Exemplo. OBJETO DA GARANTIA: Em alienação
+        fiduciária, o imóvel desta matrícula.
+        AV.10-3.538 - LEILÕES NEGATIVOS / EXTINÇÃO DA DÍVIDA ORIGINÁRIA. Foram
+        realizados dois leilões públicos, sendo negativo o resultado de ambos,
+        e a dívida originária na qual se constituiu a garantia da alienação
+        fiduciária foi considerada extinta.
+        """
+        resultado = analisar_matricula(texto)
+        alienacao = next(ato for ato in resultado["atos"] if ato["codigo"] == "R.07")
+        self.assertEqual("CANCELADO", alienacao["status"])
+        self.assertEqual("AV.10", alienacao["cancelado_por"])
+        self.assertEqual("NEGATIVA PARA ÔNUS", resultado["resultado"])
 
 
 if __name__ == "__main__":

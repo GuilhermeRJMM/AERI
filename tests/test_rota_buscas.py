@@ -1,6 +1,7 @@
 import os
 import unittest
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi import HTTPException
@@ -121,6 +122,25 @@ class TesteRotaBuscas(unittest.TestCase):
         self.assertEqual(123, resposta[0]["matricula"])
         self.assertEqual("P0-CRITICA", resposta[0]["prioridade"])
         self.assertNotIn("texto", resposta[0])
+
+    def test_diagnostico_mascara_documentos_e_nao_persiste_texto(self):
+        texto = (
+            "MATRÍCULA 123. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa, CPF 123.456.789-01. "
+            "R.01-123 - HIPOTECA. Devedor CPF 123.456.789-01; credor CNPJ "
+            "12.345.678/0001-90. O imóvel foi dado em hipoteca."
+        )
+        request = SimpleNamespace()
+        with patch.object(
+            buscas, "_consultar_lote", return_value=([{"numero": 123, "status": "OK", "texto": texto}], None)
+        ), patch.object(buscas, "registrar_auditoria"):
+            resposta = buscas.diagnosticar_pendencia_auditoria(123, request, "auditor")
+
+        serializado = str(resposta)
+        self.assertNotIn("123.456.789-01", serializado)
+        self.assertNotIn("12.345.678/0001-90", serializado)
+        self.assertEqual("[DOCUMENTO]", resposta["proprietarios"][0]["documento"])
+        self.assertTrue(resposta["meta"]["documentosMascarados"])
+        self.assertFalse(resposta["meta"]["textoPersistido"])
 
 
 if __name__ == "__main__":

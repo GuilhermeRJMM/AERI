@@ -732,7 +732,7 @@ def _ato_constitui_onus(ato_normalizado: str) -> bool:
         "RESERVA PARA SI O DIREITO AO USUFRUTO",
         "RESERVARAM PARA SI O DIREITO DO USUFRUTO",
     ))
-    onus_no_titulo_da_transmissao = any(expressao in cabecalho[:280] for expressao in (
+    onus_no_titulo_da_transmissao = any(expressao in ato_normalizado[:1600] for expressao in (
         "ALIENACAO FIDUCIARIA",
         "GARANTIA HIPOTECARIA",
         "CONSTITUICAO DE GARANTIA HIPOTECARIA",
@@ -780,7 +780,9 @@ def _ato_constitui_onus(ato_normalizado: str) -> bool:
 
     if re.search(r"\bPENHORA\b", ato_normalizado):
         return "PENHORA" in cabecalho[:300] or bool(re.search(
-            r"(?:FICA|FOI|E)\s+PENHORAD|PROCEDE-SE.{0,80}\bPENHORA\b",
+            r"(?:FICA|FOI|E)\s+PENHORAD|PROCEDE-SE.{0,80}\bPENHORA\b|"
+            r"PROCEDO\s+AO\s+REGISTRO\s+(?:DA|DE)\s+PENHORA\b|"
+            r"REGISTRO\s+DA\s+PENHORA\s+SOBRE\b",
             ato_normalizado,
         ))
 
@@ -844,12 +846,21 @@ def auditar_onus(texto: str, resultado: dict) -> dict:
     atos_aeri = resultado.get("atos") or []
     explicitos = []
     cancelamentos = []
-    for ato in atos_texto:
+    from backend.app.analise.onus import ato_transmissao_repete_onus_seguinte
+
+    for indice, ato in enumerate(atos_texto):
         normalizado = sem_acentos(ato["texto"])
         cancelamento = _cancelamento_explicito(normalizado)
         if cancelamento:
             cancelamentos.append(ato["codigo"])
         elif _ato_constitui_onus(normalizado):
+            if (
+                indice + 1 < len(atos_texto)
+                and ato_transmissao_repete_onus_seguinte(
+                    ato["texto"], atos_texto[indice + 1]["texto"]
+                )
+            ):
+                continue
             explicitos.append(ato["codigo"])
 
     classificados = [

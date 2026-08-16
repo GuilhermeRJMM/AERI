@@ -1,3 +1,6 @@
+import re
+import unicodedata
+
 from backend.app.cancelamentos import aplicar_cancelamentos
 from backend.app.modelos import Ato
 from backend.app.parser import separar_atos
@@ -11,6 +14,44 @@ from backend.app.servicos.aprendizado_regras import identificar_tipo_onus_aprend
 
 
 CATEGORIAS_RETORNO = ["ÔNUS", "RESTRIÇÃO", "PUBLICIDADE", "CANCELAMENTO"]
+
+
+def _normalizar(texto: str) -> str:
+    return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii").upper()
+
+
+def _protocolo_ato(texto: str) -> str:
+    encontrado = re.search(r"\bPROTOCOLO\s+N[^0-9]{0,8}([\d.]+)", _normalizar(texto)[:500])
+    return re.sub(r"\D", "", encontrado.group(1)) if encontrado else ""
+
+
+def ato_transmissao_repete_onus_seguinte(descricao: str, descricao_seguinte: str) -> bool:
+    """Detecta venda que apenas cita a garantia registrada no ato seguinte."""
+    atual = _normalizar(descricao)
+    seguinte = _normalizar(descricao_seguinte)
+    protocolo = _protocolo_ato(descricao)
+    if not protocolo or protocolo != _protocolo_ato(descricao_seguinte):
+        return False
+    return bool(
+        re.search(r"\b(?:VENDA\s+E\s+COMPRA|COMPRA\s+E\s+VENDA)\b", atual[:420])
+        and "ALIENACAO FIDUCIARIA" in atual
+        and "ALIENACAO FIDUCIARIA" in seguinte[:420]
+    )
+
+
+def _remover_onus_duplicado_da_transmissao(atos: list[Ato]) -> None:
+    for indice, ato in enumerate(atos[:-1]):
+        seguinte = atos[indice + 1]
+        if (
+            ato.categoria == "ÔNUS"
+            and ato.tipo_onus == "ALIENAÇÃO FIDUCIÁRIA"
+            and seguinte.categoria == "ÔNUS"
+            and seguinte.tipo_onus == "ALIENAÇÃO FIDUCIÁRIA"
+            and ato_transmissao_repete_onus_seguinte(ato.descricao, seguinte.descricao)
+        ):
+            ato.categoria = "IGNORAR"
+            ato.tipo_onus = None
+            ato.impacta_resultado = False
 
 
 def atualizar_grau_hipotecas(atos):
@@ -48,6 +89,7 @@ def processar_atos(texto: str, regras_aprendidas: list[dict] | None = None) -> l
                 impacta_resultado=impacta,
             )
         )
+    _remover_onus_duplicado_da_transmissao(atos)
     atos = aplicar_cancelamentos(atos)
     atualizar_grau_hipotecas(atos)
     return atos

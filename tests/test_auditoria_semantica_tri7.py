@@ -603,6 +603,53 @@ class TesteAuditoriaSemanticaTri7(unittest.TestCase):
 
         self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", auditoria["alertas"])
 
+    def test_penhora_historica_com_procedo_ao_registro_e_confirmada(self):
+        texto = """
+        MATRÍCULA 2.776. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa Teste.
+        R.19-2.776 - Nos termos do mandado extraído da ação de execução,
+        procedo ao registro da penhora sobre o imóvel desta matrícula.
+        """
+
+        auditoria = auditar_texto(2776, texto)
+
+        self.assertNotIn(
+            "ONUS_ATIVO_SEM_CONSTITUICAO_INDEPENDENTE", auditoria["alertas"]
+        )
+
+    def test_venda_e_alienacao_em_atos_seguidos_nao_divergem(self):
+        texto = """
+        MATRÍCULA 1.330. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa Inicial.
+        R.04-1.330 - Protocolo n.º 164.207. VENDA E COMPRA. TÍTULO: Instrumento
+        Particular de Venda e Compra com Garantia de Alienação Fiduciária.
+        ADQUIRENTE: Pessoa Compradora.
+        R.05-1.330 - Protocolo n.º 164.207. ALIENAÇÃO FIDUCIÁRIA. DEVEDOR
+        FIDUCIANTE: Pessoa Compradora. CREDOR FIDUCIÁRIO: Banco Exemplo.
+        OBJETO DA GARANTIA: Em alienação fiduciária, o imóvel desta matrícula.
+        """
+
+        auditoria = auditar_texto(1330, texto)
+
+        self.assertNotIn("ONUS_EXPLICITO_NAO_CLASSIFICADO", auditoria["alertas"])
+        self.assertNotIn(
+            "ONUS_ATIVO_SEM_CONSTITUICAO_INDEPENDENTE", auditoria["alertas"]
+        )
+
+    def test_leiloes_negativos_confirmam_cancelamento_da_alienacao(self):
+        texto = """
+        MATRÍCULA 3.538. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa Devedora.
+        R.07-3.538 - ALIENAÇÃO FIDUCIÁRIA. DEVEDOR FIDUCIANTE: Pessoa Devedora.
+        CREDORA FIDUCIÁRIA: Caixa Exemplo. OBJETO DA GARANTIA: Em alienação
+        fiduciária, o imóvel desta matrícula.
+        AV.10-3.538 - LEILÕES NEGATIVOS / EXTINÇÃO DA DÍVIDA ORIGINÁRIA. Foram
+        realizados dois leilões, sendo negativo o resultado de ambos, e a dívida
+        originária da garantia da alienação fiduciária foi considerada extinta.
+        """
+
+        auditoria = auditar_texto(3538, texto)
+
+        self.assertNotIn("CANCELAMENTO_DE_ONUS_SEM_ALVO", auditoria["alertas"])
+        self.assertNotIn("CANCELAMENTO_POSSIVELMENTE_INCOMPLETO", auditoria["alertas"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -9,12 +9,15 @@ from psycopg.types.json import Jsonb
 
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
 from backend.app.database import conectar, preparar_banco
-from backend.app.seguranca_web import registrar_auditoria_cursor
+from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
+from backend.app.analise.onus import processar_atos
 from backend.app.servicos.analise_matricula import analisar_matricula
 from backend.app.servicos.auditoria_integrada import (
     construir_resumo_auditoria,
     executar_revisao_complementar,
     limite_complementar_diario,
+    mascarar_documentos_estrutura,
+    mascarar_documentos_texto,
 )
 from backend.app.servicos.buscas import (
     HASH_DOCUMENTOS_VERSAO,
@@ -500,6 +503,78 @@ def listar_pendencias_auditoria(
                 "diagnosticoComplementar": item["complemento_diagnostico"],
                 "analisadoEm": item["analisado_em"].isoformat(),
             } for item in cursor.fetchall()]
+
+
+@router.post("/auditoria/{numero}/diagnostico", dependencies=[Depends(proteger_csrf)])
+def diagnosticar_pendencia_auditoria(
+    numero: int,
+    request: Request,
+    usuario: str = Depends(exigir_permissao("revisar_auditoria")),
+):
+    """Reconsulta uma matrícula sem persistir o texto e devolve atos mascarados.
+
+    A rota existe para que o Auditor consiga distinguir falha do analisador de
+    falso positivo da auditoria. CPF e CNPJ são removidos antes da resposta e
+    nenhum trecho é gravado no banco ou no log operacional.
+    """
+    if numero <= 0:
+        raise HTTPException(status_code=422, detail="Número de matrícula inválido.")
+    resultados, falha = _consultar_lote([numero])
+    if falha:
+        raise HTTPException(status_code=502, detail=falha)
+    if not resultados or resultados[0]["status"] != "OK":
+        status = resultados[0]["status"] if resultados else "ERRO"
+        codigo = 404 if status in {"NAO_ENCONTRADA", "SEM_TEXTO"} else 502
+        raise HTTPException(status_code=codigo, detail="Matrícula indisponível para diagnóstico.")
+
+    texto = resultados[0]["texto"]
+    resultado = analisar_matricula(texto, numero_matricula=str(numero))
+    from scripts.auditar_semantica_tri7 import auditar_texto
+
+    auditoria = auditar_texto(numero, texto, resultado=resultado)
+    atos = processar_atos(texto)
+    primeiro_ato = min(
+        (texto.find(ato.descricao) for ato in atos if texto.find(ato.descricao) >= 0),
+        default=len(texto),
+    )
+    resposta = {
+        "numero": numero,
+        "resultado": resultado.get("resultado"),
+        "publicidade": resultado.get("publicidade"),
+        "cabecalho": mascarar_documentos_texto(texto[:primeiro_ato])[:12_000],
+        "proprietarios": [
+            {
+                "nome": item.get("nome", ""),
+                "documento": "[DOCUMENTO]" if item.get("cpf") else "",
+                "proporcao": item.get("proporcao", ""),
+                "proporcaoIncerta": bool(item.get("proporcao_incerta")),
+            }
+            for item in resultado.get("proprietarios_atuais", [])
+        ],
+        "imovel": mascarar_documentos_estrutura(resultado.get("imovel", {})),
+        "atos": [
+            {
+                "codigo": ato.codigo,
+                "categoria": ato.categoria,
+                "status": ato.status,
+                "tipoOnus": ato.tipo_onus,
+                "canceladoPor": ato.cancelado_por,
+                "cancelaAtos": list(ato.cancela_atos or []),
+                "descricao": mascarar_documentos_texto(ato.descricao)[:12_000],
+            }
+            for ato in atos
+        ],
+        "auditoria": mascarar_documentos_estrutura({
+            chave: valor
+            for chave, valor in auditoria.items()
+            if chave not in {"texto", "proprietarios_detalhes"}
+        }),
+        "meta": {"textoPersistido": False, "documentosMascarados": True},
+    }
+    registrar_auditoria(
+        request, "diagnosticar_pendencia_matricula", "sucesso", usuario, str(numero)
+    )
+    return resposta
 
 
 def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Request, usuario: str) -> dict:
