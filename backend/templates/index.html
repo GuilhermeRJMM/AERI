@@ -321,8 +321,12 @@
                     <section class="buscas-resultados-card">
                         <div class="buscas-resultados-topo">
                             <div><span class="eyebrow">RESULTADOS</span><h2>Imóveis encontrados</h2></div>
-                            <strong id="buscas-total-resultados">0 resultados</strong>
+                            <div class="buscas-resultados-acoes">
+                                <button type="button" class="rotina-btn-secondary" id="btn-buscas-texto" hidden>Gerar texto</button>
+                                <strong id="buscas-total-resultados">0 resultados</strong>
+                            </div>
                         </div>
+                        <p id="buscas-texto-aviso" class="buscas-texto-aviso" hidden></p>
                         <div class="buscas-table-wrap">
                             <table class="buscas-table">
                                 <thead><tr><th>Matrícula</th><th>Titular identificado</th><th>Documento</th><th>Proporção</th><th>Origem</th><th>Correspondência</th><th>Atualização</th><th>Ação</th></tr></thead>

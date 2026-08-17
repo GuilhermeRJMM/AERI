@@ -8,6 +8,46 @@ let revisando = false;
 let reprocessandoPendencias = false;
 let buscaAtual = {termo:'', pagina:1, totalPaginas:0};
 
+const CABECALHO_PESQUISA = 'Cartório do 1º Ofício de Notas e Registro de Imóveis de Morrinhos-GO';
+
+const UNIDADES = ['zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove',
+    'dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
+const DEZENAS = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+const CENTENAS = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos',
+    'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+
+// Por extenso até 999: o texto da pesquisa qualificada escreve a quantidade
+// de imóveis em algarismo e por extenso -- "3 (três) imóveis".
+function porExtenso(numero) {
+    const n = Number(numero) || 0;
+    if (n < 20) return UNIDADES[n];
+    if (n < 100) {
+        const dezena = Math.floor(n / 10);
+        const resto = n % 10;
+        return resto ? `${DEZENAS[dezena]} e ${UNIDADES[resto]}` : DEZENAS[dezena];
+    }
+    if (n === 100) return 'cem';
+    if (n < 1000) {
+        const centena = Math.floor(n / 100);
+        const resto = n % 100;
+        return resto ? `${CENTENAS[centena]} e ${porExtenso(resto)}` : CENTENAS[centena];
+    }
+    return String(n);
+}
+
+// "12.345, 12.346 e 12.347"
+function listarComE(itens) {
+    if (itens.length === 1) return itens[0];
+    return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
+}
+
+function documentoFormatado(valor) {
+    const digitos = String(valor || '').replace(/\D/g, '');
+    if (digitos.length === 11) return digitos.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    if (digitos.length === 14) return digitos.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    return String(valor || '').trim();
+}
+
 function formatarNumero(valor) {
     return new Intl.NumberFormat('pt-BR').format(Number(valor || 0));
 }
@@ -166,6 +206,10 @@ function renderizarResultados(dados) {
     const inicio = total ? ((pagina - 1) * Number(dados.porPagina || 50)) + 1 : 0;
     const fim = total ? inicio + itens.length - 1 : 0;
     buscaAtual = {termo:String(dados.termo || buscaAtual.termo), pagina, totalPaginas};
+    // O texto da pesquisa qualificada existe nos dois casos: com imóveis
+    // (positivo) e sem nenhum (negativo).
+    document.getElementById('btn-buscas-texto').hidden = !buscaAtual.termo;
+    document.getElementById('buscas-texto-aviso').hidden = true;
     document.getElementById('buscas-total-resultados').textContent = total
         ? `${inicio}–${fim} de ${formatarNumero(total)} resultados`
         : '0 resultados';
@@ -211,6 +255,96 @@ async function pesquisar(evento) {
     evento.preventDefault();
     buscaAtual = {termo:document.getElementById('buscas-termo').value.trim(), pagina:1, totalPaginas:0};
     await executarPesquisa(1);
+}
+
+// Percorre todas as páginas: o texto precisa listar TODAS as matrículas, e a
+// tabela mostra no máximo 50 por vez.
+async function coletarTodosOsItens(termo) {
+    const itens = [];
+    let pagina = 1;
+    let totalPaginas = 1;
+    do {
+        const dados = await requisicaoAeri(
+            `/api/buscas?termo=${encodeURIComponent(termo)}&pagina=${pagina}&limite=100`);
+        itens.push(...(dados.itens || []));
+        totalPaginas = Number(dados.totalPaginas || 1);
+        pagina += 1;
+    } while (pagina <= totalPaginas && pagina <= 40);
+    return itens;
+}
+
+function montarTextoPesquisa(termo, itens) {
+    const soDigitos = !/[a-zA-Z]/.test(termo);
+    // Uma matrícula pode voltar mais de uma vez quando há vários titulares
+    // com o nome pesquisado; para o texto interessa o imóvel, não a linha.
+    const matriculas = [...new Set(itens.map(item => Number(item.matricula)))].sort((a, b) => a - b);
+
+    const nome = soDigitos
+        ? (itens[0]?.nome || '').trim()
+        : termo.trim();
+    const documento = soDigitos
+        ? documentoFormatado(termo)
+        : (itens[0]?.documento || '').trim();
+
+    const cabecalho = `${CABECALHO_PESQUISA}\n\n1. Dados solicitados:\n`
+        + `Busca por imóveis em nome de ${nome || 'NOME_DA_PESSOA'}, inscrito(a) no CPF/CNPJ `
+        + `sob o n.º ${documento || 'xxx.xxx.xxx-xx'}.\n2. Resultado:\n`;
+
+    if (!matriculas.length) {
+        return {
+            texto: `${cabecalho}Não foram encontrados imóveis em propriedade da pessoa pesquisada.`,
+            documentoIncompleto: false,
+            // Sem resultado e pesquisando por CPF/CNPJ não há de onde tirar o
+            // nome: o texto sai com o marcador do modelo para ser preenchido.
+            nomeIncompleto: !nome,
+            matriculas,
+        };
+    }
+
+    const listadas = matriculas.map(numero => formatarNumero(numero));
+    const unico = matriculas.length === 1;
+    return {
+        texto: `${cabecalho}${unico ? 'Foi encontrado' : 'Foram encontrados'} `
+            + `${matriculas.length} (${porExtenso(matriculas.length)}) `
+            + `${unico ? 'imóvel' : 'imóveis'} em propriedade da pessoa pesquisada.\n`
+            + `2.1 ${unico ? 'Matrícula' : 'Matrículas'}: ${listarComE(listadas)}.`,
+        // Buscando por nome só temos o documento mascarado do índice; o texto
+        // sai com a máscara e precisa ser completado à mão.
+        documentoIncompleto: !soDigitos && documento.includes('*'),
+        matriculas,
+    };
+}
+
+async function gerarTextoPesquisa() {
+    const botao = document.getElementById('btn-buscas-texto');
+    const aviso = document.getElementById('buscas-texto-aviso');
+    const termo = buscaAtual.termo || document.getElementById('buscas-termo').value.trim();
+    if (!termo) return;
+    const rotulo = botao.textContent;
+    botao.disabled = true;
+    botao.textContent = 'Gerando…';
+    aviso.hidden = true;
+    try {
+        const itens = await coletarTodosOsItens(termo);
+        const {texto, documentoIncompleto, nomeIncompleto, matriculas} = montarTextoPesquisa(termo, itens);
+        await navigator.clipboard.writeText(texto);
+        botao.textContent = 'Texto copiado!';
+        aviso.hidden = false;
+        if (documentoIncompleto) {
+            aviso.textContent = `Texto de ${matriculas.length} matrícula(s) copiado. O CPF/CNPJ saiu mascarado porque a pesquisa foi por nome — complete o número antes de enviar.`;
+        } else if (nomeIncompleto) {
+            aviso.textContent = 'Texto negativo copiado. Como não houve resultado, o nome saiu como NOME_DA_PESSOA — preencha antes de enviar.';
+        } else {
+            aviso.textContent = `Texto ${matriculas.length ? 'positivo' : 'negativo'} copiado. Basta colar no Ofício Eletrônico e na Tri7.`;
+        }
+    } catch (erro) {
+        aviso.hidden = false;
+        aviso.textContent = `Não foi possível gerar o texto: ${erro.message}`;
+        botao.textContent = rotulo;
+    } finally {
+        botao.disabled = false;
+        window.setTimeout(() => { botao.textContent = rotulo; }, 2600);
+    }
 }
 
 function paginaAnterior() {
@@ -550,6 +684,7 @@ function abrirAnalise(evento) {
 
 export function iniciarBuscas() {
     document.getElementById('form-buscas').addEventListener('submit', pesquisar);
+    document.getElementById('btn-buscas-texto').addEventListener('click', gerarTextoPesquisa);
     document.getElementById('btn-buscas-anterior').addEventListener('click', paginaAnterior);
     document.getElementById('btn-buscas-proxima').addEventListener('click', proximaPagina);
     document.getElementById('btn-buscas-indexar').addEventListener('click', alternarIndexacao);

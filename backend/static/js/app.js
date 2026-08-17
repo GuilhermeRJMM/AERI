@@ -1,6 +1,6 @@
 import {configurarAcessoAnaliseManual, iniciarAnalisador} from './analisador.js?v=20260810-texto-manual-admin';
 import {iniciarAutenticacao} from './autenticacao.js?v=20260815-permissao-mapa-onr-v1';
-import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260812-auditor-v1';
+import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260817-texto-pesquisa-v1';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js';
 import {configurarAcessoMapaOnr, iniciarMapaOnr, limparMapaOnr} from './mapa_onr.js?v=20260815-permissao-v1';

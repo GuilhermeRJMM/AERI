@@ -2797,6 +2797,9 @@ body.modo-incorporado .layout { padding-top:28px; }
 .buscas-resultados-topo { display:flex; justify-content:space-between; align-items:center; gap:15px; padding:17px 19px; border-bottom:1px solid rgba(139,152,178,.12); }
 .buscas-resultados-topo h2 { margin:2px 0 0; color:var(--text-main); font-size:1.08rem; }
 .buscas-resultados-topo > strong { color:#c4b5fd; font-size:.75rem; }
+.buscas-resultados-acoes { display:flex; align-items:center; gap:13px; flex-wrap:wrap; justify-content:flex-end; }
+.buscas-resultados-acoes > strong { color:#c4b5fd; font-size:.75rem; }
+.buscas-texto-aviso { margin:0; padding:11px 19px; border-bottom:1px solid rgba(139,152,178,.12); color:var(--text-soft); font-size:.78rem; }
 .buscas-table-wrap { overflow:auto; }
 .buscas-table { width:100%; min-width:1120px; border-collapse:collapse; }
 .buscas-table th { padding:10px 12px; color:var(--text-muted); background:rgba(8,13,24,.32); font-size:.62rem; letter-spacing:.045em; text-align:left; text-transform:uppercase; }
