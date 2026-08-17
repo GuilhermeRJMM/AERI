@@ -415,6 +415,13 @@
       if (doCabecalho) {
         f.numero_matricula = doCabecalho;
         estado.matriculaDoCabecalho = true;
+      } else if (estado.numeroConsultado && texto.trim() === (estado.textoConsultado || '').trim()) {
+        // Recem-aberta por desmembramento: comeca em "IMOVEL:" e tem so o ato
+        // de abertura, entao nao ha "MATRICULA N" nem cabecalho "AV.01-N" de
+        // onde tirar o numero. Quando o texto na tela ainda e o que veio da
+        // consulta feita no AERI, o numero pedido a Tri7 e a fonte certa.
+        f.numero_matricula = estado.numeroConsultado;
+        estado.matriculaDaConsulta = true;
       }
     }
     if (abertura.data_matricula) f.data_matricula = abertura.data_matricula.valor;
@@ -1347,6 +1354,12 @@
         origem.className = 'status ok';
         origem.textContent = 'Matricula ' + mensagem.numeroMatricula
           + ' recebida diretamente da Tri7. Confira os atos antes de exportar.';
+        // Guardado antes da leitura: e o numero consultado no AERI, usado
+        // quando o texto nao traz nenhum de onde extrair. Guarda tambem o
+        // texto recebido, para o numero nao vazar caso o operador cole outra
+        // matricula por cima depois.
+        estado.numeroConsultado = String(mensagem.numeroMatricula || '').trim() || null;
+        estado.textoConsultado = texto;
         lerMatricula();
         global.parent.postMessage({
           tipo: 'AERI_MAPA_ONR_PROCESSADO',
