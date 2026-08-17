@@ -329,24 +329,71 @@ function montarTextoPesquisa(termo, itens) {
 // Colar texto puro faz o destino aplicar a própria formatação -- foi assim
 // que o texto saiu centralizado no Word. Copiando também como HTML, o
 // modelo chega com Arial, alinhado à esquerda e negrito só nos rótulos.
+// Arial 12 declarado no <span> de cada trecho, e não só no parágrafo: ao
+// colar, o Word costuma herdar a fonte do estilo do destino quando ela não
+// vem no nível do texto -- foi assim que o tamanho mudou sozinho.
 function montarHtmlPesquisa({solicitados, resultado, rotuloMatriculas, listadas}) {
-    const fonte = "font-family:Arial,sans-serif;font-size:12pt;text-align:left;";
-    const paragrafo = `margin:0 0 10pt 0;${fonte}`;
+    const FONTE = 'font-family:Arial,sans-serif;font-size:12.0pt;';
+    const P = `margin:0;padding:0;text-align:left;${FONTE}`;
+
+    const trecho = (texto, negrito = false) => {
+        const conteudo = escaparHtml(texto);
+        return negrito
+            ? `<span style="${FONTE}font-weight:bold;"><b>${conteudo}</b></span>`
+            : `<span style="${FONTE}">${conteudo}</span>`;
+    };
+    const vazio = `<p style="${P}">${trecho(' ')}</p>`;
+
     const partes = [
-        `<p style="${paragrafo}"><b>${escaparHtml(CABECALHO_PESQUISA)}</b></p>`,
-        `<p style="${paragrafo}"><b>1. Dados solicitados:</b><br>${escaparHtml(solicitados)}</p>`,
-        `<p style="${paragrafo}"><b>2. Resultado:</b><br>${escaparHtml(resultado)}</p>`,
+        `<p style="${P}">${trecho(CABECALHO_PESQUISA, true)}</p>`,
+        vazio,
+        `<p style="${P}">${trecho('1. Dados solicitados:', true)}</p>`,
+        `<p style="${P}">${trecho(solicitados)}</p>`,
+        `<p style="${P}">${trecho('2. Resultado:', true)}</p>`,
+        `<p style="${P}">${trecho(resultado)}</p>`,
     ];
     if (listadas) {
-        partes.push(`<p style="${paragrafo}"><b>2.1 ${escaparHtml(rotuloMatriculas)}:</b> ${escaparHtml(listadas)}.</p>`);
+        partes.push(
+            `<p style="${P}">${trecho(`2.1 ${rotuloMatriculas}:`, true)} ${trecho(`${listadas}.`)}</p>`,
+        );
     }
-    return `<div style="${fonte}">${partes.join('')}</div>`;
+    return '<html><head><meta charset="utf-8"></head>'
+        + `<body style="${FONTE}">${partes.join('')}</body></html>`;
 }
 
-// Área de transferência com dois formatos: o destino que entende HTML
-// (Word, editor do Ofício Eletrônico) recebe o modelo formatado; os demais
-// caem no texto puro.
+// Copia selecionando um trecho real da página. É o caminho que o Word
+// entende melhor, e o único que funciona aqui dentro: o AERI roda em iframe
+// no SYNC, e a API assíncrona de clipboard costuma ser bloqueada por
+// permissão nesse contexto -- era por isso que só o texto puro chegava.
+function copiarSelecionando(html) {
+    const area = document.createElement('div');
+    area.setAttribute('contenteditable', 'true');
+    // Precisa estar renderizado para poder ser selecionado; fica fora da tela.
+    area.style.cssText = 'position:fixed;left:-10000px;top:0;opacity:0;white-space:normal;';
+    area.innerHTML = html;
+    document.body.appendChild(area);
+    try {
+        const selecao = window.getSelection();
+        const intervalo = document.createRange();
+        intervalo.selectNodeContents(area);
+        selecao.removeAllRanges();
+        selecao.addRange(intervalo);
+        const copiou = document.execCommand('copy');
+        selecao.removeAllRanges();
+        return copiou;
+    } catch {
+        return false;
+    } finally {
+        area.remove();
+    }
+}
+
+// Ordem: seleção real (preserva Arial 12 e negrito no Word) -> API rica ->
+// texto puro. Devolve se a formatação foi junto.
 async function copiarComFormato(texto, html) {
+    const corpo = html.replace(/^[\s\S]*<body[^>]*>|<\/body>[\s\S]*$/g, '');
+    if (copiarSelecionando(corpo)) return true;
+
     if (window.ClipboardItem && navigator.clipboard?.write) {
         try {
             await navigator.clipboard.write([new ClipboardItem({
@@ -355,7 +402,7 @@ async function copiarComFormato(texto, html) {
             })]);
             return true;
         } catch {
-            // navegador sem permissão para o formato rico: cai no texto puro
+            // sem permissão para o formato rico: cai no texto puro
         }
     }
     await navigator.clipboard.writeText(texto);
