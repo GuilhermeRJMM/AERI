@@ -37,11 +37,16 @@ _argon2 = PasswordHasher(time_cost=2, memory_cost=19_456, parallelism=1)
 _HASH_SIMULADO = _argon2.hash("senha-inexistente-para-tempo-constante")
 
 
+TAMANHO_MINIMO_SENHA = 10
+
+
 def senha_forte(senha: str) -> bool:
+    """Mínimo de 10 caracteres, com ao menos uma maiúscula, um número e um
+    símbolo. As senhas já existentes, criadas sob o mínimo anterior de 14,
+    continuam válidas: a regra ficou menos restritiva, não diferente."""
     return (
-        len(senha) >= 14
+        len(senha) >= TAMANHO_MINIMO_SENHA
         and any(c.isupper() for c in senha)
-        and any(c.islower() for c in senha)
         and any(c.isdigit() for c in senha)
         and any(not c.isalnum() for c in senha)
     )

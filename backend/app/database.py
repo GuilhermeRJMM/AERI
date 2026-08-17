@@ -63,7 +63,7 @@ def _garantir_usuario_administrador(cursor) -> None:
 
     if not senha_forte(senha):
         raise RuntimeError(
-            "AERI_ADMIN_PASSWORD deve ter 14 caracteres, maiúscula, minúscula, número e símbolo."
+            "AERI_ADMIN_PASSWORD deve ter 10 caracteres, maiúscula, número e símbolo."
         )
 
     cursor.execute("SELECT perfil, ativo FROM usuarios_aeri WHERE usuario = %s", (usuario,))

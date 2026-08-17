@@ -63,7 +63,22 @@ class TesteSeguranca(unittest.TestCase):
     def test_politica_recusa_senhas_fracas(self):
         self.assertTrue(senha_forte("Senha-Forte-AERI-2026!"))
         self.assertFalse(senha_forte("adm123"))
-        self.assertFalse(senha_forte("somente-minusculas-2026"))
+
+    def test_politica_aceita_dez_caracteres_com_maiuscula_numero_e_simbolo(self):
+        # Mínimo reduzido de 14 para 10. Exigências: uma maiúscula, um número
+        # e um símbolo -- minúscula deixou de ser obrigatória.
+        self.assertTrue(senha_forte("Aeri-2026!"))          # exatamente 10
+        self.assertTrue(senha_forte("SENHA-2026!"))         # sem minúscula
+        self.assertFalse(senha_forte("Aeri-202!"))          # 9 caracteres
+        self.assertFalse(senha_forte("aeri-2026!"))         # sem maiúscula
+        self.assertFalse(senha_forte("Aeri-Senha!"))        # sem número
+        self.assertFalse(senha_forte("AeriSenha2026"))      # sem símbolo
+
+    def test_senhas_de_quatorze_criadas_na_regra_anterior_seguem_validas(self):
+        # A regra ficou menos restritiva, não diferente: tudo que passava
+        # no mínimo de 14 continua passando no de 10.
+        self.assertTrue(senha_forte("Senha-Forte-AERI-2026!"))
+        self.assertTrue(senha_forte("Cartorio#Morrinhos2026"))
 
     def test_admin_tem_todas_as_permissoes(self):
         permissoes = permissoes_sessao({"perfil": "ADMIN"})

@@ -43,7 +43,7 @@ def _validar_usuario(dados: dict, exigir_senha: bool = True) -> tuple[str, str, 
     if not nome or len(nome) > 160 or perfil not in PERFIS:
         raise HTTPException(status_code=422, detail="Informe nome e perfil válidos.")
     if exigir_senha and not senha_forte(senha):
-        raise HTTPException(status_code=422, detail="A senha precisa ter 14 caracteres, maiúscula, minúscula, número e símbolo.")
+        raise HTTPException(status_code=422, detail="A senha precisa ter 10 caracteres, maiúscula, número e símbolo.")
     return usuario, nome, perfil, senha
 
 
@@ -181,7 +181,7 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
 def redefinir_senha(usuario_alvo: str, dados: dict, request: Request, admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
     senha = str(dados.get("senha", ""))
     if not senha_forte(senha):
-        raise HTTPException(status_code=422, detail="A senha precisa ter 14 caracteres, maiúscula, minúscula, número e símbolo.")
+        raise HTTPException(status_code=422, detail="A senha precisa ter 10 caracteres, maiúscula, número e símbolo.")
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             if request.state.sessao["perfil"] != "ADMIN":
@@ -208,7 +208,7 @@ def trocar_minha_senha(dados: dict, request: Request):
     atual = str(dados.get("senhaAtual", ""))
     nova = str(dados.get("novaSenha", ""))
     if not senha_forte(nova):
-        raise HTTPException(status_code=422, detail="A nova senha precisa ter 14 caracteres, maiúscula, minúscula, número e símbolo.")
+        raise HTTPException(status_code=422, detail="A nova senha precisa ter 10 caracteres, maiúscula, número e símbolo.")
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute("SELECT senha_hash FROM usuarios_aeri WHERE usuario=%s", (usuario,))
