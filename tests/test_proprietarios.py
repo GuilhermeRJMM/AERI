@@ -183,6 +183,59 @@ class TesteProprietarios(unittest.TestCase):
             [{"nome": "João da Silva", "cpf": "004.338.341-61", "proporcao": "100%", "proporcao_incerta": False}],
         )
 
+    def test_constituicao_de_sociedade_transfere_imovel_a_pessoa_juridica(self):
+        # Regressão (matrículas reais 4.429 e 6.553): na constituição de
+        # sociedade os sócios integralizam o imóvel no capital e a empresa
+        # passa a ser a proprietária. O ato qualifica todos os sócios antes
+        # de nomear a sociedade, e sem regra própria eles eram lidos como
+        # adquirentes -- o imóvel da empresa aparecia em nome deles na busca
+        # por titular.
+        texto = """
+        MATRÍCULA 6.553. IMÓVEL: Fazenda São Caetano.
+        PROPRIETÁRIO: Paulo Cesar Chiari, CPF 028.080.828-35.
+        R.11-6.553 - CONSTITUIÇÃO DE SOCIEDADE. Nos termos do INSTRUMENTO
+        PARTICULAR DE CONSTITUIÇÃO DE SOCIEDADE LIMITADA, no imóvel objeto desta
+        matrícula, fica constando que: Paulo Cesar Chiari, brasileiro, casado,
+        inscrito no CPF número 028.080.828-35; José Renato Chiari, brasileiro,
+        casado, inscrito no CPF número 071.092.738-06; resolvem, de comum acordo,
+        constituir uma Sociedade Limitada a saber: Cláusula Primeira - A Sociedade
+        girará sob a denominação de AGROPECUÁRIA IRMÃOS CHIARI LTDA, inscrita no
+        CNPJ número 17.644.020/0001-06, com sede nesta comarca. DOU FÉ.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            [(item["nome"], item["proporcao"]) for item in resultado],
+            [("AGROPECUÁRIA IRMÃOS CHIARI LTDA", "100%")],
+        )
+
+    def test_socios_que_representam_a_empresa_nao_viram_coproprietarios(self):
+        # Regressão (matrículas reais 34.604 e 34.617): quem vem depois de
+        # "representada pelos seus sócios" assina pela pessoa jurídica, não
+        # adquire. O corte só valia para "; neste ato representada", e por
+        # isso a redação usual das escrituras passava direto, colocando os
+        # sócios como donos de um terço cada.
+        texto = """
+        MATRÍCULA 34.604. IMÓVEL: Fazenda Santa Rosa.
+        PROPRIETÁRIO: Vendedor Anterior, CPF 004.338.341-61.
+        R.15-34.604 - COMPRA E VENDA. ADQUIRENTE: Agropecuaria Irmaos Chiari Ltda,
+        pessoa jurídica de direito privado, inscrita no CNPJ/MF sob o n.º
+        17.644.020/0001-06, com sede nesta comarca, representada pelos seus sócios:
+        1)- Paulo Cesar Chiari, brasileiro, casado, inscrito no CPF/MF sob o n.º
+        028.080.828-35; e, 2)- José Renato Chiari, brasileiro, casado, inscrito no
+        CPF/MF sob o n.º 071.092.738-06. IMÓVEL: A totalidade do imóvel. DOU FÉ.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            [(item["nome"], item["proporcao"]) for item in resultado],
+            [("Agropecuaria Irmaos Chiari Ltda", "100%")],
+        )
+
     def test_outorgada_no_feminino_e_reconhecida_como_adquirente(self):
         # Regressão (matrículas reais 35.149 e 37.908): as escrituras rotulam
         # a adquirente no feminino ("OUTORGADA: Maria..."), mas o padrão só

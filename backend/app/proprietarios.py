@@ -789,8 +789,16 @@ def extrair_pessoas(texto_bloco):
         texto_bloco,
         flags=re.I | re.DOTALL,
     )
+    # Quem vem depois de "representada por/pelos ..." assina pela parte, não
+    # adquire: sócio de pessoa jurídica, procurador, pai de menor. O corte
+    # exigia ";" e "neste ato" antes, e por isso deixava passar a redação
+    # mais comum das escrituras -- "Empresa Ltda, CNPJ ..., representada
+    # pelos seus sócios: 1)- Fulano ...; e, 2)- Beltrano ..." --, em que os
+    # sócios entravam como coproprietários do imóvel da empresa.
     texto_bloco = re.split(
-        r';\s*neste\s+ato\s+(?:o\s+primeiro|a\s+primeira|representad[oa]|assistid[oa])\b',
+        r';\s*neste\s+ato\s+(?:o\s+primeiro|a\s+primeira|representad[oa]|assistid[oa])\b'
+        r'|\b(?:neste\s+ato\s+|devidamente\s+)?'
+        r'(?:representad|assistid)[oa]s?\s+(?:por|pel[oa]s?)\b',
         texto_bloco,
         maxsplit=1,
         flags=re.I,
@@ -1429,6 +1437,31 @@ def extrair_credor_consolidacao(texto):
     # frase quando o número encerra o período ("...sob o n.º 00.000.000/0001-00.
     # DOU FÉ."), gerando um CNPJ/CPF malformado no resultado.
     return [{"nome": m.group(1).strip(), "cpf": m.group(2).strip().rstrip('.')}]
+
+def extrair_sociedade_constituida(texto):
+    """Constituição de sociedade: os sócios integralizam o imóvel no capital
+    e a pessoa jurídica passa a ser a proprietária.
+
+    O ato qualifica todos os sócios antes de nomear a sociedade, então sem
+    esta regra os sócios eram lidos como adquirentes e o imóvel da empresa
+    aparecia em nome deles -- inclusive nas buscas por titular.
+    """
+    if not re.search(r'CONSTITUI[ÇC][ÃA]O\s+DE\s+SOCIEDADE', texto, re.I):
+        return []
+
+    sociedade = re.search(
+        r'\bdenomina[çc][ãa]o\s+(?:social\s+)?de\s+(.{3,160}?)\s*,?\s*'
+        r'inscrita\s+no\s+CNPJ(?:/MF)?[^\d]{0,30}([\d.\-/]{9,20})',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if not sociedade:
+        return []
+    return [{
+        "nome": re.sub(r'\s+', ' ', sociedade.group(1)).strip(' ,;'),
+        "cpf": sociedade.group(2).strip().rstrip('.,;'),
+    }]
+
 
 def contem_indicacao_titularidade(texto):
     texto_limpo = limpar_nome(texto)
@@ -2412,6 +2445,28 @@ def _aplicar_indicacao_titularidade(estado, ato):
     return True
 
 
+def _aplicar_constituicao_de_sociedade(estado, ato):
+    """Integralização do imóvel no capital da sociedade constituída.
+
+    O imóvel passa integralmente à pessoa jurídica; os sócios deixam de
+    figurar como titulares. Devolve True quando reconheceu o ato.
+    """
+    sociedades = extrair_sociedade_constituida(ato.descricao)
+    if not sociedades:
+        return False
+
+    estado.clear()
+    proporcao = 100.0 / len(sociedades)
+    for sociedade in sociedades:
+        chave = padronizar_chave(sociedade["cpf"], sociedade["nome"])
+        estado[chave] = {
+            "nome": sociedade["nome"],
+            "cpf_original": sociedade["cpf"],
+            "proporcao": proporcao,
+        }
+    return True
+
+
 def _aplicar_consolidacao_fiduciaria(estado, ato):
     """Consolidação da propriedade fiduciária: o credor passa a ser dono pleno.
 
@@ -3175,6 +3230,9 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
             continue
 
         if _aplicar_consolidacao_fiduciaria(estado, ato):
+            continue
+
+        if _aplicar_constituicao_de_sociedade(estado, ato):
             continue
 
         # Também não encerra o ato.
