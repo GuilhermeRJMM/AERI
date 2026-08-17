@@ -275,9 +275,25 @@ async function coletarTodosOsItens(termo) {
 
 function montarTextoPesquisa(termo, itens) {
     const soDigitos = !/[a-zA-Z]/.test(termo);
+
+    // Só matrícula ATIVA é imóvel em propriedade da pessoa. Encerrada saiu
+    // para outra matrícula (desmembramento, remembramento, unificação) e
+    // inexistente nunca existiu -- nenhuma das duas pode constar no texto,
+    // que é declaração oficial de propriedade. As demais situações
+    // (REVISAR, SEM_TEXTO, NAO_ENCONTRADA) são indefinição do índice: ficam
+    // de fora e são reportadas para conferência manual.
+    const ativos = itens.filter(item => String(item.situacao || '').toUpperCase() === 'ATIVA');
+    const descartadas = {};
+    for (const item of itens) {
+        const situacao = String(item.situacao || 'REVISAR').toUpperCase();
+        if (situacao === 'ATIVA') continue;
+        descartadas[situacao] = descartadas[situacao] || new Set();
+        descartadas[situacao].add(Number(item.matricula));
+    }
+
     // Uma matrícula pode voltar mais de uma vez quando há vários titulares
     // com o nome pesquisado; para o texto interessa o imóvel, não a linha.
-    const matriculas = [...new Set(itens.map(item => Number(item.matricula)))].sort((a, b) => a - b);
+    const matriculas = [...new Set(ativos.map(item => Number(item.matricula)))].sort((a, b) => a - b);
 
     const nome = soDigitos
         ? (itens[0]?.nome || '').trim()
@@ -323,6 +339,12 @@ function montarTextoPesquisa(termo, itens) {
         // nome: o texto sai com o marcador do modelo para ser preenchido.
         nomeIncompleto: !nome,
         matriculas,
+        descartadas: Object.fromEntries(
+            Object.entries(descartadas).map(([situacao, numeros]) => [
+                situacao,
+                [...numeros].sort((a, b) => a - b),
+            ]),
+        ),
     };
 }
 
@@ -420,19 +442,34 @@ async function gerarTextoPesquisa() {
     aviso.hidden = true;
     try {
         const itens = await coletarTodosOsItens(termo);
-        const {texto, html, documentoIncompleto, nomeIncompleto, matriculas} = montarTextoPesquisa(termo, itens);
+        const {texto, html, documentoIncompleto, nomeIncompleto, matriculas, descartadas} =
+            montarTextoPesquisa(termo, itens);
         const comFormato = await copiarComFormato(texto, html);
         botao.textContent = 'Texto copiado!';
         aviso.hidden = false;
+
+        const partes = [];
         if (!comFormato) {
-            aviso.textContent = 'Texto copiado sem formatação (este navegador não permite copiar formatado). Ajuste a fonte para Arial e o alinhamento à esquerda ao colar.';
-        } else if (documentoIncompleto) {
-            aviso.textContent = `Texto de ${matriculas.length} matrícula(s) copiado. O CPF/CNPJ saiu mascarado porque a pesquisa foi por nome — complete o número antes de enviar.`;
-        } else if (nomeIncompleto) {
-            aviso.textContent = 'Texto negativo copiado. Como não houve resultado, o nome saiu como NOME_DA_PESSOA — preencha antes de enviar.';
+            partes.push('Copiado sem formatação (este navegador não permitiu o formato rico) — ajuste para Arial 12 e alinhamento à esquerda ao colar.');
         } else {
-            aviso.textContent = `Texto ${matriculas.length ? 'positivo' : 'negativo'} copiado. Basta colar no Ofício Eletrônico e na Tri7.`;
+            partes.push(`Texto ${matriculas.length ? 'positivo' : 'negativo'} copiado.`);
         }
+        // O texto declara propriedade: quem ficou de fora precisa ser dito,
+        // sobretudo quando a pessoa só tinha matrícula encerrada e o texto
+        // por isso saiu negativo.
+        const excluidas = Object.entries(descartadas);
+        if (excluidas.length) {
+            partes.push('Fora do texto: ' + excluidas
+                .map(([situacao, numeros]) => `${numeros.length} ${situacao.toLowerCase()} (${numeros.map(n => formatarNumero(n)).join(', ')})`)
+                .join('; ') + '.');
+        }
+        if (documentoIncompleto) {
+            partes.push('O CPF/CNPJ saiu mascarado porque a pesquisa foi por nome — complete antes de enviar.');
+        }
+        if (nomeIncompleto) {
+            partes.push('Sem resultado, o nome saiu como NOME_DA_PESSOA — preencha antes de enviar.');
+        }
+        aviso.textContent = partes.join(' ');
     } catch (erro) {
         aviso.hidden = false;
         aviso.textContent = `Não foi possível gerar o texto: ${erro.message}`;
