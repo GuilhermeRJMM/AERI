@@ -308,7 +308,26 @@ def classificar(texto, regras_aprendidas=None):
             "EXCLUSAO", "INDICACAO GRAUS", "COMISSAO DE PERMANENCIA",
         ))
     )
-    if titulo_constitutivo:
+    # O contrato de financiamento imobiliário traz a garantia no PRÓPRIO NOME
+    # ("venda e compra ... mediante financiamento garantido por alienação
+    # fiduciária"), mas o ato que a nomeia assim é o da aquisição: quem
+    # constitui o gravame é o registro seguinte, com "OBJETO DA GARANTIA",
+    # "DEVEDOR/FIDUCIANTE" e "CREDOR FIDUCIÁRIO". Sem esses marcadores, a
+    # menção no título é descrição do negócio, não constituição de ônus --
+    # do contrário a compra virava um ônus a mais, que nenhum cancelamento
+    # depois alcançava (o cancelamento aponta para o registro da garantia).
+    aquisicao_sem_garantia = (
+        any(marcador in texto_sem_acentos_compacto for marcador in (
+            "ADQUIRIDO POR", "ADQUIRIDA POR", "COMPRA FEITA A", "COMPRA FEITA AO",
+        ))
+        and not any(marcador in texto_sem_acentos_compacto for marcador in (
+            "OBJETO DA GARANTIA", "EM ALIENACAO FIDUCIARIA", "EM GARANTIA",
+            "DADO EM GARANTIA", "DADOS EM GARANTIA", "EM HIPOTECA",
+            "FIDUCIANTE", "CREDOR FIDUCIARIO", "CREDORA FIDUCIARIA",
+            "CONSTITUICAO DE ALIENACAO", "GRAVAME",
+        ))
+    )
+    if titulo_constitutivo and not aquisicao_sem_garantia:
         return ("ÔNUS", True)
 
     cancelamentos_fortes = (

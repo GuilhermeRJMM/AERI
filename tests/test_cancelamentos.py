@@ -109,6 +109,54 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual(categoria, "ÔNUS")
         self.assertTrue(impacta)
 
+    def test_compra_financiada_nao_e_onus_alem_da_garantia_registrada(self):
+        # Regressão (matrícula real 24.070): no financiamento imobiliário a
+        # garantia está no NOME do contrato ("venda e compra mediante
+        # financiamento garantido por alienação fiduciária"), mas esse ato é
+        # o da aquisição -- quem constitui o gravame é o registro seguinte.
+        # Classificar a compra como ônus criava um segundo gravame que o
+        # cancelamento não alcançava (ele aponta para o registro da garantia),
+        # e a matrícula seguia positiva mesmo com a alienação já cancelada.
+        compra = """
+        R1-24.070 - Nos termos CONTRATO POR INSTRUMENTO PARTICULAR, COM EFEITO DE
+        ESCRITURA PÚBLICA DE VENDA E COMPRA DE IMÓVEL RESIDENCIAL NOVO MEDIANTE
+        FINANCIAMENTO GARANTIDO POR ALIENAÇÃO FIDUCIÁRIA DE IMÓVEL-PESSOA FÍSICA-
+        FGTS, o imóvel constante desta matrícula foi ADQUIRIDO POR Ricardo Messias
+        Borges, CPF 971.640.201-59, por COMPRA FEITA a Construtora Exemplo Ltda,
+        CNPJ 14.097.139/0001-00, pelo preço de R$90.000,00.
+        """
+
+        categoria, impacta = classificar(compra)
+
+        self.assertEqual(categoria, "IGNORAR")
+        self.assertFalse(impacta)
+
+    def test_matricula_com_alienacao_cancelada_fica_negativa(self):
+        compra = ato("R.01", """
+        R1-24.070 - VENDA E COMPRA DE IMÓVEL RESIDENCIAL NOVO MEDIANTE FINANCIAMENTO
+        GARANTIDO POR ALIENAÇÃO FIDUCIÁRIA. O imóvel foi ADQUIRIDO POR Ricardo
+        Messias Borges, CPF 971.640.201-59, por COMPRA FEITA a Construtora Exemplo.
+        """)
+        garantia = ato("R.02", """
+        R2-24.070 - DEVEDOR/FIDUCIANTE: Ricardo Messias Borges. CREDOR FIDUCIÁRIO:
+        Banco do Brasil S/A. OBJETO DA GARANTIA: EM ALIENAÇÃO FIDUCIÁRIA o imóvel
+        constante desta matrícula.
+        """)
+        cancelamento = ato("AV.03", """
+        AV.03-24.070 - CANCELAMENTO DE ALIENAÇÃO FIDUCIÁRIA. Procede-se a presente
+        averbação para constar que fica CANCELADA A ALIENAÇÃO FIDUCIÁRIA constante
+        do R.02 desta matrícula.
+        """)
+
+        aplicar_cancelamentos([compra, garantia, cancelamento])
+
+        self.assertEqual(compra.categoria, "IGNORAR")
+        self.assertEqual(garantia.status, "CANCELADO")
+        self.assertFalse(any(
+            item.categoria == "ÔNUS" and item.status == "ATIVO"
+            for item in (compra, garantia, cancelamento)
+        ))
+
     def test_hipoteca_com_compra_e_venda_no_titulo_e_onus(self):
         texto = """
         R.05-12.011 - Nos termos do Contrato Particular de Compra e Venda e mútuo
