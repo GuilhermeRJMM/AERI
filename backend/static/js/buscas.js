@@ -286,33 +286,80 @@ function montarTextoPesquisa(termo, itens) {
         ? documentoFormatado(termo)
         : (itens[0]?.documento || '').trim();
 
-    const cabecalho = `${CABECALHO_PESQUISA}\n\n1. Dados solicitados:\n`
-        + `Busca por imóveis em nome de ${nome || 'NOME_DA_PESSOA'}, inscrito(a) no CPF/CNPJ `
-        + `sob o n.º ${documento || 'xxx.xxx.xxx-xx'}.\n2. Resultado:\n`;
+    const solicitados = `Busca por imóveis em nome de ${nome || 'NOME_DA_PESSOA'}, `
+        + `inscrito(a) no CPF/CNPJ sob o n.º ${documento || 'xxx.xxx.xxx-xx'}.`;
 
-    if (!matriculas.length) {
-        return {
-            texto: `${cabecalho}Não foram encontrados imóveis em propriedade da pessoa pesquisada.`,
-            documentoIncompleto: false,
-            // Sem resultado e pesquisando por CPF/CNPJ não há de onde tirar o
-            // nome: o texto sai com o marcador do modelo para ser preenchido.
-            nomeIncompleto: !nome,
-            matriculas,
-        };
-    }
-
-    const listadas = matriculas.map(numero => formatarNumero(numero));
     const unico = matriculas.length === 1;
+    const listadas = matriculas.map(numero => formatarNumero(numero));
+    const resultado = matriculas.length
+        ? `${unico ? 'Foi encontrado' : 'Foram encontrados'} ${matriculas.length} `
+            + `(${porExtenso(matriculas.length)}) ${unico ? 'imóvel' : 'imóveis'} `
+            + 'em propriedade da pessoa pesquisada.'
+        : 'Não foram encontrados imóveis em propriedade da pessoa pesquisada.';
+    const rotuloMatriculas = unico ? 'Matrícula' : 'Matrículas';
+
+    const linhas = [
+        CABECALHO_PESQUISA,
+        '',
+        '1. Dados solicitados:',
+        solicitados,
+        '2. Resultado:',
+        resultado,
+    ];
+    if (matriculas.length) linhas.push(`2.1 ${rotuloMatriculas}: ${listarComE(listadas)}.`);
+
     return {
-        texto: `${cabecalho}${unico ? 'Foi encontrado' : 'Foram encontrados'} `
-            + `${matriculas.length} (${porExtenso(matriculas.length)}) `
-            + `${unico ? 'imóvel' : 'imóveis'} em propriedade da pessoa pesquisada.\n`
-            + `2.1 ${unico ? 'Matrícula' : 'Matrículas'}: ${listarComE(listadas)}.`,
+        texto: linhas.join('\n'),
+        html: montarHtmlPesquisa({
+            solicitados,
+            resultado,
+            rotuloMatriculas,
+            listadas: matriculas.length ? listarComE(listadas) : '',
+        }),
         // Buscando por nome só temos o documento mascarado do índice; o texto
         // sai com a máscara e precisa ser completado à mão.
         documentoIncompleto: !soDigitos && documento.includes('*'),
+        // Sem resultado e pesquisando por CPF/CNPJ não há de onde tirar o
+        // nome: o texto sai com o marcador do modelo para ser preenchido.
+        nomeIncompleto: !nome,
         matriculas,
     };
+}
+
+// Colar texto puro faz o destino aplicar a própria formatação -- foi assim
+// que o texto saiu centralizado no Word. Copiando também como HTML, o
+// modelo chega com Arial, alinhado à esquerda e negrito só nos rótulos.
+function montarHtmlPesquisa({solicitados, resultado, rotuloMatriculas, listadas}) {
+    const fonte = "font-family:Arial,sans-serif;font-size:12pt;text-align:left;";
+    const paragrafo = `margin:0 0 10pt 0;${fonte}`;
+    const partes = [
+        `<p style="${paragrafo}"><b>${escaparHtml(CABECALHO_PESQUISA)}</b></p>`,
+        `<p style="${paragrafo}"><b>1. Dados solicitados:</b><br>${escaparHtml(solicitados)}</p>`,
+        `<p style="${paragrafo}"><b>2. Resultado:</b><br>${escaparHtml(resultado)}</p>`,
+    ];
+    if (listadas) {
+        partes.push(`<p style="${paragrafo}"><b>2.1 ${escaparHtml(rotuloMatriculas)}:</b> ${escaparHtml(listadas)}.</p>`);
+    }
+    return `<div style="${fonte}">${partes.join('')}</div>`;
+}
+
+// Área de transferência com dois formatos: o destino que entende HTML
+// (Word, editor do Ofício Eletrônico) recebe o modelo formatado; os demais
+// caem no texto puro.
+async function copiarComFormato(texto, html) {
+    if (window.ClipboardItem && navigator.clipboard?.write) {
+        try {
+            await navigator.clipboard.write([new ClipboardItem({
+                'text/html': new Blob([html], {type: 'text/html'}),
+                'text/plain': new Blob([texto], {type: 'text/plain'}),
+            })]);
+            return true;
+        } catch {
+            // navegador sem permissão para o formato rico: cai no texto puro
+        }
+    }
+    await navigator.clipboard.writeText(texto);
+    return false;
 }
 
 async function gerarTextoPesquisa() {
@@ -326,11 +373,13 @@ async function gerarTextoPesquisa() {
     aviso.hidden = true;
     try {
         const itens = await coletarTodosOsItens(termo);
-        const {texto, documentoIncompleto, nomeIncompleto, matriculas} = montarTextoPesquisa(termo, itens);
-        await navigator.clipboard.writeText(texto);
+        const {texto, html, documentoIncompleto, nomeIncompleto, matriculas} = montarTextoPesquisa(termo, itens);
+        const comFormato = await copiarComFormato(texto, html);
         botao.textContent = 'Texto copiado!';
         aviso.hidden = false;
-        if (documentoIncompleto) {
+        if (!comFormato) {
+            aviso.textContent = 'Texto copiado sem formatação (este navegador não permite copiar formatado). Ajuste a fonte para Arial e o alinhamento à esquerda ao colar.';
+        } else if (documentoIncompleto) {
             aviso.textContent = `Texto de ${matriculas.length} matrícula(s) copiado. O CPF/CNPJ saiu mascarado porque a pesquisa foi por nome — complete o número antes de enviar.`;
         } else if (nomeIncompleto) {
             aviso.textContent = 'Texto negativo copiado. Como não houve resultado, o nome saiu como NOME_DA_PESSOA — preencha antes de enviar.';
