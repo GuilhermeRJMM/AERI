@@ -382,7 +382,7 @@ def _estado_json(cursor) -> dict:
 def pesquisar_titularidade(
     termo: str = Query(..., min_length=3, max_length=300),
     limite: int = Query(50, ge=1, le=100),
-    _usuario: str = Depends(exigir_permissao("processar_matricula")),
+    _usuario: str = Depends(exigir_permissao("acessar_buscas")),
     pagina: int = Query(1, ge=1),
 ):
     documento = normalizar_documento(termo) if not any(caractere.isalpha() for caractere in termo) else ""
@@ -474,7 +474,7 @@ def pesquisar_titularidade(
 
 
 @router.get("/status")
-def status_buscas(_usuario: str = Depends(exigir_permissao("processar_matricula"))):
+def status_buscas(_usuario: str = Depends(exigir_permissao("acessar_buscas"))):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             return _estado_json(cursor)

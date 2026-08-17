@@ -16,6 +16,8 @@ const ATRIBUICOES = [
     ['processar_matricula', 'Matrículas'],
     ['revisar_auditoria', 'Auditoria registral'],
     ['acessar_mapa_onr', 'MAPA-ONR'],
+    ['acessar_livro_protocolos', 'Livro de Protocolos'],
+    ['acessar_buscas', 'Buscas'],
     ['processar_incra', 'INCRA'],
     ['gerenciar_custas', 'Informar Custas'],
     ['ver_intimacoes', 'Ver intimações'],
@@ -42,6 +44,8 @@ function renderizarAtribuicoes(item) {
     if (item.perfil === 'AUDITOR') return `<div class="usuario-atribuicoes-lista">
         <span class="usuario-status ativo">Matrículas e auditoria registral</span>
         <label><input type="checkbox" data-acao="permissao" data-permissao="acessar_mapa_onr" data-usuario="${item.usuario}" ${item.permissoes?.acessar_mapa_onr ? 'checked' : ''}> MAPA-ONR</label>
+        <label><input type="checkbox" data-acao="permissao" data-permissao="acessar_livro_protocolos" data-usuario="${item.usuario}" ${item.permissoes?.acessar_livro_protocolos ? 'checked' : ''}> Livro de Protocolos</label>
+        <label><input type="checkbox" data-acao="permissao" data-permissao="acessar_buscas" data-usuario="${item.usuario}" ${item.permissoes?.acessar_buscas ? 'checked' : ''}> Buscas</label>
     </div>`;
     return `<div class="usuario-atribuicoes-lista">${ATRIBUICOES.map(([chave, rotulo]) => `
         <label><input type="checkbox" data-acao="permissao" data-permissao="${chave}" data-usuario="${item.usuario}" ${item.permissoes?.[chave] ? 'checked' : ''}> ${rotulo}</label>

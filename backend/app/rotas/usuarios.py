@@ -102,14 +102,17 @@ def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_per
                     (usuario, nome, perfil, senha_hash, deve_trocar_senha,
                     pode_processar_matricula, pode_revisar_auditoria,
                     pode_acessar_mapa_onr,
+                    pode_acessar_livro_protocolos, pode_acessar_buscas,
                     pode_processar_incra, pode_gerenciar_custas, pode_ver_intimacoes,
                     pode_criar_intimacoes, pode_alterar_intimacoes, pode_conferir_intimacoes)
-                    VALUES (%s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
+                    VALUES (%s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
                     (
                         usuario, nome, perfil, hash_senha(senha),
                         permissoes["pode_processar_matricula"],
                         permissoes["pode_revisar_auditoria"],
                         permissoes["pode_acessar_mapa_onr"],
+                        permissoes["pode_acessar_livro_protocolos"],
+                        permissoes["pode_acessar_buscas"],
                         permissoes["pode_processar_incra"],
                         permissoes["pode_gerenciar_custas"],
                         permissoes["pode_ver_intimacoes"],
@@ -148,6 +151,7 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
                 """UPDATE usuarios_aeri SET nome=%s, perfil=%s, ativo=%s,
                 pode_processar_matricula=%s, pode_revisar_auditoria=%s,
                 pode_acessar_mapa_onr=%s,
+                pode_acessar_livro_protocolos=%s, pode_acessar_buscas=%s,
                 pode_processar_incra=%s, pode_gerenciar_custas=%s, pode_ver_intimacoes=%s,
                 pode_criar_intimacoes=%s, pode_alterar_intimacoes=%s, pode_conferir_intimacoes=%s,
                 atualizado_em=NOW()
@@ -157,6 +161,8 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
                     permissoes["pode_processar_matricula"],
                     permissoes["pode_revisar_auditoria"],
                     permissoes["pode_acessar_mapa_onr"],
+                    permissoes["pode_acessar_livro_protocolos"],
+                    permissoes["pode_acessar_buscas"],
                     permissoes["pode_processar_incra"],
                     permissoes["pode_gerenciar_custas"],
                     permissoes["pode_ver_intimacoes"],
@@ -214,7 +220,13 @@ def trocar_minha_senha(dados: dict, request: Request):
             cursor.execute("SELECT senha_hash FROM usuarios_aeri WHERE usuario=%s", (usuario,))
             registro = cursor.fetchone()
             if not registro or not verificar_senha(atual, registro["senha_hash"]):
-                raise HTTPException(status_code=401, detail="Senha atual inválida.")
+                # 422 e não 401: o cliente trata qualquer 401 como sessão
+                # expirada e joga o usuário de volta para a tela de login.
+                # Errar a senha atual não tem nada a ver com a sessão -- ela
+                # segue válida --, e devolver 401 aqui expulsava quem só
+                # tinha digitado errado, ainda por cima com a mensagem
+                # trocada ("sua sessão expirou").
+                raise HTTPException(status_code=422, detail="Senha atual inválida.")
             cursor.execute(
                 """UPDATE usuarios_aeri SET senha_hash=%s, deve_trocar_senha=FALSE, atualizado_em=NOW()
                 WHERE usuario=%s""", (hash_senha(nova), usuario),

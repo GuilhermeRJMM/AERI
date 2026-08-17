@@ -170,6 +170,31 @@ class TesteSeguranca(unittest.TestCase):
         self.assertTrue(permissoes["pode_acessar_mapa_onr"])
         self.assertFalse(permissoes["pode_gerenciar_custas"])
 
+    def test_livro_protocolos_e_buscas_sao_permissoes_proprias(self):
+        # Os dois módulos ficavam pendurados em processar_matricula: quem
+        # podia analisar matrícula ganhava os dois de brinde, sem escolha.
+        permissoes = permissoes_sessao({
+            "perfil": "CONFERENTE",
+            "pode_processar_matricula": True,
+            "pode_acessar_livro_protocolos": False,
+            "pode_acessar_buscas": True,
+        })
+
+        self.assertTrue(permissoes["processar_matricula"])
+        self.assertFalse(permissoes["acessar_livro_protocolos"])
+        self.assertTrue(permissoes["acessar_buscas"])
+
+    def test_auditor_recebe_livro_e_buscas_como_opcionais(self):
+        concedidas = _validar_permissoes({
+            "permissoes": {"acessar_livro_protocolos": True},
+        }, "AUDITOR")
+
+        self.assertTrue(concedidas["pode_acessar_livro_protocolos"])
+        self.assertFalse(concedidas["pode_acessar_buscas"])
+        # os acessos registrais fixos do auditor seguem intactos
+        self.assertTrue(concedidas["pode_processar_matricula"])
+        self.assertTrue(concedidas["pode_revisar_auditoria"])
+
     def test_csrf_derivado_e_igual_em_qualquer_aba_da_mesma_sessao(self):
         # Antes, o csrf era um valor aleatório re-gerado a cada checagem de
         # sessão e sobrescrevia o único válido no banco: abrir uma 2ª aba

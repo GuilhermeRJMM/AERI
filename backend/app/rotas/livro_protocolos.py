@@ -50,7 +50,7 @@ class _LimitadorTaxaTri7:
 @router.post("/analisar", dependencies=[Depends(proteger_csrf)])
 async def analisar_livro_protocolos(
     request: Request,
-    usuario: str = Depends(exigir_permissao("processar_matricula")),
+    usuario: str = Depends(exigir_permissao("acessar_livro_protocolos")),
 ):
     try:
         tamanho = int(request.headers.get("content-length", "0") or 0)
@@ -146,7 +146,7 @@ def _excecao_json(item: dict) -> dict:
 
 @router.get("/excecoes")
 def listar_excecoes_natureza_titulo(
-    _usuario: str = Depends(exigir_permissao("processar_matricula")),
+    _usuario: str = Depends(exigir_permissao("acessar_livro_protocolos")),
 ):
     with conectar() as conexao:
         with conexao.cursor() as cursor:

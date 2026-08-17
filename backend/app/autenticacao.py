@@ -23,6 +23,8 @@ PERMISSOES = {
     "processar_matricula": "pode_processar_matricula",
     "revisar_auditoria": "pode_revisar_auditoria",
     "acessar_mapa_onr": "pode_acessar_mapa_onr",
+    "acessar_livro_protocolos": "pode_acessar_livro_protocolos",
+    "acessar_buscas": "pode_acessar_buscas",
     "processar_incra": "pode_processar_incra",
     "gerenciar_custas": "pode_gerenciar_custas",
     "ver_intimacoes": "pode_ver_intimacoes",
@@ -32,7 +34,11 @@ PERMISSOES = {
 }
 PERFIS_ADMINISTRATIVOS = {"ADMIN", "SUBSTITUTO"}
 PERMISSOES_AUDITOR = {"processar_matricula", "revisar_auditoria"}
-PERMISSOES_OPCIONAIS_AUDITOR = {"acessar_mapa_onr"}
+PERMISSOES_OPCIONAIS_AUDITOR = {
+    "acessar_mapa_onr",
+    "acessar_livro_protocolos",
+    "acessar_buscas",
+}
 _argon2 = PasswordHasher(time_cost=2, memory_cost=19_456, parallelism=1)
 _HASH_SIMULADO = _argon2.hash("senha-inexistente-para-tempo-constante")
 

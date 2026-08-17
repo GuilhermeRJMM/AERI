@@ -16,9 +16,9 @@ function aplicarPermissoesSidebar(dados) {
     const permissoes = dados.permissoes || {};
     definirModuloVisivel('onus', admin || Boolean(permissoes.processar_matricula));
     definirModuloVisivel('mapaonr', admin || Boolean(permissoes.acessar_mapa_onr));
-    definirModuloVisivel('buscas', admin || Boolean(permissoes.processar_matricula));
+    definirModuloVisivel('buscas', admin || Boolean(permissoes.acessar_buscas));
     definirModuloVisivel('incra', admin || Boolean(permissoes.processar_incra));
-    definirModuloVisivel('livroproto', admin || Boolean(permissoes.processar_matricula));
+    definirModuloVisivel('livroproto', admin || Boolean(permissoes.acessar_livro_protocolos));
     definirModuloVisivel('custas', admin || Boolean(permissoes.gerenciar_custas));
     definirModuloVisivel('regaux', admin || Boolean(permissoes.gerenciar_custas));
     definirModuloVisivel('rotina', admin || Boolean(permissoes.ver_intimacoes));
