@@ -183,6 +183,87 @@ class TesteProprietarios(unittest.TestCase):
             [{"nome": "João da Silva", "cpf": "004.338.341-61", "proporcao": "100%", "proporcao_incerta": False}],
         )
 
+    def test_outorgada_no_feminino_e_reconhecida_como_adquirente(self):
+        # Regressão (matrículas reais 35.149 e 37.908): as escrituras rotulam
+        # a adquirente no feminino ("OUTORGADA: Maria..."), mas o padrão só
+        # aceitava OUTORGADO/OUTORGADOS. O bloco vinha vazio e o ato inteiro
+        # era descartado da cadeia -- a transmissão simplesmente não existia
+        # para o motor.
+        texto = """
+        MATRÍCULA 35.149. IMÓVEL: Lote 3, Quadra 8.
+        PROPRIETÁRIO: Antônio Vendedor, CPF 125.087.131-04.
+        R.02-35.149 - COMPRA E VENDA. OUTORGANTE: Antônio Vendedor, brasileiro,
+        divorciado, inscrito no CPF/MF sob o n.º 125.087.131-04. OUTORGADA: Maria
+        Silvéria Dias da Cunha, aposentada, inscrita no CPF/MF sob o n.º
+        773.604.271-34. IMÓVEL: A totalidade do imóvel. DOU FÉ.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            [(item["nome"], item["proporcao"]) for item in resultado],
+            [("Maria Silvéria Dias da Cunha", "100%")],
+        )
+
+    def test_documento_citado_na_qualificacao_nao_vira_proprietario(self):
+        # Regressão (matrícula real 14.972): o bloco do adquirente segue além
+        # da pessoa e entra nos documentos que instruíram o ato ("nos termos
+        # da Ata de Posse...", "Certidão Simplificada da JUCEG..."). Esses
+        # nomes eram extraídos como titulares, criando proprietários
+        # inexistentes que apareciam na busca por titular.
+        texto = """
+        MATRÍCULA 14.972. IMÓVEL: Lote 5, Quadra 2.
+        PROPRIETÁRIO: Empresa Anterior Ltda, CNPJ 04.124.167/0001-15.
+        R.08-14.972 - VENDA E COMPRA. TRANSMITENTE: Empresa Anterior Ltda,
+        CNPJ/MF 04.124.167/0001-15. ADQUIRENTE: Cooperativa Mista dos Produtores
+        de Leite de Morrinhos, pessoa jurídica de direito privado, inscrita no
+        CNPJ/MF sob o n.º 02.667.442/0001-11, no ato representada pelo Presidente
+        Sérgio de Oliveira Penido, brasileiro, casado, inscrito no CPF/MF sob o
+        n.º 469.544.141-15; nos termos da Ata de Posse do Conselho de
+        Administração da Cooperativa Mista dos Produtores de Leite de Morrinhos,
+        e da Certidão Simplificada da JUCEG emitida em 01.11.2024. IMÓVEL: A
+        totalidade do imóvel. DOU FÉ.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            [item["nome"] for item in resultado],
+            ["Cooperativa Mista dos Produtores de Leite de Morrinhos"],
+        )
+        self.assertEqual(resultado[0]["proporcao"], "100%")
+
+    def test_status_quo_ante_devolve_imovel_a_pessoa_fisica(self):
+        # Regressão (matrícula real 9.681): o padrão exigia documento de
+        # pessoa jurídica (CNPJ/CGC) e a preposição "da/do". O cancelamento
+        # em favor de pessoa física -- "à propriedade DE Fulano ... inscrito
+        # no CPF/MF" -- era descartado em silêncio, e o proprietário que o
+        # cancelamento acabara de remover continuava figurando na matrícula.
+        texto = """
+        MATRÍCULA 9.681. IMÓVEL: Fazenda Paraíso.
+        PROPRIETÁRIO: Comprador Desfeito, CPF 004.338.341-61.
+        AV.06-9.681 - CANCELAMENTO DE COMPRA E VENDA. Nos termos do ofício
+        judicial, cuja rescisão foi declarada judicialmente, o imóvel objeto da
+        presente matrícula retorna ao STATUS QUO ANTE, ou seja, à propriedade de
+        Desimar Teixeira de Macedo, brasileiro, solteiro, comerciante, inscrito
+        no CPF/MF sob o n.º 612.070.551-15, residente nesta cidade. DOU FÉ.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            resultado,
+            [{
+                "nome": "Desimar Teixeira de Macedo",
+                "cpf": "612.070.551-15",
+                "proporcao": "100%",
+                "proporcao_incerta": False,
+            }],
+        )
+
     def test_consolidacao_fiduciaria_transfere_imovel_ao_credor(self):
         # Requisito do AGENTS.md ("tratar consolidação da propriedade
         # fiduciária como transferência integral ao credor fiduciário

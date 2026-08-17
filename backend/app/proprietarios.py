@@ -497,7 +497,7 @@ def extrair_bloco(texto, tipo):
         m = re.search(
             r'\b(?:ADQUIRENTES?(?:/(?:TOMADOR(?:ES)?|'
             r'(?:PRIMEIR|SEGUND)[OA]S?\s+PERMUTANTES?))?|'
-            r'OUTORGADOS?|DONAT[ÁA]RI[OA]S?|ADJUDICANTES?|'
+            r'OUTORGAD[OA]S?|DONAT[ÁA]RI[OA]S?|ADJUDICANTES?|'
             r'ARREMATANTES?|COMPRADOR(?:ES)?)\s*:\s*(.*?)'
             r'(?=\b(?:IM[ÓO]VEL|OBJETO|ORIGEM|FORMA\s+DO\s+T[ÍI]TULO|'
             r'TRANSMITENTES?|OUTORGANTES?|DOADORES?)\s*:|'
@@ -582,7 +582,10 @@ def extrair_bloco(texto, tipo):
             )
             return t
 
-        m = re.search(r'OUTORGADO[S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
+        # OUTORGAD[OA]S?: escrituras rotulam a adquirente no feminino
+        # ("OUTORGADA: Maria..."). Aceitando só o masculino, o bloco vinha
+        # vazio e o ato inteiro era descartado da cadeia dominial.
+        m = re.search(r'OUTORGAD[OA][S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(r'ADQUIRENTE[S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO TÍTULO\b)', texto, re.I | re.DOTALL)
@@ -692,7 +695,7 @@ def extrair_bloco(texto, tipo):
             )[0]
             return bloco.strip().rstrip(';, ')
 
-        m = re.search(r'OUTORGANTE[S]?\s*:(.*?)(?=\bOUTORGADO[S]?\s*:|\bIM[ÓO]VEL\s*:)', texto, re.I | re.DOTALL)
+        m = re.search(r'OUTORGANTE[S]?\s*:(.*?)(?=\bOUTORGAD[OA][S]?\s*:|\bIM[ÓO]VEL\s*:)', texto, re.I | re.DOTALL)
         if m: return m.group(1).strip().rstrip(';, ')
 
         m = re.search(
@@ -737,6 +740,26 @@ def extrair_bloco(texto, tipo):
         if m: return m.group(1).strip().rstrip(';, ')
 
     return ""
+
+# Documentos citados na qualificação ("nos termos da Ata de Posse...",
+# "conforme Certidão Simplificada da JUCEG...") ficavam dentro do bloco do
+# adquirente e eram extraídos como se fossem pessoas, criando proprietários
+# inexistentes -- que depois apareciam na busca por titular.
+_PADRAO_NOME_DE_DOCUMENTO = re.compile(
+    r"^\s*(?:A\s+|O\s+|AS\s+|OS\s+)?"
+    r"(?:ATA|CERTID[ÃA]O|ESCRITURA|REQUERIMENTO|OF[ÍI]CIO|INSTRUMENTO|"
+    r"CONTRATO|ESTATUTO|ALTERA[ÇC][ÃA]O\s+CONTRATUAL|PROCURA[ÇC][ÃA]O|"
+    r"FORMAL\s+DE\s+PARTILHA|CARTA\s+DE\s+ARREMATA[ÇC][ÃA]O|MANDADO|"
+    r"SENTEN[ÇC]A|ALVAR[ÁA]|TERMO|LAUDO|MEM[OÓ]RIA\s+DESCRITIVA|"
+    r"DECLARA[ÇC][ÃA]O|BALAN[ÇC]O|EDITAL|PORTARIA|RESOLU[ÇC][ÃA]O|"
+    r"DECRETO|LEI|PROVIMENTO|ATO\s+NOTARIAL|LIVRO)\b",
+    re.IGNORECASE,
+)
+
+
+def _e_nome_de_documento(nome: str) -> bool:
+    return bool(_PADRAO_NOME_DE_DOCUMENTO.match(str(nome or "")))
+
 
 def extrair_pessoas(texto_bloco):
     pessoas = []
@@ -1100,7 +1123,7 @@ def extrair_pessoas(texto_bloco):
                 pessoas[indice - 1]["percentual"] = conjuge["percentual"]
             del pessoas[indice]
 
-    return pessoas
+    return [pessoa for pessoa in pessoas if not _e_nome_de_documento(pessoa["nome"])]
 
 
 def enriquecer_documentos_adquirentes(adquirentes, texto):
@@ -1365,10 +1388,15 @@ def extrair_alteracao_nome(texto):
 def extrair_retorno_status_quo_ante(texto):
     if not re.search(r'\bSTATUS\s+QUO\s+ANTE\b', texto, re.I):
         return []
+    # CPF ao lado de CNPJ/CGC: o padrão exigia documento de pessoa jurídica e
+    # por isso o retorno ao status quo ante em favor de pessoa física --
+    # "à propriedade de Fulano, brasileiro, solteiro, inscrito no CPF/MF sob
+    # o n.º ..." -- era descartado em silêncio, deixando como proprietário
+    # quem o cancelamento acabara de remover.
     retorno = re.search(
         r'\bretorna\s+ao\s+STATUS\s+QUO\s+ANTE\b.*?'
-        r'\bpropriedade\s+d[ao]\s+(?:pessoa\s+jur[íi]dica\s+de\s+direito\s+privado\s+)?'
-        r'([^,;.]+).*?\b(?:CNPJ|CGC)(?:/MF)?\s+sob\s+o\s+n[.º°o]*\s*'
+        r'\bpropriedade\s+d[aoe]\s+(?:pessoa\s+jur[íi]dica\s+de\s+direito\s+privado\s+)?'
+        r'([^,;.]+).*?\b(?:CNPJ|CGC|CPF)(?:/MF)?\s+sob\s+o\s+n[.º°o]*\s*'
         r'([\d.\-/]{9,20})',
         texto,
         re.I | re.DOTALL,

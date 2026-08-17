@@ -1014,6 +1014,32 @@ def extrair_dados_imovel(
             if construida_atual:
                 _substituir_por_rotulo(resultado["areas"], {"rotulo": "Área Construída", "valor": construida_atual, "origem": codigo})
 
+        # Mudança de denominação do imóvel (art. 167, II, 4 da Lei 6.015/73).
+        # Sem isto o nome continuava saindo do cabeçalho, ignorando a
+        # averbação posterior que o alterou -- a matrícula era devolvida com
+        # a denominação antiga. "DENOMINAÇÃO SOCIAL" fica de fora: aquilo
+        # renomeia a pessoa jurídica proprietária, não o imóvel.
+        if (
+            "MUDANCA DE DENOMINACAO" in normalizado
+            and "DENOMINACAO SOCIAL" not in normalizado
+            and rural
+        ):
+            # A denominação pode vir quebrada em duas linhas no texto da Tri7,
+            # por isso a captura aceita quebra de linha e o espaçamento é
+            # normalizado depois; aspas, ponto e ponto-e-vírgula delimitam.
+            nova_denominacao = re.search(
+                r"passa(?:m)?\s+a\s+denominar[- ]se\s*[\"'“”]?\s*([^\"'“”.;]{3,120})",
+                descricao_ato,
+                re.IGNORECASE,
+            )
+            if nova_denominacao:
+                valor = re.sub(r"\s+", " ", nova_denominacao.group(1)).strip(" ,;\"'“”")
+                if valor:
+                    _substituir_por_rotulo(
+                        resultado["identificacao"],
+                        {"rotulo": "Nome", "valor": valor, "origem": codigo},
+                    )
+
         if "DESIGNACAO CADASTRAL DO IMOVEL" in normalizado:
             designacao = re.search(
                 r"códigos?\s+cadastra(?:l|is)\b.{0,100}?:\s*(.{0,300}?)"

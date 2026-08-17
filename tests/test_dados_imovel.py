@@ -444,6 +444,49 @@ class TesteDadosImovel(unittest.TestCase):
             [{"nome": "Companhia de Habitação Exemplo", "cpf": "01.274.240/0001-47", "proporcao": "100%", "proporcao_incerta": False}],
         )
 
+    def test_averbacao_de_mudanca_de_denominacao_atualiza_nome_do_imovel(self):
+        # Regressão (matrícula real 30.181): a averbação do art. 167, II, 4 da
+        # Lei 6.015/73 muda a denominação do imóvel, mas o nome continuava
+        # saindo do cabeçalho -- a matrícula era devolvida com o nome antigo.
+        texto = """
+        MATRÍCULA 30.181. IMÓVEL: Uma gleba de terras denominada Fazenda Mimoso,
+        com área de 50,0000ha, neste Município.
+        PROPRIETÁRIO: Pessoa Exemplo, CPF 004.338.341-61.
+        AV.04-30.181 - MUDANÇA DE DENOMINAÇÃO. Procede-se a presente averbação de
+        acordo com o disposto no art. 167, II, 04 da Lei Federal 6.015/1973, para
+        constar que o imóvel objeto desta matrícula passa a denominar-se "Fazenda
+        Belo Horizonte". DOU FÉ.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+        nomes = [
+            item for item in resultado["identificacao"]
+            if item["rotulo"] == "Nome"
+        ]
+
+        self.assertEqual(len(nomes), 1)
+        self.assertEqual(nomes[0]["valor"], "Fazenda Belo Horizonte")
+        self.assertEqual(nomes[0]["origem"], "AV.04")
+
+    def test_mudanca_de_denominacao_social_nao_renomeia_o_imovel(self):
+        # "DENOMINAÇÃO SOCIAL" renomeia a pessoa jurídica proprietária, não o
+        # imóvel -- não pode acionar a regra acima.
+        texto = """
+        MATRÍCULA 30.182. IMÓVEL: Uma gleba denominada Fazenda Mimoso, com área
+        de 50,0000ha, neste Município.
+        PROPRIETÁRIO: Empresa Exemplo Ltda, CNPJ 04.124.167/0001-15.
+        AV.05-30.182 - MUDANÇA DE DENOMINAÇÃO SOCIAL. Para constar que a
+        proprietária passa a denominar-se Empresa Renomeada S/A. DOU FÉ.
+        """
+
+        resultado = analisar_matricula(texto)["imovel"]
+        nomes = [
+            item for item in resultado["identificacao"]
+            if item["rotulo"] == "Nome"
+        ]
+
+        self.assertEqual([item["valor"] for item in nomes], ["Fazenda Mimoso"])
+
     def test_desmembramento_integral_em_duas_glebas_encerra_matricula(self):
         texto = """
         MATRÍCULA 1. IMÓVEL: Fazenda Exemplo, com área de 273,3400ha.
