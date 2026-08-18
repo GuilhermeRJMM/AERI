@@ -61,7 +61,9 @@ def parse_percentual_declarado(texto):
             return corrigido
     return valor
 
-def parse_percent(texto):
+def _percentual_sobre_quinhao(texto):
+    """Percentual ou valor que incide sobre outro quinhão, e não sobre o
+    imóvel inteiro: 4,1666% sobre 50% do imóvel são 2,0833% do todo."""
     percentual_resultante_da_quota = re.search(
         r'(\d+(?:[,.]\d+)?)\s*%\s+da\s+quota\s*'
         r'\(\s*(\d+(?:[,.]\d+)?)\s*%\s*\)',
@@ -106,6 +108,11 @@ def parse_percent(texto):
         total = parse_valor_monetario(parte_monetaria_sobre_quinhao.group(3))
         if parte is not None and total and 0 < parte <= total:
             return parte / total * quinhao
+    return None
+
+
+def _percentual_declarado_do_imovel(texto):
+    """Redações que declaram direto quanto do imóvel o ato transmite."""
 
     percentual_correspondente_total = re.search(
         r'(?:o\s+que\s+)?corresponde\s+a\s+'
@@ -146,6 +153,11 @@ def parse_percent(texto):
         )
         if percentual <= 100.1:
             return percentual
+    return None
+
+
+def _percentual_por_partes_avaliadas(texto):
+    """Parte ideal expressa em dinheiro, dividida pela avaliação do imóvel."""
 
     duas_partes_monetarias = re.search(
         r'\bduas\s+partes?(?:\s+ideais?)?\s+de\s*'
@@ -205,6 +217,11 @@ def parse_percent(texto):
             if abs(percentual_base - 50.0) <= 3.0:
                 percentual_base = 50.0
             return math.prod(fracoes) * percentual_base
+    return None
+
+
+def _percentual_por_fracao_do_imovel(texto):
+    """Fração ordinária referida ao imóvel: 1/3 do imóvel objeto."""
 
     fracao_objeto = re.search(
         r'(?:OBJETO|IM[ÓO]VEL)\s*:\s*.{0,120}?parte\s+ideal\s+de\s+'
@@ -228,6 +245,13 @@ def parse_percent(texto):
             / int(fracao_direta_imovel.group(2))
             * 100.0
         )
+    return None
+
+
+def _percentual_declarado_ou_fracao_textual(texto):
+    """Percentual escrito por extenso no título e frações ditas em palavras
+    (metade, terça parte, três quartos). Vem antes das sondas por
+    avaliação: o que está declarado prevalece sobre o que é calculado."""
 
     # Percentual declarado no título prevalece sobre valores monetários.
     # Sem essa prioridade, "parte ideal de 50% ... avaliação de 700.000,10"
@@ -264,6 +288,12 @@ def parse_percent(texto):
     for padrao, percentual in fracoes_textuais:
         if re.search(padrao, texto, re.IGNORECASE):
             return percentual
+    return None
+
+
+def _percentual_por_avaliacao_total(texto):
+    """Casos que dependem da avaliação do imóvel para chegar à proporção,
+    inclusive quinhões enumerados em escrituras antigas."""
 
     percentual_do_imovel = re.search(
         r'(?<![\d.,])(?:parte\s+ideal\s+de\s+)?(\d+(?:,\d+)?)\s*%\s*'
@@ -367,6 +397,12 @@ def parse_percent(texto):
                 valores = valores[:metade]
         if valores and total and 0 < sum(valores) <= total + 0.01:
             return sum(valores) / total * 100.0
+    return None
+
+
+def _percentual_por_redacao_residual(texto):
+    """Redações remanescentes e os atalhos antigos do acervo, incluindo a
+    meação de 50% e as expressões de totalidade."""
 
     m_valor = re.search(
         r'(?:(?:parte|porte)\s+)?(?:ideal|inicial|correspondente\s+a)\s+(?:de\s*)?'
@@ -408,7 +444,28 @@ def parse_percent(texto):
         
     if re.search(r'(totalidade|integralidade|100%|o imóvel constante|o imóvel objeto)', texto, re.IGNORECASE):
         return 100.0
-        
+    return None
+
+
+def parse_percent(texto):
+    """Descobre que proporção do imóvel o ato transmite.
+
+    As sondas são tentadas na ordem abaixo, que é significativa: cada
+    uma devolve None quando não reconhece a redação, passando a vez à
+    seguinte. Não reconhecida por nenhuma, a transmissão é do todo.
+    """
+    for sonda in (
+        _percentual_sobre_quinhao,
+        _percentual_declarado_do_imovel,
+        _percentual_por_partes_avaliadas,
+        _percentual_por_fracao_do_imovel,
+        _percentual_declarado_ou_fracao_textual,
+        _percentual_por_avaliacao_total,
+        _percentual_por_redacao_residual,
+    ):
+        percentual = sonda(texto)
+        if percentual is not None:
+            return percentual
     return 100.0
 
 
