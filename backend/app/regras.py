@@ -373,10 +373,10 @@ def _decidir_por_cancelamento(texto, texto_sem_acentos, texto_sem_acentos_compac
     return None
 
 
-def _decidir_por_caso_especifico(texto, texto_sem_acentos, texto_sem_acentos_compacto, titulo_ato, cabecalho_formal, regras_aprendidas=None):
-    """Casos particulares do acervo: aditivos que não criam garantia,
-    substituições, indicação de graus, alienação superveniente e
-    demais redações que precisam de leitura própria."""
+def _decidir_por_aditivo_ou_garantia(texto, texto_sem_acentos, texto_sem_acentos_compacto, titulo_ato, cabecalho_formal, regras_aprendidas=None):
+    """Aditivos, ratificações e indicação de graus: só viram ônus quando o
+    próprio ato constitui garantia nova, não quando apenas repetem a
+    cédula aditada."""
 
     # Retificações de ofício apenas corrigem elementos de atos anteriores. O
     # texto costuma repetir integralmente a garantia retificada, mas não há uma
@@ -472,6 +472,12 @@ def _decidir_por_caso_especifico(texto, texto_sem_acentos, texto_sem_acentos_com
 
     if nova_garantia_no_aditivo:
         return ("ÔNUS", True)
+    return None
+
+
+def _decidir_por_alienacao_ou_substituicao(texto, texto_sem_acentos, texto_sem_acentos_compacto, titulo_ato, cabecalho_formal, regras_aprendidas=None):
+    """Alienação fiduciária superveniente, substituição de garantia e as
+    redações vizinhas que mudam o gravame sem constituir outro."""
 
     if (
         "ADITIVO" in texto_sem_acentos_compacto[:420]
@@ -521,6 +527,12 @@ def _decidir_por_caso_especifico(texto, texto_sem_acentos, texto_sem_acentos_com
         titulo_ato,
     ):
         return ("ÔNUS", True)
+    return None
+
+
+def _decidir_por_liberacao_ou_restricao(texto, texto_sem_acentos, texto_sem_acentos_compacto, titulo_ato, cabecalho_formal, regras_aprendidas=None):
+    """Liberações parciais, exclusões de bens e cláusulas que restringem sem
+    onerar."""
 
     if (
         "HIPOTECA" in titulo_ato[:140]
@@ -604,6 +616,11 @@ def _decidir_por_caso_especifico(texto, texto_sem_acentos, texto_sem_acentos_com
         "CONSTITUICAO DE GARANTIA",
     )):
         return ("IGNORAR", False)
+    return None
+
+
+def _decidir_por_redacao_historica(texto, texto_sem_acentos, texto_sem_acentos_compacto, titulo_ato, cabecalho_formal, regras_aprendidas=None):
+    """Redações antigas do acervo, com grafia e estrutura próprias da época."""
 
     # Aditivo que apenas retifica/ratifica condiÃ§Ãµes da dÃ­vida, como
     # vencimento e forma de pagamento, nÃ£o constitui novo Ã´nus. A garantia
@@ -707,6 +724,23 @@ def _decidir_por_caso_especifico(texto, texto_sem_acentos, texto_sem_acentos_com
         )
     ):
         return ("IGNORAR", False)
+    return None
+
+
+def _decidir_por_caso_especifico(texto, texto_sem_acentos, texto_sem_acentos_compacto, titulo_ato, cabecalho_formal, regras_aprendidas=None):
+    """Casos particulares do acervo, agrupados por natureza do ato."""
+    for grupo in (
+        _decidir_por_aditivo_ou_garantia,
+        _decidir_por_alienacao_ou_substituicao,
+        _decidir_por_liberacao_ou_restricao,
+        _decidir_por_redacao_historica,
+    ):
+        decisao = grupo(
+            texto, texto_sem_acentos, texto_sem_acentos_compacto,
+        titulo_ato, cabecalho_formal, regras_aprendidas,
+        )
+        if decisao is not None:
+            return decisao
     return None
 
 
