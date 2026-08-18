@@ -516,287 +516,313 @@ MARCADOR_PAPEL_NAO_ADQUIRENTE = (
 )
 
 
+def _bloco_do_adquirente(texto):
+    """Isola no ato o trecho que qualifica quem adquire.
+
+    Devolve None quando nenhuma das redações conhecidas casa; o chamador
+    trata isso como bloco ausente.
+    """
+    # Nas divisões, a lista de "outorgados" pode reunir todos os
+    # condôminos apenas para qualificação. A cláusula "coube
+    # exclusivamente" é que identifica quem recebeu este quinhão.
+    if re.search(r'\bDIVIS[ÃA]O\b|\bDIVISÓRIA\b', texto, re.I):
+        m = re.search(
+            r'\bcoube\s+exclusivamente\s+(?:a|ao|aos|à|às)\s+'
+            r'(?:(?:cond[oô]min[oa]s?|meeir[oa]s?|herdeir[oa]s?)\s+)?(.*?)'
+            r'(?=\bo\s+quinh[ãa]o\b|\bem pagamento\b|\bem virtude\b|'
+            r',\s*(?:j[áa]\s+qualificad[oa]s?\s*,\s*)?'
+            r'(?:a\s+gleba|o\s+im[óo]vel|a\s+[áa]rea)\b|'
+            r',\s*no\s+valor\b|\bconforme\b|'
+            r'\.\s*(?:\*?\s*NOTA\b|O\s+referido|DOU\s+F[ÉE])|\Z)',
+            texto,
+            re.I | re.DOTALL,
+        )
+        if m:
+            return m.group(1).strip().rstrip(';, ')
+
+    # Em divórcios antigos, "outorgantes e reciprocamente outorgados" nomeia
+    # o casal inteiro, mas o próprio ato pode atribuir a fração a somente um
+    # deles. A cláusula dispositiva prevalece sobre o rótulo genérico.
+    if re.search(r'\bDIV[ÓO]RCIO\b', texto, re.I):
+        m = re.search(
+            r'\b(?:fica|ficou|ficando)\s+pertencendo\s+'
+            r'(?:a|ao|aos|à|às)\s+(.*?)'
+            r'(?=,\s*(?:brasileir[oa]|solteir[oa]|casad[oa]|divorciad[oa]|vi[úu]v[oa])\b|'
+            r'\.\s*(?:O\s+referido|DOU\s+F[ÉE])|\Z)',
+            texto,
+            re.I | re.DOTALL,
+        )
+        if m:
+            return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'\b(?:ADQUIRENTES?(?:/(?:TOMADOR(?:ES)?|'
+        r'(?:PRIMEIR|SEGUND)[OA]S?\s+PERMUTANTES?))?|'
+        r'OUTORGAD[OA]S?|DONAT[ÁA]RI[OA]S?|ADJUDICANTES?|'
+        r'ARREMATANTES?|COMPRADOR(?:ES)?)\s*:\s*(.*?)'
+        r'(?=\b(?:IM[ÓO]VEL|OBJETO|ORIGEM|FORMA\s+DO\s+T[ÍI]TULO|'
+        r'TRANSMITENTES?|OUTORGANTES?|DOADORES?)\s*:|'
+        + MARCADOR_PAPEL_NAO_ADQUIRENTE +
+        r'|\*NOTA|\bDOU\s+F[ÉE]\b|\Z)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(r'\bvend(?:eu|eram)\s+.{0,300}?\bpara\s+(.{0,400}?)(?=\bpelo valor\b|\bpelo preço\b|;|\.\s*Dou|\.\s*O referido|\Z)', texto, re.I | re.DOTALL)
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(r'\badjudicante\s*:\s*(.*?)(?=\*NOTA|;|\.\s*Dou|\.\s*DOU|\Z)', texto, re.I | re.DOTALL)
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(r'\barrematante\s*:\s*(.*?)(?=\*NOTA|\bCOTAÇÃO\b|;|\.\s*Dou|\.\s*DOU|\Z)', texto, re.I | re.DOTALL)
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'\b(?:domínio|imóvel|matrícula)\s+foi\s+declarad[oa]\s+(?:em|a)\s+favor\s+de\s*:?\s*'
+        r'(.*?)(?=\*NOTA|\bCOTAÇÃO\b|\.\s*Dou|\.\s*DOU|\Z)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'\bação\s+de\s+usucapião\s*,?\s*promovida\s+por\s+(.*?)'
+        r'(?=\s+em\s+desfavor\b|\s+contra\b|\*NOTA|\bCOTAÇÃO\b|\.\s*Dou|\.\s*DOU|\Z)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    # Alguns registros históricos omitem a preposição "por" antes da
+    # relação numerada dos compradores: "foi adquirido 1)- ...; 2)- ...".
+    m = re.search(
+        r'\bfoi\s+adquirid[oa]\s*:?\s*'
+        r'((?:\(?\d{1,3}\)?\s*[-)]\s*).*?)'
+        r'(?=\bpor\s+compra\s+feita\b)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m:
+        return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'foi\s+incorporad[oa]\s+ao\s+patrim[oô]nio\s+d[oa]\s+(?:sociedade\s+empres[áa]ria\s+limitada\s+)?'
+        r'(.*?)(?=\bpor\s+integraliza[çc][ãa]o\s+feita\b|\bO\s+Capital\s+Social\b|\*NOTA|\bDOU\s+F[ÉE]\b)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = None if re.search(r'\blavrada\b', texto, re.I) else re.search(
+        r';\s*(.*?)(?=,?\s*adquiriu\s+por\s+compra\b)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m and m.group(1).strip().rstrip(';, '): return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'lavrada\b.{0,200}?,\s*(.{0,400}?)(?=[;,]\s*adquiri(?:u|do)\s+por\s+compra\b)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m:
+        t = m.group(1).strip().rstrip(';, ')
+        t = re.sub(
+            r'^.*\bfls?\.?\s*[\w\-\/]+(?:\s+e\s+verso|\s*v[ºo°]?)?[;,.]\s*',
+            '',
+            t,
+            flags=re.I | re.DOTALL,
+        )
+        t = re.sub(
+            r'^.*\bL[º°o]\s*\d+\s*,\s*(?:fls?\.?\s*)?'
+            r'[\w\-\/]+(?:\s+e\s+verso|\s*v[ºo°]?|ev)?[;,.]\s*',
+            '',
+            t,
+            flags=re.I | re.DOTALL,
+        )
+        return t
+
+    # OUTORGAD[OA]S?: escrituras rotulam a adquirente no feminino
+    # ("OUTORGADA: Maria..."). Aceitando só o masculino, o bloco vinha
+    # vazio e o ato inteiro era descartado da cadeia dominial.
+    m = re.search(r'OUTORGAD[OA][S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(r'ADQUIRENTE[S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO TÍTULO\b)', texto, re.I | re.DOTALL)
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(r'DONAT[AÁ]RI[OA]S?\s*:(.*?)(?=\bIM[ÓOÃ“]VEL\s*:|\bOBJETO\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(r'adquirid[oa]\s+(?:por|pel[oa])\s*:?\s*(.*?)(?=\bpor compra\b|\bpelo preço\b|\bem pagamento\b|\bpor doação\b)', texto, re.I | re.DOTALL)
+    if m:
+        bloco = re.split(
+            r'\bnest[ea]\s+ato\s+representad[oa]s?\b|\bdevidamente\s+representad[oa]s?\b',
+            m.group(1),
+            maxsplit=1,
+            flags=re.I,
+        )[0]
+        return bloco.strip().rstrip(';, ')
+
+    m = re.search(
+        r'\bfoi\s+partilhad[oa]\s+entre\s*:?\s*(.*?)'
+        r'(?=\*NOTA|\bDOU\s+F[ÉE]\b|\Z)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m:
+        return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'\bpassou\s+a\s+pertencer\s+aos?\s+primeiros?\s+permutantes?\s+'
+        r'(.*?)(?=\bsendo\s+transmitentes?\b|\bpelo\s+valor\b|\bcondi[çc][õo]es\b|\Z)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m:
+        return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'coube\s+(?:exclusivamente\s+)?(?:a|ao|aos|à|às|á|ás)\s+'
+        r'(?:(?:cond[oô]min[oa]s?|meeir[oa]s?|herdeir[oa]s?|'
+        r'arrematantes?)\s*:?\s+)?(.*?)'
+        r'(?=\bem pagamento\b|\bem virtude\b|\bparte\s+ideal\b|\ba totalidade\b|'
+        r'\bo quinh[ãa]o\b|,\s*\d+(?:[,.]\d+)?\s*%|\bpor aquisi[çc][ãa]o\b|\bconforme\b|'
+        r',\s*no\s+valor\b|;\s*o\s+im[óo]vel\b|\bcondi[çc][õo]es\b)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m:
+        t = m.group(1).strip().rstrip(';, ')
+        t = re.sub(
+            r'^(?:o\s+|a\s+|os\s+|as\s+)?'
+            r'(?:(?:únic[oa]s?|herdeir[oa]s?(?:-cessionári[oa]s?)?|cessionári[oa]s?|filh[oa]s?|net[oa]s?|viúv[oa]s?|meeir[oa]s?)[,\s]*)*'
+            r'(?:e\s+cessionári[oa]s?\s+)?[:\-]?\s*',
+            '',
+            t,
+            flags=re.I
+        ).strip(' ,;:-')
+        correcao = re.search(
+            r'\bdigo\s*,\s*([A-ZÀ-Ú][^,;]{2,120}),',
+            t,
+            re.I,
+        )
+        if correcao:
+            t = t[correcao.start(1):]
+        return t
+    return None
+
+
+def _bloco_do_transmitente(texto):
+    """Isola no ato o trecho que qualifica quem transmite.
+
+    Devolve None quando nenhuma das redações conhecidas casa; o chamador
+    trata isso como bloco ausente.
+    """
+    m = re.search(
+        r'\bsendo\s+transmitentes?\s+os\s+segundos?\s+permutantes?\s+(.*?)'
+        r'(?=\bneste\s+ato\s+(?:assistid|representad)|\bpelo\s+valor\b|'
+        r'\bcondi[çc][õo]es\b|\bO\s+referido\b|\Z)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m:
+        return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'\bim[óo]vel\s+objeto\s+da\s+presente\s+matr[íi]cula\s+'
+        r'de\s+propriedade\s+de\s+(.*?)(?=,\s*avaliad[oa]\b)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m:
+        return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'por\s+integraliza[çc][ãa]o\s+feita\s+pel[oa]\s+(?:s[oó]ci[oa]\s+)?'
+        r'(.*?)(?=,\s*com\s+plena\s+anu[êe]ncia|\bO\s+Capital\s+Social\b|\*NOTA|\bDOU\s+F[ÉE]\b)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'por\s+compra(?:\s+compra)?\s+feita(?:\s+feita)?\s+(?:a|à|ao|aos|às)\s*:?\s*(.*?)'
+        r'(?=\bpelo valor\b|\bpelo preço\b|,?\s+sobre\s+o\s+im[óo]vel\b|\.\s*O referido|\Z)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m:
+        bloco = re.split(
+            r';?\s*(?:e\s+)?como\s+anuentes?\b|'
+            r'\bdo\s+t[íi]tulo\s+consta\s+(?:ainda\s+)?como\s+anuentes?\b',
+            m.group(1),
+            maxsplit=1,
+            flags=re.I,
+        )[0]
+        return bloco.strip().rstrip(';, ')
+
+    m = re.search(r'OUTORGANTE[S]?\s*:(.*?)(?=\bOUTORGAD[OA][S]?\s*:|\bIM[ÓO]VEL\s*:)', texto, re.I | re.DOTALL)
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'TRANSMITENTE[S]?(?:/(?:DADOR(?:ES)?|DOADOR(?:ES)?|'
+        r'(?:PRIMEIR|SEGUND)[OA]S?\s+PERMUTANTES?))?\s*:(.*?)'
+        r'(?=\bADQUIRENTE[S]?(?:/(?:TOMADOR(?:ES)?|'
+        r'(?:PRIMEIR|SEGUND)[OA]S?\s+PERMUTANTES?))?\s*:|\bIM[ÓO]VEL\s*:)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(r'DOADOR(?:A|ES|AS)?\s*:(.*?)(?=\bINTERVENIENTE\s*:|\bDONAT[AÁ]RI[OA]S?\s*:|\bOBJETO\s*:|\bIM[ÓOÃ“]VEL\s*:)', texto, re.I | re.DOTALL)
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'por\s+compra\s+feita(?:\s+feita)?\s+'
+        r'(?:(?:a|à|ao|aos|às)\s+)?'
+        r'(.*?)(?=\bpelo\s+preço\b|\bpelo\s+valor\b|;|\.\s*O\s+referido)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m: return m.group(1).strip().rstrip(';, ')
+    
+    m = re.search(
+        r'por\s+doa[çc][ãa]o\s+que\s+(?:lhe|lhes)\s+(?:fez|fizeram)\s+(.*?)'
+        r'(?=\bno\s+valor\b|\bpelo\s+valor\b|\bsem\s+condi[çc][õo]es\b|;|\.\s*O\s+referido)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(
+        r'(?:por|em)\s+doa[çc][ãa]o\s+feita\s+por\s+(.*?)'
+        r'(?=\bno\s+valor\b|\bpelo\s+valor\b|\bsem\s+condi[çc][õo]es\b|;|\.\s*O\s+referido|\Z)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m: return m.group(1).strip().rstrip(';, ')
+
+    m = re.search(r'deixados por falecimento\s+(?:de\s+)?(.*?)(?=,|\s+julgado|;)', texto, re.I | re.DOTALL)
+    if m: return m.group(1).strip().rstrip(';, ')
+    return None
+
+
 def extrair_bloco(texto, tipo):
+    """Isola no ato o trecho que qualifica uma das pontas do negócio.
+
+    Devolve string vazia quando não reconhece a redação, que é como o
+    resto do motor entende a ausência daquele lado no ato.
+    """
     if tipo == "ADQUIRENTE":
-        # Nas divisões, a lista de "outorgados" pode reunir todos os
-        # condôminos apenas para qualificação. A cláusula "coube
-        # exclusivamente" é que identifica quem recebeu este quinhão.
-        if re.search(r'\bDIVIS[ÃA]O\b|\bDIVISÓRIA\b', texto, re.I):
-            m = re.search(
-                r'\bcoube\s+exclusivamente\s+(?:a|ao|aos|à|às)\s+'
-                r'(?:(?:cond[oô]min[oa]s?|meeir[oa]s?|herdeir[oa]s?)\s+)?(.*?)'
-                r'(?=\bo\s+quinh[ãa]o\b|\bem pagamento\b|\bem virtude\b|'
-                r',\s*(?:j[áa]\s+qualificad[oa]s?\s*,\s*)?'
-                r'(?:a\s+gleba|o\s+im[óo]vel|a\s+[áa]rea)\b|'
-                r',\s*no\s+valor\b|\bconforme\b|'
-                r'\.\s*(?:\*?\s*NOTA\b|O\s+referido|DOU\s+F[ÉE])|\Z)',
-                texto,
-                re.I | re.DOTALL,
-            )
-            if m:
-                return m.group(1).strip().rstrip(';, ')
-
-        # Em divórcios antigos, "outorgantes e reciprocamente outorgados" nomeia
-        # o casal inteiro, mas o próprio ato pode atribuir a fração a somente um
-        # deles. A cláusula dispositiva prevalece sobre o rótulo genérico.
-        if re.search(r'\bDIV[ÓO]RCIO\b', texto, re.I):
-            m = re.search(
-                r'\b(?:fica|ficou|ficando)\s+pertencendo\s+'
-                r'(?:a|ao|aos|à|às)\s+(.*?)'
-                r'(?=,\s*(?:brasileir[oa]|solteir[oa]|casad[oa]|divorciad[oa]|vi[úu]v[oa])\b|'
-                r'\.\s*(?:O\s+referido|DOU\s+F[ÉE])|\Z)',
-                texto,
-                re.I | re.DOTALL,
-            )
-            if m:
-                return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'\b(?:ADQUIRENTES?(?:/(?:TOMADOR(?:ES)?|'
-            r'(?:PRIMEIR|SEGUND)[OA]S?\s+PERMUTANTES?))?|'
-            r'OUTORGAD[OA]S?|DONAT[ÁA]RI[OA]S?|ADJUDICANTES?|'
-            r'ARREMATANTES?|COMPRADOR(?:ES)?)\s*:\s*(.*?)'
-            r'(?=\b(?:IM[ÓO]VEL|OBJETO|ORIGEM|FORMA\s+DO\s+T[ÍI]TULO|'
-            r'TRANSMITENTES?|OUTORGANTES?|DOADORES?)\s*:|'
-            + MARCADOR_PAPEL_NAO_ADQUIRENTE +
-            r'|\*NOTA|\bDOU\s+F[ÉE]\b|\Z)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(r'\bvend(?:eu|eram)\s+.{0,300}?\bpara\s+(.{0,400}?)(?=\bpelo valor\b|\bpelo preço\b|;|\.\s*Dou|\.\s*O referido|\Z)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(r'\badjudicante\s*:\s*(.*?)(?=\*NOTA|;|\.\s*Dou|\.\s*DOU|\Z)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(r'\barrematante\s*:\s*(.*?)(?=\*NOTA|\bCOTAÇÃO\b|;|\.\s*Dou|\.\s*DOU|\Z)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'\b(?:domínio|imóvel|matrícula)\s+foi\s+declarad[oa]\s+(?:em|a)\s+favor\s+de\s*:?\s*'
-            r'(.*?)(?=\*NOTA|\bCOTAÇÃO\b|\.\s*Dou|\.\s*DOU|\Z)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'\bação\s+de\s+usucapião\s*,?\s*promovida\s+por\s+(.*?)'
-            r'(?=\s+em\s+desfavor\b|\s+contra\b|\*NOTA|\bCOTAÇÃO\b|\.\s*Dou|\.\s*DOU|\Z)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        # Alguns registros históricos omitem a preposição "por" antes da
-        # relação numerada dos compradores: "foi adquirido 1)- ...; 2)- ...".
-        m = re.search(
-            r'\bfoi\s+adquirid[oa]\s*:?\s*'
-            r'((?:\(?\d{1,3}\)?\s*[-)]\s*).*?)'
-            r'(?=\bpor\s+compra\s+feita\b)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m:
-            return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'foi\s+incorporad[oa]\s+ao\s+patrim[oô]nio\s+d[oa]\s+(?:sociedade\s+empres[áa]ria\s+limitada\s+)?'
-            r'(.*?)(?=\bpor\s+integraliza[çc][ãa]o\s+feita\b|\bO\s+Capital\s+Social\b|\*NOTA|\bDOU\s+F[ÉE]\b)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = None if re.search(r'\blavrada\b', texto, re.I) else re.search(
-            r';\s*(.*?)(?=,?\s*adquiriu\s+por\s+compra\b)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m and m.group(1).strip().rstrip(';, '): return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'lavrada\b.{0,200}?,\s*(.{0,400}?)(?=[;,]\s*adquiri(?:u|do)\s+por\s+compra\b)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m:
-            t = m.group(1).strip().rstrip(';, ')
-            t = re.sub(
-                r'^.*\bfls?\.?\s*[\w\-\/]+(?:\s+e\s+verso|\s*v[ºo°]?)?[;,.]\s*',
-                '',
-                t,
-                flags=re.I | re.DOTALL,
-            )
-            t = re.sub(
-                r'^.*\bL[º°o]\s*\d+\s*,\s*(?:fls?\.?\s*)?'
-                r'[\w\-\/]+(?:\s+e\s+verso|\s*v[ºo°]?|ev)?[;,.]\s*',
-                '',
-                t,
-                flags=re.I | re.DOTALL,
-            )
-            return t
-
-        # OUTORGAD[OA]S?: escrituras rotulam a adquirente no feminino
-        # ("OUTORGADA: Maria..."). Aceitando só o masculino, o bloco vinha
-        # vazio e o ato inteiro era descartado da cadeia dominial.
-        m = re.search(r'OUTORGAD[OA][S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(r'ADQUIRENTE[S]?\s*:(.*?)(?=\bIM[ÓO]VEL\s*:|\bORIGEM\s*:|\bFORMA DO TÍTULO\b)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(r'DONAT[AÁ]RI[OA]S?\s*:(.*?)(?=\bIM[ÓOÃ“]VEL\s*:|\bOBJETO\s*:|\bORIGEM\s*:|\bFORMA DO T[ÍI]TULO\b)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(r'adquirid[oa]\s+(?:por|pel[oa])\s*:?\s*(.*?)(?=\bpor compra\b|\bpelo preço\b|\bem pagamento\b|\bpor doação\b)', texto, re.I | re.DOTALL)
-        if m:
-            bloco = re.split(
-                r'\bnest[ea]\s+ato\s+representad[oa]s?\b|\bdevidamente\s+representad[oa]s?\b',
-                m.group(1),
-                maxsplit=1,
-                flags=re.I,
-            )[0]
-            return bloco.strip().rstrip(';, ')
-
-        m = re.search(
-            r'\bfoi\s+partilhad[oa]\s+entre\s*:?\s*(.*?)'
-            r'(?=\*NOTA|\bDOU\s+F[ÉE]\b|\Z)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m:
-            return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'\bpassou\s+a\s+pertencer\s+aos?\s+primeiros?\s+permutantes?\s+'
-            r'(.*?)(?=\bsendo\s+transmitentes?\b|\bpelo\s+valor\b|\bcondi[çc][õo]es\b|\Z)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m:
-            return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'coube\s+(?:exclusivamente\s+)?(?:a|ao|aos|à|às|á|ás)\s+'
-            r'(?:(?:cond[oô]min[oa]s?|meeir[oa]s?|herdeir[oa]s?|'
-            r'arrematantes?)\s*:?\s+)?(.*?)'
-            r'(?=\bem pagamento\b|\bem virtude\b|\bparte\s+ideal\b|\ba totalidade\b|'
-            r'\bo quinh[ãa]o\b|,\s*\d+(?:[,.]\d+)?\s*%|\bpor aquisi[çc][ãa]o\b|\bconforme\b|'
-            r',\s*no\s+valor\b|;\s*o\s+im[óo]vel\b|\bcondi[çc][õo]es\b)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m:
-            t = m.group(1).strip().rstrip(';, ')
-            t = re.sub(
-                r'^(?:o\s+|a\s+|os\s+|as\s+)?'
-                r'(?:(?:únic[oa]s?|herdeir[oa]s?(?:-cessionári[oa]s?)?|cessionári[oa]s?|filh[oa]s?|net[oa]s?|viúv[oa]s?|meeir[oa]s?)[,\s]*)*'
-                r'(?:e\s+cessionári[oa]s?\s+)?[:\-]?\s*',
-                '',
-                t,
-                flags=re.I
-            ).strip(' ,;:-')
-            correcao = re.search(
-                r'\bdigo\s*,\s*([A-ZÀ-Ú][^,;]{2,120}),',
-                t,
-                re.I,
-            )
-            if correcao:
-                t = t[correcao.start(1):]
-            return t
-
+        bloco = _bloco_do_adquirente(texto)
     elif tipo == "TRANSMITENTE":
-        m = re.search(
-            r'\bsendo\s+transmitentes?\s+os\s+segundos?\s+permutantes?\s+(.*?)'
-            r'(?=\bneste\s+ato\s+(?:assistid|representad)|\bpelo\s+valor\b|'
-            r'\bcondi[çc][õo]es\b|\bO\s+referido\b|\Z)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m:
-            return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'\bim[óo]vel\s+objeto\s+da\s+presente\s+matr[íi]cula\s+'
-            r'de\s+propriedade\s+de\s+(.*?)(?=,\s*avaliad[oa]\b)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m:
-            return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'por\s+integraliza[çc][ãa]o\s+feita\s+pel[oa]\s+(?:s[oó]ci[oa]\s+)?'
-            r'(.*?)(?=,\s*com\s+plena\s+anu[êe]ncia|\bO\s+Capital\s+Social\b|\*NOTA|\bDOU\s+F[ÉE]\b)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'por\s+compra(?:\s+compra)?\s+feita(?:\s+feita)?\s+(?:a|à|ao|aos|às)\s*:?\s*(.*?)'
-            r'(?=\bpelo valor\b|\bpelo preço\b|,?\s+sobre\s+o\s+im[óo]vel\b|\.\s*O referido|\Z)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m:
-            bloco = re.split(
-                r';?\s*(?:e\s+)?como\s+anuentes?\b|'
-                r'\bdo\s+t[íi]tulo\s+consta\s+(?:ainda\s+)?como\s+anuentes?\b',
-                m.group(1),
-                maxsplit=1,
-                flags=re.I,
-            )[0]
-            return bloco.strip().rstrip(';, ')
-
-        m = re.search(r'OUTORGANTE[S]?\s*:(.*?)(?=\bOUTORGAD[OA][S]?\s*:|\bIM[ÓO]VEL\s*:)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'TRANSMITENTE[S]?(?:/(?:DADOR(?:ES)?|DOADOR(?:ES)?|'
-            r'(?:PRIMEIR|SEGUND)[OA]S?\s+PERMUTANTES?))?\s*:(.*?)'
-            r'(?=\bADQUIRENTE[S]?(?:/(?:TOMADOR(?:ES)?|'
-            r'(?:PRIMEIR|SEGUND)[OA]S?\s+PERMUTANTES?))?\s*:|\bIM[ÓO]VEL\s*:)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(r'DOADOR(?:A|ES|AS)?\s*:(.*?)(?=\bINTERVENIENTE\s*:|\bDONAT[AÁ]RI[OA]S?\s*:|\bOBJETO\s*:|\bIM[ÓOÃ“]VEL\s*:)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'por\s+compra\s+feita(?:\s+feita)?\s+'
-            r'(?:(?:a|à|ao|aos|às)\s+)?'
-            r'(.*?)(?=\bpelo\s+preço\b|\bpelo\s+valor\b|;|\.\s*O\s+referido)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m: return m.group(1).strip().rstrip(';, ')
-        
-        m = re.search(
-            r'por\s+doa[çc][ãa]o\s+que\s+(?:lhe|lhes)\s+(?:fez|fizeram)\s+(.*?)'
-            r'(?=\bno\s+valor\b|\bpelo\s+valor\b|\bsem\s+condi[çc][õo]es\b|;|\.\s*O\s+referido)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(
-            r'(?:por|em)\s+doa[çc][ãa]o\s+feita\s+por\s+(.*?)'
-            r'(?=\bno\s+valor\b|\bpelo\s+valor\b|\bsem\s+condi[çc][õo]es\b|;|\.\s*O\s+referido|\Z)',
-            texto,
-            re.I | re.DOTALL,
-        )
-        if m: return m.group(1).strip().rstrip(';, ')
-
-        m = re.search(r'deixados por falecimento\s+(?:de\s+)?(.*?)(?=,|\s+julgado|;)', texto, re.I | re.DOTALL)
-        if m: return m.group(1).strip().rstrip(';, ')
-
-    return ""
+        bloco = _bloco_do_transmitente(texto)
+    else:
+        bloco = None
+    # bloco pode ser "" legitimamente: comparar com None, nao por verdade
+    return bloco if bloco is not None else ""
 
 # Documentos citados na qualificação ("nos termos da Ata de Posse...",
 # "conforme Certidão Simplificada da JUCEG...") ficavam dentro do bloco do
