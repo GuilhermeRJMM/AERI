@@ -818,9 +818,13 @@ def _e_nome_de_documento(nome: str) -> bool:
     return bool(_PADRAO_NOME_DE_DOCUMENTO.match(str(nome or "")))
 
 
-def extrair_pessoas(texto_bloco):
-    pessoas = []
-    if not texto_bloco: return pessoas
+def _limpar_bloco_de_pessoas(texto_bloco):
+    """Poda do bloco o que não é parte do ato e separa as listas laterais.
+
+    Sai daqui o texto já sem anuentes, sem a cláusula de representação
+    e sem os sócios que só figuram pela empresa, mais o cônjuge citado
+    no regime de casamento e as partes declaradas em conjunto.
+    """
     # Participantes instrumentais podem vir depois dos compradores sem um
     # novo rótulo simples (por exemplo: "Compareceram como INTERVENIENTES
     # ANUENTES na qualidade de filhos:"). Eles não integram a aquisição.
@@ -922,6 +926,142 @@ def extrair_pessoas(texto_bloco):
         '',
         texto_bloco,
         flags=re.I,
+    )
+    return texto_bloco, conjuge_casamento, partes_coletivas
+
+
+def _pessoa_do_trecho(parte):
+    """Lê nome, CPF e percentual de um trecho já isolado do bloco.
+
+    Devolve None quando o trecho não descreve uma parte do ato -- é o
+    que antes fazia o ``continue`` dentro do laço.
+    """
+    parte = re.sub(r'^\s*e\s*,\s*', '', parte, flags=re.I)
+    parte = re.sub(r'^\s*(?:meeir[oa]|vi[úu]v[oa])\s*,\s*', '', parte, flags=re.I)
+    parte = re.split(r';\s*neste\s+ato\b', parte, maxsplit=1, flags=re.I)[0]
+    
+    # MEGA BRAIN: Agora aceita CNPJ, CGC e a barra "/" na leitura!
+    cpf_match = re.search(
+        r'(?:CPF|CIC|CNPJ|C\.?\s*G\.?\s*C\.?|MF)'
+        r'[^\d]*([\d\.\-\/]{9,20})',
+        parte,
+        re.I,
+    )
+    # O documento do inventariante/representante não pertence ao espólio.
+    if (
+        cpf_match
+        and re.match(
+            r'^\s*(?:\d{1,3}\s*(?:\)|-)\s*)?ESP[ÓO]LIO\b',
+            parte,
+            re.I,
+        )
+        and re.search(
+            r'\brepresentad[oa]\b',
+            parte[:cpf_match.start()],
+            re.I,
+        )
+    ):
+        cpf_match = None
+    percentual_match = re.search(
+        r'(?:equivalente\s+a|(?:na|a)\s+propor[çc][ãa]o\s+de|'
+        r'parte\s+correspondente\s+a)'
+        r'\s*(\d+(?:,\d+)?)%',
+        parte,
+        re.I,
+    )
+    if not percentual_match and re.search(r'\bpertencente\s+(?:a|ao|à)\b', parte, re.I):
+        percentual_match = re.match(r'\s*(\d+(?:,\d+)?)\s*%', parte)
+    percentual = parse_percentual_declarado(percentual_match.group(1)) if percentual_match else None
+
+    parte_nome = re.sub(
+        r'^\s*\d+(?:[,.]\d+)?\s*%\s+'
+        r'(?:(?:equivalente\s+a\s+[^,;]{1,100}?\s+)?'
+        r'(?:do\s+im[óo]vel\s+)?)?'
+        r'pertencente\s+(?:a|ao|à)\s+',
+        '',
+        parte,
+        flags=re.I,
+    )
+    nome_match = re.match(r'^([^,]+)', parte_nome)
+    nome = nome_match.group(1).strip() if nome_match else "DESCONHECIDO"
+    nome = re.sub(r'^\(?\d+(?:\)\s*-?|-)\s*', '', nome)
+    nome = re.sub(r'^(?:\+?\s*<[^>]+>\s*)+', '', nome)
+    nome = re.sub(r'^\(?\d+(?:\)\s*-?|-)\s*', '', nome)
+    nome = re.sub(r'^(?:Dr\.?|Dra\.?|Doutor(?:a)?)\s+', '', nome, flags=re.I)
+    nome = re.sub(
+        r'^\d+(?:[,.]\d+)?\s*%\s+equivalente\s+a\s+[^,;]{1,100}?'
+        r'\bdo\s+im[óo]vel\s+pertencente\s+(?:a|ao|à)\s+',
+        '',
+        nome,
+        flags=re.I,
+    )
+    nome = re.sub(
+        r'^pessoa\s+jur[íi]dica\b.*?\bdenomina[çc][ãa]o\s+social\s+de\s+',
+        '',
+        nome,
+        flags=re.I,
+    )
+    nome = re.sub(
+        r'^d[oa]\s+dom[ií]nio\s+(?:[uú]til|direto)\s+sobre\s+o\s+terreno'
+        r'(?:\s+descrito)?(?:\s+e\s+o\s+pr[eé]dio\s+residencial\s+nele\s+edificado)?'
+        r'\s+(?:[oa]\s+)?',
+        '',
+        nome,
+        flags=re.I,
+    )
+    cpf = cpf_match.group(1).strip().rstrip('.,;') if cpf_match else "CPF/CNPJ NÃO INFORMADO"
+
+    # Limpeza visual (remove estado civil e termo "pessoa jurídica")
+    nome = re.sub(r'\s+e\s+(?:seu\s+c[oô]njuge|sua\s+mulher|seu\s+marido|sua\s+esposa).*', '', nome, flags=re.I)
+    nome = re.sub(
+        r'^(?:(?:e\s+)?(?:(?:a|o|as|os)\s+)?(?:meeir[oa]|vi[úu]v[oa]|'
+        r'cond[oô]min[oa]s?|'
+        r'herdeir[oa]\s+e\s+cession[áa]ri[oa]|herdeir[oa]\s+(?:filh[oa]|net[oa])|'
+        r'herdeir[oa]|cession[áa]ri[oa]|net[oa])\s*:?\s*)+',
+        '', nome, flags=re.I,
+    )
+    nome = re.sub(r'\s*,?\s*casad[oa].*', '', nome, flags=re.I)
+    nome = re.sub(r'\s*,?\s*pessoa jur[íi]dica.*', '', nome, flags=re.I)
+    nome = re.sub(r'\s+', ' ', nome)
+    nome = re.sub(r'(?:;\s*|\s+)e\s*$', '', nome, flags=re.I)
+    nome = re.sub(r'^s\s*:\s*', '', nome, flags=re.I)
+    nome = nome.strip(' ,.()')
+
+    # Fragmentos de referência tabular, endereço ou fólio podem ficar
+    # entre dois nomes quando o traslado histórico perdeu delimitadores.
+    # Eles não representam pessoas e não podem entrar na cadeia dominial.
+    nome_normalizado = limpar_nome(nome)
+    if (
+        re.match(r'^(?:NO\s+)?LIVRO\s+\d', nome_normalizado)
+        or re.match(r'^\d[\d./-]*\s+E\s+V$', nome_normalizado)
+        or re.match(
+            r'^(?:SETOR|BAIRRO|JARDIM|LOTEAMENTO|RUA|AVENIDA|ALAMEDA|'
+            r'TRAVESSA|RODOVIA)\b',
+            nome_normalizado,
+        )
+    ):
+        return None
+    
+    if re.match(r'^(?:CPF|CNPJ|CIC|RG)\b', nome, re.I):
+        return None
+    nome_sem_pontuacao = re.sub(r'[^A-ZÀ-Ú]', '', nome.upper())
+    if (
+        len(nome_sem_pontuacao) < 2
+        or re.match(r'^N\s*[.º°O]*\s*\d', nome, re.I)
+        or re.match(r'^[A-Z]{1,2}\s*;\s*(?:R|AV)\d', nome, re.I)
+    ):
+        return None
+    pessoa = {"nome": nome, "cpf": cpf}
+    if percentual is not None:
+        pessoa["percentual"] = percentual
+    return pessoa
+
+
+def extrair_pessoas(texto_bloco):
+    pessoas = []
+    if not texto_bloco: return pessoas
+    texto_bloco, conjuge_casamento, partes_coletivas = (
+        _limpar_bloco_de_pessoas(texto_bloco)
     )
 
     # Em atos com casal, cada cônjuge pode ter nome e CPF próprios no mesmo bloco.
@@ -1055,125 +1195,9 @@ def extrair_pessoas(texto_bloco):
             partes = [texto_bloco]
 
     for parte in partes:
-        parte = re.sub(r'^\s*e\s*,\s*', '', parte, flags=re.I)
-        parte = re.sub(r'^\s*(?:meeir[oa]|vi[úu]v[oa])\s*,\s*', '', parte, flags=re.I)
-        parte = re.split(r';\s*neste\s+ato\b', parte, maxsplit=1, flags=re.I)[0]
-        
-        # MEGA BRAIN: Agora aceita CNPJ, CGC e a barra "/" na leitura!
-        cpf_match = re.search(
-            r'(?:CPF|CIC|CNPJ|C\.?\s*G\.?\s*C\.?|MF)'
-            r'[^\d]*([\d\.\-\/]{9,20})',
-            parte,
-            re.I,
-        )
-        # O documento do inventariante/representante não pertence ao espólio.
-        if (
-            cpf_match
-            and re.match(
-                r'^\s*(?:\d{1,3}\s*(?:\)|-)\s*)?ESP[ÓO]LIO\b',
-                parte,
-                re.I,
-            )
-            and re.search(
-                r'\brepresentad[oa]\b',
-                parte[:cpf_match.start()],
-                re.I,
-            )
-        ):
-            cpf_match = None
-        percentual_match = re.search(
-            r'(?:equivalente\s+a|(?:na|a)\s+propor[çc][ãa]o\s+de|'
-            r'parte\s+correspondente\s+a)'
-            r'\s*(\d+(?:,\d+)?)%',
-            parte,
-            re.I,
-        )
-        if not percentual_match and re.search(r'\bpertencente\s+(?:a|ao|à)\b', parte, re.I):
-            percentual_match = re.match(r'\s*(\d+(?:,\d+)?)\s*%', parte)
-        percentual = parse_percentual_declarado(percentual_match.group(1)) if percentual_match else None
-
-        parte_nome = re.sub(
-            r'^\s*\d+(?:[,.]\d+)?\s*%\s+'
-            r'(?:(?:equivalente\s+a\s+[^,;]{1,100}?\s+)?'
-            r'(?:do\s+im[óo]vel\s+)?)?'
-            r'pertencente\s+(?:a|ao|à)\s+',
-            '',
-            parte,
-            flags=re.I,
-        )
-        nome_match = re.match(r'^([^,]+)', parte_nome)
-        nome = nome_match.group(1).strip() if nome_match else "DESCONHECIDO"
-        nome = re.sub(r'^\(?\d+(?:\)\s*-?|-)\s*', '', nome)
-        nome = re.sub(r'^(?:\+?\s*<[^>]+>\s*)+', '', nome)
-        nome = re.sub(r'^\(?\d+(?:\)\s*-?|-)\s*', '', nome)
-        nome = re.sub(r'^(?:Dr\.?|Dra\.?|Doutor(?:a)?)\s+', '', nome, flags=re.I)
-        nome = re.sub(
-            r'^\d+(?:[,.]\d+)?\s*%\s+equivalente\s+a\s+[^,;]{1,100}?'
-            r'\bdo\s+im[óo]vel\s+pertencente\s+(?:a|ao|à)\s+',
-            '',
-            nome,
-            flags=re.I,
-        )
-        nome = re.sub(
-            r'^pessoa\s+jur[íi]dica\b.*?\bdenomina[çc][ãa]o\s+social\s+de\s+',
-            '',
-            nome,
-            flags=re.I,
-        )
-        nome = re.sub(
-            r'^d[oa]\s+dom[ií]nio\s+(?:[uú]til|direto)\s+sobre\s+o\s+terreno'
-            r'(?:\s+descrito)?(?:\s+e\s+o\s+pr[eé]dio\s+residencial\s+nele\s+edificado)?'
-            r'\s+(?:[oa]\s+)?',
-            '',
-            nome,
-            flags=re.I,
-        )
-        cpf = cpf_match.group(1).strip().rstrip('.,;') if cpf_match else "CPF/CNPJ NÃO INFORMADO"
-
-        # Limpeza visual (remove estado civil e termo "pessoa jurídica")
-        nome = re.sub(r'\s+e\s+(?:seu\s+c[oô]njuge|sua\s+mulher|seu\s+marido|sua\s+esposa).*', '', nome, flags=re.I)
-        nome = re.sub(
-            r'^(?:(?:e\s+)?(?:(?:a|o|as|os)\s+)?(?:meeir[oa]|vi[úu]v[oa]|'
-            r'cond[oô]min[oa]s?|'
-            r'herdeir[oa]\s+e\s+cession[áa]ri[oa]|herdeir[oa]\s+(?:filh[oa]|net[oa])|'
-            r'herdeir[oa]|cession[áa]ri[oa]|net[oa])\s*:?\s*)+',
-            '', nome, flags=re.I,
-        )
-        nome = re.sub(r'\s*,?\s*casad[oa].*', '', nome, flags=re.I)
-        nome = re.sub(r'\s*,?\s*pessoa jur[íi]dica.*', '', nome, flags=re.I)
-        nome = re.sub(r'\s+', ' ', nome)
-        nome = re.sub(r'(?:;\s*|\s+)e\s*$', '', nome, flags=re.I)
-        nome = re.sub(r'^s\s*:\s*', '', nome, flags=re.I)
-        nome = nome.strip(' ,.()')
-
-        # Fragmentos de referência tabular, endereço ou fólio podem ficar
-        # entre dois nomes quando o traslado histórico perdeu delimitadores.
-        # Eles não representam pessoas e não podem entrar na cadeia dominial.
-        nome_normalizado = limpar_nome(nome)
-        if (
-            re.match(r'^(?:NO\s+)?LIVRO\s+\d', nome_normalizado)
-            or re.match(r'^\d[\d./-]*\s+E\s+V$', nome_normalizado)
-            or re.match(
-                r'^(?:SETOR|BAIRRO|JARDIM|LOTEAMENTO|RUA|AVENIDA|ALAMEDA|'
-                r'TRAVESSA|RODOVIA)\b',
-                nome_normalizado,
-            )
-        ):
-            continue
-        
-        if re.match(r'^(?:CPF|CNPJ|CIC|RG)\b', nome, re.I):
-            continue
-        nome_sem_pontuacao = re.sub(r'[^A-ZÀ-Ú]', '', nome.upper())
-        if (
-            len(nome_sem_pontuacao) < 2
-            or re.match(r'^N\s*[.º°O]*\s*\d', nome, re.I)
-            or re.match(r'^[A-Z]{1,2}\s*;\s*(?:R|AV)\d', nome, re.I)
-        ):
-            continue
-        pessoa = {"nome": nome, "cpf": cpf}
-        if percentual is not None:
-            pessoa["percentual"] = percentual
-        pessoas.append(pessoa)
+        pessoa = _pessoa_do_trecho(parte)
+        if pessoa is not None:
+            pessoas.append(pessoa)
 
     if conjuge_casamento and len(pessoas) > 1:
         nome_conjuge = re.sub(r'\s+', ' ', conjuge_casamento.group(1)).strip(' ,.')
