@@ -788,6 +788,362 @@ def _sucessoras_desmembramento_integral(texto: str, normalizado: str) -> list[st
     return sucessoras[:quantidade] if len(sucessoras) >= quantidade else []
 
 
+def _averbar_caracterizacao(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """Recaracterização: substitui identificação, endereço, área e
+    confrontações pelo que a averbação declara."""
+
+    if "CARACTERIZACAO DO IMOVEL" in normalizado:
+        bloco_atual = re.search(
+            r"assim\s+se\s+caracteriza\s*:\s*(.*)",
+            descricao_ato,
+            re.IGNORECASE | re.DOTALL,
+        )
+        caracterizacao = bloco_atual.group(1) if bloco_atual else descricao_ato
+
+        lote_atual = _extrair_identificador_urbano(caracterizacao, "Lote")
+        quadra_atual = _extrair_identificador_urbano(caracterizacao, "Quadra")
+        if lote_atual:
+            _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Lote", "valor": lote_atual, "origem": codigo})
+        if quadra_atual:
+            _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Quadra", "valor": quadra_atual, "origem": codigo})
+
+        rua_atual, numero_atual, setor_atual = _extrair_endereco(caracterizacao)
+        if rua_atual and not rural:
+            _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Rua", "valor": rua_atual, "origem": codigo})
+        if numero_atual and not rural:
+            _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Número", "valor": numero_atual, "origem": codigo})
+        if setor_atual and not rural:
+            _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Setor", "valor": setor_atual, "origem": codigo})
+
+        confrontacoes_atuais = _extrair_confrontacoes(caracterizacao, codigo, rua_atual or rua)
+        if confrontacoes_atuais:
+            resultado["confrontacoes"] = confrontacoes_atuais
+
+        area_atual = _extrair_area_registral(caracterizacao, False)
+        if area_atual:
+            _substituir_por_rotulo(resultado["areas"], {"rotulo": "Área", "valor": area_atual, "origem": codigo})
+        construida_atual = _extrair_area_construida(caracterizacao, normalizado)
+        if construida_atual:
+            _substituir_por_rotulo(resultado["areas"], {"rotulo": "Área Construída", "valor": construida_atual, "origem": codigo})
+
+
+def _averbar_mudanca_de_denominacao(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """Mudança de denominação do imóvel (art. 167, II, 4 da Lei 6.015/73)."""
+
+    # Mudança de denominação do imóvel (art. 167, II, 4 da Lei 6.015/73).
+    # Sem isto o nome continuava saindo do cabeçalho, ignorando a
+    # averbação posterior que o alterou -- a matrícula era devolvida com
+    # a denominação antiga. "DENOMINAÇÃO SOCIAL" fica de fora: aquilo
+    # renomeia a pessoa jurídica proprietária, não o imóvel.
+    if (
+        "MUDANCA DE DENOMINACAO" in normalizado
+        and "DENOMINACAO SOCIAL" not in normalizado
+        and rural
+    ):
+        # A denominação pode vir quebrada em duas linhas no texto da Tri7,
+        # por isso a captura aceita quebra de linha e o espaçamento é
+        # normalizado depois; aspas, ponto e ponto-e-vírgula delimitam.
+        nova_denominacao = re.search(
+            r"passa(?:m)?\s+a\s+denominar[- ]se\s*[\"'“”]?\s*([^\"'“”.;]{3,120})",
+            descricao_ato,
+            re.IGNORECASE,
+        )
+        if nova_denominacao:
+            valor = re.sub(r"\s+", " ", nova_denominacao.group(1)).strip(" ,;\"'“”")
+            if valor:
+                _substituir_por_rotulo(
+                    resultado["identificacao"],
+                    {"rotulo": "Nome", "valor": valor, "origem": codigo},
+                )
+
+
+def _averbar_designacao_cadastral(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """Designação ou atualização do código cadastral municipal (CCI)."""
+
+    if "DESIGNACAO CADASTRAL DO IMOVEL" in normalizado:
+        designacao = re.search(
+            r"códigos?\s+cadastra(?:l|is)\b.{0,100}?:\s*(.{0,300}?)"
+            r"(?=\.\s*(?:\*NOTA|DOU\s+FÉ|VALOR\b|COTAÇÃO\b|PROTOCOLO\b)|\bDOU\s+FÉ|$)",
+            descricao_ato,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not designacao:
+            designacao = re.search(
+                r"\bCCI\b\s*(.*?)"
+                r"(?=\.\s*(?:\*NOTA|DOU\s+FÉ|VALOR\b|COTAÇÃO\b|PROTOCOLO\b)|\bDOU\s+FÉ|$)",
+                descricao_ato,
+                re.IGNORECASE | re.DOTALL,
+        )
+        if designacao:
+            trecho_designacao = re.sub(
+                r"(?<=\d),(?=\d{3}(?:\D|$))",
+                ".",
+                designacao.group(1),
+            )
+            mascarados = re.findall(
+                r"(?<![\dA-Za-z])(?=[\dXx.\-]*[Xx])"
+                r"[\dXx]+(?:\.[\dXx]+)+(?![\dA-Za-z])",
+                trecho_designacao,
+            )
+            mascarados = [
+                (prefixo.group(1) if (prefixo := re.match(r"(\d{1,3}\.\d{3})(?=[Xx])", valor)) else valor)
+                for valor in mascarados
+            ]
+            codigos = mascarados or [
+                re.sub(r"\s+", "", valor).rstrip(".")
+                for valor in re.findall(
+                    r"(?<!\d)(?:\d{1,3}(?:\.\s*\d{3})+|\d+)(?![\dA-Za-z])",
+                    trecho_designacao,
+                )
+            ]
+            codigos = [valor for valor in codigos if valor]
+            if codigos:
+                lista_codigos = codigos[0] if len(codigos) == 1 else f"{', '.join(codigos[:-1])} e {codigos[-1]}"
+                _substituir_por_rotulo(resultado["cadastros"], {
+                    "rotulo": "Cadastro municipal",
+                    "valor": f"CCI {lista_codigos}",
+                    "origem": codigo,
+                })
+
+
+def _averbar_cci_historico(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """Formatos históricos do CCI ("CCI-127902", número mascarado)."""
+
+    # Formatos históricos também registram o cadastro como "CCI-127902"
+    # ou inserem uma máscara antes do número efetivo retornado pela Tri7.
+    if (
+        "CCI" in normalizado
+        and "CADASTR" in normalizado
+        and "DESIGNACAO CADASTRAL DO IMOVEL" not in normalizado
+    ):
+        cci_generico = re.search(
+            r"\bCCI\b[^\d]{0,40}(?:[Xx.\-]+\s*)?"
+            r"(\d{1,3}(?:\.\d{3})+|\d+)",
+            descricao_ato,
+            re.IGNORECASE,
+        )
+        if cci_generico:
+            _substituir_por_rotulo(resultado["cadastros"], {
+                "rotulo": "Cadastro municipal",
+                "valor": f"CCI {cci_generico.group(1)}",
+                "origem": codigo,
+            })
+
+
+def _averbar_cci_avulso(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """CCI citado fora de um ato de designação cadastral."""
+
+    if "CCI" in normalizado and not any(
+        item.get("origem") == codigo and "CCI" in str(item.get("valor", ""))
+        for item in resultado["cadastros"]
+    ):
+        codigos_cci_ato = _extrair_codigos_cci(descricao_ato)
+        if codigos_cci_ato:
+            _substituir_por_rotulo(resultado["cadastros"], {
+                "rotulo": "Cadastro municipal",
+                "valor": f"CCI {_lista_textual(codigos_cci_ato)}",
+                "origem": codigo,
+            })
+
+
+def _averbar_encerramento(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """Encerramento explícito e matrículas sucessoras do desmembramento."""
+
+    encerramento_explicito = _tem_encerramento_explicito(normalizado)
+    sucessoras_desmembramento = _sucessoras_desmembramento_integral(descricao_ato, normalizado)
+    if encerramento_explicito:
+        sucessora = re.search(r"matriculad[oa]\s+sob\s+o\s+n?[.º°o\s]*([\d.]+)", descricao_ato, re.IGNORECASE)
+        resultado["situacao"] = {"status": "ENCERRADA", "origem": codigo}
+        if sucessora:
+            resultado["situacao"]["matricula_sucessora"] = sucessora.group(1).rstrip(".")
+        resultado["alertas"].append({
+            "tipo": "MATRÍCULA ENCERRADA",
+            "mensagem": "Consulte a matrícula sucessora antes de concluir a situação atual do imóvel.",
+            "origem": codigo,
+        })
+    elif sucessoras_desmembramento:
+        resultado["situacao"] = {
+            "status": "ENCERRADA",
+            "origem": codigo,
+            "matriculas_sucessoras": sucessoras_desmembramento,
+        }
+        resultado["alertas"].append({
+            "tipo": "MATRÍCULA ENCERRADA",
+            "mensagem": "O imóvel foi integralmente desmembrado. Consulte todas as matrículas sucessoras.",
+            "origem": codigo,
+        })
+
+
+def _averbar_demolicao(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """Demolição: remove a área construída que deixou de existir."""
+
+    if "DEMOLI" in normalizado:
+        resultado["areas"][:] = [
+            item for item in resultado["areas"] if item.get("rotulo") != "Área Construída"
+        ]
+    elif "EDIFICACAO" in normalizado or "CONSTRUCAO" in normalizado or "AREA CONSTRUIDA" in normalizado:
+        construida = _extrair_area_construida(descricao_ato, normalizado)
+        if construida:
+            _substituir_por_rotulo(resultado["areas"], {
+                "rotulo": "Área Construída",
+                "valor": construida,
+                "origem": codigo,
+            })
+        if not rural:
+            numero_edificacao = _extrair_numero_edificacao(descricao_ato)
+            if numero_edificacao:
+                _substituir_por_rotulo(resultado["identificacao"], {
+                    "rotulo": "Número",
+                    "valor": numero_edificacao,
+                    "origem": codigo,
+                })
+
+
+def _averbar_ccir(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """Atualização do CCIR / Certificado de Cadastro de Imóvel Rural."""
+
+    if "CCIR" in normalizado or "CERTIFICADO DE CADASTRO DE IMOVEL RURAL" in normalizado:
+        codigo_rural = re.search(
+            r"(?:código\s+do\s+imóvel\s+rural|código\s+de\s+cadastrad[oa])"
+            r"\s*(?:n?[.º°o\s]*)?:?[^\d]{0,100}([\d][\d.\-/]+)",
+            descricao_ato,
+            re.IGNORECASE,
+        )
+        if not codigo_rural:
+            codigo_rural = re.search(
+                r"n?[.º°o\s]*do\s+CCIR\s*:?\s*([\d.\-/]+)",
+                descricao_ato,
+                re.IGNORECASE,
+            )
+        if codigo_rural:
+            _adicionar_unico(resultado["cadastros"], {"rotulo": "CCIR / código rural", "valor": codigo_rural.group(1), "origem": codigo})
+        area_ccir = re.search(r"área\s+total\s*(?::|de)\s*([\d.,]+)\s*ha", descricao_ato, re.IGNORECASE)
+        if area_ccir:
+            valor = _valor_decimal(area_ccir.group(1))
+            if valor is not None:
+                _adicionar_unico(resultado["areas"], {"rotulo": "Área no CCIR", "valor": f"{_formatar_numero(valor)} ha", "origem": codigo})
+
+
+def _averbar_car(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """Inscrição no CAR (Cadastro Ambiental Rural)."""
+
+    if "INSCRICAO NO CAR" in normalizado or "CADASTRO AMBIENTAL RURAL" in normalizado:
+        car_padronizado = re.search(
+            # Alguns textos históricos trocaram a letra O por zero na UF
+            # (por exemplo, G0 em vez de GO). O restante do identificador
+            # continua permitindo validar que se trata de um CAR completo.
+            r"\b([A-Z0-9]{2})\s*-\s*(\d{7})\s*-\s*"
+            r"([A-F0-9]{28,40}|[A-F0-9]{4}(?:[.\s]+[A-F0-9]{4}){6,9})\b",
+            descricao_ato,
+            re.IGNORECASE,
+        )
+        valor_car = None
+        if car_padronizado:
+            sufixo = re.sub(r"\s+", "", car_padronizado.group(3))
+            uf = car_padronizado.group(1).upper().replace("0", "O")
+            valor_car = f"{uf}-{car_padronizado.group(2)}-{sufixo}".upper()
+        else:
+            car = re.search(
+                r"registro\s*:?\s*([A-Z]{2})-\s*([A-Z0-9][A-Z0-9.\-]+)",
+                descricao_ato,
+                re.IGNORECASE,
+            )
+            if not car:
+                car = re.search(
+                r"\b([A-Z]{2})\s*-\s*(\d{7}-[A-Z0-9][A-Z0-9.\-\s]{15,}?)"
+                r"(?=,\s*(?:CADASTR|APRESENT)|\.\s*DOU\s+FÉ|$)",
+                descricao_ato,
+                re.IGNORECASE | re.DOTALL,
+            )
+            if car:
+                valor_car = f"{car.group(1)}-{re.sub(r'\s+', '', car.group(2)).rstrip('.')}".upper()
+        if valor_car:
+            _adicionar_unico(resultado["cadastros"], {
+                "rotulo": "CAR",
+                "valor": valor_car,
+                "origem": codigo,
+            })
+        area_car = re.search(r"área\s+total\s*\(ha\)\s*:\s*([\d.,]+)", descricao_ato, re.IGNORECASE)
+        if area_car:
+            valor = _valor_decimal(area_car.group(1))
+            if valor is not None:
+                _adicionar_unico(resultado["areas"], {"rotulo": "Área declarada no CAR", "valor": f"{_formatar_numero(valor)} ha", "origem": codigo})
+        coordenadas = re.search(
+            r"Latitude\s*:\s*([^;]+);\s*e\s*Longitude\s*:\s*([^;]+)",
+            descricao_ato,
+            re.IGNORECASE,
+        )
+        if coordenadas:
+            _adicionar_unico(resultado["cadastros"], {
+                "rotulo": "Coordenadas do CAR",
+                "valor": f"{_compactar(coordenadas.group(1))}; {_compactar(coordenadas.group(2))}",
+                "origem": codigo,
+            })
+
+
+def _averbar_cep(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """Código de Endereçamento Postal do imóvel."""
+
+    cep_do_imovel = (
+        "ENDERECAMENTO POSTAL" in normalizado
+        or "CEP DO IMOVEL" in normalizado
+        or bool(re.search(r"\bIMOVEL\b.{0,100}\bPOSSUI\b.{0,100}\bCEP\b", normalizado, re.DOTALL))
+    )
+    if cep_do_imovel:
+        ceps = re.findall(
+            r"(?<!\d)(\d{2}\.?\d{3}[-.]?\d{3})(?!\d)",
+            descricao_ato,
+        )
+        if not ceps:
+            for trecho in reversed(re.findall(r"\bCEP\b(.{0,100})", descricao_ato, re.IGNORECASE | re.DOTALL)):
+                antes_fe = re.split(r"\bDOU\s+FÉ\b", trecho, maxsplit=1, flags=re.IGNORECASE)[0]
+                digitos_mascarados = re.sub(r"\D", "", antes_fe)
+                if len(digitos_mascarados) == 8:
+                    ceps = [digitos_mascarados]
+                    break
+        if ceps:
+            digitos = re.sub(r"\D", "", ceps[-1])
+            valor_cep = f"{digitos[:2]}.{digitos[2:5]}-{digitos[5:]}"
+            _adicionar_unico(resultado["cadastros"], {"rotulo": "CEP", "valor": valor_cep, "origem": codigo})
+
+
+def _averbar_reserva_legal(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """Averbação da reserva legal."""
+
+    if "RESERVA LEGAL" in normalizado:
+        reserva_car = re.search(r"área\s+de\s+reserva\s+legal\s*:\s*([\d.,]+)", descricao_ato, re.IGNORECASE)
+        reserva = reserva_car or re.search(r"área\s+de\s*([\d.,]+)\s*(?:ha|hectares?)", descricao_ato, re.IGNORECASE)
+        valor_reserva = "Área não identificada"
+        if reserva:
+            valor = _valor_decimal(reserva.group(1))
+            if valor is not None:
+                valor_reserva = f"{_formatar_numero(valor)} ha"
+        rotulo_reserva = "Reserva legal declarada no CAR" if reserva_car else "Reserva legal"
+        _adicionar_unico(resultado["restricoes"], {"rotulo": rotulo_reserva, "valor": valor_reserva, "origem": codigo})
+
+
+def _averbar_clausula_restritiva(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """Cláusulas restritivas (inalienabilidade, impenhorabilidade e afins)."""
+
+    if "CLAUSULA RESTRITIVA" in normalizado or "CLAUSULAS RESTRITIVAS" in normalizado:
+        prazo = re.search(r"período\s+de\s*(\d+)\s*\([^)]*\)\s*anos", descricao_ato, re.IGNORECASE)
+        valor = f"Prazo declarado de {prazo.group(1)} anos" if prazo else "Cláusula averbada"
+        _adicionar_unico(resultado["restricoes"], {"rotulo": "Cláusula restritiva", "valor": valor, "origem": codigo})
+
+
+def _averbar_divergencia_de_area(resultado, descricao_ato, codigo, normalizado, rural, rua):
+    """Divergência entre a área documental e a da representação gráfica."""
+
+    diferenca = re.search(
+        r"diferença\s+entre.{0,80}?\[\s*([\d.,]+)\s*hectares?\s*\].{0,80}?\[\s*([\d.,]+)\s*hectares?\s*\]",
+        descricao_ato,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if diferenca:
+        mensagem = f"Área documental: {diferenca.group(1)} ha; representação gráfica: {diferenca.group(2)} ha."
+        _adicionar_unico(resultado["divergencias"], {"rotulo": "Divergência de área", "valor": mensagem, "origem": codigo})
+
+
 def extrair_dados_imovel(
     texto: str,
     atos: list,
@@ -980,308 +1336,20 @@ def extrair_dados_imovel(
         codigo = _codigo_ato(ato)
         normalizado = _sem_acentos(descricao_ato)
 
-        if "CARACTERIZACAO DO IMOVEL" in normalizado:
-            bloco_atual = re.search(
-                r"assim\s+se\s+caracteriza\s*:\s*(.*)",
-                descricao_ato,
-                re.IGNORECASE | re.DOTALL,
-            )
-            caracterizacao = bloco_atual.group(1) if bloco_atual else descricao_ato
+        _averbar_caracterizacao(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_mudanca_de_denominacao(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_designacao_cadastral(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_cci_historico(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_cci_avulso(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_encerramento(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_demolicao(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_ccir(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_car(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_cep(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_reserva_legal(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_clausula_restritiva(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_divergencia_de_area(resultado, descricao_ato, codigo, normalizado, rural, rua)
 
-            lote_atual = _extrair_identificador_urbano(caracterizacao, "Lote")
-            quadra_atual = _extrair_identificador_urbano(caracterizacao, "Quadra")
-            if lote_atual:
-                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Lote", "valor": lote_atual, "origem": codigo})
-            if quadra_atual:
-                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Quadra", "valor": quadra_atual, "origem": codigo})
-
-            rua_atual, numero_atual, setor_atual = _extrair_endereco(caracterizacao)
-            if rua_atual and not rural:
-                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Rua", "valor": rua_atual, "origem": codigo})
-            if numero_atual and not rural:
-                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Número", "valor": numero_atual, "origem": codigo})
-            if setor_atual and not rural:
-                _substituir_por_rotulo(resultado["identificacao"], {"rotulo": "Setor", "valor": setor_atual, "origem": codigo})
-
-            confrontacoes_atuais = _extrair_confrontacoes(caracterizacao, codigo, rua_atual or rua)
-            if confrontacoes_atuais:
-                resultado["confrontacoes"] = confrontacoes_atuais
-
-            area_atual = _extrair_area_registral(caracterizacao, False)
-            if area_atual:
-                _substituir_por_rotulo(resultado["areas"], {"rotulo": "Área", "valor": area_atual, "origem": codigo})
-            construida_atual = _extrair_area_construida(caracterizacao, normalizado)
-            if construida_atual:
-                _substituir_por_rotulo(resultado["areas"], {"rotulo": "Área Construída", "valor": construida_atual, "origem": codigo})
-
-        # Mudança de denominação do imóvel (art. 167, II, 4 da Lei 6.015/73).
-        # Sem isto o nome continuava saindo do cabeçalho, ignorando a
-        # averbação posterior que o alterou -- a matrícula era devolvida com
-        # a denominação antiga. "DENOMINAÇÃO SOCIAL" fica de fora: aquilo
-        # renomeia a pessoa jurídica proprietária, não o imóvel.
-        if (
-            "MUDANCA DE DENOMINACAO" in normalizado
-            and "DENOMINACAO SOCIAL" not in normalizado
-            and rural
-        ):
-            # A denominação pode vir quebrada em duas linhas no texto da Tri7,
-            # por isso a captura aceita quebra de linha e o espaçamento é
-            # normalizado depois; aspas, ponto e ponto-e-vírgula delimitam.
-            nova_denominacao = re.search(
-                r"passa(?:m)?\s+a\s+denominar[- ]se\s*[\"'“”]?\s*([^\"'“”.;]{3,120})",
-                descricao_ato,
-                re.IGNORECASE,
-            )
-            if nova_denominacao:
-                valor = re.sub(r"\s+", " ", nova_denominacao.group(1)).strip(" ,;\"'“”")
-                if valor:
-                    _substituir_por_rotulo(
-                        resultado["identificacao"],
-                        {"rotulo": "Nome", "valor": valor, "origem": codigo},
-                    )
-
-        if "DESIGNACAO CADASTRAL DO IMOVEL" in normalizado:
-            designacao = re.search(
-                r"códigos?\s+cadastra(?:l|is)\b.{0,100}?:\s*(.{0,300}?)"
-                r"(?=\.\s*(?:\*NOTA|DOU\s+FÉ|VALOR\b|COTAÇÃO\b|PROTOCOLO\b)|\bDOU\s+FÉ|$)",
-                descricao_ato,
-                re.IGNORECASE | re.DOTALL,
-            )
-            if not designacao:
-                designacao = re.search(
-                    r"\bCCI\b\s*(.*?)"
-                    r"(?=\.\s*(?:\*NOTA|DOU\s+FÉ|VALOR\b|COTAÇÃO\b|PROTOCOLO\b)|\bDOU\s+FÉ|$)",
-                    descricao_ato,
-                    re.IGNORECASE | re.DOTALL,
-            )
-            if designacao:
-                trecho_designacao = re.sub(
-                    r"(?<=\d),(?=\d{3}(?:\D|$))",
-                    ".",
-                    designacao.group(1),
-                )
-                mascarados = re.findall(
-                    r"(?<![\dA-Za-z])(?=[\dXx.\-]*[Xx])"
-                    r"[\dXx]+(?:\.[\dXx]+)+(?![\dA-Za-z])",
-                    trecho_designacao,
-                )
-                mascarados = [
-                    (prefixo.group(1) if (prefixo := re.match(r"(\d{1,3}\.\d{3})(?=[Xx])", valor)) else valor)
-                    for valor in mascarados
-                ]
-                codigos = mascarados or [
-                    re.sub(r"\s+", "", valor).rstrip(".")
-                    for valor in re.findall(
-                        r"(?<!\d)(?:\d{1,3}(?:\.\s*\d{3})+|\d+)(?![\dA-Za-z])",
-                        trecho_designacao,
-                    )
-                ]
-                codigos = [valor for valor in codigos if valor]
-                if codigos:
-                    lista_codigos = codigos[0] if len(codigos) == 1 else f"{', '.join(codigos[:-1])} e {codigos[-1]}"
-                    _substituir_por_rotulo(resultado["cadastros"], {
-                        "rotulo": "Cadastro municipal",
-                        "valor": f"CCI {lista_codigos}",
-                        "origem": codigo,
-                    })
-
-        # Formatos históricos também registram o cadastro como "CCI-127902"
-        # ou inserem uma máscara antes do número efetivo retornado pela Tri7.
-        if (
-            "CCI" in normalizado
-            and "CADASTR" in normalizado
-            and "DESIGNACAO CADASTRAL DO IMOVEL" not in normalizado
-        ):
-            cci_generico = re.search(
-                r"\bCCI\b[^\d]{0,40}(?:[Xx.\-]+\s*)?"
-                r"(\d{1,3}(?:\.\d{3})+|\d+)",
-                descricao_ato,
-                re.IGNORECASE,
-            )
-            if cci_generico:
-                _substituir_por_rotulo(resultado["cadastros"], {
-                    "rotulo": "Cadastro municipal",
-                    "valor": f"CCI {cci_generico.group(1)}",
-                    "origem": codigo,
-                })
-
-        if "CCI" in normalizado and not any(
-            item.get("origem") == codigo and "CCI" in str(item.get("valor", ""))
-            for item in resultado["cadastros"]
-        ):
-            codigos_cci_ato = _extrair_codigos_cci(descricao_ato)
-            if codigos_cci_ato:
-                _substituir_por_rotulo(resultado["cadastros"], {
-                    "rotulo": "Cadastro municipal",
-                    "valor": f"CCI {_lista_textual(codigos_cci_ato)}",
-                    "origem": codigo,
-                })
-
-        encerramento_explicito = _tem_encerramento_explicito(normalizado)
-        sucessoras_desmembramento = _sucessoras_desmembramento_integral(descricao_ato, normalizado)
-        if encerramento_explicito:
-            sucessora = re.search(r"matriculad[oa]\s+sob\s+o\s+n?[.º°o\s]*([\d.]+)", descricao_ato, re.IGNORECASE)
-            resultado["situacao"] = {"status": "ENCERRADA", "origem": codigo}
-            if sucessora:
-                resultado["situacao"]["matricula_sucessora"] = sucessora.group(1).rstrip(".")
-            resultado["alertas"].append({
-                "tipo": "MATRÍCULA ENCERRADA",
-                "mensagem": "Consulte a matrícula sucessora antes de concluir a situação atual do imóvel.",
-                "origem": codigo,
-            })
-        elif sucessoras_desmembramento:
-            resultado["situacao"] = {
-                "status": "ENCERRADA",
-                "origem": codigo,
-                "matriculas_sucessoras": sucessoras_desmembramento,
-            }
-            resultado["alertas"].append({
-                "tipo": "MATRÍCULA ENCERRADA",
-                "mensagem": "O imóvel foi integralmente desmembrado. Consulte todas as matrículas sucessoras.",
-                "origem": codigo,
-            })
-
-        if "DEMOLI" in normalizado:
-            resultado["areas"][:] = [
-                item for item in resultado["areas"] if item.get("rotulo") != "Área Construída"
-            ]
-        elif "EDIFICACAO" in normalizado or "CONSTRUCAO" in normalizado or "AREA CONSTRUIDA" in normalizado:
-            construida = _extrair_area_construida(descricao_ato, normalizado)
-            if construida:
-                _substituir_por_rotulo(resultado["areas"], {
-                    "rotulo": "Área Construída",
-                    "valor": construida,
-                    "origem": codigo,
-                })
-            if not rural:
-                numero_edificacao = _extrair_numero_edificacao(descricao_ato)
-                if numero_edificacao:
-                    _substituir_por_rotulo(resultado["identificacao"], {
-                        "rotulo": "Número",
-                        "valor": numero_edificacao,
-                        "origem": codigo,
-                    })
-
-        if "CCIR" in normalizado or "CERTIFICADO DE CADASTRO DE IMOVEL RURAL" in normalizado:
-            codigo_rural = re.search(
-                r"(?:código\s+do\s+imóvel\s+rural|código\s+de\s+cadastrad[oa])"
-                r"\s*(?:n?[.º°o\s]*)?:?[^\d]{0,100}([\d][\d.\-/]+)",
-                descricao_ato,
-                re.IGNORECASE,
-            )
-            if not codigo_rural:
-                codigo_rural = re.search(
-                    r"n?[.º°o\s]*do\s+CCIR\s*:?\s*([\d.\-/]+)",
-                    descricao_ato,
-                    re.IGNORECASE,
-                )
-            if codigo_rural:
-                _adicionar_unico(resultado["cadastros"], {"rotulo": "CCIR / código rural", "valor": codigo_rural.group(1), "origem": codigo})
-            area_ccir = re.search(r"área\s+total\s*(?::|de)\s*([\d.,]+)\s*ha", descricao_ato, re.IGNORECASE)
-            if area_ccir:
-                valor = _valor_decimal(area_ccir.group(1))
-                if valor is not None:
-                    _adicionar_unico(resultado["areas"], {"rotulo": "Área no CCIR", "valor": f"{_formatar_numero(valor)} ha", "origem": codigo})
-
-        if "INSCRICAO NO CAR" in normalizado or "CADASTRO AMBIENTAL RURAL" in normalizado:
-            car_padronizado = re.search(
-                # Alguns textos históricos trocaram a letra O por zero na UF
-                # (por exemplo, G0 em vez de GO). O restante do identificador
-                # continua permitindo validar que se trata de um CAR completo.
-                r"\b([A-Z0-9]{2})\s*-\s*(\d{7})\s*-\s*"
-                r"([A-F0-9]{28,40}|[A-F0-9]{4}(?:[.\s]+[A-F0-9]{4}){6,9})\b",
-                descricao_ato,
-                re.IGNORECASE,
-            )
-            valor_car = None
-            if car_padronizado:
-                sufixo = re.sub(r"\s+", "", car_padronizado.group(3))
-                uf = car_padronizado.group(1).upper().replace("0", "O")
-                valor_car = f"{uf}-{car_padronizado.group(2)}-{sufixo}".upper()
-            else:
-                car = re.search(
-                    r"registro\s*:?\s*([A-Z]{2})-\s*([A-Z0-9][A-Z0-9.\-]+)",
-                    descricao_ato,
-                    re.IGNORECASE,
-                )
-                if not car:
-                    car = re.search(
-                    r"\b([A-Z]{2})\s*-\s*(\d{7}-[A-Z0-9][A-Z0-9.\-\s]{15,}?)"
-                    r"(?=,\s*(?:CADASTR|APRESENT)|\.\s*DOU\s+FÉ|$)",
-                    descricao_ato,
-                    re.IGNORECASE | re.DOTALL,
-                )
-                if car:
-                    valor_car = f"{car.group(1)}-{re.sub(r'\s+', '', car.group(2)).rstrip('.')}".upper()
-            if valor_car:
-                _adicionar_unico(resultado["cadastros"], {
-                    "rotulo": "CAR",
-                    "valor": valor_car,
-                    "origem": codigo,
-                })
-            area_car = re.search(r"área\s+total\s*\(ha\)\s*:\s*([\d.,]+)", descricao_ato, re.IGNORECASE)
-            if area_car:
-                valor = _valor_decimal(area_car.group(1))
-                if valor is not None:
-                    _adicionar_unico(resultado["areas"], {"rotulo": "Área declarada no CAR", "valor": f"{_formatar_numero(valor)} ha", "origem": codigo})
-            coordenadas = re.search(
-                r"Latitude\s*:\s*([^;]+);\s*e\s*Longitude\s*:\s*([^;]+)",
-                descricao_ato,
-                re.IGNORECASE,
-            )
-            if coordenadas:
-                _adicionar_unico(resultado["cadastros"], {
-                    "rotulo": "Coordenadas do CAR",
-                    "valor": f"{_compactar(coordenadas.group(1))}; {_compactar(coordenadas.group(2))}",
-                    "origem": codigo,
-                })
-
-        cep_do_imovel = (
-            "ENDERECAMENTO POSTAL" in normalizado
-            or "CEP DO IMOVEL" in normalizado
-            or bool(re.search(r"\bIMOVEL\b.{0,100}\bPOSSUI\b.{0,100}\bCEP\b", normalizado, re.DOTALL))
-        )
-        if cep_do_imovel:
-            ceps = re.findall(
-                r"(?<!\d)(\d{2}\.?\d{3}[-.]?\d{3})(?!\d)",
-                descricao_ato,
-            )
-            if not ceps:
-                for trecho in reversed(re.findall(r"\bCEP\b(.{0,100})", descricao_ato, re.IGNORECASE | re.DOTALL)):
-                    antes_fe = re.split(r"\bDOU\s+FÉ\b", trecho, maxsplit=1, flags=re.IGNORECASE)[0]
-                    digitos_mascarados = re.sub(r"\D", "", antes_fe)
-                    if len(digitos_mascarados) == 8:
-                        ceps = [digitos_mascarados]
-                        break
-            if ceps:
-                digitos = re.sub(r"\D", "", ceps[-1])
-                valor_cep = f"{digitos[:2]}.{digitos[2:5]}-{digitos[5:]}"
-                _adicionar_unico(resultado["cadastros"], {"rotulo": "CEP", "valor": valor_cep, "origem": codigo})
-
-        if "RESERVA LEGAL" in normalizado:
-            reserva_car = re.search(r"área\s+de\s+reserva\s+legal\s*:\s*([\d.,]+)", descricao_ato, re.IGNORECASE)
-            reserva = reserva_car or re.search(r"área\s+de\s*([\d.,]+)\s*(?:ha|hectares?)", descricao_ato, re.IGNORECASE)
-            valor_reserva = "Área não identificada"
-            if reserva:
-                valor = _valor_decimal(reserva.group(1))
-                if valor is not None:
-                    valor_reserva = f"{_formatar_numero(valor)} ha"
-            rotulo_reserva = "Reserva legal declarada no CAR" if reserva_car else "Reserva legal"
-            _adicionar_unico(resultado["restricoes"], {"rotulo": rotulo_reserva, "valor": valor_reserva, "origem": codigo})
-
-        if "CLAUSULA RESTRITIVA" in normalizado or "CLAUSULAS RESTRITIVAS" in normalizado:
-            prazo = re.search(r"período\s+de\s*(\d+)\s*\([^)]*\)\s*anos", descricao_ato, re.IGNORECASE)
-            valor = f"Prazo declarado de {prazo.group(1)} anos" if prazo else "Cláusula averbada"
-            _adicionar_unico(resultado["restricoes"], {"rotulo": "Cláusula restritiva", "valor": valor, "origem": codigo})
-
-        diferenca = re.search(
-            r"diferença\s+entre.{0,80}?\[\s*([\d.,]+)\s*hectares?\s*\].{0,80}?\[\s*([\d.,]+)\s*hectares?\s*\]",
-            descricao_ato,
-            re.IGNORECASE | re.DOTALL,
-        )
-        if diferenca:
-            mensagem = f"Área documental: {diferenca.group(1)} ha; representação gráfica: {diferenca.group(2)} ha."
-            _adicionar_unico(resultado["divergencias"], {"rotulo": "Divergência de área", "valor": mensagem, "origem": codigo})
 
     encerramento_textual = _tem_encerramento_explicito(texto_normalizado)
     desmembramento_integral = _tem_desmembramento_integral(texto_normalizado)
