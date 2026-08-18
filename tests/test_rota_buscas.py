@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from fastapi import HTTPException
 
-from backend.app.rotas import buscas
+from backend.app.rotas import buscas, buscas_indexacao
 
 
 class _CursorFalso:
@@ -66,9 +66,11 @@ class TesteRotaBuscas(unittest.TestCase):
         self.ambiente.stop()
 
     def test_lote_preserva_ordem_e_trata_matricula_ausente(self):
-        with patch.object(buscas, "cliente_tri7", return_value=_ClienteTri7Falso()), patch.object(
-            buscas._LimitadorTaxa, "aguardar", return_value=None
-        ):
+        # O mock vai no módulo onde o nome é resolvido: _consultar_lote mora
+        # em buscas_indexacao e busca ali o cliente da Tri7.
+        with patch.object(
+            buscas_indexacao, "cliente_tri7", return_value=_ClienteTri7Falso()
+        ), patch.object(buscas._LimitadorTaxa, "aguardar", return_value=None):
             resultados, falha = buscas._consultar_lote([1, 2, 3])
 
         self.assertIsNone(falha)
