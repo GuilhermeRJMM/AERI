@@ -274,11 +274,12 @@ def confirmar_excecao_natureza_titulo(
                     (titulo_tema, natureza_tema),
                 )
                 item = cursor.fetchone()
+            registrar_auditoria_cursor(
+                cursor, request, "confirmar_excecao_livro_protocolos", "sucesso",
+                usuario,
+                detalhes={"titulo": titulo_original, "natureza": natureza_original},
+            )
         conexao.commit()
-    registrar_auditoria(
-        request, "confirmar_excecao_livro_protocolos", "sucesso", usuario,
-        detalhes={"titulo": titulo_original, "natureza": natureza_original},
-    )
     return _excecao_json(item)
 
 

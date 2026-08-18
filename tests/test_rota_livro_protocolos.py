@@ -166,7 +166,7 @@ class TesteExcecoesNaturezaTitulo(unittest.TestCase):
         self.assertEqual(len(resultado), 1)
         self.assertEqual(resultado[0]["tituloOriginal"], "GEORREFERENCIAMENTO")
 
-    @patch("backend.app.rotas.livro_protocolos.registrar_auditoria")
+    @patch("backend.app.rotas.livro_protocolos.registrar_auditoria_cursor")
     @patch("backend.app.rotas.livro_protocolos.conectar")
     def test_confirmar_excecao_grava_tema_normalizado(self, conectar_mock, _auditoria):
         conexao, cursor = _conexao_falsa()

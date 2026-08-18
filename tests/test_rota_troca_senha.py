@@ -32,7 +32,7 @@ class TesteTrocaDeSenha(unittest.TestCase):
         # senha temporária longa.
         conexao = _conexao_com_senha(hash_senha("Senha-Temporaria-2026!"))
         with patch("backend.app.rotas.usuarios.conectar", return_value=conexao), \
-                patch("backend.app.rotas.usuarios.registrar_auditoria"):
+                patch("backend.app.rotas.usuarios.registrar_auditoria_cursor"):
             with self.assertRaises(HTTPException) as erro:
                 trocar_minha_senha(
                     {"senhaAtual": "errada-mas-forte-A1!", "novaSenha": "Nova-Senha-2026!"},
@@ -57,7 +57,7 @@ class TesteTrocaDeSenha(unittest.TestCase):
     def test_troca_bem_sucedida_preserva_a_sessao_em_uso(self):
         conexao = _conexao_com_senha(hash_senha("Senha-Temporaria-2026!"))
         with patch("backend.app.rotas.usuarios.conectar", return_value=conexao), \
-                patch("backend.app.rotas.usuarios.registrar_auditoria"):
+                patch("backend.app.rotas.usuarios.registrar_auditoria_cursor"):
             resposta = trocar_minha_senha(
                 {"senhaAtual": "Senha-Temporaria-2026!", "novaSenha": "Nova-Senha-2026!"},
                 _requisicao(),

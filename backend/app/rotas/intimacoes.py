@@ -15,7 +15,7 @@ from backend.app.servicos.intimacoes import (
     validar_intimacao,
     validar_novo_andamento,
 )
-from backend.app.seguranca_web import registrar_auditoria
+from backend.app.seguranca_web import registrar_auditoria_cursor
 
 
 router = APIRouter(
@@ -75,10 +75,11 @@ def criar_intimacao(dados: dict, request: Request, usuario: str = Depends(exigir
                 )
                 item = cursor.fetchone()
                 _registrar_evento(cursor, identificador, protocolo, "CRIACAO", usuario, {"fase": fase})
+                registrar_auditoria_cursor(
+                    cursor, request, "criar_intimacao", "sucesso", usuario, protocolo)
             conexao.commit()
     except UniqueViolation as exc:
         raise HTTPException(status_code=409, detail="Este protocolo já está cadastrado.") from exc
-    registrar_auditoria(request, "criar_intimacao", "sucesso", usuario, protocolo)
     return intimacao_json(item)
 
 
@@ -132,10 +133,12 @@ def atualizar_intimacao(identificador: UUID, dados: dict, request: Request, usua
                     cursor, identificador, protocolo, "ALTERACAO", usuario,
                     {"campos_alterados": campos_alterados, "fase": fase},
                 )
+                registrar_auditoria_cursor(
+                    cursor, request, "atualizar_intimacao", "sucesso", usuario,
+                    str(identificador))
             conexao.commit()
     except UniqueViolation as exc:
         raise HTTPException(status_code=409, detail="Este protocolo já está cadastrado.") from exc
-    registrar_auditoria(request, "atualizar_intimacao", "sucesso", usuario, str(identificador))
     return intimacao_json(item)
 
 
@@ -178,8 +181,10 @@ def conferir_intimacao(
                 usuario,
                 {"houve_novo_andamento": bool(novo_andamento), "fase": item["fase"]},
             )
+            registrar_auditoria_cursor(
+                cursor, request, "conferir_intimacao", "sucesso", usuario,
+                str(identificador))
         conexao.commit()
-    registrar_auditoria(request, "conferir_intimacao", "sucesso", usuario, str(identificador))
     return intimacao_json(item)
 
 
@@ -196,10 +201,13 @@ def excluir_intimacao(identificador: UUID, request: Request, usuario: str = Depe
                 )
             cursor.execute("DELETE FROM intimacoes_aeri WHERE id=%s", (identificador,))
             removidos = cursor.rowcount
+            if removidos:
+                registrar_auditoria_cursor(
+                    cursor, request, "excluir_intimacao", "sucesso", usuario,
+                    str(identificador))
         conexao.commit()
     if not removidos:
         raise HTTPException(status_code=404, detail="Intimação não encontrada.")
-    registrar_auditoria(request, "excluir_intimacao", "sucesso", usuario, str(identificador))
     return Response(status_code=204)
 
 

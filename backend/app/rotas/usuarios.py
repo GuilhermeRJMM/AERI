@@ -17,7 +17,7 @@ from backend.app.autenticacao import (
     verificar_senha,
 )
 from backend.app.database import conectar, preparar_banco
-from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
+from backend.app.seguranca_web import registrar_auditoria_cursor
 
 
 PERFIS = {"ADMIN", "SUBSTITUTO", "AUDITOR", "SUPERVISOR", "CONFERENTE", "PRODUTOR"}
@@ -201,10 +201,13 @@ def redefinir_senha(usuario_alvo: str, dados: dict, request: Request, admin: str
             )
             item = cursor.fetchone()
             cursor.execute("UPDATE sessoes_aeri SET revogada_em=NOW() WHERE usuario=%s", (usuario_alvo.upper(),))
+            if item:
+                registrar_auditoria_cursor(
+                    cursor, request, "redefinir_senha", "sucesso", admin,
+                    usuario_alvo.upper())
         conexao.commit()
     if not item:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
-    registrar_auditoria(request, "redefinir_senha", "sucesso", admin, usuario_alvo.upper())
     return {"ok": True}
 
 
@@ -239,6 +242,6 @@ def trocar_minha_senha(dados: dict, request: Request):
                 "UPDATE sessoes_aeri SET revogada_em=NOW() WHERE usuario=%s AND id<>%s",
                 (usuario, request.state.sessao["id"]),
             )
+            registrar_auditoria_cursor(cursor, request, "trocar_senha", "sucesso", usuario)
         conexao.commit()
-    registrar_auditoria(request, "trocar_senha", "sucesso", usuario)
     return {"ok": True}
