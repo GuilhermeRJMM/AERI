@@ -144,7 +144,14 @@ def _extrair_pessoas(texto: str) -> list[dict]:
         # sempre dividir é seguro porque cada pedaço só é aceito se bater
         # com o padrão de nome+documento; um corte espúrio simplesmente não
         # encontra pessoa nenhuma naquele trecho.
-        segmentos = re.split(r";\s*(?=(?:\d+\)\s*[-–—]?\s*)?[A-ZÀ-Ü])", bloco)
+        # O "e" da conjunção entra no corte: a redação usual liga o último
+        # emitente com "; e 2)- Fulano", e exigir maiúscula logo após o ";"
+        # fazia o segundo devedor não ser separado -- ficava dentro da
+        # qualificação do primeiro e sumia do índice de busca.
+        segmentos = re.split(
+            r";\s*(?:e,?\s*)?(?=(?:\d+\s*\)\s*[-–—]?\s*)?[A-ZÀ-Ü])",
+            bloco,
+        )
         for segmento in segmentos:
             item = pessoa_no_inicio.search(segmento)
             if not item:

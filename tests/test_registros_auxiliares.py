@@ -210,6 +210,30 @@ class TesteRegistrosAuxiliares(unittest.TestCase):
 
         self.assertEqual(extrair_indice_registro_auxiliar(13, texto)["situacao"], "ATIVO")
 
+    def test_segundo_devedor_ligado_por_e_entra_no_indice(self):
+        # Regressão (registro real 29.555): a redação liga o último emitente
+        # com "; e 2)- Fulano". O corte exigia maiúscula ou número logo após
+        # o ponto e vírgula, então o "e" minúsculo impedia a separação: o
+        # segundo devedor ficava dentro da qualificação do primeiro e não
+        # entrava no índice -- pesquisar por ele devolvia negativo.
+        texto = """
+        CÉDULA DE PRODUTO RURAL. EMITENTES/DEVEDORES: 1)- Nilo Cayro Vieira,
+        brasileiro, casado, engenheiro agrônomo, inscrito no CPF/MF sob o n.º
+        499.654.171-72, residente na Fazenda Palmital, Morrinhos-GO; e 2)- Jaime
+        Carlos Vieira, brasileiro, divorciado, produtor rural, inscrito no CPF/MF
+        sob o n.º 280.225.806-00, residente nesta cidade. ALIENAÇÃO FIDUCIÁRIA.
+        Identificação do Produto: Soja; Safra: 2026/2027.
+        """
+
+        indice = extrair_indice_registro_auxiliar(29555, texto)
+
+        self.assertEqual(
+            [pessoa["nome"] for pessoa in indice["pessoas"]],
+            ["Nilo Cayro Vieira", "Jaime Carlos Vieira"],
+        )
+        self.assertIn("JAIME CARLOS VIEIRA", indice["nomes_busca"])
+        self.assertIn("28022580600", indice["documentos_busca"])
+
     def test_cancelamento_integral_baixa_registro_auxiliar(self):
         texto = """
         R.01 - PENHOR. EMITENTE/DEVEDOR: João da Silva, inscrito no CPF sob o

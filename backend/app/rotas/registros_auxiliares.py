@@ -213,8 +213,17 @@ def pesquisar_registros_auxiliares(
     filtros = ["situacao='ATIVO'"]
     parametros = []
     if termo:
-        filtros.append("(nomes_busca LIKE %s OR documentos_busca LIKE %s)")
-        parametros.extend((f"%{termo}%", f"%{documento or termo}%"))
+        # Só filtra por documento quando os dígitos digitados formam um CPF ou
+        # CNPJ completo. Antes bastava haver dígito no texto: pesquisar
+        # "Ls3 Saran Agropecuária Ltda" extraía o "3" do nome e virava
+        # documentos_busca LIKE '%3%', que casa com quase todo documento do
+        # acervo -- a busca devolvia dezenas de registros de outras pessoas.
+        if len(documento) in {11, 14}:
+            filtros.append("(nomes_busca LIKE %s OR documentos_busca LIKE %s)")
+            parametros.extend((f"%{termo}%", f"%{documento}%"))
+        else:
+            filtros.append("nomes_busca LIKE %s")
+            parametros.append(f"%{termo}%")
     if produto:
         filtros.append("produtos ? %s")
         parametros.append(produto)
