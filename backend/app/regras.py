@@ -210,19 +210,13 @@ def extrair_grau_hipoteca(texto):
 def formatar_grau_onus(grau):
     return f"{grau}º grau" if grau else None
 
-def classificar(texto, regras_aprendidas=None):
-    texto = texto.upper()
-    texto_sem_acentos = _sem_acentos(texto).upper()
-    texto_sem_acentos_compacto = re.sub(r"\s+", " ", texto_sem_acentos)
-
-    # A retificação de CPF pode repetir o conteúdo do ato corrigido. O título
-    # do ato prevalece para que menções a penhora ou garantia não criem ônus.
+def _decidir_pelo_titulo_do_ato(texto, texto_sem_acentos, texto_sem_acentos_compacto, titulo_ato, cabecalho_formal, regras_aprendidas=None):
+    """Atos cujo título já decide a classificação, sem olhar o corpo:
+    retificação de CPF ou de qualificação, ato cadastral, óbito,
+    adjudicação, leilão negativo, cláusulas restritivas e cancelamento."""
     indice_retificacao_cpf = texto_sem_acentos_compacto.find("RETIFICACAO DE CPF")
     if 0 <= indice_retificacao_cpf < 240:
         return ("IGNORAR", False)
-
-    titulo_ato = texto_sem_acentos_compacto[:240]
-    cabecalho_formal = titulo_ato.split("NOS TERMOS", 1)[0]
     if any(marcador in titulo_ato for marcador in (
         "INSERCAO DE DADOS DE QUALIFICACAO PESSOAL",
         "ATUALIZACAO DE DADOS DE QUALIFICACAO PESSOAL",
@@ -280,6 +274,12 @@ def classificar(texto, regras_aprendidas=None):
         texto_sem_acentos_compacto,
     ):
         return ("IGNORAR", False)
+    return None
+
+
+def _decidir_por_titulo_constitutivo(texto, texto_sem_acentos, texto_sem_acentos_compacto, titulo_ato, cabecalho_formal, regras_aprendidas=None):
+    """Título que constitui a garantia -- e não apenas a menciona como
+    descrição do negócio financiado."""
 
     titulo_declarado = re.search(
         r'\bTITULO\s*:\s*([^.;]{3,180})',
@@ -329,6 +329,11 @@ def classificar(texto, regras_aprendidas=None):
     )
     if titulo_constitutivo and not aquisicao_sem_garantia:
         return ("ÔNUS", True)
+    return None
+
+
+def _decidir_por_cancelamento(texto, texto_sem_acentos, texto_sem_acentos_compacto, titulo_ato, cabecalho_formal, regras_aprendidas=None):
+    """Redações que cancelam ou liberam um gravame já registrado."""
 
     cancelamentos_fortes = (
         "LEVANTAMENTO DE PENHORA",
@@ -365,6 +370,13 @@ def classificar(texto, regras_aprendidas=None):
 
     if "COMPRA E VENDA COM DESISTENCIA DE USUFRUTO" in texto_sem_acentos_compacto[:320]:
         return ("CANCELAMENTO", False)
+    return None
+
+
+def _decidir_por_caso_especifico(texto, texto_sem_acentos, texto_sem_acentos_compacto, titulo_ato, cabecalho_formal, regras_aprendidas=None):
+    """Casos particulares do acervo: aditivos que não criam garantia,
+    substituições, indicação de graus, alienação superveniente e
+    demais redações que precisam de leitura própria."""
 
     # Retificações de ofício apenas corrigem elementos de atos anteriores. O
     # texto costuma repetir integralmente a garantia retificada, mas não há uma
@@ -695,7 +707,13 @@ def classificar(texto, regras_aprendidas=None):
         )
     ):
         return ("IGNORAR", False)
-    
+    return None
+
+
+def _decidir_por_palavras_chave(texto, texto_sem_acentos, texto_sem_acentos_compacto, titulo_ato, cabecalho_formal, regras_aprendidas=None):
+    """Último recurso: pontua o texto pelas listas de palavras e escolhe a
+    ocorrência mais próxima do início."""
+
     for p in PALAVRAS_IGNORAR_FORTE:
         if p in texto:
             return ("IGNORAR", False)
@@ -738,3 +756,33 @@ def classificar(texto, regras_aprendidas=None):
             melhor_impacta = dados["impacta"]
 
     return (melhor_categoria, melhor_impacta)
+
+
+def classificar(texto, regras_aprendidas=None):
+    """Classifica o ato em ÔNUS, PUBLICIDADE, CANCELAMENTO ou IGNORAR.
+
+    As fases são tentadas em ordem: o título do ato decide sozinho na
+    maioria dos casos; não decidindo, passa para a constituição de
+    garantia, o cancelamento, os casos específicos do acervo e, por
+    último, a pontuação por palavras-chave.
+    """
+    texto = texto.upper()
+    texto_sem_acentos = _sem_acentos(texto).upper()
+    texto_sem_acentos_compacto = re.sub(r"\s+", " ", texto_sem_acentos)
+    titulo_ato = texto_sem_acentos_compacto[:240]
+    cabecalho_formal = titulo_ato.split("NOS TERMOS", 1)[0]
+
+    for fase in (
+        _decidir_pelo_titulo_do_ato,
+        _decidir_por_titulo_constitutivo,
+        _decidir_por_cancelamento,
+        _decidir_por_caso_especifico,
+        _decidir_por_palavras_chave,
+    ):
+        decisao = fase(
+            texto, texto_sem_acentos, texto_sem_acentos_compacto,
+            titulo_ato, cabecalho_formal, regras_aprendidas,
+        )
+        if decisao is not None:
+            return decisao
+    return ("DESCONHECIDO", False)
