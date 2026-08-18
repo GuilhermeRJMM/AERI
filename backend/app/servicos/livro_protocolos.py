@@ -334,6 +334,21 @@ def referencias_textos_protocolo(protocolo_json: dict) -> set[tuple[str, int]]:
     return referencias
 
 
+def registros_alterados_no_protocolo(protocolo_json: dict) -> set[tuple[str, int]]:
+    """Matrículas e Registros Auxiliares que este protocolo efetivamente alterou.
+
+    Diferente de referencias_textos_protocolo, que só reúne as matrículas cujo
+    texto a conferência precisa ler: aqui entram todos os tipos de registro,
+    porque o alvo é saber o que ficou desatualizado no índice de buscas.
+    """
+    alterados = set()
+    for item in protocolo_json.get("itens_do_pedido") or []:
+        chave = _chave_registro(item)
+        if chave and chave[1] > 0 and _codigo_ato_registrado(item):
+            alterados.add(chave)
+    return alterados
+
+
 def _codigo_ato_registrado(item: dict) -> tuple[str, int] | None:
     registrado = item.get("atos_registrados") or {}
     tipo = _normalizar(str(registrado.get("ato_tipo") or ""))

@@ -106,6 +106,28 @@ async function confirmarExcecaoNatureza(botao) {
     }
 }
 
+// A conferência do dia também atualiza no índice de buscas o que foi
+// registrado, para não ser preciso descobrir à mão o que mudou e revisar
+// matrícula por matrícula.
+function avisoAtualizacao(atualizacao) {
+    if (!atualizacao) return '';
+    const partes = [];
+    if (atualizacao.matriculas) {
+        partes.push(`${atualizacao.matriculas} matrícula(s)`
+            + (atualizacao.matriculasAlteradas ? ` — ${atualizacao.matriculasAlteradas} com alteração` : ''));
+    }
+    if (atualizacao.registrosAuxiliares) {
+        partes.push(`${atualizacao.registrosAuxiliares} registro(s) auxiliar(es)`);
+    }
+    if (!partes.length && !atualizacao.falhas) {
+        return '<p class="livroproto-atualizacao">Nenhum registro novo para atualizar no índice de buscas.</p>';
+    }
+    const falhas = atualizacao.falhas
+        ? ` <b>${atualizacao.falhas} não atualizou</b> (${escaparHtml((atualizacao.numerosComFalha || []).join(', '))})`
+        : '';
+    return `<p class="livroproto-atualizacao">Índice de buscas atualizado: ${partes.join(' e ')}.${falhas}</p>`;
+}
+
 function renderizarLivroProtocolos(filtro) {
     if (!resultadoLivroProto) return;
     const resumo = resultadoLivroProto.resumo;
@@ -134,6 +156,7 @@ function renderizarLivroProtocolos(filtro) {
             <div><strong>${resumo.totalOcorrencias}</strong><span>Ocorrências encontradas</span></div>
             <div><strong>${new Intl.DateTimeFormat('pt-BR').format(new Date(resultadoLivroProto.dataEsperada))}</strong><span>Data esperada dos registros</span></div>
         </div>
+        ${avisoAtualizacao(resultadoLivroProto.atualizacao)}
         <div class="incra-toolbar">
             <div class="incra-filtros">
                 ${filtros.map(([chave, rotulo, total]) => `<button class="incra-filtro ${chave === filtro ? 'active' : ''}" data-filtro="${chave}">${rotulo} <b>${total}</b></button>`).join('')}

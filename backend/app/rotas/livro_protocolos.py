@@ -8,7 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
 from backend.app.database import conectar, preparar_banco
-from backend.app.seguranca_web import registrar_auditoria
+from backend.app.rotas.buscas import _salvar_indice as _salvar_indice_matricula
+from backend.app.rotas.registros_auxiliares import _salvar_indice as _salvar_indice_auxiliar
+from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
 from backend.app.servicos.livro_protocolos import (
     conferir_protocolo,
     extrair_protocolos_pdf,
@@ -16,6 +18,7 @@ from backend.app.servicos.livro_protocolos import (
     natureza_permite_excecao,
     normalizar_tema,
     referencias_textos_protocolo,
+    registros_alterados_no_protocolo,
 )
 from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7
 
@@ -45,6 +48,64 @@ class _LimitadorTaxaTri7:
         espera = reservado - agora
         if espera > 0:
             time.sleep(espera)
+
+
+def _reindexar_registros_alterados(
+    alterados: set[tuple[str, int]],
+    cache_textos: dict[tuple[str, int], tuple[str | None, str | None]],
+    cliente,
+    limitador,
+    request: Request,
+    usuario: str,
+) -> dict:
+    """Regrava no índice de buscas o que o Livro de Protocolos mostrou alterado.
+
+    Fecha a lacuna entre registrar um ato e a busca refletir esse ato: até
+    aqui era preciso descobrir à mão quais matrículas mudaram e revisar uma a
+    uma. As matrículas saem de graça -- o texto já foi baixado para a
+    conferência e está no cache; os Registros Auxiliares custam uma consulta
+    cada, porque a conferência não precisa do texto deles.
+
+    Uma falha isolada não derruba a conferência: o protocolo continua
+    conferido e o número entra na contagem de falhas para nova tentativa.
+    """
+    relatorio = {
+        "matriculas": 0, "matriculasNovas": 0, "matriculasAlteradas": 0,
+        "registrosAuxiliares": 0, "registrosAuxiliaresNovos": 0,
+        "falhas": 0, "numerosComFalha": [],
+    }
+    if not alterados:
+        return relatorio
+
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            for tipo, numero in sorted(alterados):
+                try:
+                    if tipo == "M":
+                        texto = (cache_textos.get((tipo, numero)) or (None, None))[0]
+                        if texto is None:
+                            limitador.aguardar()
+                            texto = cliente.buscar_texto_matricula(numero)["texto"]
+                        _, novo, alterado, _, _ = _salvar_indice_matricula(cursor, numero, texto)
+                        relatorio["matriculas"] += 1
+                        relatorio["matriculasNovas"] += int(bool(novo))
+                        relatorio["matriculasAlteradas"] += int(bool(alterado))
+                    else:
+                        limitador.aguardar()
+                        texto = cliente.buscar_texto_registro_auxiliar(numero)["texto"]
+                        _, inserido = _salvar_indice_auxiliar(cursor, numero, texto)
+                        relatorio["registrosAuxiliares"] += 1
+                        relatorio["registrosAuxiliaresNovos"] += int(bool(inserido))
+                except Exception:  # noqa: BLE001
+                    relatorio["falhas"] += 1
+                    if len(relatorio["numerosComFalha"]) < 20:
+                        relatorio["numerosComFalha"].append(f"{tipo}.{numero}")
+            registrar_auditoria_cursor(
+                cursor, request, "reindexar_pelo_livro_protocolos", "sucesso",
+                usuario, detalhes=relatorio,
+            )
+        conexao.commit()
+    return relatorio
 
 
 @router.post("/analisar", dependencies=[Depends(proteger_csrf)])
@@ -78,6 +139,8 @@ async def analisar_livro_protocolos(
         cliente = cliente_tri7()
         limitador = _LimitadorTaxaTri7(REQUISICOES_POR_SEGUNDO_TRI7)
         cache_textos: dict[tuple[str, int], tuple[str | None, str | None]] = {}
+        # O que o dia efetivamente alterou -- base do reprocessamento do índice.
+        alterados: set[tuple[str, int]] = set()
         resultados = []
         for item in itens_pdf:
             registro = {**item, "conferido": False, "ocorrencias": [], "erro": None}
@@ -85,6 +148,7 @@ async def analisar_livro_protocolos(
                 limitador.aguardar()
                 try:
                     protocolo_json = cliente.buscar_protocolo_completo(item["numero"])
+                    alterados |= registros_alterados_no_protocolo(protocolo_json)
                     textos_registros = {}
                     falhas_textos = {}
                     for referencia in referencias_textos_protocolo(protocolo_json):
@@ -112,6 +176,10 @@ async def analisar_livro_protocolos(
                     registro["erro"] = str(erro)
             resultados.append(registro)
 
+        atualizacao = _reindexar_registros_alterados(
+            alterados, cache_textos, cliente, limitador, request, usuario,
+        )
+
         resumo = {
             "total": len(resultados),
             "prenotados": sum(1 for r in resultados if r["status"] == "PRENOTADO"),
@@ -123,8 +191,16 @@ async def analisar_livro_protocolos(
             "comOcorrencias": sum(1 for r in resultados if r["ocorrencias"]),
             "totalOcorrencias": sum(len(r["ocorrencias"]) for r in resultados),
         }
-        registrar_auditoria(request, "analisar_livro_protocolos", "sucesso", usuario, detalhes=resumo)
-        return {"dataEsperada": data_esperada.isoformat(), "protocolos": resultados, "resumo": resumo}
+        registrar_auditoria(
+            request, "analisar_livro_protocolos", "sucesso", usuario,
+            detalhes={**resumo, "atualizacao": atualizacao},
+        )
+        return {
+            "dataEsperada": data_esperada.isoformat(),
+            "protocolos": resultados,
+            "resumo": resumo,
+            "atualizacao": atualizacao,
+        }
     except HTTPException:
         raise
     except ValueError as exc:

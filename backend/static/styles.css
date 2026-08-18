@@ -1292,6 +1292,7 @@ body.sidebar-recolhida .nav-item {
 .livroproto-ocorrencias li { margin-bottom: 4px; }
 .livroproto-gravidade-grave { color: #b91c1c; font-weight: 600; }
 .livroproto-gravidade-atencao { color: #92400e; }
+.livroproto-atualizacao { margin:0; padding:11px 19px; border-bottom:1px solid rgba(139,152,178,.12); color:var(--text-soft); font-size:.78rem; }
 .livroproto-ok { color: #15803d; font-weight: 600; }
 .livroproto-nao-conferido { color: var(--text-muted); }
 .livroproto-erro-item { color: #b91c1c; font-style: italic; }
