@@ -7,12 +7,12 @@
  */
 import {requisicaoAeri} from './api.js';
 import {escaparHtml} from './util.js';
-import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v9';
+import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v10';
 import {
     areaM2, azimuteGraus, centroide, destinoGeodesico, distanciaM,
     formatarArea, formatarDistancia, formatarGms, ladosDoAnel, perimetroM,
-} from './mapa/geometria.js?v=20260819-poligonos-v9';
-import {montarKml} from './mapa/kml.js?v=20260819-poligonos-v9';
+} from './mapa/geometria.js?v=20260819-poligonos-v10';
+import {montarKml} from './mapa/kml.js?v=20260819-poligonos-v10';
 
 const SVG = 'http://www.w3.org/2000/svg';
 

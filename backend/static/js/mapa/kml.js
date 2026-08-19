@@ -19,7 +19,7 @@
  * metros -- por isso o datum vai escrito no arquivo, e não subentendido.
  */
 
-import {areaM2, centroide, perimetroM} from './geometria.js?v=20260819-poligonos-v9';
+import {areaM2, centroide, perimetroM} from './geometria.js?v=20260819-poligonos-v10';
 
 // Ordem e grafia exatas do item 6 do manual da API. Os nomes têm no
 // máximo 10 caracteres porque no shapefile o QGIS trunca nesse tamanho

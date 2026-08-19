@@ -203,7 +203,15 @@ export function criarMapa(elemento, opcoes = {}) {
                 tilesVivos.delete(chave);
             }
         }
-        creditos.textContent = definicao.creditos;
+        // Passado o zoom máximo da fonte, o que se vê é o último nível
+        // real esticado. Dizer quanto evita a conclusão errada de que a
+        // ferramenta está com defeito -- e, mais importante, avisa que
+        // aproximar mais não traz informação nova, só precisão falsa.
+        estado.ampliacaoDaImagem = zoomTile < Math.round(estado.zoom)
+            ? Math.pow(2, estado.zoom - zoomTile) : 1;
+        creditos.textContent = estado.ampliacaoDaImagem > 1.05
+            ? `${definicao.creditos} — imagem ampliada ${estado.ampliacaoDaImagem.toFixed(1)}×`
+            : definicao.creditos;
     }
 
     function redesenhar() {
