@@ -99,10 +99,26 @@ export function criarMapa(elemento, opcoes = {}) {
         estado.altura = caixa.height;
     }
 
-    /** Pixel do mundo do canto superior esquerdo da viewport. */
+    /**
+     * Pixel do mundo do canto superior esquerdo da viewport, arredondado.
+     *
+     * O arredondamento é o que mantém a imagem nítida. Com origem
+     * fracionária, cada tile é pintado em posição quebrada e o navegador
+     * reamostra a imagem inteira -- ela sai borrada mesmo no zoom nativo,
+     * sem ampliação nenhuma.
+     *
+     * Arredondar aqui, e não na hora de posicionar cada tile, é de
+     * propósito: geoParaTela e telaParaGeo usam esta mesma origem, então
+     * imagem e desenho continuam casados ao pixel. Arredondar só os tiles
+     * deslocaria a foto em relação ao vetor, e meio pixel no zoom 18 já é
+     * quase 30 cm de terreno.
+     */
     function origem() {
         const centro = geoParaMundo(estado.centro.lon, estado.centro.lat, estado.zoom);
-        return { x: centro.x - estado.largura / 2, y: centro.y - estado.altura / 2 };
+        return {
+            x: Math.round(centro.x - estado.largura / 2),
+            y: Math.round(centro.y - estado.altura / 2),
+        };
     }
 
     function geoParaTela(lon, lat) {
@@ -122,7 +138,16 @@ export function criarMapa(elemento, opcoes = {}) {
         // reaproveitamos o último nível disponível e ampliamos por CSS --
         // a imagem borra, mas o desenho vetorial continua nítido, que é o
         // que importa para conferir um limite.
-        const zoomTile = Math.min(Math.round(estado.zoom), definicao.zoomMaximo);
+        //
+        // Em tela densa, busca um nível a mais e desenha cada tile menor.
+        // Sem isso, num monitor a 150% de escala (o padrão de muito
+        // notebook) cada pixel da foto é esticado em 1,5 e a imagem fica
+        // com cara de borrada sem que a fonte tenha culpa.
+        const densidade = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+        const zoomTile = Math.min(
+            Math.round(estado.zoom + Math.log2(densidade)),
+            definicao.zoomMaximo,
+        );
         const escalaExtra = Math.pow(2, estado.zoom - zoomTile);
 
         const o = origem();
