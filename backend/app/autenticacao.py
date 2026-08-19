@@ -164,6 +164,8 @@ def _obter_sessao(request: Request) -> dict | None:
                 """SELECT s.*, u.perfil, u.nome, u.ativo, u.deve_trocar_senha,
                 u.pode_processar_matricula, u.pode_revisar_auditoria,
                 u.pode_acessar_mapa_onr,
+                u.pode_acessar_livro_protocolos, u.pode_acessar_buscas,
+                u.pode_acessar_poligonos,
                 u.pode_processar_incra, u.pode_gerenciar_custas,
                 u.pode_ver_intimacoes, u.pode_criar_intimacoes,
                 u.pode_alterar_intimacoes, u.pode_conferir_intimacoes

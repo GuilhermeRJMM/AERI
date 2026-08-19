@@ -3189,51 +3189,10 @@ body.modo-incorporado .layout { padding-top:28px; }
 /* Tabela de coordenadas editável: os campos ocupam a célula inteira e
    não parecem caixa de texto até receberem foco, para a tabela seguir
    legível como tabela. */
-.poligonos-coord-campo {
-  width: 100%;
-  padding: 3px 5px;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-soft);
-  font: inherit;
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
-}
-.poligonos-coord-campo:hover { border-color: var(--glass-border); }
-.poligonos-coord-campo:focus {
-  outline: none;
-  background: var(--surface-bg-strong);
-  border-color: var(--focus-blue);
-  color: var(--text-main);
-}
 .poligonos-coord-invalida,
 .poligonos-coord-invalida:focus { border-color: #dc2626; color: #fecaca; }
 
-.poligonos-coord-acoes { display: flex; gap: 2px; white-space: nowrap; }
-.poligonos-coord-acoes button {
-  padding: 2px 5px;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  line-height: 1;
-  cursor: pointer;
-}
-.poligonos-coord-acoes button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-main);
-}
-.poligonos-coord-acoes button:disabled { opacity: 0.25; cursor: default; }
 
-.poligonos-oculto {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
 
 /* Distância e azimute editáveis, no mesmo visual da tabela de coordenadas. */
 .poligonos-lado-campo {
