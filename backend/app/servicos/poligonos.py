@@ -12,6 +12,7 @@ suficiente para não bater com o memorial descritivo.
 """
 import math
 import re
+import unicodedata
 
 
 # WGS84
@@ -510,6 +511,154 @@ def _emparelhar(valores: list, hemisferios: list) -> list:
     return pontos
 
 
+# ---------------------------------------------------------------------------
+# Dados de identificação exigidos pelo Mapa do Registro de Imóveis
+# ---------------------------------------------------------------------------
+
+# Motivos publicados no item 3.4.5.3 do Manual Técnico Operacional.
+MOTIVOS_DE_ENVIO = (
+    "Desdobro", "Desmembramento", "Divisão", "Loteamento", "Novo imóvel",
+    "Regularização fundiária", "Retificação de matrícula", "Unificação",
+)
+
+# Item 5.12.1: o endereço vai sem abreviações. A lista fica curta e só com
+# formas inequívocas -- expandir "Al." ou "Pq." exigiria adivinhar, e
+# adivinhar em endereço de matrícula é pior do que deixar como está.
+#
+# Duas sutilezas que custaram um teste vermelho:
+#
+# 1. A expansão roda DEPOIS de sem_acentos, então os padrões precisam
+#    casar a forma já sem acento ("Pc." e não "Pç."), e as substituições
+#    precisam ser sem acento também -- escrever "Praça" aqui reintroduziria
+#    justamente o acento que a regra do manual acabou de remover.
+# 2. Todo padrão exige o ponto final. Sem ele, "Av" solto viraria
+#    "Avenida" dentro de um nome próprio.
+_ABREVIACOES = (
+    (r"\bR\.", "Rua"),
+    (r"\bAv\.", "Avenida"),
+    (r"\bTrav\.|\bTv\.", "Travessa"),
+    (r"\bRod\.", "Rodovia"),
+    (r"\bPc\.|\bPca\.|\bPr\.", "Praca"),
+    (r"\bEstr\.", "Estrada"),
+    (r"\bLot\.", "Loteamento"),
+    (r"\bCj\.|\bConj\.", "Conjunto"),
+)
+
+UFS = frozenset(
+    "AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR "
+    "RS SC SE SP TO".split()
+)
+
+
+def sem_acentos(texto: str) -> str:
+    """Remove acentos e sinais, como o item 5.12.1 do manual determina.
+
+    O manual é explícito: "acentos e caracteres especiais não devem ser
+    usados no cadastro de parcelas". Vale só para o que vai nos atributos
+    do imóvel; o nome que aparece na tela do AERI continua acentuado.
+    """
+    decomposto = unicodedata.normalize("NFD", texto)
+    sem_marcas = "".join(c for c in decomposto if unicodedata.category(c) != "Mn")
+    # Indicadores ordinais viram nada: "Nº 3" fica "N 3". Eles passariam
+    # pelo filtro abaixo, porque o Unicode os classifica como letra.
+    sem_marcas = sem_marcas.replace("º", "").replace("ª", "")
+    limpo = re.sub(r"[^\w\s.,;:/()\-]", "", sem_marcas, flags=re.UNICODE)
+    # Tirar travessão e aspas curvas deixa espaços dobrados no lugar.
+    return re.sub(r"\s{2,}", " ", limpo).strip()
+
+
+def expandir_abreviacoes(endereco: str) -> str:
+    """Troca as abreviações de logradouro por extenso (item 5.12.1)."""
+    texto = endereco
+    for padrao, extenso in _ABREVIACOES:
+        texto = re.sub(padrao, extenso, texto, flags=re.IGNORECASE)
+    return re.sub(r"\s{2,}", " ", texto).strip()
+
+
+def _lista_separada_por_virgula(valor: str, limite: int, so_digitos: bool = False) -> str:
+    itens = []
+    for parte in str(valor or "").split(","):
+        parte = parte.strip()
+        if so_digitos:
+            parte = re.sub(r"\D", "", parte)
+        if parte:
+            itens.append(parte)
+    return ", ".join(itens)[:limite]
+
+
+def validar_dados_mapa(dados) -> dict:
+    """Normaliza os campos de identificação do imóvel para o padrão do Mapa.
+
+    Devolve sempre o dicionário completo, com string vazia onde não há
+    informação: assim o KML sai com a estrutura inteira e quem recebe vê
+    o que falta preencher, em vez de descobrir depois que o Mapa recusou.
+    """
+    dados = dados if isinstance(dados, dict) else {}
+
+    def texto(chave, limite):
+        return sem_acentos(str(dados.get(chave) or "").strip())[:limite]
+
+    uf = re.sub(r"[^A-Za-z]", "", str(dados.get("uf") or "")).upper()[:2]
+    motivo = str(dados.get("motivo") or "").strip()
+
+    return {
+        # CNS tem seis dígitos, mas registros antigos aparecem com hífen;
+        # guardamos só os dígitos, como o manual exemplifica.
+        "cns": re.sub(r"\D", "", str(dados.get("cns") or ""))[:10],
+        "municipio": texto("municipio", 120),
+        # Item 5.12.1: sempre duas letras, ABNT/NBR ISO 3166-2:BR.
+        "uf": uf if uf in UFS else "",
+        "proprietarios": _lista_separada_por_virgula(
+            sem_acentos(str(dados.get("proprietarios") or "")), 600),
+        "documentos": _lista_separada_por_virgula(
+            dados.get("documentos"), 400, so_digitos=True),
+        "endereco": expandir_abreviacoes(texto("endereco", 240)),
+        "numero": texto("numero", 20),
+        "cep": re.sub(r"\D", "", str(dados.get("cep") or ""))[:8],
+        "motivo": motivo if motivo in MOTIVOS_DE_ENVIO else "",
+    }
+
+
+def centroide(anel: list) -> tuple:
+    """Ponto central do imóvel, que a tela de cadastro do Mapa pede.
+
+    É o centroide da área (item 9 e 10 do 3.4.5.1), e não a média dos
+    vértices: num polígono com lados muito desiguais a média cai fora do
+    imóvel, e o Mapa usa esse ponto para localizar a parcela.
+    """
+    pontos = _anel_limpo(anel)
+    if len(pontos) < 3:
+        return (pontos[0] if pontos else (0.0, 0.0))
+
+    # Os produtos cruzados são calculados em torno do primeiro vértice, e
+    # não das coordenadas cruas. Sem isso, um lote urbano em Goiás
+    # multiplica valores na casa de 870 para extrair uma diferença na casa
+    # de 1e-7: o ponto flutuante perde os dígitos que importam e o centro
+    # sai deslocado mais de um metro -- num quadrado, onde ele tem de cair
+    # exatamente no meio.
+    origem_lon, origem_lat = pontos[0]
+    locais = [(lon - origem_lon, lat - origem_lat) for lon, lat in pontos]
+
+    area2 = soma_lon = soma_lat = 0.0
+    for i in range(len(locais)):
+        x1, y1 = locais[i]
+        x2, y2 = locais[(i + 1) % len(locais)]
+        cruzado = x1 * y2 - x2 * y1
+        area2 += cruzado
+        soma_lon += (x1 + x2) * cruzado
+        soma_lat += (y1 + y2) * cruzado
+    if abs(area2) < 1e-15:
+        # Polígono degenerado: cai na média, que ao menos fica no desenho.
+        return (
+            sum(p[0] for p in pontos) / len(pontos),
+            sum(p[1] for p in pontos) / len(pontos),
+        )
+    return (
+        origem_lon + soma_lon / (3 * area2),
+        origem_lat + soma_lat / (3 * area2),
+    )
+
+
 def poligono_json(item: dict) -> dict:
     """Formato que a interface consome."""
     return {
@@ -522,6 +671,7 @@ def poligono_json(item: dict) -> dict:
         "perimetroM": item["perimetro_m"],
         "cor": item["cor"],
         "observacao": item["observacao"],
+        "dadosMapa": item.get("dados_mapa") or {},
         "criadoPor": item["criado_por"],
         "criadoEm": item["criado_em"].isoformat(),
         "atualizadoEm": item["atualizado_em"].isoformat(),

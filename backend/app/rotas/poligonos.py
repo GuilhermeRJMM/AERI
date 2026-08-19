@@ -15,6 +15,7 @@ from backend.app.servicos.poligonos import (
     poligono_json,
     se_sobrepoem,
     validar_anel,
+    validar_dados_mapa,
 )
 
 
@@ -62,7 +63,9 @@ def _validar_entrada(dados: dict) -> dict:
 
     return {
         "nome": nome, "tipo": tipo, "anel": anel, "matricula": matricula,
-        "cor": cor, "observacao": observacao, **medidas(anel, tipo),
+        "cor": cor, "observacao": observacao,
+        "dados_mapa": validar_dados_mapa(dados.get("dadosMapa")),
+        **medidas(anel, tipo),
     }
 
 
@@ -88,12 +91,13 @@ def criar_poligono(
             cursor.execute(
                 """INSERT INTO poligonos_aeri
                 (id, nome, matricula, tipo, anel, area_m2, perimetro_m, cor,
-                observacao, criado_por)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
+                observacao, dados_mapa, criado_por)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
                 (
                     identificador, campos["nome"], campos["matricula"], campos["tipo"],
                     Jsonb(campos["anel"]), campos["area_m2"], campos["perimetro_m"],
-                    campos["cor"], campos["observacao"], usuario,
+                    campos["cor"], campos["observacao"],
+                    Jsonb(campos["dados_mapa"]), usuario,
                 ),
             )
             item = cursor.fetchone()
@@ -118,11 +122,12 @@ def atualizar_poligono(
             cursor.execute(
                 """UPDATE poligonos_aeri SET nome=%s, matricula=%s, tipo=%s,
                 anel=%s, area_m2=%s, perimetro_m=%s, cor=%s, observacao=%s,
-                atualizado_em=NOW() WHERE id=%s RETURNING *""",
+                dados_mapa=%s, atualizado_em=NOW() WHERE id=%s RETURNING *""",
                 (
                     campos["nome"], campos["matricula"], campos["tipo"],
                     Jsonb(campos["anel"]), campos["area_m2"], campos["perimetro_m"],
-                    campos["cor"], campos["observacao"], identificador,
+                    campos["cor"], campos["observacao"],
+                    Jsonb(campos["dados_mapa"]), identificador,
                 ),
             )
             item = cursor.fetchone()

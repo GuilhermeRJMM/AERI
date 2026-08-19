@@ -3171,3 +3171,17 @@ body.modo-incorporado .layout { padding-top:28px; }
   border-color: rgba(202, 138, 4, 0.42);
   color: #fde68a;
 }
+
+.poligonos-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.poligonos-nota { margin: 0 0 10px; color: var(--text-muted); font-size: 0.74rem; line-height: 1.45; }
+.poligonos-nota strong { color: var(--text-soft); font-variant-numeric: tabular-nums; }
+.poligonos-bloco select {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--surface-bg-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.86rem;
+}

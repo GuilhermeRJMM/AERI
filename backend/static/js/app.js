@@ -1,5 +1,5 @@
 import {configurarAcessoAnaliseManual, iniciarAnalisador} from './analisador.js?v=20260810-texto-manual-admin';
-import {iniciarAutenticacao} from './autenticacao.js?v=20260819-poligonos-v4';
+import {iniciarAutenticacao} from './autenticacao.js?v=20260819-poligonos-v5';
 import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260817-texto-pesquisa-v4';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js?v=20260817-reindexa-v1';
@@ -7,10 +7,10 @@ import {configurarAcessoMapaOnr, iniciarMapaOnr, limparMapaOnr} from './mapa_onr
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260804-custas-fluido';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260810-nota-desistencia-v3';
 import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
-import {carregarPoligonos, configurarAcessoPoligonos, iniciarPoligonos, limparPoligonos} from './poligonos.js?v=20260819-poligonos-v4';
+import {carregarPoligonos, configurarAcessoPoligonos, iniciarPoligonos, limparPoligonos} from './poligonos.js?v=20260819-poligonos-v5';
 import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260811-reg-aux-sync-v1';
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260706-status-onr';
-import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260819-poligonos-v4';
+import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260819-poligonos-v5';
 import {iniciarAtualizacaoPeriodica} from './util.js';
 
 const INTERVALO_ATUALIZACAO_MS = 5000;

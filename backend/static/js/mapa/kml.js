@@ -19,7 +19,7 @@
  * metros -- por isso o datum vai escrito no arquivo, e não subentendido.
  */
 
-import {areaM2, perimetroM} from './geometria.js?v=20260819-poligonos-v4';
+import {areaM2, centroide, perimetroM} from './geometria.js?v=20260819-poligonos-v5';
 
 // Ordem e grafia exatas do item 6 do manual da API. Os nomes têm no
 // máximo 10 caracteres porque no shapefile o QGIS trunca nesse tamanho
@@ -40,6 +40,88 @@ export const CAMPOS_MAPA = [
 const CATEGORIA_DESENHO_EM_SATELITE = '3';
 
 const CASAS = 8;   // ~1 mm; a exigência do manual é 8 cm
+
+/**
+ * Item 5.12.1 do Manual Técnico: "acentos e caracteres especiais não
+ * devem ser usados no cadastro de parcelas".
+ *
+ * Vale só para os atributos que vão ao Mapa. O nome exibido na tela do
+ * AERI e a descrição legível do KML continuam acentuados -- tirar acento
+ * de texto que ninguém cadastra só piora a leitura.
+ */
+export function semAcentos(texto) {
+    return String(texto ?? '')
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[ºª]/g, '')
+        .replace(/[^\w\s.,;:/()-]/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
+
+const UFS = new Set(('AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR '
+    + 'RJ RN RO RR RS SC SE SP TO').split(' '));
+
+const MOTIVOS_DE_ENVIO = new Set([
+    'Desdobro', 'Desmembramento', 'Divisão', 'Loteamento', 'Novo imóvel',
+    'Regularização fundiária', 'Retificação de matrícula', 'Unificação',
+]);
+
+// Item 5.12.1: endereço sem abreviação. Lista curta e só com formas
+// inequívocas -- expandir "Al." ou "Pq." exigiria adivinhar, e adivinhar
+// em endereço de matrícula é pior do que deixar como está.
+// Espelha _ABREVIACOES do servidor, com as mesmas duas sutilezas: a
+// expansão roda depois de semAcentos, então padrão e substituição vão
+// sem acento; e todo padrão exige o ponto, senão "Av" solto viraria
+// "Avenida" dentro de um nome próprio.
+const ABREVIACOES = [
+    [/\bR\./gi, 'Rua'],
+    [/\bAv\./gi, 'Avenida'],
+    [/\bTrav\.|\bTv\./gi, 'Travessa'],
+    [/\bRod\./gi, 'Rodovia'],
+    [/\bPc\.|\bPca\.|\bPr\./gi, 'Praca'],
+    [/\bEstr\./gi, 'Estrada'],
+    [/\bLot\./gi, 'Loteamento'],
+    [/\bCj\.|\bConj\./gi, 'Conjunto'],
+];
+
+function listaSeparada(valor, limite, soDigitos = false) {
+    return String(valor ?? '')
+        .split(',')
+        .map(p => (soDigitos ? p.replace(/\D/g, '') : p.trim()))
+        .filter(Boolean)
+        .join(', ')
+        .slice(0, limite);
+}
+
+/**
+ * Espelha validar_dados_mapa() do servidor.
+ *
+ * Existe porque o KML de um rascunho é montado sem ida ao servidor, e um
+ * arquivo com acento sairia fora do padrão. Há teste exigindo que as duas
+ * versões deem exatamente o mesmo resultado.
+ */
+export function normalizarDadosMapa(dados) {
+    const d = dados || {};
+    const uf = String(d.uf ?? '').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 2);
+    const motivo = String(d.motivo ?? '').trim();
+    let endereco = semAcentos(String(d.endereco ?? '').trim()).slice(0, 240);
+    ABREVIACOES.forEach(([padrao, extenso]) => {
+        endereco = endereco.replace(padrao, extenso);
+    });
+
+    return {
+        cns: String(d.cns ?? '').replace(/\D/g, '').slice(0, 10),
+        municipio: semAcentos(String(d.municipio ?? '').trim()).slice(0, 120),
+        uf: UFS.has(uf) ? uf : '',
+        proprietarios: listaSeparada(semAcentos(String(d.proprietarios ?? '')), 600),
+        documentos: listaSeparada(d.documentos, 400, true),
+        endereco: endereco.replace(/\s{2,}/g, ' ').trim(),
+        numero: semAcentos(String(d.numero ?? '').trim()).slice(0, 20),
+        cep: String(d.cep ?? '').replace(/\D/g, '').slice(0, 8),
+        motivo: MOTIVOS_DE_ENVIO.has(motivo) ? motivo : '',
+    };
+}
 
 function escapar(valor) {
     return String(valor ?? '').replace(/[&<>"']/g, c => (
@@ -94,9 +176,21 @@ function atributos(dados) {
     // vazios, e não ausentes: quem receber o arquivo vê a estrutura
     // inteira e sabe o que falta completar, em vez de descobrir depois
     // que o Mapa recusou por campo que ninguém percebeu que existia.
+    // Já chegam normalizados pelo servidor (validar_dados_mapa): sem
+    // acento, UF em duas letras, logradouro sem abreviação, documentos só
+    // com dígitos. É o item 5.12.1 do Manual Técnico.
+    const mapa = normalizarDadosMapa(dados.dadosMapa);
     const conhecidos = {
         MATRICULA: (dados.matricula || '').replace(/\D/g, ''),
-        NOME_IMO: dados.nome || '',
+        CNS: mapa.cns || '',
+        ENDERECO: mapa.endereco || '',
+        NUMERO: mapa.numero || '',
+        CEP: mapa.cep || '',
+        MUNICIPIO: mapa.municipio || '',
+        UF: mapa.uf || '',
+        NOME_PROP: mapa.proprietarios || '',
+        CPF_CNPJ: mapa.documentos || '',
+        NOME_IMO: semAcentos(dados.nome || ''),
         AREA_HA: fechado ? (area / 10000).toFixed(4) : '',
         AREA_M2: fechado ? area.toFixed(2) : '',
         PERIM_M: perimetro ? perimetro.toFixed(2) : '',
@@ -134,9 +228,19 @@ function geometria(dados) {
 /** Monta o KML completo. Função pura, para poder ser testada fora do navegador. */
 export function montarKml(dados) {
     const nome = dados.nome || 'Polígono';
+    const mapa = normalizarDadosMapa(dados.dadosMapa);
+    const anel = dados.anel || [];
+    const centro = dados.tipo === 'POLIGONO' && anel.length >= 3
+        ? centroide(anel) : null;
     const descricao = [
         dados.matricula ? `Matrícula ${dados.matricula}` : '',
         dados.observacao || '',
+        mapa.motivo ? `Motivo do envio: ${mapa.motivo}` : '',
+        // O manual pede o ponto central na tela de cadastro (3.4.5.1),
+        // mas o quadro de atributos tem 34 campos e nenhum para ele.
+        // Inventar um 35º quebraria leitor estrito; aqui fica à mão para
+        // copiar, no formato que a tela pede.
+        centro ? `Ponto central: ${centro[0].toFixed(8)}, ${centro[1].toFixed(8)}` : '',
         'Datum: SIRGAS 2000 (equivalente a WGS84 no nível de centímetros).',
         'Categoria C: desenho sobre imagem de satélite.',
     ].filter(Boolean).join(' — ');

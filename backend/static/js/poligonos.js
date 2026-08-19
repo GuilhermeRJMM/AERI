@@ -7,12 +7,12 @@
  */
 import {requisicaoAeri} from './api.js';
 import {escaparHtml} from './util.js';
-import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v4';
+import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v5';
 import {
-    areaM2, azimuteGraus, distanciaM, formatarArea, formatarDistancia,
-    formatarGms, ladosDoAnel, perimetroM,
-} from './mapa/geometria.js?v=20260819-poligonos-v4';
-import {montarKml} from './mapa/kml.js?v=20260819-poligonos-v4';
+    areaM2, azimuteGraus, centroide, distanciaM, formatarArea,
+    formatarDistancia, formatarGms, ladosDoAnel, perimetroM,
+} from './mapa/geometria.js?v=20260819-poligonos-v5';
+import {montarKml} from './mapa/kml.js?v=20260819-poligonos-v5';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -246,10 +246,53 @@ async function copiarCoordenadas() {
         : 'Não foi possível copiar. Selecione a tabela e use Ctrl+C.';
 }
 
+// ---------------------------------------------------------------------------
+// Dados de identificação do imóvel (Mapa do ONR)
+// ---------------------------------------------------------------------------
+
+// A chave é o nome do campo em dadosMapa; o valor, o id do input.
+const CAMPOS_DO_MAPA = {
+    cns: 'poligonos-cns',
+    municipio: 'poligonos-municipio',
+    uf: 'poligonos-uf',
+    proprietarios: 'poligonos-proprietarios',
+    documentos: 'poligonos-documentos',
+    endereco: 'poligonos-endereco',
+    numero: 'poligonos-numero',
+    cep: 'poligonos-cep',
+    motivo: 'poligonos-motivo',
+};
+
+function lerDadosMapa() {
+    return Object.fromEntries(
+        Object.entries(CAMPOS_DO_MAPA).map(([chave, id]) =>
+            [chave, elemento(id).value.trim()]),
+    );
+}
+
+function escreverDadosMapa(dados = {}) {
+    Object.entries(CAMPOS_DO_MAPA).forEach(([chave, id]) => {
+        elemento(id).value = dados[chave] || '';
+    });
+}
+
+function atualizarPontoCentral() {
+    const alvo = elemento('poligonos-centro');
+    if (rascunho.anel.length < 3 || rascunho.tipo !== 'POLIGONO') {
+        alvo.textContent = '—';
+        return;
+    }
+    const [lon, lat] = centroide(rascunho.anel);
+    // O Mapa pede "longitude e latitude do ponto central, separados por
+    // vírgula" (item 3.4.5.1), nessa ordem.
+    alvo.textContent = `${lon.toFixed(8)}, ${lat.toFixed(8)}`;
+}
+
 function atualizarTudo() {
     redesenharVetores();
     atualizarMedidas();
     atualizarCoordenadas();
+    atualizarPontoCentral();
 }
 
 // ---------------------------------------------------------------------------
@@ -271,6 +314,7 @@ function limparRascunho() {
     elemento('poligonos-nome').value = '';
     elemento('poligonos-matricula').value = '';
     elemento('poligonos-observacao').value = '';
+    escreverDadosMapa({});
     elemento('poligonos-excluir').hidden = true;
     atualizarTudo();
 }
@@ -355,6 +399,7 @@ async function salvar() {
         anel: rascunho.anel,
         cor: rascunho.cor,
         observacao: elemento('poligonos-observacao').value.trim() || null,
+        dadosMapa: lerDadosMapa(),
     };
     const opcoes = {
         method: rascunho.editandoId ? 'PUT' : 'POST',
@@ -386,6 +431,7 @@ function abrirSalvo(id) {
     elemento('poligonos-nome').value = item.nome;
     elemento('poligonos-matricula').value = item.matricula || '';
     elemento('poligonos-observacao').value = item.observacao || '';
+    escreverDadosMapa(item.dadosMapa);
     elemento('poligonos-excluir').hidden = false;
     definirFerramenta(item.tipo === 'LINHA' ? 'linha' : item.tipo === 'PONTO' ? 'ponto' : 'poligono');
     mapa.ajustarPara(item.anel);
@@ -530,6 +576,7 @@ function exportarKml() {
             nome: elemento('poligonos-nome').value.trim(),
             matricula: elemento('poligonos-matricula').value.trim(),
             observacao: elemento('poligonos-observacao').value.trim(),
+            dadosMapa: lerDadosMapa(),
             anel: rascunho.anel,
             tipo: rascunho.tipo,
         }),

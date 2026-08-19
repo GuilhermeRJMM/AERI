@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260819-poligonos-v4">
+    <link rel="stylesheet" href="/static/styles.css?v=20260819-poligonos-v5">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -449,6 +449,60 @@
                             </section>
 
                             <section class="poligonos-bloco">
+                                <h2>Dados do imóvel (Mapa do ONR)</h2>
+                                <p class="poligonos-nota">Preenchem os atributos do arquivo KML. Acentos são removidos e abreviações de logradouro expandidas, como o manual exige.</p>
+
+                                <div class="poligonos-grade">
+                                    <div>
+                                        <label for="poligonos-cns">CNS da serventia</label>
+                                        <input id="poligonos-cns" type="text" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="000000">
+                                    </div>
+                                    <div>
+                                        <label for="poligonos-uf">UF</label>
+                                        <input id="poligonos-uf" type="text" maxlength="2" autocomplete="off" placeholder="GO">
+                                    </div>
+                                </div>
+
+                                <label for="poligonos-municipio">Município</label>
+                                <input id="poligonos-municipio" type="text" maxlength="120" autocomplete="off" placeholder="Morrinhos">
+
+                                <label for="poligonos-proprietarios">Proprietários (separados por vírgula)</label>
+                                <textarea id="poligonos-proprietarios" rows="2" maxlength="600" placeholder="Joao da Silva, Maria Souza"></textarea>
+
+                                <label for="poligonos-documentos">CPF/CNPJ (mesma ordem, separados por vírgula)</label>
+                                <textarea id="poligonos-documentos" rows="2" maxlength="400" placeholder="00000000000, 00000000000100"></textarea>
+
+                                <label for="poligonos-endereco">Endereço (sem abreviações)</label>
+                                <input id="poligonos-endereco" type="text" maxlength="240" autocomplete="off" placeholder="Rodovia BR 153, km 00">
+
+                                <div class="poligonos-grade">
+                                    <div>
+                                        <label for="poligonos-numero">Número</label>
+                                        <input id="poligonos-numero" type="text" maxlength="20" autocomplete="off" placeholder="123">
+                                    </div>
+                                    <div>
+                                        <label for="poligonos-cep">CEP</label>
+                                        <input id="poligonos-cep" type="text" inputmode="numeric" maxlength="9" autocomplete="off" placeholder="75650000">
+                                    </div>
+                                </div>
+
+                                <label for="poligonos-motivo">Motivo do envio</label>
+                                <select id="poligonos-motivo">
+                                    <option value="">Não informado</option>
+                                        <option value="Desdobro">Desdobro</option>
+                                        <option value="Desmembramento">Desmembramento</option>
+                                        <option value="Divisão">Divisão</option>
+                                        <option value="Loteamento">Loteamento</option>
+                                        <option value="Novo imóvel">Novo imóvel</option>
+                                        <option value="Regularização fundiária">Regularização fundiária</option>
+                                        <option value="Retificação de matrícula">Retificação de matrícula</option>
+                                        <option value="Unificação">Unificação</option>
+                                </select>
+
+                                <p class="poligonos-nota">Ponto central do imóvel, que a tela de cadastro do Mapa pede: <strong id="poligonos-centro">&mdash;</strong></p>
+                            </section>
+
+                            <section class="poligonos-bloco">
                                 <h2>Exportar</h2>
                                 <div class="poligonos-acoes">
                                     <button type="button" id="poligonos-exportar-memorial" class="btn">Memorial</button>
@@ -863,6 +917,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260819-poligonos-v4"></script>
+    <script type="module" src="/static/js/app.js?v=20260819-poligonos-v5"></script>
 </body>
 </html>

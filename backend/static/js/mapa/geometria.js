@@ -171,6 +171,43 @@ export function formatarGms(valor, eixo) {
         + `${segundos.toFixed(3).padStart(6, '0')}"${letra}`;
 }
 
+/**
+ * Ponto central do imóvel, que a tela de cadastro do Mapa pede.
+ *
+ * É o centroide da área, e não a média dos vértices: numa forma em L a
+ * média cai fora do imóvel. Os produtos cruzados são calculados em torno
+ * do primeiro vértice porque, com as coordenadas cruas, multiplicar
+ * valores na casa de 870 para extrair diferenças na casa de 1e-7 perde os
+ * dígitos que importam e desloca o centro em mais de um metro.
+ */
+export function centroide(anel) {
+    const p = anelLimpo(anel);
+    if (p.length < 3) return p[0] || [0, 0];
+
+    const [origemLon, origemLat] = p[0];
+    const locais = p.map(([lon, lat]) => [lon - origemLon, lat - origemLat]);
+
+    let area2 = 0; let somaLon = 0; let somaLat = 0;
+    for (let i = 0; i < locais.length; i += 1) {
+        const [x1, y1] = locais[i];
+        const [x2, y2] = locais[(i + 1) % locais.length];
+        const cruzado = x1 * y2 - x2 * y1;
+        area2 += cruzado;
+        somaLon += (x1 + x2) * cruzado;
+        somaLat += (y1 + y2) * cruzado;
+    }
+    if (Math.abs(area2) < 1e-15) {
+        return [
+            p.reduce((s, q) => s + q[0], 0) / p.length,
+            p.reduce((s, q) => s + q[1], 0) / p.length,
+        ];
+    }
+    return [
+        origemLon + somaLon / (3 * area2),
+        origemLat + somaLat / (3 * area2),
+    ];
+}
+
 /** Lados do polígono com distância e azimute, como num memorial. */
 export function ladosDoAnel(anel, fechado = true) {
     const p = anelLimpo(anel);
