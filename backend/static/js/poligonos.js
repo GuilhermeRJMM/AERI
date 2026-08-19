@@ -68,7 +68,10 @@ function redesenharVetores() {
     // Salvos primeiro, para o rascunho ficar por cima.
     salvos.forEach(item => {
         if (item.id === rascunho.editandoId) return;   // esse está sendo editado
-        const invadido = sobreposicoes.has(item.id);
+        // Encostar na divisa não pinta de vermelho: só invasão de área,
+        // ou sobreposição que este banco não soube medir.
+        const invadido = sobreposicoes.get(item.id)?.apenasEncosta !== true
+            && sobreposicoes.has(item.id);
         camada.appendChild(criarNo('path', {
             d: caminhoDoAnel(item.anel, item.tipo === 'POLIGONO'),
             fill: item.tipo === 'POLIGONO' ? item.cor : 'none',
@@ -238,7 +241,7 @@ function renderizarLista() {
         return;
     }
     lista.innerHTML = salvos.map(item => `
-        <li class="poligonos-item ${sobreposicoes.has(item.id) ? 'poligonos-item-invadido' : ''}">
+        <li class="poligonos-item ${sobreposicoes.get(item.id)?.apenasEncosta === false || (sobreposicoes.has(item.id) && sobreposicoes.get(item.id)?.apenasEncosta == null) ? 'poligonos-item-invadido' : ''}">
             <button type="button" class="poligonos-abrir" data-id="${escaparHtml(item.id)}">
                 <span class="poligonos-cor" style="background:${escaparHtml(item.cor)}"></span>
                 <span class="poligonos-nome">${escaparHtml(item.nome)}</span>
@@ -307,14 +310,35 @@ async function conferirSobreposicoes(id) {
         const achados = await requisicaoAeri(`/api/poligonos/${id}/sobreposicoes`);
         achados.forEach(item => sobreposicoes.set(item.id, item));
         const aviso = elemento('poligonos-sobreposicao');
-        if (achados.length) {
-            aviso.hidden = false;
-            aviso.innerHTML = `<strong>Sobreposição detectada</strong> com ${achados.length} desenho(s): `
-                + achados.map(a => escaparHtml(a.nome)).join(', ')
-                + '. Confira antes de qualificar.';
-        } else {
-            aviso.hidden = true;
+        if (!achados.length) { aviso.hidden = true; return; }
+
+        // Encostar na divisa é o normal entre vizinhos; invadir não é. O
+        // aviso separa os dois para o conferente não perder o que importa
+        // no meio do que é esperado.
+        const invadem = achados.filter(a => a.apenasEncosta === false);
+        const encostam = achados.filter(a => a.apenasEncosta === true);
+        const semMedida = achados.filter(a => a.apenasEncosta == null);
+
+        const descrever = item => escaparHtml(item.nome)
+            + (item.areaInvadidaM2 ? ` (${escaparHtml(formatarArea(item.areaInvadidaM2))})` : '');
+
+        const partes = [];
+        if (invadem.length) {
+            partes.push(`<strong>Invasão de área</strong> com ${invadem.length} desenho(s): `
+                + invadem.map(descrever).join(', ') + '.');
         }
+        if (encostam.length) {
+            partes.push(`Encosta na divisa de ${encostam.length} desenho(s): `
+                + encostam.map(a => escaparHtml(a.nome)).join(', ') + '.');
+        }
+        if (semMedida.length) {
+            partes.push(`<strong>Sobreposição detectada</strong> com ${semMedida.length} desenho(s): `
+                + semMedida.map(a => escaparHtml(a.nome)).join(', ')
+                + '. Este banco não calcula a área invadida; confira no desenho.');
+        }
+        aviso.hidden = false;
+        aviso.innerHTML = partes.join('<br>');
+        aviso.classList.toggle('poligonos-alerta-leve', !invadem.length && !semMedida.length);
     } catch (_falha) {
         // Sobreposição é conferência auxiliar; falhar aqui não pode
         // impedir o usuário de continuar desenhando.

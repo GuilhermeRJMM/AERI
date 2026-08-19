@@ -194,22 +194,72 @@ def importar_coordenadas(dados: dict, _usuario: str = Depends(exigir_permissao("
     return {"anel": pontos, "vertices": len(pontos)}
 
 
-@router.get("/{identificador}/sobreposicoes")
-def listar_sobreposicoes(
-    identificador: UUID,
-    _usuario: str = Depends(exigir_permissao("acessar_poligonos")),
-):
-    """Quais outros desenhos invadem ou tocam este.
+def _tem_recorte(cursor) -> bool:
+    """Diz se este banco sabe recortar um polígono contra o outro.
 
-    Responde quem, não quanto: a área de invasão exigiria recortar um
-    polígono contra o outro, e um número errado com cara de exato numa
-    qualificação é pior do que apontar o par e deixar o conferente medir.
+    A pergunta é pela função da migração 033, e não pela extensão em si:
+    é ela que as consultas usam, e checar exatamente a pré-condição evita
+    o caso em que o PostGIS existe mas a migração ainda não rodou.
     """
-    with conectar() as conexao:
-        with conexao.cursor() as cursor:
-            cursor.execute(
-                "SELECT * FROM poligonos_aeri WHERE tipo='POLIGONO' LIMIT 500")
-            todos = cursor.fetchall()
+    cursor.execute(
+        "SELECT EXISTS (SELECT 1 FROM pg_proc WHERE proname = %s) AS tem",
+        ("aeri_anel_para_geometria",),
+    )
+    return bool(cursor.fetchone()["tem"])
+
+
+def _sobreposicoes_com_recorte(cursor, identificador: UUID) -> list:
+    """Sobreposições com a área invadida, calculada pelo PostGIS.
+
+    A interseção é recortada no plano e medida como geography, que é o
+    elipsoide -- a mesma referência do resto do módulo. Área zero
+    significa que os desenhos apenas encostam na divisa, o que é situação
+    normal entre vizinhos e não é invasão.
+    """
+    cursor.execute(
+        """
+        WITH alvo AS (
+            SELECT aeri_anel_para_geometria(anel) AS forma
+            FROM poligonos_aeri
+            WHERE id = %(id)s AND tipo = 'POLIGONO'
+        )
+        SELECT p.id, p.nome, p.matricula, p.cor,
+               -- CollectionExtract(..., 3) fica só com as partes que têm
+               -- área. Dois vizinhos que dividem cerca se cruzam numa
+               -- linha, e linha não é invasão: aqui isso vira zero, em
+               -- vez de virar um erro de tipo na medição.
+               ST_Area(
+                   ST_CollectionExtract(
+                       ST_Intersection(
+                           alvo.forma, aeri_anel_para_geometria(p.anel)
+                       ),
+                       3
+                   )::geography
+               ) AS area_invadida
+        FROM poligonos_aeri p CROSS JOIN alvo
+        WHERE p.id <> %(id)s
+          AND p.tipo = 'POLIGONO'
+          AND ST_Intersects(alvo.forma, aeri_anel_para_geometria(p.anel))
+        ORDER BY area_invadida DESC NULLS LAST
+        LIMIT 500
+        """,
+        {"id": identificador},
+    )
+    return [
+        {
+            "id": str(item["id"]), "nome": item["nome"],
+            "matricula": item["matricula"], "cor": item["cor"],
+            "areaInvadidaM2": item["area_invadida"],
+            "apenasEncosta": not (item["area_invadida"] or 0) > 0.005,
+        }
+        for item in cursor.fetchall()
+    ]
+
+
+def _sobreposicoes_sem_recorte(cursor, identificador: UUID) -> list:
+    """Só quem se sobrepõe, sem quanto -- usado quando não há PostGIS."""
+    cursor.execute("SELECT * FROM poligonos_aeri WHERE tipo='POLIGONO' LIMIT 500")
+    todos = cursor.fetchall()
 
     alvo = next((p for p in todos if str(p["id"]) == str(identificador)), None)
     if not alvo:
@@ -219,11 +269,39 @@ def listar_sobreposicoes(
         {
             "id": str(outro["id"]), "nome": outro["nome"],
             "matricula": outro["matricula"], "cor": outro["cor"],
+            "areaInvadidaM2": None, "apenasEncosta": None,
         }
         for outro in todos
         if str(outro["id"]) != str(identificador)
         and se_sobrepoem(alvo["anel"], outro["anel"])
     ]
+
+
+@router.get("/{identificador}/sobreposicoes")
+def listar_sobreposicoes(
+    identificador: UUID,
+    _usuario: str = Depends(exigir_permissao("acessar_poligonos")),
+):
+    """Quais outros desenhos invadem ou encostam neste.
+
+    Com PostGIS no banco, vem também a área invadida em metros quadrados.
+    Sem ele, vem só a lista -- porque calcular recorte à mão devolveria um
+    número com cara de exato que ninguém teria como conferir.
+    """
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            if _tem_recorte(cursor):
+                achados = _sobreposicoes_com_recorte(cursor, identificador)
+                if achados:
+                    return achados
+                # Lista vazia pode ser "não há invasão" ou "o id não
+                # existe"; a consulta com CROSS JOIN não distingue os dois.
+                cursor.execute(
+                    "SELECT 1 FROM poligonos_aeri WHERE id=%s", (identificador,))
+                if not cursor.fetchone():
+                    raise HTTPException(status_code=404, detail="Polígono não encontrado.")
+                return []
+            return _sobreposicoes_sem_recorte(cursor, identificador)
 
 
 @router.post("/utm")

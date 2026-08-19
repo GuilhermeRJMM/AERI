@@ -3163,3 +3163,11 @@ body.modo-incorporado .layout { padding-top:28px; }
   .poligonos-painel { max-height: none; }
   .poligonos-mapa { height: 56vh; }
 }
+
+/* Encostar na divisa é normal entre vizinhos; o alerta só fica vermelho
+   quando há invasão de área ou quando o banco não soube medir. */
+.poligonos-alerta-leve {
+  background: rgba(202, 138, 4, 0.13);
+  border-color: rgba(202, 138, 4, 0.42);
+  color: #fde68a;
+}
