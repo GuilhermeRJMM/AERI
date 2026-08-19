@@ -126,6 +126,65 @@ function vincenty(pa, pb) {
     };
 }
 
+/**
+ * Vincenty direto: de onde se chega saindo de um ponto com azimute e
+ * distância. É a conta do memorial descritivo.
+ *
+ * Espelha destino_geodesico() do servidor; há teste exigindo que as duas
+ * versões coincidam.
+ */
+export function destinoGeodesico(origem, azimute, distancia) {
+    const [lon1, lat1] = origem;
+    if (!distancia) return [lon1, lat1];
+
+    const rad = g => (g * Math.PI) / 180;
+    const alfa1 = rad(azimute);
+    const sinAlfa1 = Math.sin(alfa1); const cosAlfa1 = Math.cos(alfa1);
+
+    const tanU1 = (1 - F) * Math.tan(rad(lat1));
+    const cosU1 = 1 / Math.sqrt(1 + tanU1 * tanU1);
+    const sinU1 = tanU1 * cosU1;
+
+    const sigma1 = Math.atan2(tanU1, cosAlfa1);
+    const sinAlfa = cosU1 * sinAlfa1;
+    const cos2Alfa = 1 - sinAlfa * sinAlfa;
+    const uQuad = (cos2Alfa * (A * A - B * B)) / (B * B);
+    const fatorA = 1 + (uQuad / 16384) * (
+        4096 + uQuad * (-768 + uQuad * (320 - 175 * uQuad)));
+    const fatorB = (uQuad / 1024) * (
+        256 + uQuad * (-128 + uQuad * (74 - 47 * uQuad)));
+
+    let sigma = distancia / (B * fatorA);
+    let cos2SigmaM = 0;
+    for (let i = 0; i < 200; i += 1) {
+        cos2SigmaM = Math.cos(2 * sigma1 + sigma);
+        const sinSigma = Math.sin(sigma); const cosSigma = Math.cos(sigma);
+        const deltaSigma = fatorB * sinSigma * (
+            cos2SigmaM + (fatorB / 4) * (
+                cosSigma * (-1 + 2 * cos2SigmaM ** 2)
+                - (fatorB / 6) * cos2SigmaM * (-3 + 4 * sinSigma ** 2)
+                * (-3 + 4 * cos2SigmaM ** 2)));
+        const anterior = sigma;
+        sigma = distancia / (B * fatorA) + deltaSigma;
+        if (Math.abs(sigma - anterior) < 1e-12) break;
+    }
+
+    const sinSigma = Math.sin(sigma); const cosSigma = Math.cos(sigma);
+    const temp = sinU1 * sinSigma - cosU1 * cosSigma * cosAlfa1;
+    const lat2 = Math.atan2(
+        sinU1 * cosSigma + cosU1 * sinSigma * cosAlfa1,
+        (1 - F) * Math.sqrt(sinAlfa * sinAlfa + temp * temp));
+    const lambda = Math.atan2(
+        sinSigma * sinAlfa1,
+        cosU1 * cosSigma - sinU1 * sinSigma * cosAlfa1);
+    const c = (F / 16) * cos2Alfa * (4 + F * (4 - 3 * cos2Alfa));
+    const difLon = lambda - (1 - c) * F * sinAlfa * (
+        sigma + c * sinSigma * (
+            cos2SigmaM + c * cosSigma * (-1 + 2 * cos2SigmaM ** 2)));
+
+    return [lon1 + (difLon * 180) / Math.PI, (lat2 * 180) / Math.PI];
+}
+
 export function perimetroM(anel, fechado = true) {
     const p = anelLimpo(anel);
     if (p.length < 2) return 0;

@@ -128,6 +128,43 @@ class TesteUtm(unittest.TestCase):
         self.assertEqual(P.fuso_de(-49.1), 22)
 
 
+class TesteGeodesicoDireto(unittest.TestCase):
+    """Vincenty direto: a conta do memorial descritivo.
+
+    "Do vértice P-01, segue com azimute X e distância Y até o P-02".
+    Ele é o que permite lançar o memorial na tabela de lados.
+    """
+
+    def test_ida_e_volta_contra_o_inverso(self):
+        random.seed(3)
+        pior_distancia = pior_azimute = 0.0
+        for _ in range(500):
+            origem = (random.uniform(-53.0, -46.0), random.uniform(-19.5, -12.5))
+            azimute = random.uniform(0, 360)
+            distancia = random.uniform(1, 20000)
+            destino = P.destino_geodesico(origem, azimute, distancia)
+            pior_distancia = max(
+                pior_distancia, abs(P.distancia_m(origem, destino) - distancia))
+            diferenca = abs(
+                (P.azimute_graus(origem, destino) - azimute + 180) % 360 - 180)
+            pior_azimute = max(pior_azimute, diferenca)
+        self.assertLess(pior_distancia, 0.001, f"{pior_distancia * 1000:.4f} mm")
+        self.assertLess(pior_azimute * 3600, 0.01, f"{pior_azimute * 3600:.4f}\"")
+
+    def test_azimutes_cardeais_saem_onde_deviam(self):
+        origem = (-49.10, -17.73)
+        norte = P.destino_geodesico(origem, 0, 1000)
+        leste = P.destino_geodesico(origem, 90, 1000)
+        self.assertAlmostEqual(norte[0], origem[0], places=9)   # não muda a longitude
+        self.assertGreater(norte[1], origem[1])                 # sobe
+        self.assertGreater(leste[0], origem[0])                 # vai para a direita
+        self.assertAlmostEqual(leste[1], origem[1], places=5)
+
+    def test_distancia_zero_fica_no_lugar(self):
+        origem = (-49.10, -17.73)
+        self.assertEqual(P.destino_geodesico(origem, 137, 0), origem)
+
+
 class TesteSobreposicao(unittest.TestCase):
     def test_quadrados_que_se_invadem(self):
         a = [[0, 0], [2, 0], [2, 2], [0, 2]]
@@ -279,3 +316,38 @@ class TesteJavaScriptBateComPython(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipIf(shutil.which("node") is None, "node não disponível")
+class TesteGeodesicoDiretoNoJavaScript(unittest.TestCase):
+    """A tabela de lados usa a versão JS; ela tem de andar junto."""
+
+    def test_destino_coincide_com_o_python(self):
+        random.seed(29)
+        casos = [
+            [random.uniform(-53.0, -46.0), random.uniform(-19.5, -12.5),
+             random.uniform(0, 360), random.uniform(1, 20000)]
+            for _ in range(60)
+        ]
+        script = f"""
+        import {{destinoGeodesico}} from {json.dumps(MODULO_JS.as_uri())};
+        const casos = JSON.parse(process.argv[2]);
+        console.log(JSON.stringify(
+            casos.map(([lon, lat, az, d]) => destinoGeodesico([lon, lat], az, d))));
+        """
+        with tempfile.TemporaryDirectory() as pasta:
+            arquivo = Path(pasta) / "d.mjs"
+            arquivo.write_text(script, encoding="utf-8")
+            saida = subprocess.run(
+                ["node", str(arquivo), json.dumps(casos)],
+                capture_output=True, text=True, encoding="utf-8",
+                timeout=60, check=True,
+            )
+        do_js = json.loads(saida.stdout)
+
+        for indice, (caso, js) in enumerate(zip(casos, do_js)):
+            with self.subTest(caso=indice):
+                lon, lat, azimute, distancia = caso
+                esperado = P.destino_geodesico((lon, lat), azimute, distancia)
+                # Milímetro: o que sobra é o último bit do float.
+                self.assertLess(P.distancia_m(esperado, js), 0.001)

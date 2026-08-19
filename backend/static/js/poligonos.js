@@ -7,12 +7,12 @@
  */
 import {requisicaoAeri} from './api.js';
 import {escaparHtml} from './util.js';
-import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v6';
+import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v7';
 import {
-    areaM2, azimuteGraus, centroide, distanciaM, formatarArea,
-    formatarDistancia, formatarGms, ladosDoAnel, perimetroM,
-} from './mapa/geometria.js?v=20260819-poligonos-v6';
-import {montarKml} from './mapa/kml.js?v=20260819-poligonos-v6';
+    areaM2, azimuteGraus, centroide, destinoGeodesico, distanciaM,
+    formatarArea, formatarDistancia, formatarGms, ladosDoAnel, perimetroM,
+} from './mapa/geometria.js?v=20260819-poligonos-v7';
+import {montarKml} from './mapa/kml.js?v=20260819-poligonos-v7';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -154,12 +154,99 @@ function atualizarMedidas() {
         tabela.innerHTML = '<tr><td colspan="3">Clique no mapa para começar o desenho.</td></tr>';
         return;
     }
-    tabela.innerHTML = ladosDoAnel(anel, fechado).map(lado => `
-        <tr>
-            <td>${lado.de} → ${lado.para}</td>
-            <td>${lado.distancia.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} m</td>
-            <td>${lado.azimute.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}°</td>
-        </tr>`).join('');
+    // Mesma razão da tabela de coordenadas: reconstruir enquanto alguém
+    // digita apagaria o que está sendo escrito.
+    if (tabela.contains(document.activeElement)) return;
+
+    const lados = ladosDoAnel(anel, fechado);
+    tabela.innerHTML = lados.map((lado, i) => {
+        // O último lado volta ao primeiro vértice. Ele não é editável:
+        // mudá-lo exigiria mover o ponto de partida, e é justamente a
+        // comparação entre ele e o memorial que revela o erro de
+        // fechamento do caminhamento.
+        const fechamento = fechado && i === lados.length - 1;
+        const campo = (eixo, valor, casas) => (fechamento
+            ? `${valor.toLocaleString('pt-BR', {minimumFractionDigits: casas, maximumFractionDigits: casas})}`
+            : `<input class="poligonos-lado-campo" data-lado="${i}" data-grandeza="${eixo}"
+                inputmode="decimal" value="${valor.toFixed(casas)}"
+                aria-label="${eixo === 'd' ? 'Distância' : 'Azimute'} do lado ${lado.de} para ${lado.para}">`);
+        return `
+        <tr class="${fechamento ? 'poligonos-lado-fechamento' : ''}">
+            <td>${lado.de} &rarr; ${lado.para}${fechamento ? ' <span title="Lado de fechamento: resulta dos demais">&#9679;</span>' : ''}</td>
+            <td>${campo('d', lado.distancia, 2)}</td>
+            <td>${campo('a', lado.azimute, 4)}</td>
+        </tr>`;
+    }).join('');
+}
+
+/**
+ * Aplica ao desenho a distância ou o azimute digitados num lado.
+ *
+ * O vértice de chegada é recalculado a partir do de saída, e todos os
+ * vértices seguintes andam junto, rigidamente. Isso é o que permite
+ * lançar o memorial lado a lado: cada correção fixa aquele lado sem
+ * desmanchar os que já foram acertados antes dele.
+ */
+function aplicarEdicaoDeLado(campo) {
+    const indice = Number(campo.dataset.lado);
+    const grandeza = campo.dataset.grandeza;
+    const de = rascunho.anel[indice];
+    const para = rascunho.anel[indice + 1];
+    if (!de || !para) return;
+
+    const valor = numeroDigitado(campo.value);
+    const invalido = valor === null
+        || (grandeza === 'd' && (valor <= 0 || valor > 500000))
+        || (grandeza === 'a' && (valor < 0 || valor > 360));
+    if (invalido) {
+        campo.classList.add('poligonos-coord-invalida');
+        elemento('poligonos-status').textContent = grandeza === 'd'
+            ? 'Distância precisa ser maior que zero (limite de 500 km).'
+            : 'Azimute precisa ficar entre 0 e 360 graus.';
+        return;
+    }
+    campo.classList.remove('poligonos-coord-invalida');
+
+    const distancia = grandeza === 'd' ? valor : distanciaM(de, para);
+    const azimute = grandeza === 'a' ? valor : azimuteGraus(de, para);
+    const novo = destinoGeodesico(de, azimute, distancia);
+
+    const deslocamento = [novo[0] - para[0], novo[1] - para[1]];
+    for (let i = indice + 1; i < rascunho.anel.length; i += 1) {
+        rascunho.anel[i] = [
+            rascunho.anel[i][0] + deslocamento[0],
+            rascunho.anel[i][1] + deslocamento[1],
+        ];
+    }
+
+    // Não reconstrói a tabela de lados, que é onde está o cursor.
+    redesenharVetores();
+    atualizarCoordenadas();
+    atualizarPontoCentral();
+    elemento('poligonos-area').textContent = formatarArea(
+        rascunho.tipo === 'POLIGONO' ? areaM2(rascunho.anel) : 0);
+    elemento('poligonos-perimetro').textContent = formatarDistancia(
+        perimetroM(rascunho.anel, rascunho.tipo === 'POLIGONO'));
+}
+
+function ligarEdicaoDeLados() {
+    const tabela = elemento('poligonos-lados');
+
+    tabela.addEventListener('input', evento => {
+        const campo = evento.target.closest('[data-lado]');
+        if (campo) aplicarEdicaoDeLado(campo);
+    });
+
+    tabela.addEventListener('keydown', evento => {
+        if (evento.key !== 'Enter' || !evento.target.closest('[data-lado]')) return;
+        evento.preventDefault();
+        evento.target.blur();
+        atualizarTudo();
+    });
+
+    tabela.addEventListener('blur', evento => {
+        if (evento.target.closest('[data-lado]')) atualizarTudo();
+    }, true);
 }
 
 // ---------------------------------------------------------------------------
@@ -751,6 +838,7 @@ export function iniciarPoligonos() {
     });
     ligarArrasteDeVertices();
     ligarEdicaoDeCoordenadas();
+    ligarEdicaoDeLados();
 
     document.querySelectorAll('[data-ferramenta]').forEach(botao => {
         botao.addEventListener('click', () => definirFerramenta(botao.dataset.ferramenta));

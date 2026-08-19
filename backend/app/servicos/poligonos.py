@@ -164,6 +164,69 @@ def _vincenty(ponto_a: tuple, ponto_b: tuple) -> tuple:
     return distancia, azimute
 
 
+def destino_geodesico(origem: tuple, azimute: float, distancia: float) -> tuple:
+    """Vincenty direto: de onde se chega saindo de um ponto com azimute e distância.
+
+    É a conta do memorial descritivo -- "do vértice P-01, segue com
+    azimute 90°00'00" e distância 910,39 m até o vértice P-02". Sobre o
+    elipsoide, não no plano: em 1 km a diferença já passa de centímetros.
+    """
+    lon1, lat1 = float(origem[0]), float(origem[1])
+    if distancia == 0:
+        return (lon1, lat1)
+
+    alfa1 = math.radians(azimute)
+    sin_alfa1, cos_alfa1 = math.sin(alfa1), math.cos(alfa1)
+
+    tan_u1 = (1 - _F) * math.tan(math.radians(lat1))
+    cos_u1 = 1 / math.sqrt(1 + tan_u1 * tan_u1)
+    sin_u1 = tan_u1 * cos_u1
+
+    sigma1 = math.atan2(tan_u1, cos_alfa1)
+    sin_alfa = cos_u1 * sin_alfa1
+    cos2_alfa = 1 - sin_alfa * sin_alfa
+    u_quadrado = cos2_alfa * (_A * _A - _B * _B) / (_B * _B)
+    fator_a = 1 + u_quadrado / 16384 * (
+        4096 + u_quadrado * (-768 + u_quadrado * (320 - 175 * u_quadrado)))
+    fator_b = u_quadrado / 1024 * (
+        256 + u_quadrado * (-128 + u_quadrado * (74 - 47 * u_quadrado)))
+
+    sigma = distancia / (_B * fator_a)
+    cos_2sigma_m = delta_sigma = 0.0
+    for _ in range(200):
+        cos_2sigma_m = math.cos(2 * sigma1 + sigma)
+        sin_sigma, cos_sigma = math.sin(sigma), math.cos(sigma)
+        delta_sigma = fator_b * sin_sigma * (
+            cos_2sigma_m + fator_b / 4 * (
+                cos_sigma * (-1 + 2 * cos_2sigma_m ** 2)
+                - fator_b / 6 * cos_2sigma_m * (-3 + 4 * sin_sigma ** 2)
+                * (-3 + 4 * cos_2sigma_m ** 2)
+            )
+        )
+        anterior = sigma
+        sigma = distancia / (_B * fator_a) + delta_sigma
+        if abs(sigma - anterior) < 1e-12:
+            break
+
+    sin_sigma, cos_sigma = math.sin(sigma), math.cos(sigma)
+    temporario = sin_u1 * sin_sigma - cos_u1 * cos_sigma * cos_alfa1
+    lat2 = math.atan2(
+        sin_u1 * cos_sigma + cos_u1 * sin_sigma * cos_alfa1,
+        (1 - _F) * math.sqrt(sin_alfa * sin_alfa + temporario * temporario),
+    )
+    lambda_ = math.atan2(
+        sin_sigma * sin_alfa1,
+        cos_u1 * cos_sigma - sin_u1 * sin_sigma * cos_alfa1,
+    )
+    correcao = _F / 16 * cos2_alfa * (4 + _F * (4 - 3 * cos2_alfa))
+    diferenca_lon = lambda_ - (1 - correcao) * _F * sin_alfa * (
+        sigma + correcao * sin_sigma * (
+            cos_2sigma_m + correcao * cos_sigma * (-1 + 2 * cos_2sigma_m ** 2)
+        )
+    )
+    return (lon1 + math.degrees(diferenca_lon), math.degrees(lat2))
+
+
 def perimetro_m(anel: list, fechado: bool = True) -> float:
     """Soma das distâncias geodésicas entre vértices consecutivos.
 

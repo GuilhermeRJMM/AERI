@@ -3234,3 +3234,25 @@ body.modo-incorporado .layout { padding-top:28px; }
   overflow: hidden;
   clip-path: inset(50%);
 }
+
+/* Distância e azimute editáveis, no mesmo visual da tabela de coordenadas. */
+.poligonos-lado-campo {
+  width: 100%;
+  padding: 3px 5px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.poligonos-lado-campo:hover { border-color: var(--glass-border); }
+.poligonos-lado-campo:focus {
+  outline: none;
+  background: var(--surface-bg-strong);
+  border-color: var(--focus-blue);
+  color: var(--text-main);
+}
+/* O lado de fechamento resulta dos demais e não se edita. */
+.poligonos-lado-fechamento td { color: var(--text-muted); font-style: italic; }
