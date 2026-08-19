@@ -19,6 +19,7 @@ function aplicarPermissoesSidebar(dados) {
     definirModuloVisivel('buscas', admin || Boolean(permissoes.acessar_buscas));
     definirModuloVisivel('incra', admin || Boolean(permissoes.processar_incra));
     definirModuloVisivel('livroproto', admin || Boolean(permissoes.acessar_livro_protocolos));
+    definirModuloVisivel('poligonos', admin || Boolean(permissoes.acessar_poligonos));
     definirModuloVisivel('custas', admin || Boolean(permissoes.gerenciar_custas));
     definirModuloVisivel('regaux', admin || Boolean(permissoes.gerenciar_custas));
     definirModuloVisivel('rotina', admin || Boolean(permissoes.ver_intimacoes));

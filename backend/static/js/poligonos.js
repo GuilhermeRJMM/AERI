@@ -7,11 +7,11 @@
  */
 import {requisicaoAeri} from './api.js';
 import {escaparHtml} from './util.js';
-import {CAMADAS, criarMapa} from './mapa/motor.js';
+import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v2';
 import {
     areaM2, azimuteGraus, distanciaM, formatarArea, formatarDistancia,
     formatarGms, ladosDoAnel, perimetroM,
-} from './mapa/geometria.js';
+} from './mapa/geometria.js?v=20260819-poligonos-v2';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -34,9 +34,12 @@ function elemento(id) {
 }
 
 export function configurarAcessoPoligonos(liberado) {
+    // Só guarda o estado. Quem mostra ou esconde a aba é
+    // aplicarPermissoesSidebar, em autenticacao.js: o CSS do index.html
+    // esconde todo .nav-item que não tenha data-autorizado="true", então
+    // mexer em `hidden` daqui não tem efeito nenhum e ainda daria a
+    // impressão de que a permissão está sendo aplicada em dois lugares.
     permitido = Boolean(liberado);
-    const item = document.querySelector('.nav-item[data-page="poligonos"]');
-    if (item) item.hidden = !permitido;
 }
 
 // ---------------------------------------------------------------------------
