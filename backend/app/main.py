@@ -11,12 +11,23 @@ from fastapi.templating import Jinja2Templates
 
 from backend.app.rotas import (
     analisador, autenticacao, buscas, custas, incra, intimacoes, livro_protocolos, registros_auxiliares,
-    mapa_onr, status_onr, usuarios,
+    mapa_onr, poligonos, status_onr, usuarios,
 )
 from backend.app.seguranca_web import politica_frame_ancestors
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Únicos hosts externos que o AERI carrega, e só como imagem: os tiles do
+# módulo Polígonos. Ficam nomeados um a um em vez de um curinga https:
+# porque img-src aberto transformaria qualquer XSS futuro num canal de
+# exfiltração -- basta montar a URL de uma imagem com o dado dentro.
+# Nenhum deles entra em script-src ou connect-src.
+SERVIDORES_DE_TILE = " ".join((
+    "https://server.arcgisonline.com",      # Esri World Imagery (satélite)
+    "https://services.arcgisonline.com",    # espelho do mesmo serviço
+    "https://tile.openstreetmap.org",       # OpenStreetMap (ruas)
+))
 
 app = FastAPI(title="AERI")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -31,6 +42,7 @@ app.include_router(custas.router)
 app.include_router(registros_auxiliares.router)
 app.include_router(livro_protocolos.router)
 app.include_router(mapa_onr.router)
+app.include_router(poligonos.router)
 app.include_router(intimacoes.router)
 app.include_router(status_onr.router)
 app.include_router(usuarios.router)
@@ -52,7 +64,8 @@ async def seguranca_http(request: Request, call_next):
     resposta.headers["Content-Security-Policy"] = (
         "default-src 'self'; base-uri 'self'; form-action 'self'; "
         f"frame-ancestors {frame_ancestors}; "
-        "object-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self' data:; "
+        "object-src 'none'; script-src 'self'; connect-src 'self'; "
+        f"img-src 'self' data: blob: {SERVIDORES_DE_TILE}; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com"
     )

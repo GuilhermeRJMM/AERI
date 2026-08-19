@@ -25,6 +25,7 @@ PERMISSOES = {
     "acessar_mapa_onr": "pode_acessar_mapa_onr",
     "acessar_livro_protocolos": "pode_acessar_livro_protocolos",
     "acessar_buscas": "pode_acessar_buscas",
+    "acessar_poligonos": "pode_acessar_poligonos",
     "processar_incra": "pode_processar_incra",
     "gerenciar_custas": "pode_gerenciar_custas",
     "ver_intimacoes": "pode_ver_intimacoes",
@@ -38,6 +39,7 @@ PERMISSOES_OPCIONAIS_AUDITOR = {
     "acessar_mapa_onr",
     "acessar_livro_protocolos",
     "acessar_buscas",
+    "acessar_poligonos",
 }
 _argon2 = PasswordHasher(time_cost=2, memory_cost=19_456, parallelism=1)
 _HASH_SIMULADO = _argon2.hash("senha-inexistente-para-tempo-constante")

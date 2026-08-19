@@ -7,6 +7,7 @@ import {configurarAcessoMapaOnr, iniciarMapaOnr, limparMapaOnr} from './mapa_onr
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260804-custas-fluido';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260810-nota-desistencia-v3';
 import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
+import {carregarPoligonos, configurarAcessoPoligonos, iniciarPoligonos, limparPoligonos} from './poligonos.js?v=20260819-poligonos-v1';
 import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260811-reg-aux-sync-v1';
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260706-status-onr';
 import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260815-permissao-mapa-onr-v1';
@@ -45,6 +46,11 @@ function fecharSplash() {
                     cargoAdministrativo(dados.perfil) || Boolean(dados.permissoes?.acessar_mapa_onr)
                 ),
             );
+            configurarAcessoPoligonos(
+                !dados.deveTrocarSenha && (
+                    cargoAdministrativo(dados.perfil) || Boolean(dados.permissoes?.acessar_poligonos)
+                ),
+            );
             exigirTrocaSenha(dados.deveTrocarSenha);
             pararAtualizacoesAoVivo();
             if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.ver_intimacoes)) {
@@ -63,6 +69,12 @@ function fecharSplash() {
                 carregarBuscas();
                 pararAtualizacoesPeriodicas.push(iniciarAtualizacaoPeriodica(carregarBuscas, INTERVALO_ATUALIZACAO_MS));
             }
+            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.acessar_poligonos)) {
+                // Sem atualização periódica: um desenho só muda quando
+                // alguém o salva, e recarregar por cima do rascunho
+                // apagaria o que o conferente está desenhando.
+                carregarPoligonos();
+            }
             if (cargoAdministrativo(dados.perfil) && !dados.deveTrocarSenha) carregarUsuarios();
             if (!dados.deveTrocarSenha) ativarStatusOnr();
         },
@@ -75,6 +87,8 @@ function fecharSplash() {
             limparBuscas();
             limparMapaOnr();
             configurarAcessoMapaOnr(false);
+            limparPoligonos();
+            configurarAcessoPoligonos(false);
             pararStatusOnr();
         },
     });
@@ -87,6 +101,7 @@ iniciarBuscas();
 iniciarIncra();
 iniciarLivroProtocolos();
 iniciarMapaOnr();
+iniciarPoligonos();
 iniciarCustas();
 iniciarRegistrosAuxiliares();
 iniciarIntimacoes();

@@ -104,6 +104,13 @@
                     <span>Buscas</span>
                 </div>
 
+                <div class="nav-item" data-page="poligonos" title="Polígonos" hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="m3 8 6-4 6 3 6-3v13l-6 3-6-3-6 4z"/><path d="M9 4v13M15 7v13"/>
+                    </svg>
+                    <span>Polígonos</span>
+                </div>
+
                 <div class="nav-item" data-page="incra" title="INCRA" hidden>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
@@ -339,6 +346,109 @@
                             <button type="button" class="rotina-btn-secondary" id="btn-buscas-proxima">Próxima</button>
                         </nav>
                     </section>
+                </main>
+            </div>
+
+            <div id="page-poligonos" class="page">
+                <main class="layout poligonos-layout">
+                    <div class="rotina-header">
+                        <div>
+                            <h1>Polígonos</h1>
+                            <p>Desenhe e confira limites sobre imagem de satélite. Área e distância saem do elipsoide, que é a mesma conta do memorial descritivo.</p>
+                        </div>
+                    </div>
+
+                    <div class="poligonos-corpo">
+                        <section class="poligonos-mapa-area">
+                            <div class="poligonos-barra">
+                                <div class="poligonos-grupo" role="group" aria-label="Ferramenta de desenho">
+                                    <button type="button" data-ferramenta="navegar" title="Navegar">Navegar</button>
+                                    <button type="button" data-ferramenta="poligono" title="Desenhar polígono">Polígono</button>
+                                    <button type="button" data-ferramenta="linha" title="Medir distância">Distância</button>
+                                    <button type="button" data-ferramenta="ponto" title="Marcar ponto">Ponto</button>
+                                </div>
+                                <div class="poligonos-grupo" role="group" aria-label="Camada do mapa">
+                                    <button type="button" data-camada="satelite" class="ativo">Satélite</button>
+                                    <button type="button" data-camada="ruas">Ruas</button>
+                                </div>
+                                <div class="poligonos-grupo poligonos-cores" role="group" aria-label="Cor do desenho">
+                                    <button type="button" data-cor="#f97316" class="ativo" title="Laranja"></button>
+                                    <button type="button" data-cor="#2563eb" title="Azul"></button>
+                                    <button type="button" data-cor="#16a34a" title="Verde"></button>
+                                    <button type="button" data-cor="#dc2626" title="Vermelho"></button>
+                                    <button type="button" data-cor="#9333ea" title="Roxo"></button>
+                                </div>
+                                <div class="poligonos-grupo">
+                                    <button type="button" id="poligonos-desfazer" title="Remover o último vértice">Desfazer</button>
+                                    <button type="button" id="poligonos-limpar" title="Começar um desenho novo">Limpar</button>
+                                    <button type="button" id="poligonos-menos" title="Afastar">&minus;</button>
+                                    <button type="button" id="poligonos-mais" title="Aproximar">+</button>
+                                </div>
+                            </div>
+
+                            <div id="poligonos-mapa" class="poligonos-mapa" role="application" aria-label="Mapa para desenho de polígonos"></div>
+
+                            <p class="poligonos-rodape">
+                                <span id="poligonos-cursor" class="poligonos-cursor">&mdash;</span>
+                                <span class="poligonos-dica">Clique para adicionar vértice · arraste a alça para mover · Alt+clique na alça remove</span>
+                            </p>
+                        </section>
+
+                        <aside class="poligonos-painel">
+                            <div id="poligonos-sobreposicao" class="poligonos-alerta" role="alert" hidden></div>
+
+                            <section class="poligonos-bloco">
+                                <h2>Medidas</h2>
+                                <dl class="poligonos-medidas">
+                                    <div><dt>Área</dt><dd id="poligonos-area">&mdash;</dd></div>
+                                    <div><dt>Perímetro</dt><dd id="poligonos-perimetro">&mdash;</dd></div>
+                                    <div><dt>Vértices</dt><dd id="poligonos-vertices">0</dd></div>
+                                </dl>
+                                <div class="poligonos-tabela-caixa">
+                                    <table class="poligonos-tabela">
+                                        <thead><tr><th>Lado</th><th>Distância</th><th>Azimute</th></tr></thead>
+                                        <tbody id="poligonos-lados"><tr><td colspan="3">Clique no mapa para começar o desenho.</td></tr></tbody>
+                                    </table>
+                                </div>
+                            </section>
+
+                            <section class="poligonos-bloco">
+                                <h2>Salvar</h2>
+                                <label for="poligonos-nome">Nome</label>
+                                <input id="poligonos-nome" type="text" maxlength="160" autocomplete="off" placeholder="Ex.: Fazenda Boa Vista, gleba A">
+                                <label for="poligonos-matricula">Matrícula (opcional)</label>
+                                <input id="poligonos-matricula" type="text" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="Ex.: 10.151">
+                                <label for="poligonos-observacao">Observação</label>
+                                <textarea id="poligonos-observacao" rows="2" maxlength="2000" placeholder="Anotação de conferência"></textarea>
+                                <div class="poligonos-acoes">
+                                    <button type="button" id="poligonos-salvar" class="btn btn-primary">Salvar</button>
+                                    <button type="button" id="poligonos-excluir" class="btn perigo" hidden>Excluir</button>
+                                </div>
+                                <p id="poligonos-status" class="poligonos-status" role="status" aria-live="polite"></p>
+                            </section>
+
+                            <section class="poligonos-bloco">
+                                <h2>Importar coordenadas</h2>
+                                <label for="poligonos-importar-texto">Cole em graus decimais, GMS ou UTM</label>
+                                <textarea id="poligonos-importar-texto" rows="4" placeholder="-17,7305 -49,1003&#10;17&deg;43&#39;49.80&quot;S 49&deg;06&#39;01.08&quot;W&#10;22K 701473,14 8038668,23"></textarea>
+                                <button type="button" id="poligonos-importar" class="btn">Importar</button>
+                            </section>
+
+                            <section class="poligonos-bloco">
+                                <h2>Exportar</h2>
+                                <div class="poligonos-acoes">
+                                    <button type="button" id="poligonos-exportar-memorial" class="btn">Memorial</button>
+                                    <button type="button" id="poligonos-exportar-geojson" class="btn">GeoJSON</button>
+                                    <button type="button" id="poligonos-exportar-kml" class="btn">KML</button>
+                                </div>
+                            </section>
+
+                            <section class="poligonos-bloco">
+                                <h2>Desenhos salvos</h2>
+                                <ul id="poligonos-lista" class="poligonos-lista"></ul>
+                            </section>
+                        </aside>
+                    </div>
                 </main>
             </div>
 
@@ -710,6 +820,7 @@
                     <label><input type="checkbox" data-permissao-form="acessar_mapa_onr"> Acessar MAPA-ONR</label>
                     <label><input type="checkbox" data-permissao-form="acessar_livro_protocolos"> Acessar Livro de Protocolos</label>
                     <label><input type="checkbox" data-permissao-form="acessar_buscas"> Acessar Buscas</label>
+                    <label><input type="checkbox" data-permissao-form="acessar_poligonos"> Acessar Polígonos</label>
                     <label><input type="checkbox" data-permissao-form="processar_incra" checked> Processar relatório do INCRA</label>
                     <label><input type="checkbox" data-permissao-form="gerenciar_custas" checked> Gerenciar Informar Custas</label>
                     <label><input type="checkbox" data-permissao-form="ver_intimacoes" checked> Visualizar intimações</label>

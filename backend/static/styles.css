@@ -2912,3 +2912,254 @@ body.modo-incorporado .layout { padding-top:28px; }
   .mapa-onr-form button { width: 100%; }
   .mapa-onr-conversor iframe { min-height: 720px; }
 }
+
+/* ===================== Módulo Polígonos ===================== */
+
+.poligonos-corpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 18px;
+  align-items: start;
+}
+
+.poligonos-mapa-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.poligonos-barra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.poligonos-grupo {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-bg-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+}
+
+.poligonos-grupo button {
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.poligonos-grupo button:hover { background: rgba(255, 255, 255, 0.07); color: var(--text-main); }
+.poligonos-grupo button.ativo { background: var(--primary-color); color: #06231a; font-weight: 600; }
+
+.poligonos-cores button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+.poligonos-cores button.ativo { border-color: var(--text-main); }
+
+.poligonos-mapa {
+  position: relative;
+  overflow: hidden;
+  height: min(66vh, 640px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: #0b1220;
+  /* touch-action none: sem isso o navegador rola a página em vez de
+     deixar o mapa tratar o arrasto de um dedo. */
+  touch-action: none;
+  cursor: grab;
+}
+.poligonos-mapa[data-ferramenta="poligono"],
+.poligonos-mapa[data-ferramenta="linha"],
+.poligonos-mapa[data-ferramenta="ponto"] { cursor: crosshair; }
+
+.mapa-motor { position: relative; }
+.mapa-tiles { position: absolute; inset: 0; }
+
+.mapa-tile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  /* O tile vizinho é desenhado colado; sem isso aparece uma linha de
+     1px entre eles em telas com escala fracionária. */
+  outline: 1px solid transparent;
+  user-select: none;
+  pointer-events: none;
+}
+
+.mapa-vetor { position: absolute; inset: 0; pointer-events: none; }
+.mapa-forma { pointer-events: none; }
+.mapa-forma-rascunho { stroke-linejoin: round; }
+.mapa-alca { pointer-events: auto; cursor: move; }
+
+.mapa-rotulo-lado {
+  fill: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: rgba(2, 6, 23, 0.85);
+  stroke-width: 3px;
+  pointer-events: none;
+}
+
+.mapa-creditos {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(2, 6, 23, 0.62);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  pointer-events: none;
+}
+
+.poligonos-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.poligonos-cursor { font-variant-numeric: tabular-nums; color: var(--text-soft); }
+
+.poligonos-painel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: calc(100vh - 150px);
+  overflow-y: auto;
+}
+
+.poligonos-bloco {
+  padding: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+}
+.poligonos-bloco h2 {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.poligonos-bloco label {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.poligonos-bloco input,
+.poligonos-bloco textarea {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--surface-bg-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.86rem;
+  resize: vertical;
+}
+
+.poligonos-medidas { display: grid; gap: 6px; margin: 0 0 10px; }
+.poligonos-medidas > div { display: flex; justify-content: space-between; gap: 10px; }
+.poligonos-medidas dt { color: var(--text-muted); font-size: 0.8rem; }
+.poligonos-medidas dd {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.poligonos-tabela-caixa { max-height: 190px; overflow-y: auto; }
+.poligonos-tabela { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.poligonos-tabela th {
+  position: sticky;
+  top: 0;
+  padding: 5px 6px;
+  background: var(--surface-bg-strong);
+  color: var(--text-muted);
+  text-align: left;
+  font-weight: 600;
+}
+.poligonos-tabela td {
+  padding: 4px 6px;
+  border-top: 1px solid var(--glass-border);
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.poligonos-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.poligonos-status { margin: 8px 0 0; color: var(--text-muted); font-size: 0.78rem; }
+
+.poligonos-alerta {
+  padding: 11px 13px;
+  background: rgba(220, 38, 38, 0.14);
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  border-radius: 10px;
+  color: #fecaca;
+  font-size: 0.82rem;
+}
+.poligonos-alerta strong { color: #fff; }
+
+.poligonos-lista { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.poligonos-vazio { color: var(--text-muted); font-size: 0.8rem; }
+
+.poligonos-item { display: flex; gap: 6px; align-items: stretch; }
+.poligonos-item-invadido { outline: 1px solid rgba(220, 38, 38, 0.55); border-radius: 8px; }
+
+.poligonos-abrir {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--surface-bg-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+.poligonos-abrir:hover { background: var(--surface-bg-soft); color: var(--text-main); }
+
+.poligonos-cor { flex: 0 0 auto; width: 11px; height: 11px; border-radius: 50%; }
+.poligonos-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.poligonos-medida { flex: 0 0 auto; color: var(--text-muted); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
+.poligonos-matricula { flex: 0 0 auto; color: var(--accent-blue); font-size: 0.72rem; }
+
+.poligonos-enquadrar {
+  flex: 0 0 auto;
+  width: 34px;
+  background: var(--surface-bg-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.poligonos-enquadrar:hover { color: var(--text-main); }
+
+@media (max-width: 1100px) {
+  .poligonos-corpo { grid-template-columns: minmax(0, 1fr); }
+  .poligonos-painel { max-height: none; }
+  .poligonos-mapa { height: 56vh; }
+}
