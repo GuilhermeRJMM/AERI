@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260819-poligonos-v5">
+    <link rel="stylesheet" href="/static/styles.css?v=20260819-poligonos-v6">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -415,9 +415,10 @@
                             <section class="poligonos-bloco">
                                 <h2>Coordenadas</h2>
                                 <p id="poligonos-coord-aviso" class="poligonos-status">Feche um polígono para gerar as coordenadas.</p>
+                                <p class="poligonos-nota">Marque os vértices no satélite e depois ajuste cada valor pelo memorial. As setas reordenam e o × remove.</p>
                                 <div class="poligonos-tabela-caixa" id="poligonos-coord-caixa" hidden>
                                     <table class="poligonos-tabela">
-                                        <thead><tr><th>Vértice</th><th>Longitude</th><th>Latitude</th></tr></thead>
+                                        <thead><tr><th>Vértice</th><th>Longitude</th><th>Latitude</th><th><span class="poligonos-oculto">Ações</span></th></tr></thead>
                                         <tbody id="poligonos-coordenadas"></tbody>
                                     </table>
                                 </div>
@@ -917,6 +918,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260819-poligonos-v5"></script>
+    <script type="module" src="/static/js/app.js?v=20260819-poligonos-v6"></script>
 </body>
 </html>

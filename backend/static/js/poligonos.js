@@ -7,12 +7,12 @@
  */
 import {requisicaoAeri} from './api.js';
 import {escaparHtml} from './util.js';
-import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v5';
+import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v6';
 import {
     areaM2, azimuteGraus, centroide, distanciaM, formatarArea,
     formatarDistancia, formatarGms, ladosDoAnel, perimetroM,
-} from './mapa/geometria.js?v=20260819-poligonos-v5';
-import {montarKml} from './mapa/kml.js?v=20260819-poligonos-v5';
+} from './mapa/geometria.js?v=20260819-poligonos-v6';
+import {montarKml} from './mapa/kml.js?v=20260819-poligonos-v6';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -210,8 +210,116 @@ function atualizarCoordenadas() {
     aviso.hidden = fechado || rascunho.tipo !== 'POLIGONO';
     aviso.textContent = `Faltam ${3 - rascunho.anel.length} vértice(s) para fechar o polígono.`;
 
-    corpo.innerHTML = linhasDeCoordenadas().map(l => `
-        <tr><td>${l.ordem}</td><td>${l.lon}</td><td>${l.lat}</td></tr>`).join('');
+    // Redesenhar a tabela enquanto alguém digita apagaria o que está
+    // sendo escrito e roubaria o cursor. Enquanto o foco está aqui
+    // dentro, quem manda é o campo, não o estado do desenho.
+    if (corpo.contains(document.activeElement)) return;
+
+    const ultimo = rascunho.anel.length - 1;
+    corpo.innerHTML = linhasDeCoordenadas().map((l, i) => `
+        <tr>
+            <td>${l.ordem}</td>
+            <td><input class="poligonos-coord-campo" data-vertice="${i}" data-eixo="0"
+                inputmode="decimal" value="${l.lon}" aria-label="Longitude do vértice ${l.ordem}"></td>
+            <td><input class="poligonos-coord-campo" data-vertice="${i}" data-eixo="1"
+                inputmode="decimal" value="${l.lat}" aria-label="Latitude do vértice ${l.ordem}"></td>
+            <td class="poligonos-coord-acoes">
+                <button type="button" data-mover="${i}" data-passo="-1" title="Subir"
+                    ${i === 0 ? 'disabled' : ''}>&uarr;</button>
+                <button type="button" data-mover="${i}" data-passo="1" title="Descer"
+                    ${i === ultimo ? 'disabled' : ''}>&darr;</button>
+                <button type="button" data-remover="${i}" title="Remover vértice">&times;</button>
+            </td>
+        </tr>`).join('');
+}
+
+/** Lê número aceitando vírgula decimal, que é como se digita aqui. */
+function numeroDigitado(texto) {
+    const limpo = String(texto).trim().replace(/\s+/g, '').replace(',', '.');
+    if (!/^[-+]?\d*\.?\d+$/.test(limpo)) return null;
+    const valor = Number(limpo);
+    return Number.isFinite(valor) ? valor : null;
+}
+
+function aplicarEdicaoDeCoordenada(campo) {
+    const indice = Number(campo.dataset.vertice);
+    const eixo = Number(campo.dataset.eixo);
+    const ponto = rascunho.anel[indice];
+    if (!ponto) return;
+
+    const valor = numeroDigitado(campo.value);
+    const limite = eixo === 0 ? 180 : 90;
+    if (valor === null || Math.abs(valor) > limite) {
+        // Não corrige sozinho: devolve o valor anterior e marca o campo.
+        // Um vértice que "quase" foi editado é pior do que um que
+        // visivelmente não foi.
+        campo.classList.add('poligonos-coord-invalida');
+        campo.value = ponto[eixo].toFixed(CASAS_DECIMAIS);
+        elemento('poligonos-status').textContent = eixo === 0
+            ? 'Longitude precisa ficar entre -180 e 180.'
+            : 'Latitude precisa ficar entre -90 e 90.';
+        return;
+    }
+    campo.classList.remove('poligonos-coord-invalida');
+    ponto[eixo] = valor;
+    // Só o mapa e as medidas: a tabela é a origem da edição e
+    // reconstruí-la aqui tiraria o cursor de onde ele está.
+    redesenharVetores();
+    atualizarMedidas();
+    atualizarPontoCentral();
+}
+
+function ligarEdicaoDeCoordenadas() {
+    const corpo = elemento('poligonos-coordenadas');
+
+    corpo.addEventListener('input', evento => {
+        const campo = evento.target.closest('[data-vertice]');
+        if (campo) aplicarEdicaoDeCoordenada(campo);
+    });
+
+    corpo.addEventListener('keydown', evento => {
+        if (evento.key !== 'Enter') return;
+        const campo = evento.target.closest('[data-vertice]');
+        if (!campo) return;
+        // Enter confirma e sai: aí a tabela pode se reconstruir e mostrar
+        // o valor já formatado com as oito casas.
+        evento.preventDefault();
+        campo.blur();
+        atualizarTudo();
+    });
+
+    corpo.addEventListener('blur', evento => {
+        if (evento.target.closest('[data-vertice]')) atualizarTudo();
+    }, true);
+
+    // pointerdown, e não click: sair de um campo dispara blur, que
+    // reconstrói a tabela e remove estes botões do DOM. O clique então
+    // não teria em que elemento acontecer e se perderia -- exatamente na
+    // situação mais comum, que é ajustar um valor e logo reordenar.
+    // preventDefault mantém o foco onde está e o blur nem chega a ocorrer.
+    corpo.addEventListener('pointerdown', evento => {
+        const acao = evento.target.closest('[data-mover], [data-remover]');
+        if (!acao || acao.disabled) return;
+        evento.preventDefault();
+
+        const mover = evento.target.closest('[data-mover]');
+        if (mover) {
+            // Reordenar importa: a sequência dos vértices é o caminho do
+            // perímetro, e trocar dois de lugar muda a forma do imóvel.
+            const de = Number(mover.dataset.mover);
+            const para = de + Number(mover.dataset.passo);
+            if (para < 0 || para >= rascunho.anel.length) return;
+            [rascunho.anel[de], rascunho.anel[para]] =
+                [rascunho.anel[para], rascunho.anel[de]];
+            atualizarTudo();
+            return;
+        }
+        const remover = evento.target.closest('[data-remover]');
+        if (remover) {
+            rascunho.anel.splice(Number(remover.dataset.remover), 1);
+            atualizarTudo();
+        }
+    });
 }
 
 async function copiarCoordenadas() {
@@ -642,6 +750,7 @@ export function iniciarPoligonos() {
             `${formatarGms(geo.lon, 'lon')}  ${formatarGms(geo.lat, 'lat')}`;
     });
     ligarArrasteDeVertices();
+    ligarEdicaoDeCoordenadas();
 
     document.querySelectorAll('[data-ferramenta]').forEach(botao => {
         botao.addEventListener('click', () => definirFerramenta(botao.dataset.ferramenta));
