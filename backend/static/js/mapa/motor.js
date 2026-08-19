@@ -15,9 +15,45 @@
 
 const TAMANHO_TILE = 256;
 const ZOOM_MINIMO = 3;
-const ZOOM_MAXIMO = 21;
+// 22 porque é até onde o Google tem imagem em Morrinhos. Nas fontes
+// que param antes, o aviso de ampliação nos créditos diz que dali em
+// diante a foto é esticada.
+const ZOOM_MAXIMO = 22;
 
 export const CAMADAS = {
+    google: {
+        rotulo: 'Satélite HD',
+        // Endpoint interno do Google Maps, sem chave e sem contrato. É o
+        // mesmo que o Mapa do Registro de Imóveis do ONR usa na camada
+        // "Satélite" (resources/js/index-leaflet.js). Isso NÃO licencia o
+        // AERI: um eventual acordo do ONR cobriria a plataforma deles.
+        //
+        // Fica registrado que a escolha foi do titular do cartório, ciente
+        // de que os termos do Google restringem criar dado geoespacial
+        // derivado da imagem -- que é o que traçar limite de imóvel e
+        // enviar ao registro público configura.
+        //
+        // Medido em Morrinhos: imagem real até o zoom 22, contra 18 da
+        // Esri. São quatro níveis a mais, ~3,6 cm por pixel.
+        url: 'https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        subdominios: ['mt0', 'mt1', 'mt2', 'mt3'],
+        creditos: 'Imagens © Google',
+        zoomMaximo: 22,
+    },
+    topografia: {
+        rotulo: 'Topográfico',
+        // Banco de Dados Geográficos do Exército. Cartas do Sistema
+        // Cartográfico Nacional -- relevo, hidrografia e estradas, útil
+        // para imóvel rural. Não é foto e não substitui satélite.
+        //
+        // É WMS, e só aceita EPSG:4326: pedir em 3857 devolve 400. O
+        // recorte de cada tile é convertido para graus antes de pedir.
+        tipo: 'wms',
+        url: 'https://bdgex.eb.mil.br/mapcache',
+        camadas: 'ctm250,ctm100,ctm50,ctm25',
+        creditos: 'Cartas topográficas — Exército Brasileiro (BDGEx)',
+        zoomMaximo: 19,
+    },
     satelite: {
         rotulo: 'Satélite',
         url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -54,6 +90,58 @@ export function geoParaMundo(lon, lat, zoom) {
         x: escala * (lon / 360 + 0.5),
         y: escala * (0.5 - Math.log((1 + seno) / (1 - seno)) / (4 * Math.PI)),
     };
+}
+
+/** Limites geográficos de um tile, para montar o BBOX de um WMS. */
+export function limitesDoTile(tx, ty, zoom) {
+    const n = Math.pow(2, zoom);
+    const latDe = ay => {
+        const r = Math.PI - (2 * Math.PI * ay) / n;
+        return (180 / Math.PI) * Math.atan(Math.sinh(r));
+    };
+    return {
+        oeste: (tx / n) * 360 - 180,
+        leste: ((tx + 1) / n) * 360 - 180,
+        norte: latDe(ty),
+        sul: latDe(ty + 1),
+    };
+}
+
+/**
+ * URL da imagem de um tile, seja XYZ ou WMS.
+ *
+ * No WMS o pedido vai em WMS 1.1.1 com srs=EPSG:4326 e bbox em
+ * longitude,latitude. A versão 1.3.0 também funciona, mas ali o EPSG:4326
+ * inverte a ordem dos eixos para latitude,longitude -- pedir na ordem
+ * errada devolve um PNG de 145 bytes, vazio e sem erro, que é o pior tipo
+ * de falha. A 1.1.1 não tem essa armadilha.
+ */
+export function urlDoTile(definicao, zoom, tx, ty) {
+    if (definicao.tipo === 'wms') {
+        const b = limitesDoTile(tx, ty, zoom);
+        const parametros = new URLSearchParams({
+            service: 'WMS',
+            version: '1.1.1',
+            request: 'GetMap',
+            layers: definicao.camadas,
+            srs: 'EPSG:4326',
+            bbox: `${b.oeste},${b.sul},${b.leste},${b.norte}`,
+            width: '256',
+            height: '256',
+            format: 'image/png',
+            transparent: 'true',
+            styles: '',
+        });
+        return `${definicao.url}?${parametros}`;
+    }
+    const sub = definicao.subdominios
+        ? definicao.subdominios[(tx + ty) % definicao.subdominios.length]
+        : '';
+    return definicao.url
+        .replace('{s}', sub)
+        .replace('{z}', zoom)
+        .replace('{x}', tx)
+        .replace('{y}', ty);
 }
 
 /** Pixel do mundo -> longitude/latitude. */
@@ -182,10 +270,7 @@ export function criarMapa(elemento, opcoes = {}) {
                     // carrega token de sessão na query em alguns fluxos)
                     // para o servidor de tiles.
                     img.referrerPolicy = 'no-referrer';
-                    img.src = definicao.url
-                        .replace('{z}', zoomTile)
-                        .replace('{x}', txCiclico)
-                        .replace('{y}', ty);
+                    img.src = urlDoTile(definicao, zoomTile, txCiclico, ty);
                     tilesVivos.set(chave, img);
                     camadaTiles.appendChild(img);
                 }

@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260819-poligonos-v10">
+    <link rel="stylesheet" href="/static/styles.css?v=20260819-poligonos-v12">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -368,7 +368,9 @@
                                     <button type="button" data-ferramenta="ponto" title="Marcar ponto">Ponto</button>
                                 </div>
                                 <div class="poligonos-grupo" role="group" aria-label="Camada do mapa">
-                                    <button type="button" data-camada="satelite" class="ativo">Satélite</button>
+                                    <button type="button" data-camada="google" class="ativo" title="Google — chega ao zoom 22">Satélite HD</button>
+                                    <button type="button" data-camada="satelite">Satélite Esri</button>
+                                    <button type="button" data-camada="topografia" title="Cartas do Exército: relevo, hidrografia e estradas">Topográfico</button>
                                     <button type="button" data-camada="ruas">Ruas</button>
                                 </div>
                                 <div class="poligonos-grupo poligonos-cores" role="group" aria-label="Cor do desenho">
@@ -917,6 +919,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260819-poligonos-v10"></script>
+    <script type="module" src="/static/js/app.js?v=20260819-poligonos-v12"></script>
 </body>
 </html>
