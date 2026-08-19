@@ -7,11 +7,12 @@
  */
 import {requisicaoAeri} from './api.js';
 import {escaparHtml} from './util.js';
-import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v3';
+import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v4';
 import {
     areaM2, azimuteGraus, distanciaM, formatarArea, formatarDistancia,
     formatarGms, ladosDoAnel, perimetroM,
-} from './mapa/geometria.js?v=20260819-poligonos-v3';
+} from './mapa/geometria.js?v=20260819-poligonos-v4';
+import {montarKml} from './mapa/kml.js?v=20260819-poligonos-v4';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -515,24 +516,25 @@ function exportarGeoJson() {
 
 function exportarKml() {
     if (!rascunho.anel.length) return;
-    const fechar = rascunho.tipo === 'POLIGONO';
-    const pontos = fechar ? [...rascunho.anel, rascunho.anel[0]] : rascunho.anel;
-    // KML quer longitude,latitude,altitude separados por espaço.
-    const coordenadas = pontos.map(([lon, lat]) => `${lon},${lat},0`).join(' ');
-    const geometria = rascunho.tipo === 'PONTO'
-        ? `<Point><coordinates>${coordenadas}</coordinates></Point>`
-        : fechar
-            ? `<Polygon><outerBoundaryIs><LinearRing><coordinates>${coordenadas}</coordinates></LinearRing></outerBoundaryIs></Polygon>`
-            : `<LineString><coordinates>${coordenadas}</coordinates></LineString>`;
-    baixar(`${nomeBase()}.kml`, `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <Placemark>
-      <name>${escaparHtml(elemento('poligonos-nome').value.trim() || 'Polígono')}</name>
-      ${geometria}
-    </Placemark>
-  </Document>
-</kml>`, 'application/vnd.google-earth.kml+xml');
+    if (rascunho.tipo !== 'POLIGONO') {
+        // O Mapa do ONR aceita apenas polígonos fechados (Manual Técnico
+        // Operacional, 3.4.3). Linha e ponto continuam exportáveis, mas
+        // quem for enviar precisa saber que não serão aceitos.
+        elemento('poligonos-status').textContent =
+            'Atenção: o Mapa do ONR só aceita polígonos fechados. '
+            + 'Este arquivo serve para outros usos.';
+    }
+    baixar(
+        `${nomeBase()}.kml`,
+        montarKml({
+            nome: elemento('poligonos-nome').value.trim(),
+            matricula: elemento('poligonos-matricula').value.trim(),
+            observacao: elemento('poligonos-observacao').value.trim(),
+            anel: rascunho.anel,
+            tipo: rascunho.tipo,
+        }),
+        'application/vnd.google-earth.kml+xml',
+    );
 }
 
 async function exportarMemorial() {
