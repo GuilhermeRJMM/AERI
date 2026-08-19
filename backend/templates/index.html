@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260819-poligonos-v2">
+    <link rel="stylesheet" href="/static/styles.css?v=20260819-poligonos-v3">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -409,6 +409,20 @@
                                         <thead><tr><th>Lado</th><th>Distância</th><th>Azimute</th></tr></thead>
                                         <tbody id="poligonos-lados"><tr><td colspan="3">Clique no mapa para começar o desenho.</td></tr></tbody>
                                     </table>
+                                </div>
+                            </section>
+
+                            <section class="poligonos-bloco">
+                                <h2>Coordenadas</h2>
+                                <p id="poligonos-coord-aviso" class="poligonos-status">Feche um polígono para gerar as coordenadas.</p>
+                                <div class="poligonos-tabela-caixa" id="poligonos-coord-caixa" hidden>
+                                    <table class="poligonos-tabela">
+                                        <thead><tr><th>Vértice</th><th>Longitude</th><th>Latitude</th></tr></thead>
+                                        <tbody id="poligonos-coordenadas"></tbody>
+                                    </table>
+                                </div>
+                                <div class="poligonos-acoes">
+                                    <button type="button" id="poligonos-copiar-coordenadas" class="btn" hidden>Copiar coordenadas</button>
                                 </div>
                             </section>
 
@@ -849,6 +863,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260819-poligonos-v2"></script>
+    <script type="module" src="/static/js/app.js?v=20260819-poligonos-v3"></script>
 </body>
 </html>

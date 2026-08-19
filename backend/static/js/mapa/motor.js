@@ -22,7 +22,14 @@ export const CAMADAS = {
         rotulo: 'Satélite',
         url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         creditos: 'Esri, Maxar, Earthstar Geographics',
-        zoomMaximo: 19,
+        // 18, e não 19. Medido sobre Morrinhos: do zoom 19 em diante a
+        // Esri devolve sempre o mesmo arquivo de 2.521 bytes, aquele
+        // cinza escrito "Map data not yet available". Ele é uma imagem
+        // 256x256 legítima -- carrega sem erro e não dá para distinguir
+        // pelo navegador -- então o único jeito é não pedir esse nível.
+        // Acima daqui o mapa amplia o zoom 18 por CSS: borra, mas o
+        // desenho vetorial continua nítido, que é o que se confere.
+        zoomMaximo: 18,
     },
     ruas: {
         rotulo: 'Ruas',

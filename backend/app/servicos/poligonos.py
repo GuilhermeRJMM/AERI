@@ -460,16 +460,41 @@ def interpretar_coordenadas(texto: str) -> list:
         return pontos
 
     numeros = [_numero(v) for v in _PADRAO_DECIMAL.findall(texto)]
+    ordem = _ordem_declarada(texto)
     pontos = []
     for i in range(0, len(numeros) - 1, 2):
         primeiro, segundo = numeros[i], numeros[i + 1]
-        # A convenção da interface é "latitude, longitude", como o Google
-        # Maps mostra; o armazenamento é o inverso, na ordem do GeoJSON.
-        if abs(primeiro) <= 90 and abs(segundo) <= 180:
+        if ordem == "lon_lat":
+            pontos.append([primeiro, segundo])
+        elif ordem == "lat_lon":
+            pontos.append([segundo, primeiro])
+        # Sem ordem declarada, o palpite é "latitude, longitude", como o
+        # Google Maps mostra -- é de lá que vem a maior parte do que se
+        # cola aqui. O armazenamento é sempre o inverso, do GeoJSON.
+        elif abs(primeiro) <= 90 and abs(segundo) <= 180:
             pontos.append([segundo, primeiro])
         elif abs(segundo) <= 90:
             pontos.append([primeiro, segundo])
     return pontos
+
+
+def _ordem_declarada(texto: str):
+    """Lê no texto qual eixo vem primeiro, quando ele diz.
+
+    Existe porque o par é ambíguo em boa parte do Brasil: em Goiás tanto
+    a longitude quanto a latitude cabem na faixa de uma latitude, então
+    "-49.10, -17.73" pode ser lido dos dois jeitos, e o palpite errado
+    joga o imóvel a milhares de quilômetros sem nenhum aviso.
+
+    O módulo copia as coordenadas com a linha ``# longitude, latitude``
+    justamente para que colar de volta não dependa de palpite. Planilhas
+    e memoriais que rotulam as colunas também passam a ser lidos certo.
+    """
+    achado_lon = re.search(r"\blong(?:itude)?\b", texto, re.I)
+    achado_lat = re.search(r"\blat(?:itude)?\b", texto, re.I)
+    if not achado_lon or not achado_lat:
+        return None
+    return "lon_lat" if achado_lon.start() < achado_lat.start() else "lat_lon"
 
 
 def _emparelhar(valores: list, hemisferios: list) -> list:

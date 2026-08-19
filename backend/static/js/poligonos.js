@@ -7,11 +7,11 @@
  */
 import {requisicaoAeri} from './api.js';
 import {escaparHtml} from './util.js';
-import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v2';
+import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v3';
 import {
     areaM2, azimuteGraus, distanciaM, formatarArea, formatarDistancia,
     formatarGms, ladosDoAnel, perimetroM,
-} from './mapa/geometria.js?v=20260819-poligonos-v2';
+} from './mapa/geometria.js?v=20260819-poligonos-v3';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -161,9 +161,94 @@ function atualizarMedidas() {
         </tr>`).join('');
 }
 
+// ---------------------------------------------------------------------------
+// Coordenadas do desenho
+// ---------------------------------------------------------------------------
+
+// Longitude primeiro, latitude depois -- a ordem do GeoJSON, e a mesma em
+// que o anel é guardado. Vale registrar que ela é o inverso da que o
+// Google Maps mostra, que é a origem da maioria das coordenadas coladas.
+const CASAS_DECIMAIS = 8;   // ~1 mm no equador
+
+function linhasDeCoordenadas() {
+    return rascunho.anel.map(([lon, lat], indice) => ({
+        ordem: indice + 1,
+        lon: lon.toFixed(CASAS_DECIMAIS),
+        lat: lat.toFixed(CASAS_DECIMAIS),
+    }));
+}
+
+function textoDasCoordenadas() {
+    // O cabeçalho não é enfeite: sem ele, colar de volta um par como
+    // "-49.10, -17.73" é ambíguo, porque os dois valores cabem numa
+    // latitude. A importação lê essa linha para saber a ordem.
+    return ['# longitude, latitude']
+        .concat(linhasDeCoordenadas().map(l => `${l.lon}, ${l.lat}`))
+        .join('\n');
+}
+
+function atualizarCoordenadas() {
+    const caixa = elemento('poligonos-coord-caixa');
+    const aviso = elemento('poligonos-coord-aviso');
+    const copiar = elemento('poligonos-copiar-coordenadas');
+    const corpo = elemento('poligonos-coordenadas');
+
+    // Três vértices já fecham um polígono; o caso comum do balcão é o
+    // lote de quatro, e a lista aparece sozinha ao chegar lá.
+    const fechado = rascunho.tipo === 'POLIGONO' && rascunho.anel.length >= 3;
+    const temPontos = rascunho.anel.length > 0;
+    caixa.hidden = !temPontos;
+    copiar.hidden = !temPontos;
+
+    if (!temPontos) {
+        aviso.hidden = false;
+        aviso.textContent = 'Feche um polígono para gerar as coordenadas.';
+        corpo.innerHTML = '';
+        return;
+    }
+    aviso.hidden = fechado || rascunho.tipo !== 'POLIGONO';
+    aviso.textContent = `Faltam ${3 - rascunho.anel.length} vértice(s) para fechar o polígono.`;
+
+    corpo.innerHTML = linhasDeCoordenadas().map(l => `
+        <tr><td>${l.ordem}</td><td>${l.lon}</td><td>${l.lat}</td></tr>`).join('');
+}
+
+async function copiarCoordenadas() {
+    const texto = textoDasCoordenadas();
+    // execCommand, e não navigator.clipboard: o AERI roda dentro de um
+    // iframe no SYNC, onde a API assíncrona de área de transferência é
+    // bloqueada por permissão. Já passamos por isso na Pesquisa
+    // Qualificada.
+    const campo = document.createElement('textarea');
+    campo.value = texto;
+    campo.setAttribute('readonly', '');
+    campo.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+    document.body.appendChild(campo);
+    campo.select();
+    let copiou = false;
+    try {
+        copiou = document.execCommand('copy');
+    } catch (_erro) {
+        copiou = false;
+    }
+    campo.remove();
+    if (!copiou) {
+        try {
+            await navigator.clipboard.writeText(texto);
+            copiou = true;
+        } catch (_erro) {
+            copiou = false;
+        }
+    }
+    elemento('poligonos-status').textContent = copiou
+        ? `${rascunho.anel.length} coordenada(s) copiada(s), longitude primeiro.`
+        : 'Não foi possível copiar. Selecione a tabela e use Ctrl+C.';
+}
+
 function atualizarTudo() {
     redesenharVetores();
     atualizarMedidas();
+    atualizarCoordenadas();
 }
 
 // ---------------------------------------------------------------------------
@@ -502,8 +587,10 @@ export function iniciarPoligonos() {
     mapa.ao('clicou', aoClicarNoMapa);
     mapa.ao('mudou', redesenharVetores);
     mapa.ao('moveu', geo => {
+        // Longitude primeiro aqui também, para a leitura do cursor não
+        // contradizer a tabela de coordenadas logo ao lado.
         elemento('poligonos-cursor').textContent =
-            `${formatarGms(geo.lat, 'lat')}  ${formatarGms(geo.lon, 'lon')}`;
+            `${formatarGms(geo.lon, 'lon')}  ${formatarGms(geo.lat, 'lat')}`;
     });
     ligarArrasteDeVertices();
 
@@ -537,6 +624,7 @@ export function iniciarPoligonos() {
     elemento('poligonos-salvar').addEventListener('click', salvar);
     elemento('poligonos-excluir').addEventListener('click', excluir);
     elemento('poligonos-importar').addEventListener('click', importarTexto);
+    elemento('poligonos-copiar-coordenadas').addEventListener('click', copiarCoordenadas);
     elemento('poligonos-exportar-geojson').addEventListener('click', exportarGeoJson);
     elemento('poligonos-exportar-kml').addEventListener('click', exportarKml);
     elemento('poligonos-exportar-memorial').addEventListener('click', exportarMemorial);
@@ -569,7 +657,7 @@ export function iniciarPoligonos() {
         });
 
     definirFerramenta('poligono');
-    atualizarMedidas();
+    atualizarTudo();
 }
 
 export async function carregarPoligonos() {

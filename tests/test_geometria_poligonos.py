@@ -177,6 +177,45 @@ class TesteLeituraDeCoordenadas(unittest.TestCase):
     def test_texto_sem_coordenada_nao_inventa_ponto(self):
         self.assertEqual(P.interpretar_coordenadas("nenhum número aqui"), [])
 
+    def test_cabecalho_declara_longitude_primeiro(self):
+        # É o formato que o botão "Copiar coordenadas" produz. Sem honrar
+        # o cabeçalho, o par seria lido como latitude/longitude e o imóvel
+        # iria parar a milhares de quilômetros, sem aviso nenhum.
+        pontos = P.interpretar_coordenadas(
+            "# longitude, latitude\n-49.10030000, -17.73050000\n"
+            "-49.09800000, -17.73100000")
+
+        self.assertEqual(len(pontos), 2)
+        self.assertAlmostEqual(pontos[0][0], -49.1003, places=6)
+        self.assertAlmostEqual(pontos[0][1], -17.7305, places=6)
+
+    def test_cabecalho_declara_latitude_primeiro(self):
+        pontos = P.interpretar_coordenadas(
+            "Latitude, Longitude\n-17.7305, -49.1003")
+
+        self.assertAlmostEqual(pontos[0][0], -49.1003, places=6)
+        self.assertAlmostEqual(pontos[0][1], -17.7305, places=6)
+
+    def test_ida_e_volta_pelo_texto_copiado(self):
+        # Copiar e colar de volta tem de devolver o mesmo desenho.
+        anel = [[-49.1003, -17.7305], [-49.0980, -17.7305], [-49.0980, -17.7280]]
+        copiado = "# longitude, latitude\n" + "\n".join(
+            f"{lon:.8f}, {lat:.8f}" for lon, lat in anel)
+
+        voltou = P.interpretar_coordenadas(copiado)
+
+        self.assertEqual(len(voltou), len(anel))
+        for original, devolvido in zip(anel, voltou):
+            self.assertAlmostEqual(original[0], devolvido[0], places=7)
+            self.assertAlmostEqual(original[1], devolvido[1], places=7)
+
+    def test_sem_cabecalho_mantem_o_palpite_antigo(self):
+        # Quem cola do Google Maps não escreve rótulo; o comportamento
+        # anterior continua valendo para esse caso.
+        pontos = P.interpretar_coordenadas("-17,7305 -49,1003")
+        self.assertAlmostEqual(pontos[0][0], -49.1003, places=4)
+        self.assertAlmostEqual(pontos[0][1], -17.7305, places=4)
+
 
 class TesteValidacao(unittest.TestCase):
     def test_poligono_exige_tres_vertices(self):
