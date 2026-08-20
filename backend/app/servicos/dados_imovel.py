@@ -209,12 +209,64 @@ def _tem_encerramento_explicito(normalizado: str) -> bool:
     )
 
 
+def _tem_saida_integral_do_imovel(normalizado: str) -> bool:
+    """Redações em que o imóvel INTEIRO passa a viver em outra matrícula.
+
+    São duas, colhidas do acervo:
+
+    - o remanescente, isto é, tudo o que sobrou depois dos desmembramentos
+      anteriores, é matriculado em outro número. Não sobra nada aqui;
+    - o imóvel objeto da matrícula é rematriculado por inteiro, o que
+      acontece em usucapião ("foi usucapido ... e em consequência
+      matriculado e registrado novamente sob o n.º X").
+
+    O que esta função NÃO reconhece, de propósito, é "desmembrou-se desta
+    matrícula um imóvel com a área de X". Ali sai uma parte e o
+    remanescente continua vivo. Tratar isso como encerramento marcaria
+    como morta toda matrícula que já sofreu desmembramento parcial -- que
+    é a maioria das rurais antigas.
+    """
+    return bool(re.search(
+        r"\bREMANESCENTE\s+D[OA]\s+IM[OÓ]VEL\b.{0,240}?"
+        r"\bMATRICULAD[OA]\s+SOB\s+O?\s*N",
+        normalizado, re.DOTALL,
+    )) or bool(re.search(
+        r"\bIM[OÓ]VEL\s+OBJETO\s+D[AE]\s+(?:PRESENTE\s+)?MATRICULA\b.{0,300}?"
+        r"\bMATRICULAD[OA]\s+E\s+REGISTRAD[OA]\s+NOVAMENTE\s+SOB\s+O?\s*N",
+        normalizado, re.DOTALL,
+    )) or bool(re.search(
+        # Unificação: o imóvel desta matrícula foi juntado a outros e o
+        # conjunto ganhou matrícula nova. Aqui não sobra nada -- diferente
+        # do desmembramento parcial, em que o remanescente continua vivo.
+        r"\bIM[OÓ]VEL\s+OBJETO\s+D[OAE]\s+(?:PRESENTE\s+)?(?:MATRICULA|REGISTRO)\b"
+        r".{0,400}?\bUNIFICAD[OA]\b.{0,400}?"
+        r"\bMATRICULAD[OA]\s+SOB\s+O?\s*N",
+        normalizado, re.DOTALL,
+    ))
+
+
 def _tem_desmembramento_integral(normalizado: str) -> bool:
     return bool(re.search(
-        r"DESMEMBRAMENTO\s+DO\s+IMOVEL(?:\s+OBJETO\s+DA\s+PRESENTE\s+MATRICULA"
-        r"|\s+MATRICULADO)?\s+EM\s+"
-        r"(?:DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)\s+"
-        r"(?:GLEBAS|LOTES|PARCELAS|AREAS|UNIDADES)\b",
+        # Cada pedaço desta expressão saiu de uma redação real do acervo,
+        # conferida contra o relatório de encerradas da serventia:
+        #
+        # - DESME[MN]?BR[AO]?MENTO: o termo aparece digitado errado desde
+        #   os anos 80 ("desmebramento", "desmenbramento");
+        # - D[OA] (IMOVEL|LOTE|...): urbano diz "do lote", rural diz "do
+        #   imóvel", e há "da área" e "da gleba";
+        # - DOIS: a lista só tinha o feminino DUAS, então "em dois lotes"
+        #   e "em dois (02) imóveis" passavam batido -- e são a redação
+        #   padrão do desmembramento urbano;
+        # - (02) entre parênteses depois do número por extenso;
+        # - IMOVEIS e PARTES como unidade resultante.
+        r"DESME[MN]?BR[AO]?MENTO\s+D[OA]\s+"
+        r"(?:IMOVEL|LOTE|TERRENO|AREA|GLEBA|PRESENTE\s+MATRICULA)"
+        r"(?:\s+OBJETO\s+D[AO]\s+PRESENTE\s+(?:MATRICULA|REGISTRO)"
+        r"|\s+CONSTANTE\s+D[AO]\s+PRESENTE\s+MATRICULA"
+        r"|\s+MATRICULAD[OA])?\s*,?\s+EM\s+"
+        r"(?:DOIS|DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)"
+        r"(?:\s*\(\s*\d+\s*\))?\s+"
+        r"(?:GLEBAS|LOTES|PARCELAS|AREAS|UNIDADES|IMOVEIS|PARTES)\b",
         normalizado,
     )) and "REMANESC" not in normalizado
 
@@ -731,6 +783,10 @@ def _percentual_numerico(texto: str) -> float:
 
 def _sucessoras_desmembramento_integral(texto: str, normalizado: str) -> list[str]:
     quantidades = {
+        # DOIS e DUAS: o desmembramento urbano diz "em dois lotes", o rural
+        # diz "em duas glebas". Faltava o masculino aqui, e a expressão
+        # acima passou a capturá-lo -- sem esta entrada, dava KeyError.
+        "DOIS": 2,
         "DUAS": 2,
         "TRES": 3,
         "QUATRO": 4,
@@ -742,10 +798,16 @@ def _sucessoras_desmembramento_integral(texto: str, normalizado: str) -> list[st
         "DEZ": 10,
     }
     divisao = re.search(
-        r"DESMEMBRAMENTO\s+DO\s+IMOVEL(?:\s+OBJETO\s+DA\s+PRESENTE\s+MATRICULA"
-        r"|\s+MATRICULADO)?\s+EM\s+"
-        r"(DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)\s+"
-        r"(?:GLEBAS|LOTES|PARCELAS|AREAS|UNIDADES)\b",
+        # Mesma expressão de _tem_desmembramento_integral, com o número de
+        # partes capturado -- é ele que diz quantas sucessoras procurar.
+        r"DESME[MN]?BR[AO]?MENTO\s+D[OA]\s+"
+        r"(?:IMOVEL|LOTE|TERRENO|AREA|GLEBA|PRESENTE\s+MATRICULA)"
+        r"(?:\s+OBJETO\s+D[AO]\s+PRESENTE\s+(?:MATRICULA|REGISTRO)"
+        r"|\s+CONSTANTE\s+D[AO]\s+PRESENTE\s+MATRICULA"
+        r"|\s+MATRICULAD[OA])?\s*,?\s+EM\s+"
+        r"(DOIS|DUAS|TRES|QUATRO|CINCO|SEIS|SETE|OITO|NOVE|DEZ|\d+)"
+        r"(?:\s*\(\s*\d+\s*\))?\s+"
+        r"(?:GLEBAS|LOTES|PARCELAS|AREAS|UNIDADES|IMOVEIS|PARTES)\b",
         normalizado,
     )
     if not divisao or not _tem_desmembramento_integral(normalizado):
@@ -949,7 +1011,10 @@ def _averbar_cci_avulso(resultado, descricao_ato, codigo, normalizado, rural, ru
 def _averbar_encerramento(resultado, descricao_ato, codigo, normalizado, rural, rua):
     """Encerramento explícito e matrículas sucessoras do desmembramento."""
 
-    encerramento_explicito = _tem_encerramento_explicito(normalizado)
+    encerramento_explicito = (
+        _tem_encerramento_explicito(normalizado)
+        or _tem_saida_integral_do_imovel(normalizado)
+    )
     sucessoras_desmembramento = _sucessoras_desmembramento_integral(descricao_ato, normalizado)
     if encerramento_explicito:
         sucessora = re.search(r"matriculad[oa]\s+sob\s+o\s+n?[.º°o\s]*([\d.]+)", descricao_ato, re.IGNORECASE)
