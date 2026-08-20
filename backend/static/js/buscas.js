@@ -623,6 +623,16 @@ async function atualizarNovas() {
             body:JSON.stringify({modo:'NOVOS', tamanho:30}),
         });
         atualizarStatus(resultado.estado);
+        if (resultado.falha) {
+            // Falha de autenticação ou configuração da Tri7 cancela o lote
+            // inteiro e devolve zero encontradas. Sem esta mensagem, a tela
+            // dizia "0 matrícula(s) nova(s)" -- que se lê como "não há nada
+            // novo", e não como "não consegui perguntar".
+            const aviso = `A consulta à Tri7 falhou: ${resultado.falha}`;
+            document.getElementById('buscas-status-operacao').textContent = aviso;
+            registrarEvento(aviso, 'erro');
+            return;
+        }
         const mensagem = `${resultado.encontradas} matrícula(s) nova(s) localizada(s); ${resultado.ativas} ativa(s).`;
         document.getElementById('buscas-status-operacao').textContent = mensagem;
         registrarEvento(mensagem, 'sucesso');

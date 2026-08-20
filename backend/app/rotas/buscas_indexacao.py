@@ -487,11 +487,25 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
                         (ultimo_processado + 1, maior_encontrada),
                     )
                 elif modo == "NOVOS" and ultimo_processado is not None:
+                    # Avança só até a maior matrícula REALMENTE encontrada,
+                    # e não até o último número sondado.
+                    #
+                    # Sondar de 39.856 a 39.885 quando o acervo vai só até
+                    # 39.869 é normal: o modo procura adiante justamente
+                    # para descobrir onde termina. Mas gravar 39.885 como
+                    # conhecido faria a próxima sonda começar em 39.886 --
+                    # e as matrículas 39.870 a 39.885, quando fossem
+                    # abertas, nunca mais seriam indexadas. Some matrícula
+                    # do índice sem ninguém perceber.
+                    #
+                    # Re-sondar alguns números ausentes a cada rodada custa
+                    # umas poucas consultas; perder matrícula não tem
+                    # conserto automático.
                     cursor.execute(
                         """UPDATE sincronizacao_matriculas_busca_aeri
                         SET ultimo_conhecido=GREATEST(ultimo_conhecido,%s),
                             ultima_sincronizacao=NOW(), atualizado_em=NOW() WHERE id=1""",
-                        (max(maior_encontrada, ultimo_processado),),
+                        (maior_encontrada,),
                     )
                 elif modo == "REVISAO" and ultimo_processado is not None:
                     cursor.execute(
