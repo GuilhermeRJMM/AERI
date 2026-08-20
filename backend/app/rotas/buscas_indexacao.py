@@ -327,7 +327,12 @@ def _estado_json(cursor) -> dict:
             WHERE texto_hash IS NOT NULL
               AND documentos_hash_versao IS DISTINCT FROM %s
         ) AS hashes_legados,
-        COUNT(*) FILTER (WHERE situacao IN ('NAO_ENCONTRADA','SEM_TEXTO','INEXISTENTE')) AS ignoradas
+        COUNT(*) FILTER (WHERE situacao IN ('NAO_ENCONTRADA','SEM_TEXTO','INEXISTENTE')) AS ignoradas,
+        -- Situação que o motor não conseguiu classificar. Não é ativa nem
+        -- encerrada, então some das duas contagens -- e era por aí que o
+        -- total de encerradas do AERI ficava abaixo do relatório da
+        -- serventia. Passa a aparecer na tela.
+        COUNT(*) FILTER (WHERE situacao='REVISAR') AS sem_classificacao
         FROM matriculas_busca_aeri""",
         (HASH_DOCUMENTOS_VERSAO,),
     )
@@ -353,6 +358,12 @@ def _estado_json(cursor) -> dict:
         "proximoInicial": estado["proximo_inicial"],
         "ultimoConhecido": estado["ultimo_conhecido"],
         "proximoRevisao": estado["proximo_revisao"],
+        # Números que o índice já tocou, existindo ou não. Não é o mesmo
+        # que matrícula analisada: _salvar_ausencia grava linha também para
+        # número que a Tri7 diz não existir, e o acervo tem centenas deles.
+        "numerosSondados": totais["total"],
+        "matriculasExistentes": totais["total"] - totais["ignoradas"],
+        "semClassificacao": totais["sem_classificacao"],
         "totalIndexadas": totais["total"],
         "matriculasAtivas": totais["ativas"],
         "matriculasEncerradas": totais["encerradas"],

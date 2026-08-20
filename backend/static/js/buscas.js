@@ -66,7 +66,12 @@ function registrarEvento(mensagem, tipo = 'info') {
 function atualizarStatus(estado) {
     estadoAtual = estado;
     const progresso = Math.min(100, Number(estado.progressoInicial || 0));
-    document.getElementById('buscas-total-indexadas').textContent = formatarNumero(estado.totalIndexadas);
+    // 'existentes' e não 'total': o total inclui número sondado que
+    // não existe, e chamar isso de matrícula analisada inflava a
+    // conta em centenas.
+    document.getElementById('buscas-total-indexadas').textContent = formatarNumero(estado.matriculasExistentes);
+    document.getElementById('buscas-total-sondados').textContent = formatarNumero(estado.numerosSondados);
+    document.getElementById('buscas-total-revisar').textContent = formatarNumero(estado.semClassificacao);
     document.getElementById('buscas-total-ativas').textContent = formatarNumero(estado.matriculasAtivas);
     document.getElementById('buscas-total-encerradas').textContent = formatarNumero(estado.matriculasEncerradas);
     document.getElementById('buscas-total-proprietarios').textContent = formatarNumero(estado.proprietariosAtuais);
