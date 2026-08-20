@@ -233,9 +233,9 @@ class TesteLeituraDeCoordenadas(unittest.TestCase):
 
     def test_lista_com_rotulo_de_vertice_ainda_e_lida(self):
         pontos = P.interpretar_coordenadas(
-            "P-01 -49.1003 -17.7305
-P-02 -49.0999 -17.7305
-P-03 -49.0999 -17.7308")
+            "P-01 -49.1003 -17.7305\n"
+            "P-02 -49.0999 -17.7305\n"
+            "P-03 -49.0999 -17.7308")
         self.assertEqual(len(pontos), 3)
 
     def test_ponto_solto_no_texto_nao_derruba_a_leitura(self):
