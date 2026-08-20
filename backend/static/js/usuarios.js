@@ -59,15 +59,32 @@ function substituirUsuario(atualizado) {
     if (indice >= 0) usuarios[indice] = atualizado;
 }
 
+// Espelham PERMISSOES_AUDITOR e PERMISSOES_OPCIONAIS_AUDITOR do
+// autenticacao.py. Há teste exigindo que as listas sejam idênticas.
+//
+// Antes, esta tela tratava MAPA-ONR como a única opcional do AUDITOR, e
+// as três criadas depois (Livro, Buscas, Polígonos) ficavam desmarcadas e
+// travadas no formulário. Como salvar reenvia todas as permissões de uma
+// vez, abrir o cadastro de um auditor por qualquer motivo e salvar
+// apagava as três -- sem erro e sem aviso.
+const PERMISSOES_FIXAS_DO_AUDITOR = ['processar_matricula', 'revisar_auditoria'];
+const PERMISSOES_OPCIONAIS_DO_AUDITOR = [
+    'acessar_mapa_onr', 'acessar_livro_protocolos', 'acessar_buscas',
+    'acessar_poligonos',
+];
+
 function atualizarAtribuicoesFormulario() {
     const perfil = document.getElementById('usuario-perfil').value;
     const admin = cargoAdministrativo(perfil);
     const auditor = perfil === 'AUDITOR';
     document.querySelectorAll('[data-permissao-form]').forEach(campo => {
-        const mapaOnr = campo.dataset.permissaoForm === 'acessar_mapa_onr';
-        campo.disabled = admin || (auditor && !mapaOnr);
+        const chave = campo.dataset.permissaoForm;
+        const opcional = PERMISSOES_OPCIONAIS_DO_AUDITOR.includes(chave);
+        campo.disabled = admin || (auditor && !opcional);
         if (admin) campo.checked = true;
-        if (auditor && !mapaOnr) campo.checked = ['processar_matricula', 'revisar_auditoria'].includes(campo.dataset.permissaoForm);
+        // Só mexe no que o auditor não pode escolher. As opcionais ficam
+        // como estão, para não desmarcar o que já foi concedido.
+        if (auditor && !opcional) campo.checked = PERMISSOES_FIXAS_DO_AUDITOR.includes(chave);
     });
 }
 
