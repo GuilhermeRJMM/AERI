@@ -396,8 +396,21 @@ _PADRAO_UTM = re.compile(
 
 
 def _numero(texto: str) -> float:
-    return float(texto.replace(".", "").replace(",", ".")) if texto.count(",") \
-        else float(texto.replace(",", "."))
+    """Lê número em qualquer das grafias do acervo, sem estourar.
+
+    Devolve NaN no que não for número. O padrão de GMS aceita ``[\\d.,]+``
+    nos segundos, e num texto registral isso casa um ponto solto -- vindo
+    de "1.º" ou de linha de pontilhado. Antes, esse caso derrubava a
+    importação de coordenadas com erro 500.
+    """
+    limpo = texto.strip()
+    if not re.search(r"\d", limpo):
+        return float("nan")
+    try:
+        return float(limpo.replace(".", "").replace(",", ".")) if "," in limpo \
+            else float(limpo)
+    except ValueError:
+        return float("nan")
 
 
 def gms_para_decimal(graus: float, minutos: float, segundos: float, hemisferio: str) -> float:
@@ -505,25 +518,40 @@ def interpretar_coordenadas(texto: str) -> list:
 
     achados_gms = _PADRAO_GMS.findall(texto)
     if len(achados_gms) >= 2:
-        valores = [
-            gms_para_decimal(float(g), float(m), _numero(s), h)
+        pares = [
+            (gms_para_decimal(float(g), float(m), _numero(s), h), h.upper())
             for g, m, s, h in achados_gms
         ]
-        hemisferios = [h.upper() for *_, h in achados_gms]
-        return _emparelhar(valores, hemisferios)
+        # Segundos ilegíveis descartam o ponto inteiro: meio ponto na
+        # lista deslocaria todos os pares seguintes.
+        pares = [(v, h) for v, h in pares if not math.isnan(v)]
+        if len(pares) >= 2:
+            return _emparelhar([v for v, _ in pares], [h for _, h in pares])
 
     achados_utm = _PADRAO_UTM.findall(texto)
     if achados_utm:
         pontos = []
         for fuso, banda, leste, norte in achados_utm:
-            lon, lat = utm_para_geografica(
-                _numero(leste), _numero(norte), int(fuso),
-                banda.upper() < "N",
-            )
+            e, n = _numero(leste), _numero(norte)
+            if math.isnan(e) or math.isnan(n):
+                continue
+            lon, lat = utm_para_geografica(e, n, int(fuso), banda.upper() < "N")
             pontos.append([lon, lat])
         return pontos
 
-    numeros = [_numero(v) for v in _PADRAO_DECIMAL.findall(texto)]
+    # Último recurso: pares de decimais soltos. Este ramo só pode agir
+    # sobre texto que SEJA uma lista de coordenadas.
+    #
+    # Medido em 70 matrículas do acervo: sem esta guarda, o padrão casava
+    # área ("176,5400"), valor e número de folha, e devolvia polígono para
+    # 94% das matrículas -- todos em lugares aleatórios do planeta. Quem
+    # colasse um memorial descritivo veria um desenho convincente e
+    # completamente falso, que é o pior resultado possível.
+    if not _parece_lista_de_coordenadas(texto):
+        return []
+
+    numeros = [n for n in (_numero(v) for v in _PADRAO_DECIMAL.findall(texto))
+               if not math.isnan(n)]
     ordem = _ordem_declarada(texto)
     pontos = []
     for i in range(0, len(numeros) - 1, 2):
@@ -540,6 +568,30 @@ def interpretar_coordenadas(texto: str) -> list:
         elif abs(segundo) <= 90:
             pontos.append([primeiro, segundo])
     return pontos
+
+
+def _parece_lista_de_coordenadas(texto: str) -> bool:
+    """Distingue uma lista de coordenadas de um texto que só tem números.
+
+    O critério é a proporção de letras: numa lista colada de coordenadas
+    quase tudo é dígito, vírgula e sinal. Num ato de matrícula há prosa em
+    volta de cada número, e é essa prosa que denuncia que aqueles decimais
+    são área e valor, não latitude e longitude.
+
+    Texto que declara a ordem dos eixos passa direto: ali o rótulo já diz
+    o que os números são.
+    """
+    if not texto.strip():
+        return False
+    if _ordem_declarada(texto):
+        return True
+    letras = sum(1 for c in texto if c.isalpha())
+    digitos = sum(1 for c in texto if c.isdigit())
+    if digitos < 6:
+        return False
+    # Uma linha como "-49.10030000, -17.73050000" tem zero letra; damos
+    # folga para rótulos curtos de vértice ("P-01", "V1") e cabeçalhos.
+    return letras <= digitos
 
 
 def _ordem_declarada(texto: str):

@@ -214,6 +214,35 @@ class TesteLeituraDeCoordenadas(unittest.TestCase):
     def test_texto_sem_coordenada_nao_inventa_ponto(self):
         self.assertEqual(P.interpretar_coordenadas("nenhum número aqui"), [])
 
+    def test_ato_de_matricula_nao_vira_poligono(self):
+        # Medido em 70 matrículas do acervo: sem esta guarda, o padrão
+        # decimal casava área, valor e número de folha, e devolvia
+        # polígono para 94% delas -- todos em lugares aleatórios do
+        # planeta. Nenhuma tinha coordenada de verdade.
+        ato = (
+            "contendo a primeira a área de 176,5400ha de culturas e campos "
+            "que foi matriculada sob o n.º 12.015, fls. 39, Lº 2-AY; a "
+            "segunda com a área de 96,8000ha matriculada sob o n.º 12.016"
+        )
+        self.assertEqual(P.interpretar_coordenadas(ato), [])
+
+    def test_valores_monetarios_nao_viram_coordenada(self):
+        self.assertEqual(P.interpretar_coordenadas(
+            "pelo preço de Cr$180.000,00 na avaliação de Cr$2.700.000,00, "
+            "sem condições, conforme escritura de 24,07,1975"), [])
+
+    def test_lista_com_rotulo_de_vertice_ainda_e_lida(self):
+        pontos = P.interpretar_coordenadas(
+            "P-01 -49.1003 -17.7305
+P-02 -49.0999 -17.7305
+P-03 -49.0999 -17.7308")
+        self.assertEqual(len(pontos), 3)
+
+    def test_ponto_solto_no_texto_nao_derruba_a_leitura(self):
+        # _numero(".") estourava com ValueError e devolvia 500 na rota de
+        # importar. Achado consultando a Tri7 de verdade.
+        self.assertEqual(P.interpretar_coordenadas("1.º andar, fls. 39, Lº 2-AY"), [])
+
     def test_cabecalho_declara_longitude_primeiro(self):
         # É o formato que o botão "Copiar coordenadas" produz. Sem honrar
         # o cabeçalho, o par seria lido como latitude/longitude e o imóvel
