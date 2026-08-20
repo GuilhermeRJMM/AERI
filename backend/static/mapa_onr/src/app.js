@@ -382,6 +382,7 @@
     estado.tipoLogradouroAssumido = false;
     estado.situacaoEncerrada = null;
     estado.certAssumida = false;
+    estado.cifAssumido = false;
     estado.cortados = [];
     const doc = P.separaDocumento(texto);
     estado.atos = doc.atos;
@@ -459,6 +460,14 @@
     for (const k of urbano ? ['cif', 'cib', 'nome_imovel']
       : ['car', 'ccir', 'cod_sncr', 'codigo_incra', 'cib', 'nome_imovel']) {
       if (v(k)) f[k] = v(k);
+    }
+    // Imovel urbano sem designacao cadastral na Prefeitura: o CIF e exigido nos
+    // atos a partir de 02/12/2025 e nao ha o que ler. Decisao da serventia
+    // (17/08/2026): vai "0". Fica dito na tela, para o caso de o numero existir
+    // no cadastro da Prefeitura e ainda nao ter sido averbado.
+    if (urbano && !f.cif) {
+      f.cif = '0';
+      estado.cifAssumido = true;
     }
     if (v('nome_imovel')) f.imovel_possui_nome = true;
     if (v('georreferenciamento') !== null) {
@@ -904,7 +913,10 @@
     ];
     const especificos = urbano ? [
       linha('contexto_urbano', selectEnum('contexto_urbano', f.contexto_urbano, set('contexto_urbano'), false)),
-      linha('cif', campoTexto(f.cif, set('cif'), 'cadastro na Prefeitura'), provaVigente('cif')),
+      linha('cif', campoTexto(f.cif, set('cif'), 'cadastro na Prefeitura'),
+        estado.cifAssumido
+          ? 'assumido "0": a matricula nao traz a designacao cadastral da Prefeitura'
+          : provaVigente('cif')),
       linha('cib', campoTexto(f.cib, set('cib'), 'A0A0A0A-0')),
       linha('georreferenciamento', campoBool(f.georreferenciamento, set('georreferenciamento')), provaGeo()),
       linha('livro_matricula', campoTexto(f.livro_matricula, set('livro_matricula'))),
