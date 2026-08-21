@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 from uuid import UUID, uuid4
 
@@ -165,12 +166,29 @@ def _executar_agente_na_matricula(
     cabecalho_oidc = request.headers.get("x-vercel-oidc-token")
     if isinstance(cabecalho_oidc, str) and cabecalho_oidc:
         try:
+            projeto = os.getenv("AERI_VERCEL_PROJECT_ID", "")
+            proprietario = os.getenv("AERI_VERCEL_OWNER_ID", "")
+            ambiente = os.getenv("AERI_VERCEL_ENVIRONMENT", "")
+            if not projeto or not proprietario or not ambiente:
+                raise VercelOidcVerificationError(
+                    "Identidade esperada da implantação não configurada."
+                )
             definir_cabecalhos_oidc(request.headers)
             candidato = get_vercel_oidc_token()
-            verify_vercel_oidc_token(candidato)
+            verify_vercel_oidc_token(
+                candidato,
+                project_id=projeto,
+                owner_id=proprietario,
+                environment=ambiente,
+            )
             token_oidc = candidato
-        except (VercelOidcTokenError, VercelOidcVerificationError):
-            logger.warning("conferencia_matricula_oidc_invalido numero=%s", numero)
+        except (VercelOidcTokenError, VercelOidcVerificationError) as erro:
+            logger.warning(
+                "conferencia_matricula_oidc_invalido numero=%s tipo=%s motivo=%s",
+                numero,
+                type(erro).__name__,
+                str(erro)[:180],
+            )
         finally:
             definir_cabecalhos_oidc(None)
     if not agente_juridico_configurado(token_oidc):
