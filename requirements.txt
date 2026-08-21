@@ -7,3 +7,4 @@ psycopg[binary]==3.3.4
 psycopg_pool==3.3.1
 argon2-cffi==25.1.0
 vercel==0.10.0
+vercel-oidc[verify]==0.8.0
