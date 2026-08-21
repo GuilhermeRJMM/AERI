@@ -34,6 +34,7 @@ As rotas devem traduzir HTTP para chamadas de serviço. Regras de negócio não 
 
 - `servicos/analise_matricula.py`: orquestra o contrato versionado da análise.
 - `servicos/auditoria_integrada.py`: resume a auditoria independente e controla a revisão complementar dos casos críticos.
+- `servicos/fontes_juridicas.py`: extrai, segmenta e pesquisa a base normativa e executa automaticamente o agente jurídico com análise própria e citações validadas.
 - `analise/onus.py`, `analise/cadeia.py` e `analise/imovel.py`: fachadas por domínio sobre as regras registrais validadas.
 - `analise/contrato.py`: versão do motor, hash determinístico e metadados de privacidade.
 - `analise/evidencias.py`: vincula o resultado à origem e a um trecho curto de evidência.
@@ -55,6 +56,8 @@ Cada mudança operacional também gera evento append-only em `eventos_intimacao_
 Conferências incorretas não criam regras automaticamente. Elas entram em `divergencias_analise_aeri` para revisão administrativa. O registro guarda apenas matrícula, versão/hash do resultado, partes indicadas, contagens e comentário; o texto integral não é persistido.
 
 A auditoria registral integrada reaproveita o texto que já foi consultado para a indexação de titulares. O banco guarda somente hashes, vereditos, confianças, contagens e alertas estruturados. A revisão complementar é opcional, possui limite diário desativado por padrão e recebe documentos previamente mascarados.
+
+A base jurídica usa `fontes_juridicas_aeri` e `trechos_juridicos_aeri`. Os documentos são divididos em trechos com página e hash de origem; a pesquisa textual ocorre no Postgres. `analises_juridicas_aeri` guarda apenas a análise estruturada, as referências e os hashes do resultado e da base. O texto integral da matrícula não é persistido. Uma análise anterior só é reutilizada quando matrícula, resultado determinístico e conjunto de fontes continuam exatamente iguais.
 
 O módulo Informar Custas persiste sua fila em `custas_livro3_aeri`. O PDF é processado somente em memória, pedidos já existentes não são sobrescritos pela importação e cada alteração, finalização ou reabertura gera um evento em `eventos_custas_livro3_aeri`.
 

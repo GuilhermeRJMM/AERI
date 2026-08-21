@@ -25,3 +25,9 @@ O texto integral recebido da Tri7 ou colado na contingência manual existe apena
 5. A suíte completa e o corpus de ouro devem passar antes da publicação.
 
 Uma marcação humana não altera automaticamente a regex e não constitui comprovação jurídica por si só.
+
+## Agente jurídico automático
+
+Toda consulta pela Tri7 executa automaticamente o agente jurídico quando ele está configurado. A análise fica vinculada a `resultado_hash` e ao hash da base jurídica vigente, consulta somente trechos indexados com identificação de fonte e página e deve cobrir ônus, dados do imóvel e proprietários atuais. O backend rejeita fontes inventadas pelo modelo.
+
+A resposta inclui o campo `agente_juridico`, com estado, análise por domínio, fontes e confiança. Se o texto da Tri7 produzir um novo hash, ou se o conjunto de normas mudar, a análise anterior deixa de ser reutilizada. O texto integral da matrícula continua sendo processado apenas em memória e não é gravado na base jurídica ou na tabela de análises.

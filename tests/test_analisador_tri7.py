@@ -5,7 +5,10 @@ from unittest.mock import Mock, patch
 
 from fastapi import HTTPException
 
-from backend.app.rotas.analisador import analisar, analisar_por_numero
+from backend.app.rotas.analisador import (
+    analisar,
+    analisar_por_numero,
+)
 from backend.app.servicos.tri7 import MatriculaTri7NaoEncontrada
 
 
@@ -42,12 +45,16 @@ class TesteRotaAnalisadorTri7(unittest.TestCase):
 
     @patch("backend.app.rotas.analisador.registrar_auditoria")
     @patch("backend.app.rotas.analisador._regras_aprovadas", return_value=[])
+    @patch("backend.app.rotas.analisador._executar_agente_na_matricula")
     @patch("backend.app.rotas.analisador.cliente_tri7")
-    def test_busca_texto_e_reaproveita_processamento_atual(self, obter_cliente, _regras, auditoria):
+    def test_busca_executa_agente_juridico_automaticamente(
+        self, obter_cliente, executar_agente, _regras, auditoria,
+    ):
         obter_cliente.return_value.buscar_texto_matricula.return_value = {
             "numero_matricula": "10148",
             "texto": "MATRÍCULA 10.148.\nR.01 - COMPRA E VENDA.",
         }
+        executar_agente.return_value = {"estado": "CONCLUIDA", "parecer": {"conclusao": "ANALISE_CONCLUIDA"}}
         resultado = analisar_por_numero(
             {"numero_matricula": "10.148"},
             request=Mock(),
@@ -56,7 +63,9 @@ class TesteRotaAnalisadorTri7(unittest.TestCase):
         self.assertEqual(resultado["numero_matricula"], "10148")
         self.assertEqual(resultado["origem"], "TRI7")
         self.assertIn("resultado", resultado)
+        self.assertEqual("CONCLUIDA", resultado["agente_juridico"]["estado"])
         obter_cliente.return_value.buscar_texto_matricula.assert_called_once_with("10148")
+        executar_agente.assert_called_once()
         auditoria.assert_called_once()
 
     @patch("backend.app.rotas.analisador.cliente_tri7")
@@ -72,7 +81,6 @@ class TesteRotaAnalisadorTri7(unittest.TestCase):
         with self.assertRaises(HTTPException) as contexto:
             analisar_por_numero({"numero_matricula": "12-A"}, request=Mock(), usuario="operador")
         self.assertEqual(contexto.exception.status_code, 422)
-
 
 if __name__ == "__main__":
     unittest.main()

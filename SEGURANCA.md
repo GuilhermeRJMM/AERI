@@ -15,6 +15,7 @@
 - Consultas SQL parametrizadas, timeout de conexão e segredos somente em variáveis de ambiente.
 - Resultados de matrícula recebem hash determinístico e evidências curtas. Feedback e auditoria não persistem o texto integral da matrícula.
 - A fila de divergências é visível somente para `ADMIN` e `SUBSTITUTO`; funcionários não publicam regras diretamente no motor.
+- O agente jurídico automático é desativado por padrão até a configuração explícita de chave e cota diária; mascara CPF, CNPJ e e-mail, não persiste o texto integral e rejeita citações que não pertençam à base recuperada.
 
 ## Variáveis obrigatórias na Vercel
 
@@ -25,6 +26,9 @@
 - `SYNC_ORIGINS`: lista separada por vírgulas das origens exatas usadas pelo SYNC, sem caminho ou barra no final. HTTPS é obrigatório para domínios públicos; HTTP é aceito somente para `.local`, localhost e IPs privados/loopback. As origens também estão declaradas no cabeçalho CSP do `vercel.json`; as duas configurações devem permanecer iguais. `SYNC_ORIGIN` continua aceito para compatibilidade quando houver apenas uma origem.
 - `AERI_AUDIT_RETENTION_DAYS`: retenção dos eventos de auditoria, entre 30 e 730 dias; padrão 180.
 - `MAPA_ONR_MODO_ANALISE`: use `hibrido` (padrão) para a conferência semântica de confrontantes ou `legado` para restaurar imediatamente o extrator original.
+- `AI_GATEWAY_API_KEY` ou `VERCEL_OIDC_TOKEN`: autenticação exclusivamente no backend para o agente jurídico automático.
+- `AERI_AGENTE_JURIDICO_LIMITE_DIA`: teto diário explícito; zero mantém o recurso desativado.
+- `AERI_AGENTE_JURIDICO_MODELO`: modelo no formato `provedor/modelo`; padrão `openai/gpt-5.4`.
 
 Depois de alterar qualquer variável, é obrigatório fazer um novo deployment.
 
@@ -50,6 +54,7 @@ Depois de alterar qualquer variável, é obrigatório fazer um novo deployment.
 - Revisar a tabela `auditoria_aeri` periodicamente e definir prazo de retenção institucional.
 - Testar restauração do banco, revogação de sessão e bloqueio de login antes de cada publicação relevante.
 - Manter dependências atualizadas e habilitar Dependabot, Secret Scanning e proteção da branch principal no GitHub.
+- Antes de ativar o agente jurídico, documentar a base legal, a finalidade e o operador externo do tratamento; conferir o contrato de proteção de dados aplicável ao AI Gateway e ao provedor escolhido. A consulta de matrícula passa a acionar automaticamente o agente e o texto registral ainda pode conter nomes e outros dados não estruturados além dos documentos mascarados.
 
 ## Cargos e atribuições
 

@@ -5,15 +5,6 @@ const ICONE_PROCESSAR = '<svg width="18" height="18" viewBox="0 0 24 24" fill="n
 const ICONE_COPIAR = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>Copiar';
 let ultimoResultado = null;
 
-function blocoEvidencia(evidencia) {
-    if (!evidencia?.trecho) return '';
-    return `<details class="analise-evidencia">
-        <summary>Ver evidência <span>${escaparHtml(evidencia.fonte || '')}</span></summary>
-        <blockquote>${escaparHtml(evidencia.trecho)}</blockquote>
-        ${evidencia.regra_id ? `<small>Regra: ${escaparHtml(evidencia.regra_id)}</small>` : ''}
-    </details>`;
-}
-
 function resumo(ato, todosAtos) {
     if (ato.status === 'CANCELADO') {
         const autor = ato.cancelado_por || 'outro ato';
@@ -83,11 +74,10 @@ function renderizarAtos(dados) {
             <div class="texto">${escaparHtml(resumo(ato, atos))}</div>
             ${detalheOnus(ato)}
             <div class="status-ato">Status: <strong>${escaparHtml(ato.status)}</strong></div>
-            ${blocoEvidencia(dados.evidencias?.atos?.[indice])}
         </div>`).join('');
 }
 
-function renderizarProprietarios(proprietarios, evidencias = []) {
+function renderizarProprietarios(proprietarios) {
     if (!proprietarios.length) {
         return '<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.95rem;background:rgba(0,0,0,.02);border-radius:8px">Nenhum proprietário identificado. Verifique se a matrícula contém atos de transmissão (compra e venda, doação, inventário etc.).</div>';
     }
@@ -96,7 +86,6 @@ function renderizarProprietarios(proprietarios, evidencias = []) {
             <div class="card-header"><div class="codigo">${indice + 1})- ${escaparHtml(item.nome)}</div><div class="badge badge-blue">PROPRIETÁRIO</div></div>
             <div class="texto">${genero(item.nome) === 'inscrita' ? 'Inscrita' : 'Inscrito'} no ${tipoDocumento(item.cpf)} sob o n.º <strong>${escaparHtml(item.cpf)}</strong></div>
             <div class="status-ato">Proporção: <strong>${escaparHtml(item.proporcao)}</strong></div>
-            ${blocoEvidencia(evidencias[indice])}
         </div>`).join('');
     const texto = proprietarios.map(formatarProprietario).join('\n');
     return `<div class="cards">${cards}</div>
@@ -117,7 +106,6 @@ function renderizarGrupoImovel(titulo, itens) {
                         <span>${escaparHtml(item.rotulo)}</span>
                         <strong>${escaparHtml(item.valor)}</strong>
                         ${item.origem && item.origem !== 'Cabeçalho' ? `<small>${escaparHtml(item.origem)}</small>` : ''}
-                        ${blocoEvidencia(item.evidencia)}
                     </div>`).join('')}
             </div>
         </section>`;
@@ -306,7 +294,30 @@ function renderizarFeedback() {
         </div>`;
 }
 
-function renderizarResultado(dados) {
+export function renderizarAnaliseJuridica(dados) {
+    if (!dados || dados.estado !== 'CONCLUIDA') {
+        const estado = String(dados?.estado || 'INDISPONIVEL').replaceAll('_', ' ');
+        return `<div class="revisao-juridica-erro"><strong>Agente jurídico: ${escaparHtml(estado)}</strong><span>${escaparHtml(dados?.mensagem || 'A análise jurídica automática não foi concluída.')}</span></div>`;
+    }
+    const parecer = dados.parecer || {};
+    const analises = (parecer.analises || []).map(analise => `
+        <article class="revisao-juridica-achado">
+            <div><span class="badge badge-gray">${escaparHtml(analise.dominio)}</span><strong>${escaparHtml(analise.status)}</strong></div>
+            <p><b>${escaparHtml(analise.resultado_identificado)}</b></p>
+        </article>`).join('');
+    return `
+        <div class="revisao-juridica-topo">
+            <div><span class="eyebrow">AGENTE JURÍDICO AERI · ANÁLISE AUTOMÁTICA</span><h3>${escaparHtml(String(parecer.conclusao || 'INCONCLUSIVO').replaceAll('_', ' '))}</h3></div>
+            <span class="revisao-juridica-confianca">Confiança ${escaparHtml(parecer.confianca || 'BAIXA')}</span>
+        </div>
+        <p class="revisao-juridica-resumo">${escaparHtml(parecer.resumo || '')}</p>
+        <div class="revisao-juridica-achados">${analises || '<p>A análise dos domínios não foi apresentada.</p>'}</div>
+        <div class="revisao-juridica-rodape">
+            <span>Análise automática do agente jurídico AERI.</span>
+        </div>`;
+}
+
+export function renderizarResultado(dados) {
     if (!dados || typeof dados !== 'object' || Array.isArray(dados)) {
         throw new Error('O servidor retornou a análise em formato inválido. Atualize a página e tente novamente.');
     }
@@ -317,6 +328,7 @@ function renderizarResultado(dados) {
     else if (dados.resultado === 'NEGATIVA, PORÉM COM PUBLICIDADE') { cor = '#0284c7'; fundo = '#f0f9ff'; }
     const atos = Array.isArray(dados.atos) ? dados.atos : [];
     const proprietarios = Array.isArray(dados.proprietarios_atuais) ? dados.proprietarios_atuais : [];
+    const analiseAgente = dados.origem === 'TRI7' ? dados.agente_juridico : null;
     document.getElementById('modal-conteudo').innerHTML = `
         <div class="resultado fade-in">
             <div class="topo" style="border-left:5px solid ${cor};background-color:${fundo}">
@@ -324,8 +336,11 @@ function renderizarResultado(dados) {
             </div>
             <div class="resultado-ferramentas">
                 <span>Motor ${escaparHtml(dados.meta?.versao || 'legado')} · ${escaparHtml(dados.meta?.modo || 'determinístico')}</span>
-                <button type="button" class="rotina-btn-secondary" data-acao="exportar-relatorio">Exportar relatório</button>
+                <div>
+                    <button type="button" class="rotina-btn-secondary" data-acao="exportar-relatorio">Exportar relatório</button>
+                </div>
             </div>
+            ${analiseAgente ? `<section class="revisao-juridica" data-agente-juridico aria-live="polite">${renderizarAnaliseJuridica(analiseAgente)}</section>` : ''}
             <div class="tabs-container">
                 <button class="tab-btn active" data-tab="tab-atos">Atos Registrais (${atos.length})</button>
                 <button class="tab-btn" data-tab="tab-imovel">Imóvel</button>
@@ -333,7 +348,7 @@ function renderizarResultado(dados) {
             </div>
             <div id="tab-atos" class="tab-content active"><div class="cards">${renderizarAtos(dados)}</div></div>
             <div id="tab-imovel" class="tab-content">${renderizarImovel(dados.imovel)}</div>
-            <div id="tab-prop" class="tab-content" style="padding:16px">${renderizarProprietarios(proprietarios, dados.evidencias?.proprietarios)}</div>
+            <div id="tab-prop" class="tab-content" style="padding:16px">${renderizarProprietarios(proprietarios)}</div>
             ${renderizarFeedback()}
         </div>`;
     const modal = document.getElementById('modal-resultado');

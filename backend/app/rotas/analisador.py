@@ -20,6 +20,14 @@ from backend.app.servicos.aprendizado_regras import (
     validar_id_regra,
     validar_sugestao_aprendizado,
 )
+from backend.app.servicos.fontes_juridicas import (
+    agente_juridico_configurado,
+    buscar_trechos_cursor,
+    executar_agente_juridico,
+    hash_base_juridica_cursor,
+    limite_agente_juridico_diario,
+    salvar_analise_juridica_cursor,
+)
 
 
 router = APIRouter(tags=["analisador"], dependencies=[Depends(preparar_banco)])
@@ -117,6 +125,86 @@ def _divergencia_json(item: dict) -> dict:
     }
 
 
+def _analise_juridica_json(item: dict, reutilizada: bool = False) -> dict:
+    return {
+        "estado": "CONCLUIDA",
+        "id": str(item["id"]),
+        "numero_matricula": item["matricula_numero"],
+        "resultado_hash": item["resultado_hash"],
+        "base_hash": item["base_hash"],
+        "modelo": item["modelo"],
+        "parecer": item["parecer"],
+        "fontes": item["fontes"],
+        "criado_em": item["criado_em"].isoformat(),
+        "reutilizada": reutilizada,
+        "aviso": "Análise automática fundamentada na base jurídica vigente do AERI.",
+    }
+
+
+def _executar_agente_na_matricula(
+    numero: int,
+    texto: str,
+    resultado: dict,
+    request: Request,
+    usuario: str,
+) -> dict:
+    """Executa o agente como etapa automática da análise, sem bloquear o motor em caso de indisponibilidade."""
+    if not agente_juridico_configurado():
+        return {
+            "estado": "AGUARDANDO_CONFIGURACAO",
+            "mensagem": "O agente jurídico ainda não foi ativado no servidor.",
+        }
+    try:
+        with conectar() as conexao:
+            with conexao.cursor() as cursor:
+                base_hash = hash_base_juridica_cursor(cursor)
+                cursor.execute(
+                    """SELECT * FROM analises_juridicas_aeri
+                    WHERE matricula_numero=%s AND resultado_hash=%s AND base_hash=%s""",
+                    (numero, resultado["resultado_hash"], base_hash),
+                )
+                existente = cursor.fetchone()
+                if existente:
+                    return _analise_juridica_json(existente, reutilizada=True)
+                cursor.execute(
+                    """SELECT COUNT(*) AS total FROM analises_juridicas_aeri
+                    WHERE criado_em >= CURRENT_DATE"""
+                )
+                if cursor.fetchone()["total"] >= limite_agente_juridico_diario():
+                    return {
+                        "estado": "LIMITE_ATINGIDO",
+                        "mensagem": "O limite diário do agente jurídico foi atingido.",
+                    }
+                trechos = buscar_trechos_cursor(cursor, resultado)
+        if not trechos:
+            return {
+                "estado": "BASE_INSUFICIENTE",
+                "mensagem": "A base jurídica não encontrou fontes suficientes para esta matrícula.",
+            }
+        analise = executar_agente_juridico(texto, resultado, trechos)
+        with conectar() as conexao:
+            with conexao.cursor() as cursor:
+                item = salvar_analise_juridica_cursor(
+                    cursor, numero, resultado["resultado_hash"], base_hash, analise, usuario,
+                )
+                registrar_auditoria_cursor(
+                    cursor, request, "analisar_matricula_agente_juridico", "sucesso", usuario,
+                    str(numero), {
+                        "resultado_hash": resultado["resultado_hash"],
+                        "base_hash": base_hash,
+                        "conclusao": item["conclusao"],
+                        "fontes": len(item["fontes"]),
+                    },
+                )
+            conexao.commit()
+        return _analise_juridica_json(item)
+    except RuntimeError as erro:
+        registrar_auditoria(
+            request, "analisar_matricula_agente_juridico", "indisponivel", usuario, str(numero),
+        )
+        return {"estado": "INDISPONIVEL", "mensagem": str(erro)}
+
+
 @router.post("/analisar", dependencies=[Depends(proteger_csrf)])
 def analisar(dados: dict, request: Request, usuario: str = Depends(exigir_perfis("ADMIN"))):
     texto = str(dados.get("texto", ""))
@@ -165,8 +253,34 @@ def analisar_por_numero(
     )
     resultado["numero_matricula"] = matricula["numero_matricula"]
     resultado["origem"] = "TRI7"
+    resultado["agente_juridico"] = _executar_agente_na_matricula(
+        int(numero), matricula["texto"], resultado, request, usuario,
+    )
     registrar_auditoria(request, "consultar_e_analisar_matricula_tri7", "sucesso", usuario, numero)
     return resultado
+
+
+@router.get("/analisar/base-juridica/status")
+def status_base_juridica(_usuario: str = Depends(exigir_permissao("revisar_auditoria"))):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """SELECT COUNT(*) AS fontes,
+                COALESCE(SUM(total_trechos), 0) AS trechos,
+                COUNT(*) FILTER (WHERE texto_extraido=FALSE) AS sem_texto,
+                MAX(atualizado_em) AS atualizada_em
+                FROM fontes_juridicas_aeri WHERE vigente=TRUE"""
+            )
+            item = cursor.fetchone()
+            base_hash = hash_base_juridica_cursor(cursor)
+    return {
+        "configurado": agente_juridico_configurado(),
+        "fontes": item["fontes"],
+        "trechos": item["trechos"],
+        "sem_texto": item["sem_texto"],
+        "atualizada_em": item["atualizada_em"].isoformat() if item["atualizada_em"] else None,
+        "base_hash": base_hash,
+    }
 
 
 @router.post("/analisar/feedback", dependencies=[Depends(proteger_csrf)])
