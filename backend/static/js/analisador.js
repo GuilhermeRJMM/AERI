@@ -294,6 +294,17 @@ function renderizarFeedback() {
         </div>`;
 }
 
+function renderizarControleQualidade(controle) {
+    if (!controle || controle.estado === 'CONFERIDO') return '';
+    const rotulos = {ONUS:'ônus', IMOVEL:'dados do imóvel', PROPRIETARIOS:'proprietários'};
+    const dominios = (controle.dominios || []).map(item => rotulos[item]).filter(Boolean);
+    const complemento = dominios.length ? ` Divergência em: ${dominios.join(', ')}.` : '';
+    return `<div class="controle-qualidade-alerta" role="alert">
+        <strong>CONFERÊNCIA NECESSÁRIA</strong>
+        <span>Não utilize este resultado antes de revisão humana.${escaparHtml(complemento)}</span>
+    </div>`;
+}
+
 export function renderizarResultado(dados) {
     if (!dados || typeof dados !== 'object' || Array.isArray(dados)) {
         throw new Error('O servidor retornou a análise em formato inválido. Atualize a página e tente novamente.');
@@ -310,6 +321,7 @@ export function renderizarResultado(dados) {
             <div class="topo" style="border-left:5px solid ${cor};background-color:${fundo}">
                 <div><span class="resultado-matricula">MATRÍCULA ${escaparHtml(dados.numero_matricula || '')}</span><h2>${escaparHtml(dados.resultado)}</h2></div><div class="sub-status">${escaparHtml(dados.publicidade)}</div>
             </div>
+            ${renderizarControleQualidade(dados.controle_qualidade)}
             <div class="resultado-ferramentas">
                 <span>Motor ${escaparHtml(dados.meta?.versao || 'legado')} · ${escaparHtml(dados.meta?.modo || 'determinístico')}</span>
                 <div>

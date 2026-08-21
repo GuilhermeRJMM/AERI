@@ -80,6 +80,7 @@ class TesteFontesJuridicas(unittest.TestCase):
             "analises": [
                 {
                     "dominio": dominio, "status": "ATENCAO",
+                    "comparacao": "DIVERGE",
                     "resultado_identificado": "Resultado do domínio.",
                     "fundamentacao": "Fundamentação jurídica do domínio.",
                     "atos_envolvidos": ["AV.2"], "citacoes": ["F1"],
@@ -131,6 +132,7 @@ class TesteFontesJuridicas(unittest.TestCase):
             "analises": [
                 {
                     "dominio": dominio, "status": "ATENCAO",
+                    "comparacao": "DIVERGE",
                     "resultado_identificado": "Resultado.",
                     "fundamentacao": "Conclusão com fonte.",
                     "atos_envolvidos": ["R.1"],

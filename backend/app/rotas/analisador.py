@@ -25,6 +25,7 @@ from backend.app.servicos.fontes_juridicas import (
     buscar_trechos_cursor,
     executar_agente_juridico,
     hash_base_juridica_cursor,
+    importar_lote_juridico_cursor,
     limite_agente_juridico_diario,
     salvar_analise_juridica_cursor,
 )
@@ -175,7 +176,7 @@ def _executar_agente_na_matricula(
                         "estado": "LIMITE_ATINGIDO",
                         "mensagem": "O limite diário do agente jurídico foi atingido.",
                     }
-                trechos = buscar_trechos_cursor(cursor, resultado)
+                trechos = buscar_trechos_cursor(cursor, resultado, texto)
         if not trechos:
             return {
                 "estado": "BASE_INSUFICIENTE",
@@ -205,6 +206,22 @@ def _executar_agente_na_matricula(
         return {"estado": "INDISPONIVEL", "mensagem": str(erro)}
 
 
+def _controle_qualidade_publico(analise: dict) -> dict:
+    """Expõe somente o estado operacional, sem revelar provedor, parecer ou fontes."""
+    if analise.get("estado") != "CONCLUIDA":
+        return {"estado": "NAO_CONFERIDO", "dominios": []}
+    dominios_revisao = []
+    for item in (analise.get("parecer") or {}).get("analises") or []:
+        if item.get("comparacao") != "CONFERE" or item.get("status") != "CONCLUIDO":
+            dominio = str(item.get("dominio") or "").upper()
+            if dominio in {"ONUS", "IMOVEL", "PROPRIETARIOS"}:
+                dominios_revisao.append(dominio)
+    return {
+        "estado": "REVISAR" if dominios_revisao else "CONFERIDO",
+        "dominios": list(dict.fromkeys(dominios_revisao)),
+    }
+
+
 @router.post("/analisar", dependencies=[Depends(proteger_csrf)])
 def analisar(dados: dict, request: Request, usuario: str = Depends(exigir_perfis("ADMIN"))):
     texto = str(dados.get("texto", ""))
@@ -224,6 +241,10 @@ def analisar(dados: dict, request: Request, usuario: str = Depends(exigir_perfis
     )
     resultado["numero_matricula"] = numero or resultado.get("numero_matricula") or "MANUAL"
     resultado["origem"] = "ENTRADA MANUAL"
+    analise_secundaria = _executar_agente_na_matricula(
+        int(numero or 0), texto, resultado, request, usuario,
+    )
+    resultado["controle_qualidade"] = _controle_qualidade_publico(analise_secundaria)
     registrar_auditoria(request, "analisar_matricula_texto_manual", "sucesso", usuario, numero)
     return resultado
 
@@ -253,11 +274,42 @@ def analisar_por_numero(
     )
     resultado["numero_matricula"] = matricula["numero_matricula"]
     resultado["origem"] = "TRI7"
-    _executar_agente_na_matricula(
+    analise_secundaria = _executar_agente_na_matricula(
         int(numero), matricula["texto"], resultado, request, usuario,
     )
+    resultado["controle_qualidade"] = _controle_qualidade_publico(analise_secundaria)
     registrar_auditoria(request, "consultar_e_analisar_matricula_tri7", "sucesso", usuario, numero)
     return resultado
+
+
+@router.post("/analisar/base-juridica/importar", dependencies=[Depends(proteger_csrf)])
+async def importar_base_juridica(
+    request: Request,
+    usuario: str = Depends(exigir_permissao("revisar_auditoria")),
+):
+    tamanho = int(request.headers.get("content-length", "0") or 0)
+    if tamanho > 4_000_000:
+        raise HTTPException(status_code=413, detail="O lote jurídico excede o limite permitido.")
+    conteudo = await request.body()
+    try:
+        with conectar() as conexao:
+            with conexao.cursor() as cursor:
+                resumo = importar_lote_juridico_cursor(cursor, conteudo, usuario)
+            conexao.commit()
+    except ValueError as erro:
+        raise HTTPException(status_code=422, detail=str(erro)) from erro
+    registrar_auditoria(
+        request,
+        "importar_base_juridica",
+        "sucesso",
+        usuario,
+        detalhes={
+            "recebidos": resumo["recebidos"],
+            "indexados": resumo["indexados"],
+            "trechosIndexados": resumo["trechos_indexados"],
+        },
+    )
+    return resumo
 
 
 @router.post("/analisar/feedback", dependencies=[Depends(proteger_csrf)])

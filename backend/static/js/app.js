@@ -1,4 +1,4 @@
-import {configurarAcessoAnaliseManual, iniciarAnalisador} from './analisador.js?v=20260810-texto-manual-admin';
+import {configurarAcessoAnaliseManual, iniciarAnalisador} from './analisador.js?v=20260821-controle-qualidade-v1';
 import {iniciarAutenticacao} from './autenticacao.js?v=20260820-robustez-v1';
 import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260820-robustez-v1';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
