@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from uuid import UUID, uuid4
 
@@ -32,6 +33,7 @@ from backend.app.servicos.fontes_juridicas import (
 
 
 router = APIRouter(tags=["analisador"], dependencies=[Depends(preparar_banco)])
+logger = logging.getLogger("aeri.analisador")
 DOMINIOS_DIVERGENCIA = {"ONUS", "CADEIA", "IMOVEL", "SITUACAO"}
 
 
@@ -151,6 +153,7 @@ def _executar_agente_na_matricula(
 ) -> dict:
     """Executa o agente como etapa automática da análise, sem bloquear o motor em caso de indisponibilidade."""
     if not agente_juridico_configurado():
+        logger.warning("conferencia_matricula_nao_configurada numero=%s", numero)
         return {
             "estado": "AGUARDANDO_CONFIGURACAO",
             "mensagem": "O agente jurídico ainda não foi ativado no servidor.",
@@ -172,12 +175,14 @@ def _executar_agente_na_matricula(
                     WHERE criado_em >= CURRENT_DATE"""
                 )
                 if cursor.fetchone()["total"] >= limite_agente_juridico_diario():
+                    logger.warning("conferencia_matricula_limite_atingido numero=%s", numero)
                     return {
                         "estado": "LIMITE_ATINGIDO",
                         "mensagem": "O limite diário do agente jurídico foi atingido.",
                     }
                 trechos = buscar_trechos_cursor(cursor, resultado, texto)
         if not trechos:
+            logger.warning("conferencia_matricula_base_insuficiente numero=%s", numero)
             return {
                 "estado": "BASE_INSUFICIENTE",
                 "mensagem": "A base jurídica não encontrou fontes suficientes para esta matrícula.",
@@ -200,6 +205,11 @@ def _executar_agente_na_matricula(
             conexao.commit()
         return _analise_juridica_json(item)
     except RuntimeError as erro:
+        logger.warning(
+            "conferencia_matricula_indisponivel numero=%s motivo=%s",
+            numero,
+            str(erro)[:180],
+        )
         registrar_auditoria(
             request, "analisar_matricula_agente_juridico", "indisponivel", usuario, str(numero),
         )

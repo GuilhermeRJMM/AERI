@@ -44,7 +44,7 @@ def importar(base_url: str, pasta: Path, usuario: str, senha: str) -> list[dict]
     resultados = []
     for lote in lotes:
         requisicao = Request(
-            f"{origem}/api/analisar/base-juridica/importar",
+            f"{origem}/analisar/base-juridica/importar",
             data=lote.read_bytes(),
             headers={
                 "Content-Type": "application/gzip",
