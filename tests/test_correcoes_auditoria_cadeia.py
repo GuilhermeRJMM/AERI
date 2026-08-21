@@ -228,6 +228,22 @@ class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
 
         self.assertEqual(resultado[0]["nome"], "José Joaquim Cândido")
 
+    def test_permuta_historica_com_virgula_antes_do_primeiro_permutante(self):
+        descricao = (
+            "PERMUTA. O imóvel objeto da presente matrícula passou a pertencer "
+            "ao primeiro permutante, MUNICÍPIO DE MORRINHOS, pessoa jurídica, "
+            "inscrito no CNPJ/MF sob o nº 01.789.551/0001-49, representado pelo "
+            "Prefeito Municipal Cleumar Gomes de Freitas; sendo transmitente o "
+            "segundo permutante JAIR RODRIGUES DA CUNHA, CPF nº 035.500.281-72."
+        )
+
+        resultado = calcular_cadeia_dominial([ato(descricao)])
+
+        self.assertEqual(
+            [(item["nome"], item["cpf"]) for item in resultado],
+            [("MUNICÍPIO DE MORRINHOS", "01.789.551/0001-49")],
+        )
+
     def test_partilha_com_percentual_antes_de_pertencente(self):
         descricao = (
             "INVENTÁRIO/PARTILHA. TRANSMITENTE: Espólio de Wanda Prudente. "

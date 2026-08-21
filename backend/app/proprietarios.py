@@ -675,7 +675,8 @@ def _bloco_do_adquirente(texto):
         return m.group(1).strip().rstrip(';, ')
 
     m = re.search(
-        r'\bpassou\s+a\s+pertencer\s+aos?\s+primeiros?\s+permutantes?\s+'
+        r'\bpassou\s+a\s+pertencer\s+aos?\s+primeiros?\s+permutantes?\s*'
+        r'[,;:\-]?\s*'
         r'(.*?)(?=\bsendo\s+transmitentes?\b|\bpelo\s+valor\b|\bcondi[çc][õo]es\b|\Z)',
         texto,
         re.I | re.DOTALL,
