@@ -10,7 +10,7 @@ import {iniciarNavegacao} from './navegacao.js?v=20260820-robustez-v1';
 import {carregarPoligonos, configurarAcessoPoligonos, iniciarPoligonos, limparPoligonos} from './poligonos.js?v=20260819-poligonos-v13';
 import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260820-robustez-v1';
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260820-robustez-v1';
-import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260819-poligonos-v13';
+import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260820-senha-v1';
 import {iniciarAtualizacaoPeriodica} from './util.js?v=20260820-robustez-v1';
 
 const INTERVALO_ATUALIZACAO_MS = 30_000;

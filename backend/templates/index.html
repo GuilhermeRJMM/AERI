@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260819-poligonos-v13">
+    <link rel="stylesheet" href="/static/styles.css?v=20260820-senha-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -900,9 +900,25 @@
                     <label><input type="checkbox" data-permissao-form="alterar_intimacoes" checked> Alterar intimações</label>
                     <label><input type="checkbox" data-permissao-form="conferir_intimacoes" checked> Dar check em intimações</label>
                 </fieldset>
-                <label><span>Senha temporária</span><div class="senha-gerada"><input id="usuario-senha" type="text" required minlength="14"><button type="button" id="btn-gerar-senha">Gerar</button></div></label>
+                <label><span>Senha temporária</span><div class="senha-gerada"><input id="usuario-senha" type="text" required minlength="10"><button type="button" id="btn-gerar-senha">Gerar</button></div></label>
                 <div class="rotina-form-actions"><button type="button" class="rotina-btn-secondary" id="btn-cancelar-usuario">Cancelar</button><button type="submit" class="btn btn-primary">Criar usuário</button></div>
             </form>
+        </div>
+    </div>
+
+    <div id="modal-senha-gerada" class="modal-overlay" hidden>
+        <div class="modal-box rotina-modal">
+            <button class="modal-fechar" id="btn-fechar-senha-gerada">&times;</button>
+            <div class="rotina-form-header">
+                <span class="eyebrow">ACESSO CRIADO</span>
+                <h2 id="senha-gerada-titulo">Senha temporária</h2>
+                <p>Entregue esta senha à pessoa. Ela não volta a ser exibida — se perder, redefina.</p>
+            </div>
+            <div class="senha-revelada"><code id="senha-gerada-valor"></code></div>
+            <div class="rotina-form-actions">
+                <button type="button" class="btn btn-primary" id="btn-copiar-senha-gerada">Copiar senha</button>
+            </div>
+            <p id="senha-gerada-status" class="poligonos-status" role="status" aria-live="polite"></p>
         </div>
     </div>
 
@@ -912,8 +928,8 @@
             <div class="rotina-form-header"><span class="eyebrow">SEGURANÇA</span><h2>Troque sua senha temporária</h2><p>Escolha uma senha exclusiva com 10 caracteres, maiúscula, número e símbolo.</p></div>
             <form id="form-trocar-senha" class="rotina-form">
                 <label><span>Senha atual</span><input id="senha-atual" type="password" autocomplete="current-password" required></label>
-                <label><span>Nova senha</span><input id="senha-nova" type="password" autocomplete="new-password" minlength="14" required></label>
-                <label><span>Confirmar nova senha</span><input id="senha-confirmar" type="password" autocomplete="new-password" minlength="14" required></label>
+                <label><span>Nova senha</span><input id="senha-nova" type="password" autocomplete="new-password" minlength="10" required></label>
+                <label><span>Confirmar nova senha</span><input id="senha-confirmar" type="password" autocomplete="new-password" minlength="10" required></label>
                 <div id="troca-senha-erro" class="login-erro" role="alert"></div>
                 <div class="rotina-form-actions"><button type="submit" class="btn btn-primary">Salvar nova senha</button></div>
             </form>
@@ -921,6 +937,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260820-robustez-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20260820-senha-v1"></script>
 </body>
 </html>

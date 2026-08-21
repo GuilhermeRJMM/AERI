@@ -97,6 +97,44 @@ function senhaTemporaria() {
     return senha.sort(() => crypto.getRandomValues(new Uint32Array(1))[0] / 2**32 - .5).join('');
 }
 
+/**
+ * Mostra a senha temporária na própria página.
+ *
+ * Era window.prompt, que o Chrome bloqueia em iframe de outra origem
+ * desde a versão 92 -- e o AERI roda dentro do SYNC. Ali o prompt
+ * devolve null na hora, sem exibir nada: quem criava o usuário não via
+ * senha alguma e não recebia aviso de que algo tinha falhado.
+ */
+function revelarSenha(titulo, senha) {
+    document.getElementById('senha-gerada-titulo').textContent = titulo;
+    document.getElementById('senha-gerada-valor').textContent = senha;
+    document.getElementById('senha-gerada-status').textContent = '';
+    document.getElementById('modal-senha-gerada').hidden = false;
+}
+
+async function copiarSenhaRevelada() {
+    const senha = document.getElementById('senha-gerada-valor').textContent;
+    const status = document.getElementById('senha-gerada-status');
+    // execCommand antes da API assíncrona: dentro do iframe do SYNC a
+    // segunda é bloqueada por permissão, como já vimos na Pesquisa
+    // Qualificada e nas coordenadas do módulo Polígonos.
+    const campo = document.createElement('textarea');
+    campo.value = senha;
+    campo.setAttribute('readonly', '');
+    campo.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+    document.body.appendChild(campo);
+    campo.select();
+    let copiou = false;
+    try { copiou = document.execCommand('copy'); } catch (_e) { copiou = false; }
+    campo.remove();
+    if (!copiou) {
+        try { await navigator.clipboard.writeText(senha); copiou = true; } catch (_e) { copiou = false; }
+    }
+    status.textContent = copiou
+        ? 'Senha copiada.'
+        : 'Não foi possível copiar. Selecione a senha acima e use Ctrl+C.';
+}
+
 function renderizarUsuarios() {
     const tbody = document.getElementById('usuarios-tbody');
     document.getElementById('btn-novo-usuario').hidden = !usuarioPodeCriarUsuarios();
@@ -177,7 +215,7 @@ async function salvarUsuario(evento) {
         await requisicaoAeri('/api/usuarios', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados)});
         fecharNovoUsuario();
         await carregarUsuarios();
-        window.prompt(`Usuário ${dados.usuario.toUpperCase()} criado. Copie a senha temporária:`, dados.senha);
+        revelarSenha(`Senha temporária de ${dados.usuario.toUpperCase()}`, dados.senha);
     } catch (erro) { alert(erro.message); }
 }
 
@@ -242,7 +280,7 @@ async function acaoTabela(evento) {
             if (!confirm(`Redefinir a senha de ${item.usuario}?`)) return;
             await requisicaoAeri(`/api/usuarios/${item.usuario}/redefinir-senha`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({senha})});
             await carregarUsuarios();
-            window.prompt(`Copie a nova senha temporária de ${item.usuario}:`, senha);
+            revelarSenha(`Nova senha temporária de ${item.usuario}`, senha);
         }
     } catch (erro) { alert(erro.message); await carregarUsuarios(); }
 }
@@ -310,4 +348,9 @@ export function iniciarUsuarios() {
     document.getElementById('form-trocar-senha').addEventListener('submit', trocarSenha);
     document.getElementById('btn-minha-senha').addEventListener('click', () => abrirTrocaSenha(false));
     document.getElementById('btn-fechar-troca-senha').addEventListener('click', () => exigirTrocaSenha(false));
+    document.getElementById('btn-copiar-senha-gerada').addEventListener('click', copiarSenhaRevelada);
+    document.getElementById('btn-fechar-senha-gerada').addEventListener('click', () => {
+        document.getElementById('modal-senha-gerada').hidden = true;
+        document.getElementById('senha-gerada-valor').textContent = '';
+    });
 }

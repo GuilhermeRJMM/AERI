@@ -3215,3 +3215,24 @@ body.modo-incorporado .layout { padding-top:28px; }
 }
 /* O lado de fechamento resulta dos demais e não se edita. */
 .poligonos-lado-fechamento td { color: var(--text-muted); font-style: italic; }
+
+/* A senha temporária era entregue por window.prompt, que o Chrome bloqueia
+   em iframe de outra origem -- e o AERI roda dentro do SYNC. O
+   administrador não via senha nenhuma. Agora ela aparece na própria
+   página, grande e selecionável. */
+.senha-revelada {
+  margin: 14px 0;
+  padding: 16px;
+  background: var(--surface-bg-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  text-align: center;
+}
+.senha-revelada code {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 1.25rem;
+  letter-spacing: 0.06em;
+  color: var(--primary-color);
+  user-select: all;
+  word-break: break-all;
+}
