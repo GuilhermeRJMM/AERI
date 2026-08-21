@@ -253,34 +253,11 @@ def analisar_por_numero(
     )
     resultado["numero_matricula"] = matricula["numero_matricula"]
     resultado["origem"] = "TRI7"
-    resultado["agente_juridico"] = _executar_agente_na_matricula(
+    _executar_agente_na_matricula(
         int(numero), matricula["texto"], resultado, request, usuario,
     )
     registrar_auditoria(request, "consultar_e_analisar_matricula_tri7", "sucesso", usuario, numero)
     return resultado
-
-
-@router.get("/analisar/base-juridica/status")
-def status_base_juridica(_usuario: str = Depends(exigir_permissao("revisar_auditoria"))):
-    with conectar() as conexao:
-        with conexao.cursor() as cursor:
-            cursor.execute(
-                """SELECT COUNT(*) AS fontes,
-                COALESCE(SUM(total_trechos), 0) AS trechos,
-                COUNT(*) FILTER (WHERE texto_extraido=FALSE) AS sem_texto,
-                MAX(atualizado_em) AS atualizada_em
-                FROM fontes_juridicas_aeri WHERE vigente=TRUE"""
-            )
-            item = cursor.fetchone()
-            base_hash = hash_base_juridica_cursor(cursor)
-    return {
-        "configurado": agente_juridico_configurado(),
-        "fontes": item["fontes"],
-        "trechos": item["trechos"],
-        "sem_texto": item["sem_texto"],
-        "atualizada_em": item["atualizada_em"].isoformat() if item["atualizada_em"] else None,
-        "base_hash": base_hash,
-    }
 
 
 @router.post("/analisar/feedback", dependencies=[Depends(proteger_csrf)])

@@ -63,7 +63,7 @@ class TesteRotaAnalisadorTri7(unittest.TestCase):
         self.assertEqual(resultado["numero_matricula"], "10148")
         self.assertEqual(resultado["origem"], "TRI7")
         self.assertIn("resultado", resultado)
-        self.assertEqual("CONCLUIDA", resultado["agente_juridico"]["estado"])
+        self.assertNotIn("agente_juridico", resultado)
         obter_cliente.return_value.buscar_texto_matricula.assert_called_once_with("10148")
         executar_agente.assert_called_once()
         auditoria.assert_called_once()

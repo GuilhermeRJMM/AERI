@@ -294,29 +294,6 @@ function renderizarFeedback() {
         </div>`;
 }
 
-export function renderizarAnaliseJuridica(dados) {
-    if (!dados || dados.estado !== 'CONCLUIDA') {
-        const estado = String(dados?.estado || 'INDISPONIVEL').replaceAll('_', ' ');
-        return `<div class="revisao-juridica-erro"><strong>Agente jurídico: ${escaparHtml(estado)}</strong><span>${escaparHtml(dados?.mensagem || 'A análise jurídica automática não foi concluída.')}</span></div>`;
-    }
-    const parecer = dados.parecer || {};
-    const analises = (parecer.analises || []).map(analise => `
-        <article class="revisao-juridica-achado">
-            <div><span class="badge badge-gray">${escaparHtml(analise.dominio)}</span><strong>${escaparHtml(analise.status)}</strong></div>
-            <p><b>${escaparHtml(analise.resultado_identificado)}</b></p>
-        </article>`).join('');
-    return `
-        <div class="revisao-juridica-topo">
-            <div><span class="eyebrow">AGENTE JURÍDICO AERI · ANÁLISE AUTOMÁTICA</span><h3>${escaparHtml(String(parecer.conclusao || 'INCONCLUSIVO').replaceAll('_', ' '))}</h3></div>
-            <span class="revisao-juridica-confianca">Confiança ${escaparHtml(parecer.confianca || 'BAIXA')}</span>
-        </div>
-        <p class="revisao-juridica-resumo">${escaparHtml(parecer.resumo || '')}</p>
-        <div class="revisao-juridica-achados">${analises || '<p>A análise dos domínios não foi apresentada.</p>'}</div>
-        <div class="revisao-juridica-rodape">
-            <span>Análise automática do agente jurídico AERI.</span>
-        </div>`;
-}
-
 export function renderizarResultado(dados) {
     if (!dados || typeof dados !== 'object' || Array.isArray(dados)) {
         throw new Error('O servidor retornou a análise em formato inválido. Atualize a página e tente novamente.');
@@ -328,7 +305,6 @@ export function renderizarResultado(dados) {
     else if (dados.resultado === 'NEGATIVA, PORÉM COM PUBLICIDADE') { cor = '#0284c7'; fundo = '#f0f9ff'; }
     const atos = Array.isArray(dados.atos) ? dados.atos : [];
     const proprietarios = Array.isArray(dados.proprietarios_atuais) ? dados.proprietarios_atuais : [];
-    const analiseAgente = dados.origem === 'TRI7' ? dados.agente_juridico : null;
     document.getElementById('modal-conteudo').innerHTML = `
         <div class="resultado fade-in">
             <div class="topo" style="border-left:5px solid ${cor};background-color:${fundo}">
@@ -340,7 +316,6 @@ export function renderizarResultado(dados) {
                     <button type="button" class="rotina-btn-secondary" data-acao="exportar-relatorio">Exportar relatório</button>
                 </div>
             </div>
-            ${analiseAgente ? `<section class="revisao-juridica" data-agente-juridico aria-live="polite">${renderizarAnaliseJuridica(analiseAgente)}</section>` : ''}
             <div class="tabs-container">
                 <button class="tab-btn active" data-tab="tab-atos">Atos Registrais (${atos.length})</button>
                 <button class="tab-btn" data-tab="tab-imovel">Imóvel</button>
