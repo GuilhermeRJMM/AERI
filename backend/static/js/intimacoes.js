@@ -1,4 +1,4 @@
-import {requisicaoAeri} from './api.js';
+import {requisicaoAeri} from './api.js?v=20260820-robustez-v1';
 import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
 
 let intimacoes = [];
@@ -212,9 +212,12 @@ function renderizarIntimacoes() {
     document.getElementById('rotina-total').textContent = `${filtradas.length} de ${daFase.length} nesta fase`;
 }
 
-export async function carregarIntimacoes() {
+export async function carregarIntimacoes(opcoes = {}) {
     try {
-        const recebidas = await requisicaoAeri('/api/intimacoes');
+        const recebidas = await requisicaoAeri(
+            '/api/intimacoes',
+            {background:Boolean(opcoes.background)},
+        );
         const atuaisPorId = new Map(intimacoes.map(item => [item.id, item]));
         intimacoes = recebidas.map(recebida => {
             const atual = atuaisPorId.get(recebida.id);

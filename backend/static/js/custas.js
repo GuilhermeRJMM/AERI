@@ -1,4 +1,4 @@
-import {requisicaoAeri} from './api.js';
+import {requisicaoAeri} from './api.js?v=20260820-robustez-v1';
 import {escaparHtml} from './util.js';
 
 let itens = [];
@@ -105,11 +105,14 @@ function renderizar() {
     }).join('') || '<tr><td colspan="10" class="rotina-vazio">Nenhum pedido nesta lista.</td></tr>';
 }
 
-export async function carregarCustas() {
+export async function carregarCustas(opcoes = {}) {
     const admin = ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil);
     if (!admin && !window.aeriPermissoes?.gerenciar_custas) return;
     try {
-        const recebidos = await requisicaoAeri('/api/custas');
+        const recebidos = await requisicaoAeri(
+            '/api/custas',
+            {background:Boolean(opcoes.background)},
+        );
         const atuaisPorId = new Map(itens.map(item => [item.id, item]));
         itens = recebidos.map(recebido => {
             const atual = atuaisPorId.get(recebido.id);

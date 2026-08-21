@@ -14,25 +14,41 @@ export function hojeLocal() {
 
 export function iniciarAtualizacaoPeriodica(carregar, intervaloMs) {
     let temporizador = null;
+    let executando = false;
+    let encerrado = false;
+    async function executar() {
+        if (executando || encerrado || document.hidden) return;
+        executando = true;
+        try {
+            await carregar({background:true});
+        } catch (erro) {
+            console.error('Falha na atualização periódica do módulo.', erro);
+        } finally {
+            executando = false;
+            agendar();
+        }
+    }
     function agendar() {
         parar();
-        temporizador = window.setInterval(carregar, intervaloMs);
+        if (!encerrado && !document.hidden) {
+            temporizador = window.setTimeout(executar, intervaloMs);
+        }
     }
     function parar() {
-        if (temporizador) window.clearInterval(temporizador);
+        if (temporizador) window.clearTimeout(temporizador);
         temporizador = null;
     }
     function aoTrocarVisibilidade() {
         if (document.hidden) {
             parar();
         } else {
-            carregar();
-            agendar();
+            executar();
         }
     }
     document.addEventListener('visibilitychange', aoTrocarVisibilidade);
     agendar();
     return function pararAtualizacaoPeriodica() {
+        encerrado = true;
         parar();
         document.removeEventListener('visibilitychange', aoTrocarVisibilidade);
     };

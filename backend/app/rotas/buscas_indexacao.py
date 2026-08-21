@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from fastapi import HTTPException, Request
 from psycopg.types.json import Jsonb
 
+from backend.app.analise.contrato import versao_indice_motor
 from backend.app.database import conectar
 from backend.app.seguranca_web import registrar_auditoria_cursor
 from backend.app.servicos.analise_matricula import analisar_matricula
@@ -38,6 +39,7 @@ from backend.app.servicos.tri7 import (
     MatriculaTri7NaoEncontrada,
     MatriculaTri7SemTexto,
     cliente_tri7,
+    limitador_tri7,
 )
 
 
@@ -67,7 +69,6 @@ class _LimitadorTaxa:
 def _consultar_matricula(numero: int, limitador: _LimitadorTaxa, cancelar: threading.Event) -> dict:
     if cancelar.is_set():
         return {"numero": numero, "status": "CANCELADO"}
-    limitador.aguardar()
     try:
         resposta = cliente_tri7().buscar_texto_matricula(numero)
         return {"numero": numero, "status": "OK", "texto": resposta["texto"]}
@@ -87,7 +88,7 @@ def _consultar_lote(
 ) -> tuple[list[dict], str | None]:
     if not numeros:
         return [], None
-    limitador = _LimitadorTaxa(REQUISICOES_POR_SEGUNDO_TRI7)
+    limitador = limitador_tri7()
     cancelar = threading.Event()
     por_numero = {}
     with ThreadPoolExecutor(max_workers=min(max_workers, len(numeros))) as executor:
@@ -330,6 +331,17 @@ def _estado_json(cursor) -> dict:
             WHERE texto_hash IS NOT NULL
               AND documentos_hash_versao IS DISTINCT FROM %s
         ) AS hashes_legados,
+        COUNT(*) FILTER (
+            WHERE texto_hash IS NOT NULL
+              AND motor_versao IS DISTINCT FROM %s
+        ) AS motor_desatualizado,
+        COUNT(*) FILTER (
+            WHERE texto_hash IS NOT NULL
+              AND (
+                  documentos_hash_versao IS DISTINCT FROM %s
+                  OR motor_versao IS DISTINCT FROM %s
+              )
+        ) AS reindexacao_pendente,
         COUNT(*) FILTER (WHERE situacao IN ('NAO_ENCONTRADA','SEM_TEXTO','INEXISTENTE')) AS ignoradas,
         -- Situação que o motor não conseguiu classificar. Não é ativa nem
         -- encerrada, então some das duas contagens -- e era por aí que o
@@ -337,7 +349,10 @@ def _estado_json(cursor) -> dict:
         -- serventia. Passa a aparecer na tela.
         COUNT(*) FILTER (WHERE situacao='REVISAR') AS sem_classificacao
         FROM matriculas_busca_aeri""",
-        (HASH_DOCUMENTOS_VERSAO,),
+        (
+            HASH_DOCUMENTOS_VERSAO, versao_indice_motor(),
+            HASH_DOCUMENTOS_VERSAO, versao_indice_motor(),
+        ),
     )
     totais = cursor.fetchone()
     cursor.execute("SELECT COUNT(*) AS total FROM proprietarios_matriculas_busca_aeri")
@@ -384,6 +399,8 @@ def _estado_json(cursor) -> dict:
         "matriculasEncerradas": totais["encerradas"],
         "matriculasComTexto": totais["com_texto"],
         "documentosPendentesReindexacao": totais["hashes_legados"],
+        "motorPendenteReindexacao": totais["motor_desatualizado"],
+        "reindexacaoPendente": totais["reindexacao_pendente"],
         "matriculasIgnoradas": totais["ignoradas"],
         "proprietariosAtuais": proprietarios,
         "auditoriaTotal": auditoria["total"],
@@ -505,9 +522,12 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
                     cursor.execute(
                         """SELECT numero FROM matriculas_busca_aeri
                         WHERE texto_hash IS NOT NULL
-                          AND documentos_hash_versao IS DISTINCT FROM %s
+                          AND (
+                              documentos_hash_versao IS DISTINCT FROM %s
+                              OR motor_versao IS DISTINCT FROM %s
+                          )
                         ORDER BY numero LIMIT %s""",
-                        (HASH_DOCUMENTOS_VERSAO, tamanho),
+                        (HASH_DOCUMENTOS_VERSAO, versao_indice_motor(), tamanho),
                     )
                     numeros = [item["numero"] for item in cursor.fetchall()]
                     if not numeros:

@@ -4,12 +4,13 @@ import json
 import os
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException, Request, Response
 
 from backend.app.autenticacao import (
     COOKIE_SESSAO,
+    _obter_sessao,
     _derivar_csrf,
     exigir_permissao,
     hash_senha,
@@ -59,6 +60,25 @@ class TesteSeguranca(unittest.TestCase):
         self.assertNotIn(senha, armazenada)
         self.assertTrue(verificar_senha(senha, armazenada))
         self.assertFalse(verificar_senha("senha-errada", armazenada))
+
+    def test_consulta_periodica_nao_renova_inatividade_da_sessao(self):
+        requisicao = _requisicao_com_cabecalhos({
+            "cookie": f"{COOKIE_SESSAO}=token-de-teste",
+            "x-aeri-background": "1",
+        })
+        cursor = MagicMock()
+        cursor.__enter__.return_value = cursor
+        cursor.fetchone.return_value = {"id": "sessao-1", "usuario": "TESTE"}
+        conexao = MagicMock()
+        conexao.__enter__.return_value = conexao
+        conexao.cursor.return_value = cursor
+
+        with patch("backend.app.autenticacao.conectar", return_value=conexao):
+            sessao = _obter_sessao(requisicao)
+
+        self.assertEqual(sessao["usuario"], "TESTE")
+        self.assertEqual(cursor.execute.call_count, 1)
+        self.assertNotIn("UPDATE sessoes_aeri", cursor.execute.call_args.args[0])
 
     def test_politica_recusa_senhas_fracas(self):
         self.assertTrue(senha_forte("Senha-Forte-AERI-2026!"))
@@ -359,6 +379,16 @@ class TesteSeguranca(unittest.TestCase):
     def test_ip_cliente_usa_ip_da_conexao_sem_x_forwarded_for(self):
         requisicao = _requisicao_com_cabecalhos({})
         self.assertEqual(ip_cliente(requisicao), "127.0.0.1")
+
+    def test_cabecalho_vercel_so_e_confiado_dentro_da_vercel(self):
+        requisicao = _requisicao_com_cabecalhos({
+            "x-vercel-forwarded-for": "198.51.100.10",
+            "x-forwarded-for": "203.0.113.9",
+        })
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(ip_cliente(requisicao), "203.0.113.9")
+        with patch.dict(os.environ, {"VERCEL": "1"}, clear=True):
+            self.assertEqual(ip_cliente(requisicao), "198.51.100.10")
 
     def test_middleware_libera_frame_apenas_para_sync_configurado(self):
         escopo = {

@@ -3,6 +3,8 @@ import re
 import unicodedata
 from decimal import Decimal
 
+from backend.app.servicos.buscas import HASH_DOCUMENTOS_VERSAO, hash_documento, mascarar_documento
+
 
 PRODUTOS = (
     # "Padrão CONCEX" é a classificação de qualidade específica da soja (14%
@@ -240,9 +242,17 @@ def extrair_indice_registro_auxiliar(numero: int | str, texto: str) -> dict:
         if safra not in safras:
             safras.append(safra)
 
-    pessoas = _extrair_pessoas(texto)
-    nomes_busca = " | ".join(normalizar_busca(item["nome"]) for item in pessoas)
-    documentos_busca = " ".join(re.sub(r"\D", "", item["documento"]) for item in pessoas)
+    pessoas_extraidas = _extrair_pessoas(texto)
+    nomes_busca = " | ".join(normalizar_busca(item["nome"]) for item in pessoas_extraidas)
+    documentos_hash = list(dict.fromkeys(
+        protegido
+        for item in pessoas_extraidas
+        if (protegido := hash_documento(item["documento"]))
+    ))
+    pessoas = [
+        {**item, "documento": mascarar_documento(item["documento"])}
+        for item in pessoas_extraidas
+    ]
     return {
         "numero": int(numero),
         "texto_hash": hashlib.sha256(texto.encode("utf-8")).hexdigest(),
@@ -250,20 +260,29 @@ def extrair_indice_registro_auxiliar(numero: int | str, texto: str) -> dict:
         "situacao": _extrair_situacao(texto),
         "pessoas": pessoas,
         "nomes_busca": nomes_busca,
-        "documentos_busca": documentos_busca,
+        "documentos_busca": "",
+        "documentos_hash": documentos_hash,
+        "documentos_hash_versao": HASH_DOCUMENTOS_VERSAO,
         "produtos": produtos,
         "safras": safras,
     }
 
 
 def registro_auxiliar_json(item: dict) -> dict:
+    pessoas = [
+        {
+            **pessoa,
+            "documento": mascarar_documento(pessoa.get("documento", "")),
+        }
+        for pessoa in (item.get("pessoas") or [])
+    ]
     return {
         "numero": item["numero"],
         "modalidade": item["modalidade"],
         "situacao": item.get("situacao", "ATIVO"),
-        "pessoas": item["pessoas"] or [],
-        "produtos": item["produtos"] or [],
-        "safras": item["safras"] or [],
+        "pessoas": pessoas,
+        "produtos": item.get("produtos") or [],
+        "safras": item.get("safras") or [],
         "consultadoEm": item["consultado_em"].isoformat(),
         "alterado": bool(item.get("alterado", False)),
     }

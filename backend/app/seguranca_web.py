@@ -1,4 +1,5 @@
 import os
+import logging
 from ipaddress import ip_address
 from urllib.parse import urlsplit
 
@@ -9,6 +10,7 @@ from backend.app.database import conectar
 
 
 METODOS_SEGUROS = {"GET", "HEAD", "OPTIONS"}
+logger = logging.getLogger("aeri.auditoria")
 
 
 def _host_http_interno(hostname: str) -> bool:
@@ -84,6 +86,12 @@ def politica_samesite_sessao() -> str:
 
 
 def ip_cliente(request: Request) -> str:
+    # A Vercel fornece uma cópia própria do endereço e sobrescreve o XFF na
+    # entrada. Preferi-la evita ambiguidades quando existe outro proxy antes
+    # do deployment; fora da Vercel preservamos o fallback anterior.
+    vercel = request.headers.get("x-vercel-forwarded-for", "")
+    if os.getenv("VERCEL") and vercel:
+        return vercel.split(",")[0].strip()[:64]
     encaminhado = request.headers.get("x-forwarded-for", "")
     if encaminhado:
         # O último salto é o adicionado pelo proxy confiável (Vercel); os
@@ -107,9 +115,15 @@ def registrar_auditoria(
             with conexao.cursor() as cursor:
                 registrar_auditoria_cursor(cursor, request, acao, resultado, usuario, recurso, detalhes)
             conexao.commit()
-    except Exception:
+    except Exception as erro:
         # Auditoria nunca deve expor dados nem derrubar a operacao principal.
-        pass
+        # A exceção é registrada sem detalhes operacionais/sensíveis: perder a
+        # trilha de auditoria silenciosamente também é uma falha de segurança.
+        logger.error(
+            "auditoria_persistencia_falhou acao=%s tipo=%s",
+            acao,
+            type(erro).__name__,
+        )
 
 
 def registrar_auditoria_cursor(

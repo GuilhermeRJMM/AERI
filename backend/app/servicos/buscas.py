@@ -108,6 +108,6 @@ def construir_indice_matricula(numero: int, texto: str, resultado: dict) -> dict
         "matriculas_sucessoras": [str(item)[:20] for item in sucessoras],
         "quantidade_proprietarios": len(proprietarios),
         "confianca": confianca,
-        "motor_versao": str(meta.get("versao") or "")[:30],
+        "motor_versao": str(meta.get("versao_indice") or meta.get("versao") or "")[:30],
         "proprietarios": proprietarios,
     }

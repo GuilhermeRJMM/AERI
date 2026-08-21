@@ -2,6 +2,7 @@ import json
 import os
 import re
 import threading
+import time
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -12,6 +13,36 @@ from urllib.request import urlopen
 TAMANHO_MAXIMO_RESPOSTA = 8_000_000
 TIMEOUT_PADRAO = 20
 HEADERS_PADRAO = {"Accept": "application/json", "User-Agent": "AERI/1.0"}
+REQUISICOES_POR_SEGUNDO = 3.0
+
+
+class LimitadorTaxaTri7:
+    """Limite compartilhado por todos os módulos desta instância.
+
+    Um limitador por tela permitia que Buscas, INCRA e Livro de Protocolos
+    enviassem três requisições por segundo cada um ao mesmo tempo. O objeto
+    único mantém o teto combinado em três requisições por segundo.
+    """
+
+    def __init__(self, requisicoes_por_segundo: float = REQUISICOES_POR_SEGUNDO):
+        self._intervalo = 1.0 / requisicoes_por_segundo
+        self._proximo = 0.0
+        self._trava = threading.Lock()
+
+    def aguardar(self) -> None:
+        with self._trava:
+            agora = time.monotonic()
+            reservado = max(agora, self._proximo)
+            self._proximo = reservado + self._intervalo
+        if reservado > agora:
+            time.sleep(reservado - agora)
+
+
+_limitador_compartilhado = LimitadorTaxaTri7()
+
+
+def limitador_tri7() -> LimitadorTaxaTri7:
+    return _limitador_compartilhado
 
 
 class ErroTri7(RuntimeError):
@@ -100,7 +131,7 @@ class ClienteTri7:
         self._token = self.configuracao.access_token
         self._trava_token = threading.Lock()
 
-    def _ler_json(self, requisicao: UrlRequest) -> tuple[int, object]:
+    def _ler_json_uma_vez(self, requisicao: UrlRequest) -> tuple[int, object]:
         try:
             with self._abridor(requisicao, timeout=self.configuracao.timeout) as resposta:
                 conteudo = resposta.read(TAMANHO_MAXIMO_RESPOSTA + 1)
@@ -119,6 +150,24 @@ class ClienteTri7:
             return status, json.loads(conteudo.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as erro:
             raise RespostaTri7Invalida("A Tri7 retornou uma resposta inválida.") from erro
+
+    def _ler_json(self, requisicao: UrlRequest) -> tuple[int, object]:
+        """Repete somente falhas transitórias, com espera curta e limitada."""
+        ultimo_erro = None
+        for tentativa in range(3):
+            limitador_tri7().aguardar()
+            try:
+                status, dados = self._ler_json_uma_vez(requisicao)
+            except ErroTri7 as erro:
+                ultimo_erro = erro
+                if tentativa == 2:
+                    raise
+                time.sleep(0.5 * (2 ** tentativa))
+                continue
+            if status not in {429, 500, 502, 503, 504} or tentativa == 2:
+                return status, dados
+            time.sleep(0.5 * (2 ** tentativa))
+        raise ultimo_erro or ErroTri7("A Tri7 está indisponível no momento.")
 
     def _autenticar(self) -> str:
         if not self.configuracao.usuario or not self.configuracao.senha:

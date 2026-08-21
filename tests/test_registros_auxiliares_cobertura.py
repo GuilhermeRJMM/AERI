@@ -5,6 +5,7 @@ teste/linha do projeto -- os dois defeitos encontrados em 17/08 (dígito
 solto virando filtro de documento e segundo devedor ligado por "; e 2)-")
 viveram nele por isso.
 """
+import os
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -21,6 +22,8 @@ from backend.app.servicos.registros_auxiliares import (
     registro_auxiliar_json,
     resumo_certidao_registro_auxiliar,
 )
+
+os.environ.setdefault("AERI_BUSCAS_HMAC_KEY", "segredo-registros-auxiliares-teste")
 
 
 def _cursor(fetchone=None, fetchall=None):
@@ -102,6 +105,7 @@ class TesteJsonDoRegistro(unittest.TestCase):
         self.assertEqual(saida["situacao"], "ATIVO")
         for vazado in ("texto", "texto_hash", "nomes_busca", "documentos_busca"):
             self.assertNotIn(vazado, saida)
+        self.assertNotIn("49965417172", str(saida))
 
 
 class TesteResumoDaCertidao(unittest.TestCase):

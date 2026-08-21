@@ -1,5 +1,5 @@
-import {requisicaoAeri} from './api.js';
-import {mostrarPagina} from './navegacao.js';
+import {requisicaoAeri} from './api.js?v=20260820-robustez-v1';
+import {mostrarPagina} from './navegacao.js?v=20260820-robustez-v1';
 import {escaparHtml} from './util.js';
 
 let estadoAtual = null;
@@ -88,6 +88,10 @@ function atualizarStatus(estado) {
     if (documentosPendentes) {
         document.getElementById('buscas-proximo').textContent += ` · ${formatarNumero(documentosPendentes)} documento(s) aguardando reindexação segura`;
     }
+    const motorPendente = Number(estado.motorPendenteReindexacao || 0);
+    if (motorPendente) {
+        document.getElementById('buscas-proximo').textContent += ` · ${formatarNumero(motorPendente)} matrícula(s) com análise desatualizada`;
+    }
     document.getElementById('buscas-limite').value = estado.limiteInicial;
     document.getElementById('buscas-atualizado').textContent = estado.ultimaSincronizacao
         ? `Última atualização: ${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(estado.ultimaSincronizacao))}`
@@ -113,9 +117,9 @@ function atualizarBotao() {
     botao.classList.toggle('pausar', indexando);
 }
 
-export async function carregarBuscas() {
+export async function carregarBuscas(opcoes = {}) {
     const autorizado = ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil)
-        || Boolean(window.aeriPermissoes?.processar_matricula);
+        || Boolean(window.aeriPermissoes?.acessar_buscas);
     if (!autorizado) return;
     const admin = ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil);
     const podeAuditar = admin || Boolean(window.aeriPermissoes?.revisar_auditoria);
@@ -123,7 +127,10 @@ export async function carregarBuscas() {
     document.querySelectorAll('[data-buscas-admin]').forEach(elemento => { elemento.hidden = !admin; });
     document.querySelectorAll('[data-buscas-revisao]').forEach(elemento => { elemento.hidden = !podeAuditar; });
     try {
-        atualizarStatus(await requisicaoAeri('/api/buscas/status'));
+        atualizarStatus(await requisicaoAeri(
+            '/api/buscas/status',
+            {background:Boolean(opcoes.background)},
+        ));
     } catch (erro) {
         document.getElementById('buscas-atualizado').textContent = erro.message;
     }
@@ -262,20 +269,10 @@ async function pesquisar(evento) {
     await executarPesquisa(1);
 }
 
-// Percorre todas as páginas: o texto precisa listar TODAS as matrículas, e a
-// tabela mostra no máximo 50 por vez.
 async function coletarTodosOsItens(termo) {
-    const itens = [];
-    let pagina = 1;
-    let totalPaginas = 1;
-    do {
-        const dados = await requisicaoAeri(
-            `/api/buscas?termo=${encodeURIComponent(termo)}&pagina=${pagina}&limite=100`);
-        itens.push(...(dados.itens || []));
-        totalPaginas = Number(dados.totalPaginas || 1);
-        pagina += 1;
-    } while (pagina <= totalPaginas && pagina <= 40);
-    return itens;
+    const dados = await requisicaoAeri(
+        `/api/buscas/exportacao?termo=${encodeURIComponent(termo)}`);
+    return dados.itens || [];
 }
 
 function montarTextoPesquisa(termo, itens) {
@@ -556,7 +553,7 @@ async function executarRevisao() {
     revisando = true;
     atualizarBotaoRevisao();
     const totalEsperado = Number(
-        estadoAtual?.documentosPendentesReindexacao || estadoAtual?.matriculasComTexto || 0
+        estadoAtual?.reindexacaoPendente || estadoAtual?.matriculasComTexto || 0
     );
     let totalProcessado = 0;
     let falhasTemporarias = 0;

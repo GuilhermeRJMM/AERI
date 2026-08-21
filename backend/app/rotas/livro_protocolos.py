@@ -20,7 +20,7 @@ from backend.app.servicos.livro_protocolos import (
     referencias_textos_protocolo,
     registros_alterados_no_protocolo,
 )
-from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7
+from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7, limitador_tri7
 
 
 router = APIRouter(
@@ -84,14 +84,12 @@ def _reindexar_registros_alterados(
                     if tipo == "M":
                         texto = (cache_textos.get((tipo, numero)) or (None, None))[0]
                         if texto is None:
-                            limitador.aguardar()
                             texto = cliente.buscar_texto_matricula(numero)["texto"]
                         _, novo, alterado, _, _ = _salvar_indice_matricula(cursor, numero, texto)
                         relatorio["matriculas"] += 1
                         relatorio["matriculasNovas"] += int(bool(novo))
                         relatorio["matriculasAlteradas"] += int(bool(alterado))
                     else:
-                        limitador.aguardar()
                         texto = cliente.buscar_texto_registro_auxiliar(numero)["texto"]
                         _, inserido = _salvar_indice_auxiliar(cursor, numero, texto)
                         relatorio["registrosAuxiliares"] += 1
@@ -137,7 +135,7 @@ async def analisar_livro_protocolos(
                 excecoes = frozenset((linha["titulo_tema"], linha["natureza_tema"]) for linha in cursor.fetchall())
 
         cliente = cliente_tri7()
-        limitador = _LimitadorTaxaTri7(REQUISICOES_POR_SEGUNDO_TRI7)
+        limitador = limitador_tri7()
         cache_textos: dict[tuple[str, int], tuple[str | None, str | None]] = {}
         # O que o dia efetivamente alterou -- base do reprocessamento do índice.
         alterados: set[tuple[str, int]] = set()
@@ -145,7 +143,6 @@ async def analisar_livro_protocolos(
         for item in itens_pdf:
             registro = {**item, "conferido": False, "ocorrencias": [], "erro": None}
             if item["status"] == "REGISTRADO":
-                limitador.aguardar()
                 try:
                     protocolo_json = cliente.buscar_protocolo_completo(item["numero"])
                     alterados |= registros_alterados_no_protocolo(protocolo_json)
@@ -153,7 +150,6 @@ async def analisar_livro_protocolos(
                     falhas_textos = {}
                     for referencia in referencias_textos_protocolo(protocolo_json):
                         if referencia not in cache_textos:
-                            limitador.aguardar()
                             try:
                                 resposta_texto = cliente.buscar_texto_matricula(referencia[1])
                                 cache_textos[referencia] = (resposta_texto["texto"], None)

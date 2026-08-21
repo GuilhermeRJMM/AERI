@@ -263,11 +263,32 @@ def _anel_limpo(anel: list) -> list:
 
 
 def validar_anel(anel: list, tipo: str) -> list:
-    """Valida o desenho recebido da interface e devolve o anel limpo."""
-    pontos = _anel_limpo(anel)
+    """Valida o desenho sem descartar silenciosamente vértices defeituosos."""
     minimos = {"POLIGONO": 3, "LINHA": 2, "PONTO": 1}
     if tipo not in minimos:
         raise ValueError("Tipo de desenho inválido.")
+    if not isinstance(anel, list):
+        raise ValueError("O desenho deve ser uma lista de coordenadas.")
+
+    pontos = []
+    for ordem, item in enumerate(anel, start=1):
+        if not isinstance(item, (list, tuple)) or len(item) < 2:
+            raise ValueError(f"Vértice {ordem} não contém longitude e latitude válidas.")
+        try:
+            lon, lat = float(item[0]), float(item[1])
+        except (TypeError, ValueError) as erro:
+            raise ValueError(f"Vértice {ordem} contém coordenada inválida.") from erro
+        if not (math.isfinite(lon) and math.isfinite(lat)):
+            raise ValueError(f"Vértice {ordem} contém coordenada não finita.")
+        if not (-180.0 <= lon <= 180.0 and -90.0 <= lat <= 90.0):
+            raise ValueError(f"Vértice {ordem} está fora dos limites geográficos.")
+        ponto = (lon, lat)
+        if pontos and ponto == pontos[-1]:
+            raise ValueError(f"Vértices {ordem - 1} e {ordem} são iguais.")
+        pontos.append(ponto)
+
+    if len(pontos) > 1 and pontos[0] == pontos[-1]:
+        pontos.pop()
     if len(pontos) < minimos[tipo]:
         nomes = {"POLIGONO": "três", "LINHA": "dois", "PONTO": "um"}
         raise ValueError(
@@ -277,6 +298,13 @@ def validar_anel(anel: list, tipo: str) -> list:
     # linha gigante no banco.
     if len(pontos) > 10_000:
         raise ValueError("Desenho com vértices demais (limite de 10.000).")
+    if tipo == "POLIGONO":
+        if len(set(pontos)) != len(pontos):
+            raise ValueError("O polígono possui vértice repetido fora do fechamento.")
+        if area_m2(pontos) <= 0.005:
+            raise ValueError("O polígono não possui área mensurável.")
+        if _poligono_tem_auto_intersecao(pontos):
+            raise ValueError("O polígono cruza a própria borda.")
     return pontos
 
 
@@ -323,6 +351,35 @@ def _segmentos_cruzam(p1, p2, q1, q2) -> bool:
         or (o3 == 0 and _no_segmento(q1, p1, q2))
         or (o4 == 0 and _no_segmento(q1, p2, q2))
     )
+
+
+def _poligono_tem_auto_intersecao(pontos: list[tuple[float, float]]) -> bool:
+    """Detecta cruzamentos usando caixas ordenadas para evitar O(n²) comum."""
+    total = len(pontos)
+    segmentos = []
+    for indice in range(total):
+        a, b = pontos[indice], pontos[(indice + 1) % total]
+        segmentos.append((min(a[0], b[0]), max(a[0], b[0]), indice, a, b))
+    segmentos.sort(key=lambda item: item[0])
+    comparacoes = 0
+    for posicao, (_, max_x, indice, a, b) in enumerate(segmentos):
+        for min_x_outro, _, outro_indice, c, d in segmentos[posicao + 1:]:
+            if min_x_outro > max_x:
+                break
+            if outro_indice in {
+                indice,
+                (indice - 1) % total,
+                (indice + 1) % total,
+            }:
+                continue
+            comparacoes += 1
+            if comparacoes > 1_000_000:
+                raise ValueError(
+                    "Polígono complexo demais para validação segura; reduza os vértices."
+                )
+            if _segmentos_cruzam(a, b, c, d):
+                return True
+    return False
 
 
 def ponto_dentro(ponto, anel: list) -> bool:

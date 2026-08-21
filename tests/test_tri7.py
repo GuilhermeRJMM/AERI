@@ -16,6 +16,7 @@ from backend.app.servicos.tri7 import (
     RespostaTri7Invalida,
     normalizar_numero_matricula,
 )
+from backend.app.servicos import tri7 as modulo_tri7
 
 
 class RespostaFalsa:
@@ -89,6 +90,27 @@ class TesteClienteTri7(unittest.TestCase):
 
         self.assertEqual(resultado["numero_matricula"], "1")
         self.assertEqual(len(requisicoes), 1)
+
+    def test_repete_falha_transitoria_e_para_apos_sucesso(self):
+        chamadas = 0
+
+        def abrir(_requisicao, timeout):
+            nonlocal chamadas
+            chamadas += 1
+            if chamadas < 3:
+                return RespostaFalsa({"detail": "temporário"}, status=503)
+            return RespostaFalsa({"numero_matricula": 1, "texto": "MATRÍCULA 1."})
+
+        configuracao = ConfiguracaoTri7(
+            "https://tri7.example", "", "", timeout=5, access_token="token"
+        )
+        with patch.object(modulo_tri7.limitador_tri7(), "aguardar"), patch.object(
+            modulo_tri7.time, "sleep"
+        ):
+            resultado = ClienteTri7(configuracao, abridor=abrir).buscar_texto_matricula(1)
+
+        self.assertEqual(resultado["numero_matricula"], "1")
+        self.assertEqual(chamadas, 3)
 
     def test_autentica_no_backend_e_busca_texto(self):
         requisicoes = []

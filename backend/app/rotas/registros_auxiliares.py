@@ -17,6 +17,7 @@ from backend.app.servicos.registros_auxiliares import (
     registro_auxiliar_json,
     resumo_certidao_registro_auxiliar,
 )
+from backend.app.servicos.buscas import HASH_DOCUMENTOS_VERSAO, hash_documento, validar_configuracao_buscas
 from backend.app.servicos.tri7 import (
     AutenticacaoTri7Falhou,
     ConfiguracaoTri7Invalida,
@@ -24,6 +25,7 @@ from backend.app.servicos.tri7 import (
     RegistroAuxiliarTri7NaoEncontrado,
     RegistroAuxiliarTri7SemTexto,
     cliente_tri7,
+    limitador_tri7,
 )
 
 
@@ -63,7 +65,6 @@ def _consultar_registro_auxiliar_tri7(
 ) -> dict:
     if cancelar.is_set():
         return {"numero": numero, "status": "CANCELADO"}
-    limitador.aguardar()
     try:
         resposta = cliente_tri7().buscar_texto_registro_auxiliar(numero)
         return {"numero": numero, "status": "OK", "texto": resposta["texto"]}
@@ -82,7 +83,7 @@ def _consultar_lote_tri7(numeros: list[int]) -> tuple[list[dict], str | None]:
     processar nada além dela, mesmo que respostas cheguem fora de ordem."""
     if not numeros:
         return [], None
-    limitador = _LimitadorTaxaTri7(REQUISICOES_POR_SEGUNDO_TRI7)
+    limitador = limitador_tri7()
     cancelar = threading.Event()
     por_numero: dict[int, dict] = {}
     with ThreadPoolExecutor(max_workers=min(MAX_WORKERS_TRI7, len(numeros))) as executor:
@@ -116,8 +117,9 @@ def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool]:
     alterado = bool(anterior and anterior["texto_hash"] != indice["texto_hash"])
     cursor.execute(
         """INSERT INTO registros_auxiliares_aeri
-        (numero, texto_hash, modalidade, situacao, pessoas, nomes_busca, documentos_busca, produtos, safras)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        (numero, texto_hash, modalidade, situacao, pessoas, nomes_busca,
+         documentos_busca, documentos_hash, documentos_hash_versao, produtos, safras)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (numero) DO UPDATE SET
             texto_hash=EXCLUDED.texto_hash,
             modalidade=EXCLUDED.modalidade,
@@ -125,6 +127,8 @@ def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool]:
             pessoas=EXCLUDED.pessoas,
             nomes_busca=EXCLUDED.nomes_busca,
             documentos_busca=EXCLUDED.documentos_busca,
+            documentos_hash=EXCLUDED.documentos_hash,
+            documentos_hash_versao=EXCLUDED.documentos_hash_versao,
             produtos=EXCLUDED.produtos,
             safras=EXCLUDED.safras,
             consultado_em=NOW(),
@@ -135,7 +139,8 @@ def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool]:
         RETURNING *""",
         (
             numero, indice["texto_hash"], indice["modalidade"], indice["situacao"], Jsonb(indice["pessoas"]),
-            indice["nomes_busca"], indice["documentos_busca"], Jsonb(indice["produtos"]),
+            indice["nomes_busca"], indice["documentos_busca"], Jsonb(indice["documentos_hash"]),
+            indice["documentos_hash_versao"], Jsonb(indice["produtos"]),
             Jsonb(indice["safras"]),
         ),
     )
@@ -169,6 +174,12 @@ def _estado_json(cursor) -> dict:
     total = cursor.fetchone()["total"]
     cursor.execute("SELECT COUNT(*) AS total FROM registros_auxiliares_erros_aeri")
     erros = cursor.fetchone()["total"]
+    cursor.execute(
+        """SELECT COUNT(*) AS total FROM registros_auxiliares_aeri
+        WHERE documentos_hash_versao IS DISTINCT FROM %s""",
+        (HASH_DOCUMENTOS_VERSAO,),
+    )
+    hashes_pendentes = cursor.fetchone()["total"]
     limite = estado["limite_inicial"]
     concluidos = min(max(estado["proximo_inicial"] - 1, 0), limite)
     return {
@@ -178,6 +189,7 @@ def _estado_json(cursor) -> dict:
         "proximoRevisao": estado["proximo_revisao"],
         "totalIndexados": total,
         "errosPendentes": erros,
+        "documentosPendentesReindexacao": hashes_pendentes,
         "progressoInicial": round((concluidos / limite) * 100, 2) if limite else 100,
         "cargaInicialConcluida": estado["proximo_inicial"] > limite,
         "ultimaSincronizacao": (
@@ -219,8 +231,8 @@ def pesquisar_registros_auxiliares(
         # documentos_busca LIKE '%3%', que casa com quase todo documento do
         # acervo -- a busca devolvia dezenas de registros de outras pessoas.
         if len(documento) in {11, 14}:
-            filtros.append("(nomes_busca LIKE %s OR documentos_busca LIKE %s)")
-            parametros.extend((f"%{termo}%", f"%{documento}%"))
+            filtros.append("(nomes_busca LIKE %s OR documentos_hash ? %s)")
+            parametros.extend((f"%{termo}%", hash_documento(documento)))
         else:
             filtros.append("nomes_busca LIKE %s")
             parametros.append(f"%{termo}%")
@@ -296,8 +308,12 @@ def revisar_registro_auxiliar(
     registros indexados" até a fila chegar nele)."""
     if numero <= 0:
         raise HTTPException(status_code=422, detail="Número inválido.")
+    try:
+        validar_configuracao_buscas()
+    except RuntimeError as erro:
+        raise HTTPException(status_code=503, detail=str(erro)) from erro
 
-    resultado = _consultar_registro_auxiliar_tri7(numero, _LimitadorTaxaTri7(REQUISICOES_POR_SEGUNDO_TRI7), threading.Event())
+    resultado = _consultar_registro_auxiliar_tri7(numero, limitador_tri7(), threading.Event())
 
     with conectar() as conexao:
         with conexao.cursor() as cursor:
@@ -346,6 +362,10 @@ def revisar_registro_auxiliar(
 def _executar_sincronizacao(
     modo: str, tamanho: int, limite_informado: int, request: Request, usuario: str
 ) -> dict:
+    try:
+        validar_configuracao_buscas()
+    except RuntimeError as erro:
+        raise HTTPException(status_code=503, detail=str(erro)) from erro
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             # Trava por lease (não por pg_advisory_lock): a trava por sessão
@@ -386,17 +406,25 @@ def _executar_sincronizacao(
                 elif modo == "REVISAO":
                     cursor.execute(
                         """SELECT numero FROM registros_auxiliares_aeri
-                        WHERE numero >= %s ORDER BY numero LIMIT %s""",
-                        (estado["proximo_revisao"], tamanho),
+                        WHERE documentos_hash_versao IS DISTINCT FROM %s
+                        ORDER BY numero LIMIT %s""",
+                        (HASH_DOCUMENTOS_VERSAO, tamanho),
                     )
                     numeros = [item["numero"] for item in cursor.fetchall()]
-                    if len(numeros) < tamanho:
+                    if not numeros:
                         cursor.execute(
                             """SELECT numero FROM registros_auxiliares_aeri
-                            WHERE numero < %s ORDER BY numero LIMIT %s""",
-                            (estado["proximo_revisao"], tamanho - len(numeros)),
+                            WHERE numero >= %s ORDER BY numero LIMIT %s""",
+                            (estado["proximo_revisao"], tamanho),
                         )
-                        numeros.extend(item["numero"] for item in cursor.fetchall())
+                        numeros = [item["numero"] for item in cursor.fetchall()]
+                        if len(numeros) < tamanho:
+                            cursor.execute(
+                                """SELECT numero FROM registros_auxiliares_aeri
+                                WHERE numero < %s ORDER BY numero LIMIT %s""",
+                                (estado["proximo_revisao"], tamanho - len(numeros)),
+                            )
+                            numeros.extend(item["numero"] for item in cursor.fetchall())
                 else:
                     cursor.execute(
                         """SELECT numero FROM registros_auxiliares_erros_aeri

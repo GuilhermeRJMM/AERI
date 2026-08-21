@@ -5,7 +5,7 @@
  * projeção disso -- por isso arrastar o mapa não muda um único vértice,
  * e mudar o zoom não muda a área.
  */
-import {requisicaoAeri} from './api.js';
+import {requisicaoAeri} from './api.js?v=20260820-robustez-v1';
 import {escaparHtml} from './util.js';
 import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v13';
 import {

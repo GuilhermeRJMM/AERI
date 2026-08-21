@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import os
 from urllib.request import Request as UrlRequest, urlopen
 
@@ -11,6 +12,7 @@ from backend.app.status_onr import componentes_oficio_api, interpretar_webhook, 
 
 
 router = APIRouter(tags=["status-onr"])
+logger = logging.getLogger("aeri.status_onr")
 COMPONENTES_URL = "https://status.onr.org.br/v3/components.json"
 
 
@@ -90,6 +92,8 @@ async def webhook_onr(request: Request):
     if not segredo:
         raise HTTPException(status_code=503, detail="Webhook do ONR ainda não configurado.")
     corpo = await request.body()
+    if len(corpo) > 1_000_000:
+        raise HTTPException(status_code=413, detail="Webhook excede o limite permitido.")
     try:
         payload = json.loads(corpo)
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
@@ -104,8 +108,8 @@ async def webhook_onr(request: Request):
 def consultar_status_onr(usuario: str = Depends(usuario_atual)):
     try:
         _sincronizar_api_publica()
-    except Exception:
-        pass
+    except Exception as erro:
+        logger.warning("sincronizacao_status_onr_falhou tipo=%s", type(erro).__name__)
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(

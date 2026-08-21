@@ -1,5 +1,8 @@
 import sys
+import logging
+import time
 from pathlib import Path
+from uuid import uuid4
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -14,6 +17,7 @@ from backend.app.rotas import (
     mapa_onr, poligonos, status_onr, usuarios,
 )
 from backend.app.seguranca_web import politica_frame_ancestors
+from backend.app.database import conectar
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -35,6 +39,7 @@ SERVIDORES_DE_TILE = " ".join((
 ))
 
 app = FastAPI(title="AERI")
+logger = logging.getLogger("aeri.http")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -55,10 +60,28 @@ app.include_router(usuarios.router)
 
 @app.middleware("http")
 async def seguranca_http(request: Request, call_next):
-    tamanho = int(request.headers.get("content-length", "0") or 0)
-    if tamanho > 16_000_000:
-        return JSONResponse({"detail": "Requisição excede o limite permitido."}, status_code=413)
-    resposta = await call_next(request)
+    request_id = str(uuid4())
+    request.state.request_id = request_id
+    inicio = time.perf_counter()
+    try:
+        tamanho = int(request.headers.get("content-length", "0") or 0)
+    except ValueError:
+        tamanho = -1
+    if tamanho < 0:
+        resposta = JSONResponse({"detail": "Cabeçalho de tamanho inválido."}, status_code=400)
+    elif tamanho > 16_000_000:
+        resposta = JSONResponse({"detail": "Requisição excede o limite permitido."}, status_code=413)
+    else:
+        try:
+            resposta = await call_next(request)
+        except Exception as erro:
+            logger.exception(
+                "requisicao_falhou id=%s metodo=%s rota=%s tipo=%s",
+                request_id, request.method, request.url.path, type(erro).__name__,
+            )
+            raise
+    duracao_ms = round((time.perf_counter() - inicio) * 1000, 1)
+    resposta.headers["X-Request-ID"] = request_id
     resposta.headers["X-Content-Type-Options"] = "nosniff"
     resposta.headers["Referrer-Policy"] = "no-referrer"
     resposta.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
@@ -80,9 +103,30 @@ async def seguranca_http(request: Request, call_next):
         or request.url.path in {"/analisar", "/analisar-incra"}
     ):
         resposta.headers["Cache-Control"] = "no-store"
+    if request.url.path.startswith("/api/"):
+        logger.info(
+            "requisicao_concluida id=%s metodo=%s rota=%s status=%s duracao_ms=%s",
+            request_id, request.method, request.url.path, resposta.status_code, duracao_ms,
+        )
     return resposta
 
 
 @app.get("/")
 def home(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html")
+    resposta = templates.TemplateResponse(request=request, name="index.html")
+    resposta.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return resposta
+
+
+@app.get("/api/saude")
+def saude():
+    """Sonda mínima para monitoramento, sem expor configuração do servidor."""
+    try:
+        with conectar() as conexao:
+            with conexao.cursor() as cursor:
+                cursor.execute("SELECT 1 AS ok")
+                cursor.fetchone()
+        return {"status": "OK", "banco": "OK"}
+    except Exception:
+        logger.exception("sonda_saude_falhou")
+        return JSONResponse({"status": "INDISPONIVEL", "banco": "FALHA"}, status_code=503)

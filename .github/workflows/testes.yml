@@ -12,13 +12,40 @@ permissions:
 jobs:
   testes:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aeri_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d aeri_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/aeri_test
+      AERI_BUSCAS_HMAC_KEY: chave-de-testes-ci-com-pelo-menos-32-caracteres
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Instalar dependências
         run: pip install -r requirements.txt
+      - name: Validar dependências e sintaxe
+        run: |
+          pip check
+          python -m compileall -q backend tests
+          find backend/static/js -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Aplicar migrações em banco limpo
+        run: python -c "from backend.app.database import preparar_banco; preparar_banco()"
       - name: Executar testes
         run: python -m unittest discover -s tests -v

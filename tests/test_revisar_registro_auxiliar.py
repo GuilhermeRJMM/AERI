@@ -1,3 +1,4 @@
+import os
 import unittest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
@@ -17,6 +18,16 @@ def _conexao_falsa():
 
 
 class TesteRevisarRegistroAuxiliar(unittest.TestCase):
+    def setUp(self):
+        self.ambiente = patch.dict(
+            os.environ,
+            {"AERI_BUSCAS_HMAC_KEY": "segredo-de-teste-com-mais-de-32-caracteres"},
+        )
+        self.ambiente.start()
+
+    def tearDown(self):
+        self.ambiente.stop()
+
     def test_numero_invalido_retorna_422_sem_consultar_tri7(self):
         with patch("backend.app.rotas.registros_auxiliares.cliente_tri7") as obter_cliente:
             with self.assertRaises(HTTPException) as contexto:

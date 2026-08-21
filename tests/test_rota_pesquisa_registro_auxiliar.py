@@ -1,7 +1,10 @@
+import os
 import unittest
 from unittest.mock import MagicMock, patch
 
 from backend.app.rotas.registros_auxiliares import pesquisar_registros_auxiliares
+
+os.environ.setdefault("AERI_BUSCAS_HMAC_KEY", "segredo-registros-auxiliares-teste")
 
 
 def _conexao_falsa():
@@ -36,7 +39,7 @@ class TestePesquisaRegistroAuxiliar(unittest.TestCase):
 
         sql, parametros = _sql_e_parametros(cursor)
         self.assertIn("nomes_busca LIKE", sql)
-        self.assertNotIn("documentos_busca LIKE", sql)
+        self.assertNotIn("documentos_hash ?", sql)
         self.assertNotIn("%3%", parametros)
 
     @patch("backend.app.rotas.registros_auxiliares.conectar")
@@ -50,8 +53,8 @@ class TestePesquisaRegistroAuxiliar(unittest.TestCase):
         )
 
         sql, parametros = _sql_e_parametros(cursor)
-        self.assertIn("documentos_busca LIKE", sql)
-        self.assertIn("%28022580600%", parametros)
+        self.assertIn("documentos_hash ?", sql)
+        self.assertNotIn("28022580600", str(parametros))
 
     @patch("backend.app.rotas.registros_auxiliares.conectar")
     def test_cnpj_completo_tambem_filtra_por_documento(self, conectar_mock):
@@ -64,8 +67,8 @@ class TestePesquisaRegistroAuxiliar(unittest.TestCase):
         )
 
         sql, parametros = _sql_e_parametros(cursor)
-        self.assertIn("documentos_busca LIKE", sql)
-        self.assertIn("%12345678000190%", parametros)
+        self.assertIn("documentos_hash ?", sql)
+        self.assertNotIn("12345678000190", str(parametros))
 
 
 if __name__ == "__main__":

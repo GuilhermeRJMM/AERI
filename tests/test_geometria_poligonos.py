@@ -292,10 +292,13 @@ class TesteValidacao(unittest.TestCase):
         anel = P.validar_anel([[0, 0], [1, 0], [1, 1], [0, 0]], "POLIGONO")
         self.assertEqual(len(anel), 3)
 
-    def test_coordenada_fora_da_faixa_e_ignorada(self):
-        anel = P.validar_anel(
-            [[0, 0], [1, 0], [999, 0], [1, 1]], "POLIGONO")
-        self.assertEqual(len(anel), 3)
+    def test_coordenada_fora_da_faixa_e_recusada(self):
+        with self.assertRaises(ValueError):
+            P.validar_anel([[0, 0], [1, 0], [999, 0], [1, 1]], "POLIGONO")
+
+    def test_poligono_que_cruza_a_propria_borda_e_recusado(self):
+        with self.assertRaises(ValueError):
+            P.validar_anel([[0, 0], [1, 1], [0, 1], [1, 0]], "POLIGONO")
 
     def test_desenho_gigante_e_recusado(self):
         with self.assertRaises(ValueError):

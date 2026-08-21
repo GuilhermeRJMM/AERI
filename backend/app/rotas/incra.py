@@ -12,7 +12,7 @@ from backend.app.incra import (
     resumir_protocolo_tri7,
 )
 from backend.app.seguranca_web import registrar_auditoria
-from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7
+from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7, limitador_tri7
 
 
 router = APIRouter(tags=["incra"], dependencies=[Depends(preparar_banco)])
@@ -61,13 +61,12 @@ async def analisar_incra(request: Request, usuario: str = Depends(exigir_permiss
             raise HTTPException(status_code=422, detail="Envie um arquivo PDF válido.")
         resultado = extrair_protocolos(pdf_bytes)
         cliente = cliente_tri7()
-        limitador = _LimitadorTaxaTri7(REQUISICOES_POR_SEGUNDO_TRI7)
+        limitador = limitador_tri7()
         consultas = {}
         cache_textos = {}
         for item in resultado["itens"]:
             protocolo = item["protocolo"]
             if protocolo not in consultas:
-                limitador.aguardar()
                 try:
                     protocolo_json = cliente.buscar_protocolo_completo(protocolo)
                     textos_matriculas = {}
@@ -79,7 +78,6 @@ async def analisar_incra(request: Request, usuario: str = Depends(exigir_permiss
                     )
                     for matricula in referencias:
                         if matricula not in cache_textos:
-                            limitador.aguardar()
                             try:
                                 resposta = cliente.buscar_texto_matricula(matricula)
                                 cache_textos[matricula] = (resposta["texto"], None)

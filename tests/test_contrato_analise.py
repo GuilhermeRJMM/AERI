@@ -10,7 +10,9 @@ class TesteContratoAnalise(unittest.TestCase):
         )
 
         self.assertEqual("AERI Registral", resultado["meta"]["motor"])
-        self.assertEqual("2.0.0", resultado["meta"]["versao"])
+        self.assertEqual("2.1.0", resultado["meta"]["versao"])
+        self.assertEqual(64, len(resultado["meta"]["regras_hash"]))
+        self.assertTrue(resultado["meta"]["versao_indice"].startswith("2.1.0+"))
         self.assertFalse(resultado["meta"]["texto_persistido"])
         self.assertEqual(64, len(resultado["resultado_hash"]))
         self.assertNotIn("texto", resultado)

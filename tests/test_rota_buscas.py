@@ -106,6 +106,25 @@ class TesteRotaBuscas(unittest.TestCase):
         self.assertEqual(1, resposta["quantidade"])
         self.assertEqual((50, 50), cursor.comandos[-1][1][-2:])
 
+    def test_exportacao_declaratoria_exige_nome_exato_em_consulta_unica(self):
+        cursor = _CursorFalso([{
+            "numero": 8, "situacao": "ATIVA",
+            "consultado_em": datetime(2026, 8, 16, tzinfo=timezone.utc),
+            "nome": "MUNICÍPIO DE MORRINHOS", "documento_mascarado": "",
+            "tipo_documento": "", "proporcao": "100%", "origem": "R.1",
+            "confianca": "ALTA",
+        }])
+        cursor.fetchone = lambda: {"total": 1}
+        with patch.object(buscas, "conectar", return_value=_ConexaoFalsa(cursor)):
+            resposta = buscas.exportar_pesquisa_titularidade(
+                "Município de Morrinhos", "usuario"
+            )
+
+        self.assertEqual("NOME_EXATO", resposta["tipoBusca"])
+        self.assertEqual(1, len(resposta["itens"]))
+        self.assertNotIn("LIKE", cursor.comandos[-1][0])
+        self.assertEqual(("MUNICIPIO DE MORRINHOS",), cursor.comandos[-1][1])
+
     def test_cpf_incompleto_e_recusado(self):
         with self.assertRaises(HTTPException) as contexto:
             buscas.pesquisar_titularidade("123.456", 100, "usuario", 1)

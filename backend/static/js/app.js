@@ -1,24 +1,60 @@
 import {configurarAcessoAnaliseManual, iniciarAnalisador} from './analisador.js?v=20260810-texto-manual-admin';
-import {iniciarAutenticacao} from './autenticacao.js?v=20260819-poligonos-v13';
-import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260819-novas-v2';
+import {iniciarAutenticacao} from './autenticacao.js?v=20260820-robustez-v1';
+import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260820-robustez-v1';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js?v=20260817-reindexa-v1';
 import {configurarAcessoMapaOnr, iniciarMapaOnr, limparMapaOnr} from './mapa_onr.js?v=20260815-permissao-v1';
-import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260804-custas-fluido';
-import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260810-nota-desistencia-v3';
-import {iniciarNavegacao} from './navegacao.js?v=20260706-sidebar-responsiva';
+import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260820-robustez-v1';
+import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260820-robustez-v1';
+import {iniciarNavegacao} from './navegacao.js?v=20260820-robustez-v1';
 import {carregarPoligonos, configurarAcessoPoligonos, iniciarPoligonos, limparPoligonos} from './poligonos.js?v=20260819-poligonos-v13';
-import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260811-reg-aux-sync-v1';
-import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260706-status-onr';
+import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260820-robustez-v1';
+import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260820-robustez-v1';
 import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260819-poligonos-v13';
-import {iniciarAtualizacaoPeriodica} from './util.js';
+import {iniciarAtualizacaoPeriodica} from './util.js?v=20260820-robustez-v1';
 
-const INTERVALO_ATUALIZACAO_MS = 5000;
+const INTERVALO_ATUALIZACAO_MS = 30_000;
 let pararAtualizacoesPeriodicas = [];
+let sessaoAtual = null;
+let geracaoPagina = 0;
 
 function pararAtualizacoesAoVivo() {
     pararAtualizacoesPeriodicas.forEach(parar => parar());
     pararAtualizacoesPeriodicas = [];
+}
+
+function paginaAtiva() {
+    return document.querySelector('.nav-item.active')?.dataset.page || '';
+}
+
+function permitido(dados, permissao) {
+    return cargoAdministrativo(dados?.perfil) || Boolean(dados?.permissoes?.[permissao]);
+}
+
+async function ativarPaginaAtual() {
+    const geracao = ++geracaoPagina;
+    pararAtualizacoesAoVivo();
+    const dados = sessaoAtual;
+    if (!dados || dados.deveTrocarSenha) return;
+    const pagina = paginaAtiva();
+    const periodicos = {
+        rotina: permitido(dados, 'ver_intimacoes') ? carregarIntimacoes : null,
+        custas: permitido(dados, 'gerenciar_custas') ? carregarCustas : null,
+        regaux: permitido(dados, 'gerenciar_custas') ? carregarRegistrosAuxiliares : null,
+        buscas: permitido(dados, 'acessar_buscas') ? carregarBuscas : null,
+    };
+    const carregar = periodicos[pagina];
+    if (carregar) {
+        await carregar();
+        if (geracao !== geracaoPagina) return;
+        pararAtualizacoesPeriodicas.push(
+            iniciarAtualizacaoPeriodica(carregar, INTERVALO_ATUALIZACAO_MS),
+        );
+    } else if (pagina === 'poligonos' && permitido(dados, 'acessar_poligonos')) {
+        await carregarPoligonos();
+    } else if (pagina === 'usuarios' && cargoAdministrativo(dados.perfil)) {
+        await carregarUsuarios();
+    }
 }
 
 let splashEncerrada = false;
@@ -40,6 +76,7 @@ function fecharSplash() {
     window.setTimeout(() => splash.remove(), 650);
     iniciarAutenticacao({
         aoEntrar: dados => {
+            sessaoAtual = dados;
             configurarAcessoAnaliseManual(dados.perfil);
             configurarAcessoMapaOnr(
                 !dados.deveTrocarSenha && (
@@ -52,33 +89,12 @@ function fecharSplash() {
                 ),
             );
             exigirTrocaSenha(dados.deveTrocarSenha);
-            pararAtualizacoesAoVivo();
-            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.ver_intimacoes)) {
-                carregarIntimacoes();
-                pararAtualizacoesPeriodicas.push(iniciarAtualizacaoPeriodica(carregarIntimacoes, INTERVALO_ATUALIZACAO_MS));
-            }
-            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.gerenciar_custas)) {
-                carregarCustas();
-                pararAtualizacoesPeriodicas.push(iniciarAtualizacaoPeriodica(carregarCustas, INTERVALO_ATUALIZACAO_MS));
-            }
-            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.gerenciar_custas)) {
-                carregarRegistrosAuxiliares();
-                pararAtualizacoesPeriodicas.push(iniciarAtualizacaoPeriodica(carregarRegistrosAuxiliares, INTERVALO_ATUALIZACAO_MS));
-            }
-            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.processar_matricula)) {
-                carregarBuscas();
-                pararAtualizacoesPeriodicas.push(iniciarAtualizacaoPeriodica(carregarBuscas, INTERVALO_ATUALIZACAO_MS));
-            }
-            if (!dados.deveTrocarSenha && (cargoAdministrativo(dados.perfil) || dados.permissoes?.acessar_poligonos)) {
-                // Sem atualização periódica: um desenho só muda quando
-                // alguém o salva, e recarregar por cima do rascunho
-                // apagaria o que o conferente está desenhando.
-                carregarPoligonos();
-            }
-            if (cargoAdministrativo(dados.perfil) && !dados.deveTrocarSenha) carregarUsuarios();
+            ativarPaginaAtual().catch(erro => console.error(erro));
             if (!dados.deveTrocarSenha) ativarStatusOnr();
         },
         aoSair: () => {
+            sessaoAtual = null;
+            geracaoPagina += 1;
             configurarAcessoAnaliseManual();
             pararAtualizacoesAoVivo();
             limparIntimacoes();
@@ -106,5 +122,8 @@ iniciarCustas();
 iniciarRegistrosAuxiliares();
 iniciarIntimacoes();
 iniciarUsuarios();
+window.addEventListener('aeri:pagina-alterada', () => {
+    ativarPaginaAtual().catch(erro => console.error(erro));
+});
 document.getElementById('btn-fechar-splash').addEventListener('click', fecharSplash);
 window.setTimeout(fecharSplash, 2600);

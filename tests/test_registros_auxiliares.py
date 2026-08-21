@@ -1,3 +1,4 @@
+import os
 import unittest
 from pathlib import Path
 
@@ -7,6 +8,9 @@ from backend.app.servicos.registros_auxiliares import (
     normalizar_safra,
     resumo_certidao_registro_auxiliar,
 )
+from backend.app.servicos.buscas import hash_documento
+
+os.environ.setdefault("AERI_BUSCAS_HMAC_KEY", "segredo-registros-auxiliares-teste")
 
 
 class TesteRegistrosAuxiliares(unittest.TestCase):
@@ -26,7 +30,8 @@ class TesteRegistrosAuxiliares(unittest.TestCase):
         self.assertEqual(indice["safras"], ["2026/2027"])
         self.assertEqual([item["nome"] for item in indice["pessoas"]], ["João da Silva"])
         self.assertIn("JOAO DA SILVA", indice["nomes_busca"])
-        self.assertIn("12345678901", indice["documentos_busca"])
+        self.assertEqual(1, len(indice["documentos_hash"]))
+        self.assertNotIn("12345678901", str(indice))
         self.assertEqual(len(indice["texto_hash"]), 64)
 
     def test_deduplica_produtos_safras_e_pessoas_repetidas(self):
@@ -232,7 +237,8 @@ class TesteRegistrosAuxiliares(unittest.TestCase):
             ["Nilo Cayro Vieira", "Jaime Carlos Vieira"],
         )
         self.assertIn("JAIME CARLOS VIEIRA", indice["nomes_busca"])
-        self.assertIn("28022580600", indice["documentos_busca"])
+        self.assertEqual("", indice["documentos_busca"])
+        self.assertIn(hash_documento("28022580600"), indice["documentos_hash"])
 
     def test_cancelamento_integral_baixa_registro_auxiliar(self):
         texto = """

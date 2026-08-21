@@ -27,15 +27,15 @@ DOMINIOS_DIVERGENCIA = {"ONUS", "CADEIA", "IMOVEL", "SITUACAO"}
 
 
 def _regras_aprovadas() -> list[dict]:
-    with conectar() as conexao:
-        with conexao.cursor() as cursor:
-            cursor.execute(
-                """SELECT expressao, expressao_normalizada, categoria, impacta_resultado, tipo_onus
-                FROM regras_aprendizado_aeri
-                WHERE status='APROVADA'
-                ORDER BY atualizado_em DESC"""
-            )
-            return cursor.fetchall()
+    """Compatibilidade do endpoint antigo, sem alterar o motor oficial.
+
+    A tela de aprendizado foi retirada e as regras cadastradas ali eram
+    aplicadas somente no Analisador, mas não em Buscas, Auditoria ou MAPA-ONR.
+    Isso permitia resultados diferentes para a mesma matrícula. O histórico
+    permanece no banco para auditoria, porém nenhuma regra dinâmica interfere
+    no analisador determinístico.
+    """
+    return []
 
 
 def _regra_json(item: dict) -> dict:

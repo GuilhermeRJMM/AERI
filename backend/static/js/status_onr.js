@@ -1,4 +1,5 @@
-import {requisicaoAeri} from './api.js';
+import {requisicaoAeri} from './api.js?v=20260820-robustez-v1';
+import {iniciarAtualizacaoPeriodica} from './util.js?v=20260820-robustez-v1';
 
 const ROTULOS = {
     OPERATIONAL: 'Operacional',
@@ -69,7 +70,7 @@ function renderizarStatus(dados) {
 
 async function carregarStatus() {
     try {
-        renderizarStatus(await requisicaoAeri('/api/status/onr'));
+        renderizarStatus(await requisicaoAeri('/api/status/onr', {background:true}));
     } catch {
         renderizarStatus({status:'UNKNOWN', componentes:[], configurado:true});
     }
@@ -102,12 +103,12 @@ export function iniciarStatusOnr() {
 
 export function ativarStatusOnr() {
     carregarStatus();
-    window.clearInterval(temporizador);
-    temporizador = window.setInterval(carregarStatus, 60_000);
+    if (temporizador) temporizador();
+    temporizador = iniciarAtualizacaoPeriodica(carregarStatus, 60_000);
 }
 
 export function pararStatusOnr() {
-    window.clearInterval(temporizador);
+    if (temporizador) temporizador();
     temporizador = null;
     fecharDetalhes();
 }

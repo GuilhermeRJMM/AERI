@@ -5,6 +5,7 @@ export function mostrarPagina(pageId) {
     itemAlvo.classList.add('active');
     document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
     document.getElementById(`page-${pageId}`)?.classList.add('active');
+    window.dispatchEvent(new CustomEvent('aeri:pagina-alterada', {detail:{pageId}}));
 }
 
 const limiteMobile = window.matchMedia('(max-width: 720px)');

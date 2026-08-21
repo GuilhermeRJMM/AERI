@@ -53,7 +53,7 @@ class TesteSemPostgis(unittest.TestCase):
 
     def _executar(self, linhas):
         cursor = MagicMock()
-        cursor.fetchone.return_value = {"tem": False}
+        cursor.fetchone.side_effect = [{"tem": False}, {"total": len(linhas)}]
         cursor.fetchall.return_value = linhas
         with patch.object(R, "conectar", return_value=_conexao(cursor)):
             return R.listar_sobreposicoes(ALVO, _usuario="TESTE")

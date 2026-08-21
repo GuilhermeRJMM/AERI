@@ -1,4 +1,4 @@
-import {requisicaoAeri} from './api.js';
+import {requisicaoAeri} from './api.js?v=20260820-robustez-v1';
 import {escaparHtml} from './util.js';
 
 let sincronizando = false;
@@ -22,6 +22,10 @@ function atualizarStatus(estado) {
     document.getElementById('regaux-proximo').textContent = estado.cargaInicialConcluida
         ? 'Carga inicial concluída'
         : `Próximo: ${formatarNumero(estado.proximoInicial)} de ${formatarNumero(estado.limiteInicial)}`;
+    const hashesPendentes = Number(estado.documentosPendentesReindexacao || 0);
+    if (hashesPendentes) {
+        document.getElementById('regaux-proximo').textContent += ` · ${formatarNumero(hashesPendentes)} documento(s) aguardando reindexação segura`;
+    }
     document.getElementById('regaux-limite').value = estado.limiteInicial;
     document.getElementById('regaux-atualizado').textContent = estado.ultimaSincronizacao
         ? `Última atualização: ${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(estado.ultimaSincronizacao))}`
@@ -68,12 +72,15 @@ function renderizarResultados(dados) {
     }).join('') || '<tr><td colspan="6" class="rotina-vazio">Nenhum Registro Auxiliar ativo encontrado com esses filtros.</td></tr>';
 }
 
-export async function carregarRegistrosAuxiliares() {
+export async function carregarRegistrosAuxiliares(opcoes = {}) {
     const admin = ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil);
     if (!admin && !window.aeriPermissoes?.gerenciar_custas) return;
     document.getElementById('regaux-sincronizacao').hidden = !admin;
     try {
-        atualizarStatus(await requisicaoAeri('/api/registros-auxiliares/status'));
+        atualizarStatus(await requisicaoAeri(
+            '/api/registros-auxiliares/status',
+            {background:Boolean(opcoes.background)},
+        ));
     } catch (erro) {
         document.getElementById('regaux-atualizado').textContent = erro.message;
     }

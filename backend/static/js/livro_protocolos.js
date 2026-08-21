@@ -1,5 +1,5 @@
 import {escaparHtml} from './util.js';
-import {requisicaoAeri} from './api.js';
+import {requisicaoAeri} from './api.js?v=20260820-robustez-v1';
 
 let arquivoLivroProto = null;
 let resultadoLivroProto = null;

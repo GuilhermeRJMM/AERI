@@ -175,8 +175,15 @@ def _obter_sessao(request: Request) -> dict | None:
                 (_hash_token(token), INATIVIDADE_SEGUNDOS),
             )
             sessao = cursor.fetchone()
-            if sessao:
-                cursor.execute("UPDATE sessoes_aeri SET ultimo_acesso=NOW() WHERE id=%s", (sessao["id"],))
+            if sessao and request.headers.get("x-aeri-background") != "1":
+                # Requisições periódicas não são atividade humana. Além de
+                # impedir a expiração real por inatividade, escrever em toda
+                # consulta gerava contenção desnecessária no Postgres.
+                cursor.execute(
+                    """UPDATE sessoes_aeri SET ultimo_acesso=NOW()
+                    WHERE id=%s AND ultimo_acesso < NOW() - INTERVAL '5 minutes'""",
+                    (sessao["id"],),
+                )
         conexao.commit()
     return sessao
 

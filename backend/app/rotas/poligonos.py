@@ -263,6 +263,15 @@ def _sobreposicoes_com_recorte(cursor, identificador: UUID) -> list:
 
 def _sobreposicoes_sem_recorte(cursor, identificador: UUID) -> list:
     """Só quem se sobrepõe, sem quanto -- usado quando não há PostGIS."""
+    cursor.execute("SELECT COUNT(*) AS total FROM poligonos_aeri WHERE tipo='POLIGONO'")
+    if cursor.fetchone()["total"] > 500:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "A conferência de sobreposição exige PostGIS quando existem mais de "
+                "500 polígonos. Ative a extensão para não receber um resultado incompleto."
+            ),
+        )
     cursor.execute("SELECT * FROM poligonos_aeri WHERE tipo='POLIGONO' LIMIT 500")
     todos = cursor.fetchall()
 

@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from psycopg.types.json import Jsonb
 
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
-from backend.app.database import conectar, preparar_banco
+from backend.app.database import conectar, executar_manutencao_banco, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
 from backend.app.analise.onus import processar_atos
 from backend.app.proprietarios import calcular_cadeia_dominial
@@ -181,6 +181,93 @@ def pesquisar_titularidade(
     }
 
 
+@router.get("/exportacao")
+def exportar_pesquisa_titularidade(
+    termo: str = Query(..., min_length=3, max_length=300),
+    _usuario: str = Depends(exigir_permissao("acessar_buscas")),
+):
+    """Devolve o conjunto completo usado no texto da pesquisa.
+
+    A tabela aceita nome parcial para ajudar a localizar a pessoa. Já o texto
+    tem efeito declaratório e, por segurança, só pode usar nome normalizado
+    exato ou CPF/CNPJ completo. A consulta única também evita dezenas de
+    requisições paginadas pelo navegador.
+    """
+    documento = normalizar_documento(termo) if not any(c.isalpha() for c in termo) else ""
+    if documento:
+        if len(documento) not in {11, 14}:
+            raise HTTPException(status_code=422, detail="Informe o CPF ou CNPJ completo.")
+        try:
+            valor = hash_documento(documento)
+        except RuntimeError as erro:
+            raise HTTPException(status_code=503, detail=str(erro)) from erro
+        filtro = "p.documento_hash=%s"
+        tipo_busca = "DOCUMENTO_EXATO"
+    else:
+        valor = normalizar_nome(termo)
+        if len(valor) < 3:
+            raise HTTPException(status_code=422, detail="Informe ao menos três caracteres do nome.")
+        filtro = "p.nome_busca=%s"
+        tipo_busca = "NOME_EXATO"
+
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            if documento:
+                cursor.execute(
+                    """SELECT COUNT(*) AS total FROM matriculas_busca_aeri
+                    WHERE texto_hash IS NOT NULL
+                      AND documentos_hash_versao IS DISTINCT FROM %s""",
+                    (HASH_DOCUMENTOS_VERSAO,),
+                )
+                if cursor.fetchone()["total"]:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="A busca por CPF/CNPJ aguarda a reindexação segura dos documentos.",
+                    )
+            cursor.execute(
+                f"""SELECT COUNT(*) AS total
+                FROM proprietarios_matriculas_busca_aeri p
+                JOIN matriculas_busca_aeri m ON m.numero=p.matricula_numero
+                WHERE {filtro}""",
+                (valor,),
+            )
+            total = int(cursor.fetchone()["total"] or 0)
+            if total > 5_000:
+                raise HTTPException(
+                    status_code=422,
+                    detail="A pesquisa exata retornou mais de 5.000 linhas; refine pelo CPF/CNPJ.",
+                )
+            cursor.execute(
+                f"""SELECT m.numero, m.situacao, m.consultado_em,
+                p.nome, p.documento_mascarado, p.tipo_documento,
+                p.proporcao, p.origem, p.confianca
+                FROM proprietarios_matriculas_busca_aeri p
+                JOIN matriculas_busca_aeri m ON m.numero=p.matricula_numero
+                WHERE {filtro}
+                ORDER BY m.numero, p.ordem""",
+                (valor,),
+            )
+            itens = cursor.fetchall()
+    return {
+        "termo": termo.strip(),
+        "tipoBusca": tipo_busca,
+        "total": total,
+        "exata": True,
+        "itens": [
+            {
+                "matricula": item["numero"], "nome": item["nome"],
+                "documento": item["documento_mascarado"],
+                "tipoDocumento": item["tipo_documento"],
+                "proporcao": item["proporcao"], "origem": item["origem"],
+                "situacao": item["situacao"], "confianca": item["confianca"],
+                "correspondencia": tipo_busca,
+                "consultadoEm": item["consultado_em"].isoformat(),
+            }
+            for item in itens
+        ],
+    }
+
+
 @router.get("/status")
 def status_buscas(_usuario: str = Depends(exigir_permissao("acessar_buscas"))):
     with conectar() as conexao:
@@ -189,7 +276,7 @@ def status_buscas(_usuario: str = Depends(exigir_permissao("acessar_buscas"))):
 
 
 @router.get("/erros")
-def listar_erros(_usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
+def listar_erros(_usuario: str = Depends(exigir_permissao("revisar_auditoria"))):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
@@ -528,6 +615,7 @@ def cron_buscas(request: Request):
     autorizacao = request.headers.get("authorization", "")
     if not segredo or not hmac.compare_digest(autorizacao, f"Bearer {segredo}"):
         raise HTTPException(status_code=401, detail="Não autorizado.")
+    executar_manutencao_banco()
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             modo = _proximo_modo_automatico(cursor)
