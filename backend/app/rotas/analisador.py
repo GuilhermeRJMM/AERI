@@ -4,6 +4,13 @@ import re
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from vercel.oidc import (
+    VercelOidcTokenError,
+    VercelOidcVerificationError,
+    get_vercel_oidc_token,
+    set_headers as definir_cabecalhos_oidc,
+    verify_vercel_oidc_token,
+)
 
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
 from backend.app.database import conectar, preparar_banco
@@ -152,7 +159,21 @@ def _executar_agente_na_matricula(
     usuario: str,
 ) -> dict:
     """Executa o agente como etapa automática da análise, sem bloquear o motor em caso de indisponibilidade."""
-    if not agente_juridico_configurado():
+    # O SDK oficial valida assinatura, emissor, projeto e ambiente antes que a
+    # credencial efêmera seja aceita. Nunca se confia diretamente no cabeçalho.
+    token_oidc = ""
+    cabecalho_oidc = request.headers.get("x-vercel-oidc-token")
+    if isinstance(cabecalho_oidc, str) and cabecalho_oidc:
+        try:
+            definir_cabecalhos_oidc(request.headers)
+            candidato = get_vercel_oidc_token()
+            verify_vercel_oidc_token(candidato)
+            token_oidc = candidato
+        except (VercelOidcTokenError, VercelOidcVerificationError):
+            logger.warning("conferencia_matricula_oidc_invalido numero=%s", numero)
+        finally:
+            definir_cabecalhos_oidc(None)
+    if not agente_juridico_configurado(token_oidc):
         logger.warning("conferencia_matricula_nao_configurada numero=%s", numero)
         return {
             "estado": "AGUARDANDO_CONFIGURACAO",
@@ -187,7 +208,7 @@ def _executar_agente_na_matricula(
                 "estado": "BASE_INSUFICIENTE",
                 "mensagem": "A base jurídica não encontrou fontes suficientes para esta matrícula.",
             }
-        analise = executar_agente_juridico(texto, resultado, trechos)
+        analise = executar_agente_juridico(texto, resultado, trechos, token_oidc=token_oidc)
         with conectar() as conexao:
             with conexao.cursor() as cursor:
                 item = salvar_analise_juridica_cursor(

@@ -429,9 +429,9 @@ def limite_agente_juridico_diario() -> int:
     return max(0, min(limite, 200))
 
 
-def agente_juridico_configurado() -> bool:
+def agente_juridico_configurado(token_oidc: str = "") -> bool:
     return bool(
-        (os.getenv("AI_GATEWAY_API_KEY") or os.getenv("VERCEL_OIDC_TOKEN"))
+        (os.getenv("AI_GATEWAY_API_KEY") or os.getenv("VERCEL_OIDC_TOKEN") or token_oidc)
         and limite_agente_juridico_diario() > 0
     )
 
@@ -513,9 +513,14 @@ def _esquema_resposta() -> dict:
     }
 
 
-def executar_agente_juridico(texto: str, resultado: dict, trechos: list[dict]) -> dict:
-    chave = os.getenv("AI_GATEWAY_API_KEY") or os.getenv("VERCEL_OIDC_TOKEN")
-    if not chave or not agente_juridico_configurado():
+def executar_agente_juridico(
+    texto: str,
+    resultado: dict,
+    trechos: list[dict],
+    token_oidc: str = "",
+) -> dict:
+    chave = os.getenv("AI_GATEWAY_API_KEY") or os.getenv("VERCEL_OIDC_TOKEN") or token_oidc
+    if not chave or not agente_juridico_configurado(token_oidc):
         raise RuntimeError("O agente jurídico não está configurado.")
     fontes_prompt, mapa_fontes = _fontes_para_prompt(trechos)
     if not fontes_prompt:

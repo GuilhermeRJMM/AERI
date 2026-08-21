@@ -72,6 +72,12 @@ class TesteFontesJuridicas(unittest.TestCase):
             self.assertTrue(agente_juridico_configurado())
             self.assertEqual(200, limite_agente_juridico_diario())
 
+    def test_token_oidc_da_funcao_ativa_o_servico_sem_chave_persistente(self):
+        with patch.dict(os.environ, {
+            "AERI_AGENTE_JURIDICO_LIMITE_DIA": "25",
+        }, clear=True):
+            self.assertTrue(agente_juridico_configurado("token-efemero-da-vercel"))
+
     def test_agente_cita_apenas_fontes_fornecidas(self):
         parecer = {
             "conclusao": "ATENCAO",
