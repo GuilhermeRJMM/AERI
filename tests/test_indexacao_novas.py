@@ -43,6 +43,10 @@ class TesteAvancoDoUltimoConhecido(unittest.TestCase):
 
         with patch.object(I, "conectar", return_value=_conexao(cursor)), \
                 patch.object(I, "validar_configuracao_buscas"), \
+                patch.object(I, "_selecionar_numeros_novos", return_value=(
+                    list(range(self.ULTIMO_CONHECIDO + 1,
+                               self.ULTIMO_CONHECIDO + tamanho + 1)), 0, tamanho,
+                )), \
                 patch.object(I, "_consultar_lote", side_effect=lote), \
                 patch.object(I, "_salvar_indice", return_value=(
                     {"situacao": "ATIVA"}, True, False,
@@ -88,6 +92,9 @@ class TesteFalhaFatalNaoPassaPorSucesso(unittest.TestCase):
 
         with patch.object(I, "conectar", return_value=_conexao(cursor)), \
                 patch.object(I, "validar_configuracao_buscas"), \
+                patch.object(I, "_selecionar_numeros_novos", return_value=(
+                    list(range(39856, 39886)), 0, 30,
+                )), \
                 patch.object(I, "_consultar_lote",
                              return_value=([], "Autenticação na Tri7 falhou.")), \
                 patch.object(I, "_estado_json", return_value={}), \
@@ -103,6 +110,41 @@ class TesteFalhaFatalNaoPassaPorSucesso(unittest.TestCase):
         # E a falha precisa chegar à interface, senão vira "nada novo".
         self.assertEqual(resposta["falha"], "Autenticação na Tri7 falhou.")
         self.assertEqual(resposta["encontradas"], 0)
+
+
+class TesteSelecaoRotativaDeNovas(unittest.TestCase):
+    def test_reconsulta_ausencias_e_avanca_a_faixa_no_mesmo_clique(self):
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [
+            {"numero": numero} for numero in range(40002, 40017)
+        ]
+        cursor.fetchone.return_value = {"maior": 40030}
+
+        numeros, reconsultadas, exploradas = I._selecionar_numeros_novos(
+            cursor, 40001, 30,
+        )
+
+        self.assertEqual(list(range(40002, 40017)), numeros[:15])
+        self.assertEqual(list(range(40031, 40046)), numeros[15:])
+        self.assertEqual(15, reconsultadas)
+        self.assertEqual(15, exploradas)
+
+    def test_janela_completa_faz_rodizio_das_ausencias(self):
+        cursor = MagicMock()
+        cursor.fetchall.side_effect = [
+            [{"numero": numero} for numero in range(40002, 40017)],
+            [{"numero": numero} for numero in range(40002, 40032)],
+        ]
+        cursor.fetchone.return_value = {"maior": 40301}
+
+        numeros, reconsultadas, exploradas = I._selecionar_numeros_novos(
+            cursor, 40001, 30,
+        )
+
+        self.assertEqual(30, len(numeros))
+        self.assertEqual(15, reconsultadas)
+        self.assertEqual(0, exploradas)
+        self.assertEqual(list(range(40002, 40032)), numeros)
 
 
 if __name__ == "__main__":

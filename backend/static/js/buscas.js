@@ -82,7 +82,7 @@ function atualizarStatus(estado) {
     document.getElementById('buscas-progresso-texto').textContent = `${progresso.toLocaleString('pt-BR')}%`;
     document.getElementById('buscas-progresso-barra').style.width = `${progresso}%`;
     document.getElementById('buscas-proximo').textContent = estado.cargaInicialConcluida
-        ? 'Indexação inicial concluída'
+        ? `Última matrícula localizada: ${formatarNumero(estado.ultimoConhecido)} · Busca sondou até ${formatarNumero(estado.ultimoSondadoNovos || estado.ultimoConhecido)}`
         : `Próxima matrícula: ${formatarNumero(estado.proximoInicial)} de ${formatarNumero(estado.limiteInicial)}`;
     const documentosPendentes = Number(estado.documentosPendentesReindexacao || 0);
     if (documentosPendentes) {
@@ -638,7 +638,15 @@ async function atualizarNovas() {
             registrarEvento(aviso, 'erro');
             return;
         }
-        const mensagem = `${resultado.encontradas} matrícula(s) nova(s) localizada(s); ${resultado.ativas} ativa(s).`;
+        const faixa = resultado.sondagemInicio && resultado.sondagemFim
+            ? ` ${formatarNumero(resultado.processados)} número(s) conferido(s) entre ${formatarNumero(resultado.sondagemInicio)} e ${formatarNumero(resultado.sondagemFim)}.`
+            : '';
+        const avancou = Number(resultado.exploradas || 0)
+            ? ` A busca avançou por ${formatarNumero(resultado.exploradas)} número(s) ainda não sondado(s).`
+            : ' A janela exploratória está completa; os números ausentes foram reconsultados.';
+        const mensagem = resultado.encontradas
+            ? `${resultado.encontradas} matrícula(s) nova(s) localizada(s); ${resultado.ativas} ativa(s).${faixa}${avancou}`
+            : `Nenhuma matrícula nova localizada.${faixa}${avancou}`;
         document.getElementById('buscas-status-operacao').textContent = mensagem;
         registrarEvento(mensagem, 'sucesso');
     } catch (erro) {

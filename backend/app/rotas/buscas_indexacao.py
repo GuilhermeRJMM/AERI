@@ -5,6 +5,7 @@ separado das rotas porque é infraestrutura: as rotas de pesquisa,
 auditoria e sincronização usam estas funções, mas o inverso não ocorre.
 """
 import os
+import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -44,6 +45,8 @@ LEASE_SEGUNDOS = 300
 MAX_WORKERS_TRI7 = 3
 MAX_WORKERS_REPROCESSAMENTO = 6
 REQUISICOES_POR_SEGUNDO_TRI7 = 3.0
+JANELA_SONDAGEM_NOVOS = 300
+logger = logging.getLogger("aeri.buscas")
 
 
 class _LimitadorTaxa:
@@ -342,6 +345,16 @@ def _estado_json(cursor) -> dict:
     cursor.execute("SELECT COUNT(*) AS total FROM matriculas_busca_erros_aeri")
     erros = cursor.fetchone()["total"]
     cursor.execute(
+        """SELECT MAX(numero) AS ultimo_sondado
+        FROM matriculas_busca_aeri
+        WHERE numero > %s AND numero <= %s""",
+        (
+            estado["ultimo_conhecido"],
+            estado["ultimo_conhecido"] + JANELA_SONDAGEM_NOVOS,
+        ),
+    )
+    ultimo_sondado = cursor.fetchone()["ultimo_sondado"] or estado["ultimo_conhecido"]
+    cursor.execute(
         """SELECT COUNT(*) AS total,
         COUNT(*) FILTER (WHERE estado='VALIDADA_AUTOMATICAMENTE') AS validadas,
         COUNT(*) FILTER (WHERE estado='REVISAR') AS revisar,
@@ -357,6 +370,8 @@ def _estado_json(cursor) -> dict:
         "limiteInicial": limite,
         "proximoInicial": estado["proximo_inicial"],
         "ultimoConhecido": estado["ultimo_conhecido"],
+        "ultimoSondadoNovos": ultimo_sondado,
+        "proximaSondagemNovos": ultimo_sondado + 1,
         "proximoRevisao": estado["proximo_revisao"],
         # Números que o índice já tocou, existindo ou não. Não é o mesmo
         # que matrícula analisada: _salvar_ausencia grava linha também para
@@ -382,6 +397,69 @@ def _estado_json(cursor) -> dict:
         "cargaInicialConcluida": estado["proximo_inicial"] > limite,
         "ultimaSincronizacao": estado["ultima_sincronizacao"].isoformat() if estado["ultima_sincronizacao"] else None,
     }
+
+
+def _selecionar_numeros_novos(
+    cursor, ultimo_conhecido: int, tamanho: int,
+) -> tuple[list[int], int, int]:
+    """Reconsulta ausências sem deixar a busca exploratória parada.
+
+    ``ultimo_conhecido`` é a maior matrícula realmente localizada e não
+    pode avançar só porque um número foi consultado. Usá-lo como único cursor,
+    porém, fazia cada clique sondar eternamente os mesmos 30 números vazios.
+    Metade do lote passa a revisitar ausências e a outra metade avança por
+    números ainda não sondados, dentro de uma janela limitada.
+    """
+    tamanho = max(1, tamanho)
+    quantidade_reconsulta = max(1, tamanho // 2)
+    inicio_reconsulta = max(1, ultimo_conhecido - JANELA_SONDAGEM_NOVOS)
+    limite_exploracao = ultimo_conhecido + JANELA_SONDAGEM_NOVOS
+
+    cursor.execute(
+        """SELECT numero FROM matriculas_busca_aeri
+        WHERE situacao IN ('NAO_ENCONTRADA', 'SEM_TEXTO')
+          AND numero BETWEEN %s AND %s
+        ORDER BY consultado_em, numero LIMIT %s""",
+        (inicio_reconsulta, limite_exploracao, quantidade_reconsulta),
+    )
+    reconsultados = [item["numero"] for item in cursor.fetchall()]
+
+    cursor.execute(
+        """SELECT COALESCE(MAX(numero), %s) AS maior
+        FROM matriculas_busca_aeri
+        WHERE numero > %s AND numero <= %s""",
+        (ultimo_conhecido, ultimo_conhecido, limite_exploracao),
+    )
+    maior_sondado = int(cursor.fetchone()["maior"] or ultimo_conhecido)
+    quantidade_exploracao = tamanho - len(reconsultados)
+    inicio_exploracao = max(ultimo_conhecido + 1, maior_sondado + 1)
+    fim_exploracao = min(
+        inicio_exploracao + quantidade_exploracao - 1,
+        limite_exploracao,
+    )
+    explorados = (
+        list(range(inicio_exploracao, fim_exploracao + 1))
+        if quantidade_exploracao > 0 and inicio_exploracao <= fim_exploracao
+        else []
+    )
+
+    numeros = list(dict.fromkeys([*reconsultados, *explorados]))
+    if len(numeros) < tamanho:
+        # Janela totalmente explorada: o restante acelera o rodízio das
+        # ausências em vez de voltar sempre ao mesmo começo por acaso.
+        cursor.execute(
+            """SELECT numero FROM matriculas_busca_aeri
+            WHERE situacao IN ('NAO_ENCONTRADA', 'SEM_TEXTO')
+              AND numero BETWEEN %s AND %s
+            ORDER BY consultado_em, numero LIMIT %s""",
+            (inicio_reconsulta, limite_exploracao, tamanho),
+        )
+        numeros = list(dict.fromkeys([
+            *numeros,
+            *(item["numero"] for item in cursor.fetchall()),
+        ]))[:tamanho]
+
+    return numeros, len(reconsultados), len(explorados)
 
 
 def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Request, usuario: str) -> dict:
@@ -414,13 +492,15 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
                     estado["limite_inicial"] = limite
                     estado["ultimo_conhecido"] = max(estado["ultimo_conhecido"], limite)
 
+                reconsultadas = exploradas = 0
                 if modo == "INICIAL":
                     inicio = estado["proximo_inicial"]
                     fim = min(inicio + tamanho - 1, estado["limite_inicial"])
                     numeros = list(range(inicio, fim + 1)) if inicio <= fim else []
                 elif modo == "NOVOS":
-                    inicio = estado["ultimo_conhecido"] + 1
-                    numeros = list(range(inicio, inicio + tamanho))
+                    numeros, reconsultadas, exploradas = _selecionar_numeros_novos(
+                        cursor, estado["ultimo_conhecido"], tamanho,
+                    )
                 elif modo == "REVISAO":
                     cursor.execute(
                         """SELECT numero FROM matriculas_busca_aeri
@@ -451,6 +531,17 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
                     )
                     numeros = [item["numero"] for item in cursor.fetchall()]
                 conexao.commit()
+
+                logger.info(
+                    "sincronizacao_buscas_inicio modo=%s quantidade=%s de=%s ate=%s "
+                    "reconsultadas=%s exploradas=%s",
+                    modo,
+                    len(numeros),
+                    min(numeros) if numeros else None,
+                    max(numeros) if numeros else None,
+                    reconsultadas,
+                    exploradas,
+                )
 
                 resultados, falha_fatal = _consultar_lote(numeros)
                 processados = encontradas = ativas = encerradas = ausentes = falhas = alteradas = 0
@@ -541,10 +632,19 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
                 )
                 estado_json = _estado_json(cursor)
                 conexao.commit()
+                logger.log(
+                    logging.WARNING if falha_fatal or falhas else logging.INFO,
+                    "sincronizacao_buscas_fim modo=%s processadas=%s encontradas=%s "
+                    "ausentes=%s falhas=%s falha_fatal=%s",
+                    modo, processados, encontradas, ausentes, falhas, bool(falha_fatal),
+                )
                 return {
                     "modo": modo, "processados": processados, "encontradas": encontradas,
                     "ativas": ativas, "encerradas": encerradas, "ausentes": ausentes,
                     "falhas": falhas, "alteradas": alteradas, "erros": erros,
+                    "reconsultadas": reconsultadas, "exploradas": exploradas,
+                    "sondagemInicio": min(numeros) if numeros else None,
+                    "sondagemFim": max(numeros) if numeros else None,
                     "auditoriasValidadas": auditorias_validadas,
                     "auditoriasRevisar": auditorias_revisar,
                     "analisesComplementares": complementos_executados,
