@@ -49,7 +49,6 @@ class TesteRegistrosAlterados(unittest.TestCase):
 class TesteReindexacaoPeloLivro(unittest.TestCase):
     def setUp(self):
         self.cliente = Mock()
-        self.limitador = Mock()
 
     def _reindexar(self, alterados, cache):
         with patch("backend.app.rotas.livro_protocolos.conectar", return_value=_conexao_falsa()), \
@@ -59,7 +58,7 @@ class TesteReindexacaoPeloLivro(unittest.TestCase):
                 patch("backend.app.rotas.livro_protocolos._salvar_indice_auxiliar",
                       return_value=({}, True)) as salvar_ra:
             relatorio = _reindexar_registros_alterados(
-                alterados, cache, self.cliente, self.limitador, Mock(), "TESTE",
+                alterados, cache, self.cliente, Mock(), "TESTE",
             )
         return relatorio, salvar_m, salvar_ra
 
@@ -110,7 +109,7 @@ class TesteReindexacaoPeloLivro(unittest.TestCase):
     def test_sem_alteracoes_nao_abre_conexao(self):
         with patch("backend.app.rotas.livro_protocolos.conectar") as conectar_mock:
             relatorio = _reindexar_registros_alterados(
-                set(), {}, self.cliente, self.limitador, Mock(), "TESTE",
+                set(), {}, self.cliente, Mock(), "TESTE",
             )
 
         conectar_mock.assert_not_called()

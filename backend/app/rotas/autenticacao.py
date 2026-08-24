@@ -17,6 +17,7 @@ from backend.app.autenticacao import (
     verificar_senha_login,
 )
 from backend.app.database import conectar, preparar_banco
+from backend.app.permissoes import permissoes_efetivas_cursor
 from backend.app.seguranca_web import (
     ip_cliente,
     politica_samesite_sessao,
@@ -61,6 +62,9 @@ def login(dados: dict, request: Request):
                     "UPDATE usuarios_aeri SET senha_hash=%s WHERE usuario=%s",
                     (hash_senha(senha), conta["usuario"]),
                 )
+            conta["permissoes_relacionais"] = permissoes_efetivas_cursor(
+                cursor, conta["usuario"], conta["perfil"]
+            )
             registrar_tentativa_cursor(cursor, conta["usuario"], ip, True)
             token, csrf = criar_sessao_cursor(cursor, conta["usuario"], request)
             registrar_auditoria_cursor(cursor, request, "login", "sucesso", conta["usuario"])

@@ -7,7 +7,6 @@ auditoria e sincronização usam estas funções, mas o inverso não ocorre.
 import os
 import logging
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import HTTPException, Request
@@ -39,34 +38,17 @@ from backend.app.servicos.tri7 import (
     MatriculaTri7NaoEncontrada,
     MatriculaTri7SemTexto,
     cliente_tri7,
-    limitador_tri7,
 )
 
 
 LEASE_SEGUNDOS = 300
 MAX_WORKERS_TRI7 = 3
 MAX_WORKERS_REPROCESSAMENTO = 6
-REQUISICOES_POR_SEGUNDO_TRI7 = 3.0
 JANELA_SONDAGEM_NOVOS = 300
 logger = logging.getLogger("aeri.buscas")
 
 
-class _LimitadorTaxa:
-    def __init__(self, requisicoes_por_segundo: float):
-        self._intervalo = 1.0 / requisicoes_por_segundo
-        self._proximo = 0.0
-        self._trava = threading.Lock()
-
-    def aguardar(self) -> None:
-        with self._trava:
-            agora = time.monotonic()
-            reservado = max(agora, self._proximo)
-            self._proximo = reservado + self._intervalo
-        if reservado > agora:
-            time.sleep(reservado - agora)
-
-
-def _consultar_matricula(numero: int, limitador: _LimitadorTaxa, cancelar: threading.Event) -> dict:
+def _consultar_matricula(numero: int, cancelar: threading.Event) -> dict:
     if cancelar.is_set():
         return {"numero": numero, "status": "CANCELADO"}
     try:
@@ -88,12 +70,11 @@ def _consultar_lote(
 ) -> tuple[list[dict], str | None]:
     if not numeros:
         return [], None
-    limitador = limitador_tri7()
     cancelar = threading.Event()
     por_numero = {}
     with ThreadPoolExecutor(max_workers=min(max_workers, len(numeros))) as executor:
         futuros = {
-            executor.submit(_consultar_matricula, numero, limitador, cancelar): numero
+            executor.submit(_consultar_matricula, numero, cancelar): numero
             for numero in numeros
         }
         for futuro in as_completed(futuros):

@@ -70,7 +70,7 @@ class TesteRotaBuscas(unittest.TestCase):
         # em buscas_indexacao e busca ali o cliente da Tri7.
         with patch.object(
             buscas_indexacao, "cliente_tri7", return_value=_ClienteTri7Falso()
-        ), patch.object(buscas._LimitadorTaxa, "aguardar", return_value=None):
+        ):
             resultados, falha = buscas._consultar_lote([1, 2, 3])
 
         self.assertIsNone(falha)

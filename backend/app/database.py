@@ -164,6 +164,8 @@ def preparar_banco() -> None:
                 # instâncias da Vercel antes de executar DDL e bootstrap.
                 cursor.execute("SELECT pg_advisory_xact_lock(%s)", (_CHAVE_MIGRACOES,))
                 _executar_migracoes(cursor)
+                from backend.app.permissoes import sincronizar_catalogo_cursor
+                sincronizar_catalogo_cursor(cursor)
                 _garantir_usuario_administrador(cursor)
             conexao.commit()
         _banco_preparado = True

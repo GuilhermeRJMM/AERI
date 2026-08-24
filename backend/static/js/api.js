@@ -35,6 +35,7 @@ export async function requisicaoAeri(url, opcoes = {}) {
             : '';
         const erro = new Error(detalhe || 'O servidor não conseguiu concluir a operação. Tente novamente mais tarde.');
         erro.status = resposta.status;
+        erro.identificador = resposta.headers.get('X-Request-ID') || '';
         throw erro;
     }
     return dados;

@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260820-senha-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260824-nativo-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -255,13 +255,59 @@
 
             <div id="page-geradornotas" class="page">
                 <main class="layout gerador-notas-layout">
-                    <iframe
-                        id="gerador-notas-frame"
-                        title="Gerador de Notas devolutivas e de exigência"
-                        data-src="/api/gerador-notas/interface?v=20260824-v1"
-                        sandbox="allow-scripts allow-same-origin allow-downloads allow-forms"
-                        loading="lazy"
-                    ></iframe>
+                    <div class="rotina-header gerador-notas-header">
+                        <div>
+                            <span class="eyebrow">QUALIFICAÇÃO REGISTRAL</span>
+                            <h1>Gerador de Notas</h1>
+                            <p>Monte notas devolutivas e de exigência com textos e fundamentos previamente cadastrados.</p>
+                        </div>
+                        <span id="gn-contagem" class="gerador-notas-contagem">Nenhuma pendência selecionada</span>
+                    </div>
+
+                    <nav class="gerador-notas-abas" aria-label="Áreas do Gerador de Notas">
+                        <button type="button" class="ativa" data-gn-aba="editor">Criar nota</button>
+                        <button type="button" data-gn-aba="legislacao">Legislação</button>
+                        <button type="button" data-gn-aba="base">Conferência da base</button>
+                    </nav>
+
+                    <div id="gn-estado" class="modulo-estado" role="status" aria-live="polite">
+                        <span class="modulo-estado-indicador"></span><span>Carregando o Gerador de Notas…</span>
+                    </div>
+
+                    <section id="gn-editor" class="gerador-notas-pagina" hidden>
+                        <div class="aeri-card gerador-notas-dados">
+                            <label><span>Espécie</span><select id="gn-especie"></select></label>
+                            <label><span>Protocolo</span><input id="gn-protocolo" placeholder="185.000" autocomplete="off"></label>
+                            <label class="cresce"><span>Título apresentado</span><input id="gn-titulo" autocomplete="off" placeholder="Formal de Partilha, Escritura Pública, Mandado…"></label>
+                            <label class="gerador-notas-chave"><input type="checkbox" id="gn-judicial"><span>Título judicial</span></label>
+                        </div>
+                        <div class="gerador-notas-colunas">
+                            <section class="aeri-card gerador-notas-coluna">
+                                <header><h2>Pendências</h2><div><button id="gn-apenas-selecionadas" type="button" class="rotina-btn-secondary">Apenas selecionadas</button><input id="gn-filtro" placeholder="Filtrar…" autocomplete="off"></div></header>
+                                <div id="gn-lista" class="gerador-notas-lista"></div>
+                            </section>
+                            <section class="aeri-card gerador-notas-coluna">
+                                <header><h2>Dados de cada exigência</h2></header>
+                                <div id="gn-campos" class="gerador-notas-campos"></div>
+                            </section>
+                            <section class="aeri-card gerador-notas-coluna gerador-notas-previa-coluna">
+                                <header><h2>Como vai sair</h2><span id="gn-previa-aviso"></span></header>
+                                <div id="gn-previa" class="gerador-notas-previa"></div>
+                            </section>
+                        </div>
+                        <footer class="gerador-notas-rodape"><span id="gn-aviso"></span><button id="gn-gerar" type="button" class="btn btn-primary">Gerar nota em DOCX</button></footer>
+                    </section>
+
+                    <section id="gn-legislacao" class="gerador-notas-pagina aeri-card gerador-notas-consulta" hidden>
+                        <header><div><span class="eyebrow">FONTES CADASTRADAS</span><h2>Legislação</h2></div><input id="gn-legislacao-filtro" placeholder="Filtrar norma…"></header>
+                        <div id="gn-legislacao-lista" class="gerador-notas-grade"></div>
+                    </section>
+
+                    <section id="gn-base" class="gerador-notas-pagina aeri-card gerador-notas-consulta" hidden>
+                        <header><div><span class="eyebrow">CONFERÊNCIA INTERNA</span><h2>Textos e fundamentos cadastrados</h2></div><input id="gn-base-filtro" placeholder="Filtrar exigência…"></header>
+                        <p class="gerador-notas-explica">Esta área é somente leitura. Ela permite conferir o texto cadastrado e as referências usadas antes da expedição.</p>
+                        <div id="gn-base-lista" class="gerador-notas-base-lista"></div>
+                    </section>
                 </main>
             </div>
 
@@ -906,23 +952,20 @@
                 <label><span>Cargo</span><select id="usuario-perfil"><option value="CONFERENTE">Conferente</option><option value="PRODUTOR">Produtor</option><option value="SUPERVISOR">Supervisor</option><option value="AUDITOR">Auditor</option><option value="SUBSTITUTO">Substituto</option><option value="ADMIN">ADM</option></select></label>
                 <fieldset class="usuario-atribuicoes">
                     <legend>Atribuições do cargo operacional</legend>
-                    <label><input type="checkbox" data-permissao-form="processar_matricula" checked> Processar matrículas</label>
-                    <label><input type="checkbox" data-permissao-form="revisar_auditoria"> Revisar auditoria registral</label>
-                    <label><input type="checkbox" data-permissao-form="acessar_mapa_onr"> Acessar MAPA-ONR</label>
-                    <label><input type="checkbox" data-permissao-form="acessar_livro_protocolos"> Acessar Livro de Protocolos</label>
-                    <label><input type="checkbox" data-permissao-form="acessar_buscas"> Acessar Buscas</label>
-                    <label><input type="checkbox" data-permissao-form="acessar_poligonos"> Acessar Polígonos</label>
-                    <label><input type="checkbox" data-permissao-form="acessar_gerador_notas"> Acessar Gerador de Notas</label>
-                    <label><input type="checkbox" data-permissao-form="processar_incra" checked> Processar relatório do INCRA</label>
-                    <label><input type="checkbox" data-permissao-form="gerenciar_custas" checked> Gerenciar Informar Custas</label>
-                    <label><input type="checkbox" data-permissao-form="ver_intimacoes" checked> Visualizar intimações</label>
-                    <label><input type="checkbox" data-permissao-form="criar_intimacoes" checked> Criar/importar intimações</label>
-                    <label><input type="checkbox" data-permissao-form="alterar_intimacoes" checked> Alterar intimações</label>
-                    <label><input type="checkbox" data-permissao-form="conferir_intimacoes" checked> Dar check em intimações</label>
+                    <div id="usuario-permissoes-catalogo" class="usuario-permissoes-catalogo"></div>
                 </fieldset>
                 <label><span>Senha temporária</span><div class="senha-gerada"><input id="usuario-senha" type="text" required minlength="10"><button type="button" id="btn-gerar-senha">Gerar</button></div></label>
                 <div class="rotina-form-actions"><button type="button" class="rotina-btn-secondary" id="btn-cancelar-usuario">Cancelar</button><button type="submit" class="btn btn-primary">Criar usuário</button></div>
             </form>
+        </div>
+    </div>
+
+    <div id="gn-modal" class="modal-overlay" hidden>
+        <div class="modal-box rotina-modal">
+            <button class="modal-fechar" id="gn-modal-fechar">&times;</button>
+            <div class="rotina-form-header"><span class="eyebrow">GERADOR DE NOTAS</span><h2 id="gn-modal-titulo"></h2></div>
+            <div id="gn-modal-corpo" class="gerador-notas-modal-corpo"></div>
+            <div class="rotina-form-actions"><button type="button" class="btn btn-primary" id="gn-modal-ok">Fechar</button></div>
         </div>
     </div>
 
@@ -957,6 +1000,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260824-permissoes-v2"></script>
+    <script type="module" src="/static/js/app.js?v=20260824-nativo-v1"></script>
 </body>
 </html>

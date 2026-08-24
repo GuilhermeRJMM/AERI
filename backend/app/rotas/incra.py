@@ -1,6 +1,3 @@
-import threading
-import time
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from backend.app.autenticacao import exigir_permissao, proteger_csrf
@@ -12,27 +9,10 @@ from backend.app.incra import (
     resumir_protocolo_tri7,
 )
 from backend.app.seguranca_web import registrar_auditoria
-from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7, limitador_tri7
+from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7
 
 
 router = APIRouter(tags=["incra"], dependencies=[Depends(preparar_banco)])
-REQUISICOES_POR_SEGUNDO_TRI7 = 3.0
-
-
-class _LimitadorTaxaTri7:
-    def __init__(self, requisicoes_por_segundo: float):
-        self._intervalo = 1.0 / requisicoes_por_segundo
-        self._proximo = 0.0
-        self._trava = threading.Lock()
-
-    def aguardar(self) -> None:
-        with self._trava:
-            agora = time.monotonic()
-            reservado = max(agora, self._proximo)
-            self._proximo = reservado + self._intervalo
-        espera = reservado - agora
-        if espera > 0:
-            time.sleep(espera)
 
 
 def _resultado_falha_tri7(situacao: str, rotulo: str, erro: str) -> dict:
@@ -61,7 +41,6 @@ async def analisar_incra(request: Request, usuario: str = Depends(exigir_permiss
             raise HTTPException(status_code=422, detail="Envie um arquivo PDF válido.")
         resultado = extrair_protocolos(pdf_bytes)
         cliente = cliente_tri7()
-        limitador = limitador_tri7()
         consultas = {}
         cache_textos = {}
         for item in resultado["itens"]:

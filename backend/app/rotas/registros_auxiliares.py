@@ -1,7 +1,6 @@
 import hmac
 import os
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -25,7 +24,6 @@ from backend.app.servicos.tri7 import (
     RegistroAuxiliarTri7NaoEncontrado,
     RegistroAuxiliarTri7SemTexto,
     cliente_tri7,
-    limitador_tri7,
 )
 
 
@@ -41,27 +39,10 @@ LEASE_SINCRONIZACAO_SEGUNDOS = 300
 # produção e foi revertido). Esses valores devem só subir depois de observar
 # `errosPendentes` estável por um tempo nesse patamar.
 MAX_WORKERS_TRI7 = 3
-REQUISICOES_POR_SEGUNDO_TRI7 = 3.0
-
-
-class _LimitadorTaxaTri7:
-    def __init__(self, requisicoes_por_segundo: float):
-        self._intervalo = 1.0 / requisicoes_por_segundo
-        self._proximo = 0.0
-        self._trava = threading.Lock()
-
-    def aguardar(self) -> None:
-        with self._trava:
-            agora = time.monotonic()
-            reservado = max(agora, self._proximo)
-            self._proximo = reservado + self._intervalo
-        espera = reservado - agora
-        if espera > 0:
-            time.sleep(espera)
 
 
 def _consultar_registro_auxiliar_tri7(
-    numero: int, limitador: "_LimitadorTaxaTri7", cancelar: threading.Event
+    numero: int, cancelar: threading.Event
 ) -> dict:
     if cancelar.is_set():
         return {"numero": numero, "status": "CANCELADO"}
@@ -83,12 +64,11 @@ def _consultar_lote_tri7(numeros: list[int]) -> tuple[list[dict], str | None]:
     processar nada além dela, mesmo que respostas cheguem fora de ordem."""
     if not numeros:
         return [], None
-    limitador = limitador_tri7()
     cancelar = threading.Event()
     por_numero: dict[int, dict] = {}
     with ThreadPoolExecutor(max_workers=min(MAX_WORKERS_TRI7, len(numeros))) as executor:
         futuros = {
-            executor.submit(_consultar_registro_auxiliar_tri7, numero, limitador, cancelar): numero
+            executor.submit(_consultar_registro_auxiliar_tri7, numero, cancelar): numero
             for numero in numeros
         }
         for futuro in as_completed(futuros):
@@ -313,7 +293,7 @@ def revisar_registro_auxiliar(
     except RuntimeError as erro:
         raise HTTPException(status_code=503, detail=str(erro)) from erro
 
-    resultado = _consultar_registro_auxiliar_tri7(numero, limitador_tri7(), threading.Event())
+    resultado = _consultar_registro_auxiliar_tri7(numero, threading.Event())
 
     with conectar() as conexao:
         with conexao.cursor() as cursor:

@@ -17,6 +17,12 @@ from backend.app.autenticacao import (
     verificar_senha,
 )
 from backend.app.database import conectar, preparar_banco
+from backend.app.permissoes import (
+    catalogo_publico,
+    definir_permissao_usuario_cursor,
+    selecionar_usuarios_com_permissoes,
+    substituir_permissoes_usuario_cursor,
+)
 from backend.app.seguranca_web import registrar_auditoria_cursor
 
 
@@ -68,12 +74,30 @@ def _validar_permissoes(dados: dict, perfil: str) -> dict:
     }
 
 
+def _permissoes_por_chave(dados: dict, perfil: str) -> dict:
+    validadas = _validar_permissoes(dados, perfil)
+    return {chave: validadas[coluna] for chave, coluna in PERMISSOES.items()}
+
+
+def _buscar_usuario_cursor(cursor, usuario: str) -> dict | None:
+    cursor.execute(
+        selecionar_usuarios_com_permissoes("WHERE u.usuario=%s", ordem=""),
+        (usuario,),
+    )
+    return cursor.fetchone()
+
+
 @router.get("")
 def listar_usuarios(_admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            cursor.execute("SELECT * FROM usuarios_aeri ORDER BY ativo DESC, nome, usuario")
+            cursor.execute(selecionar_usuarios_com_permissoes())
             return [_usuario_json(item) for item in cursor.fetchall()]
+
+
+@router.get("/permissoes/catalogo")
+def listar_catalogo_permissoes(_admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
+    return catalogo_publico()
 
 
 @router.get("/auditoria")
@@ -93,38 +117,19 @@ def listar_auditoria(_admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))
 @router.post("", status_code=201, dependencies=[Depends(proteger_csrf)])
 def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_perfis("ADMIN"))):
     usuario, nome, perfil, senha = _validar_usuario(dados)
-    permissoes = _validar_permissoes(dados, perfil)
+    permissoes = _permissoes_por_chave(dados, perfil)
     try:
         with conectar() as conexao:
             with conexao.cursor() as cursor:
                 cursor.execute(
                     """INSERT INTO usuarios_aeri
-                    (usuario, nome, perfil, senha_hash, deve_trocar_senha,
-                    pode_processar_matricula, pode_revisar_auditoria,
-                    pode_acessar_mapa_onr,
-                    pode_acessar_livro_protocolos, pode_acessar_buscas,
-                    pode_acessar_poligonos, pode_acessar_gerador_notas,
-                    pode_processar_incra, pode_gerenciar_custas, pode_ver_intimacoes,
-                    pode_criar_intimacoes, pode_alterar_intimacoes, pode_conferir_intimacoes)
-                    VALUES (%s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
-                    (
-                        usuario, nome, perfil, hash_senha(senha),
-                        permissoes["pode_processar_matricula"],
-                        permissoes["pode_revisar_auditoria"],
-                        permissoes["pode_acessar_mapa_onr"],
-                        permissoes["pode_acessar_livro_protocolos"],
-                        permissoes["pode_acessar_buscas"],
-                        permissoes["pode_acessar_poligonos"],
-                        permissoes["pode_acessar_gerador_notas"],
-                        permissoes["pode_processar_incra"],
-                        permissoes["pode_gerenciar_custas"],
-                        permissoes["pode_ver_intimacoes"],
-                        permissoes["pode_criar_intimacoes"],
-                        permissoes["pode_alterar_intimacoes"],
-                        permissoes["pode_conferir_intimacoes"],
-                    ),
+                    (usuario, nome, perfil, senha_hash, deve_trocar_senha)
+                    VALUES (%s, %s, %s, %s, TRUE) RETURNING usuario""",
+                    (usuario, nome, perfil, hash_senha(senha)),
                 )
-                item = cursor.fetchone()
+                cursor.fetchone()
+                substituir_permissoes_usuario_cursor(cursor, usuario, perfil, permissoes)
+                item = _buscar_usuario_cursor(cursor, usuario)
                 registrar_auditoria_cursor(cursor, request, "criar_usuario", "sucesso", admin, usuario, {"perfil": perfil})
             conexao.commit()
     except UniqueViolation as exc:
@@ -139,7 +144,7 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
     perfil_editor = request.state.sessao["perfil"]
     if perfil_editor != "ADMIN" and perfil in PERFIS_ADMINISTRATIVOS:
         raise HTTPException(status_code=403, detail="Somente ADM pode atribuir cargo administrativo.")
-    permissoes = _validar_permissoes(dados, perfil)
+    permissoes = _permissoes_por_chave(dados, perfil)
     ativo = bool(dados.get("ativo", True))
     if usuario_alvo == admin and (not ativo or perfil != perfil_editor):
         raise HTTPException(status_code=422, detail="O administrador não pode remover o próprio acesso total.")
@@ -152,33 +157,13 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
                     raise HTTPException(status_code=403, detail="Somente ADM pode alterar cargo administrativo.")
             cursor.execute(
                 """UPDATE usuarios_aeri SET nome=%s, perfil=%s, ativo=%s,
-                pode_processar_matricula=%s, pode_revisar_auditoria=%s,
-                pode_acessar_mapa_onr=%s,
-                pode_acessar_livro_protocolos=%s, pode_acessar_buscas=%s,
-                pode_acessar_poligonos=%s, pode_acessar_gerador_notas=%s,
-                pode_processar_incra=%s, pode_gerenciar_custas=%s, pode_ver_intimacoes=%s,
-                pode_criar_intimacoes=%s, pode_alterar_intimacoes=%s, pode_conferir_intimacoes=%s,
-                atualizado_em=NOW()
-                WHERE usuario=%s RETURNING *""",
-                (
-                    nome, perfil, ativo,
-                    permissoes["pode_processar_matricula"],
-                    permissoes["pode_revisar_auditoria"],
-                    permissoes["pode_acessar_mapa_onr"],
-                    permissoes["pode_acessar_livro_protocolos"],
-                    permissoes["pode_acessar_buscas"],
-                    permissoes["pode_acessar_poligonos"],
-                    permissoes["pode_acessar_gerador_notas"],
-                    permissoes["pode_processar_incra"],
-                    permissoes["pode_gerenciar_custas"],
-                    permissoes["pode_ver_intimacoes"],
-                    permissoes["pode_criar_intimacoes"],
-                    permissoes["pode_alterar_intimacoes"],
-                    permissoes["pode_conferir_intimacoes"],
-                    usuario_alvo,
-                ),
+                atualizado_em=NOW() WHERE usuario=%s RETURNING usuario""",
+                (nome, perfil, ativo, usuario_alvo),
             )
-            item = cursor.fetchone()
+            atualizado = cursor.fetchone()
+            if atualizado:
+                substituir_permissoes_usuario_cursor(cursor, usuario_alvo, perfil, permissoes)
+            item = _buscar_usuario_cursor(cursor, usuario_alvo) if atualizado else None
             if item and not ativo:
                 cursor.execute("UPDATE sessoes_aeri SET revogada_em=NOW() WHERE usuario=%s", (usuario_alvo,))
             if item:
@@ -186,6 +171,39 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
         conexao.commit()
     if not item:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    return _usuario_json(item)
+
+
+@router.patch("/{usuario_alvo}/permissoes/{permissao}", dependencies=[Depends(proteger_csrf)])
+def atualizar_permissao_usuario(
+    usuario_alvo: str,
+    permissao: str,
+    dados: dict,
+    request: Request,
+    admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+):
+    usuario_alvo = usuario_alvo.upper()
+    if permissao not in PERMISSOES:
+        raise HTTPException(status_code=404, detail="Permissão desconhecida.")
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute("SELECT perfil FROM usuarios_aeri WHERE usuario=%s", (usuario_alvo,))
+            existente = cursor.fetchone()
+            if not existente:
+                raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+            perfil = existente["perfil"]
+            if perfil in PERFIS_ADMINISTRATIVOS:
+                raise HTTPException(status_code=422, detail="Cargos administrativos possuem acesso integral.")
+            if perfil == "AUDITOR" and permissao not in PERMISSOES_OPCIONAIS_AUDITOR:
+                raise HTTPException(status_code=422, detail="Esta atribuição é fixa ou indisponível para o Auditor.")
+            concedida = bool(dados.get("concedida"))
+            definir_permissao_usuario_cursor(cursor, usuario_alvo, permissao, concedida)
+            item = _buscar_usuario_cursor(cursor, usuario_alvo)
+            registrar_auditoria_cursor(
+                cursor, request, "alterar_permissao", "sucesso", admin,
+                usuario_alvo, {"permissao": permissao, "concedida": concedida},
+            )
+        conexao.commit()
     return _usuario_json(item)
 
 

@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from backend.app.gerador_notas.servico import (
     catalogo_para_tela,
@@ -41,6 +42,20 @@ class GeradorNotasTest(unittest.TestCase):
         self.assertEqual(nome, "185.100-..-..-indevido - Devolutiva.docx")
         self.assertTrue(conteudo.startswith(b"PK"))
         self.assertIn("casamento-data-nao-comprovada", nao_revisadas)
+
+    def test_interface_principal_e_nativa_e_carregada_sob_demanda(self):
+        raiz = Path(__file__).resolve().parent.parent
+        html = (raiz / "backend/templates/index.html").read_text(encoding="utf-8")
+        javascript = (raiz / "backend/static/js/gerador_notas.js").read_text(encoding="utf-8")
+        inicio = html.index('id="page-geradornotas"')
+        fim = html.index('id="page-buscas"', inicio)
+        pagina = html[inicio:fim]
+        self.assertNotIn("<iframe", pagina)
+        self.assertIn('id="gn-editor"', pagina)
+        self.assertIn('id="gn-legislacao"', pagina)
+        self.assertIn('id="gn-base"', pagina)
+        self.assertIn("function carregarSeNecessario()", javascript)
+        self.assertIn("aeri:pagina-alterada", javascript)
 
 
 if __name__ == "__main__":

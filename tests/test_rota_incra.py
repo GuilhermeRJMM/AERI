@@ -39,12 +39,11 @@ class RotaIncraTests(unittest.TestCase):
             asyncio.run(analisar_incra(_requisicao_pdf(b"nao pdf"), usuario="operador"))
         self.assertEqual(contexto.exception.status_code, 422)
 
-    @patch("backend.app.rotas.incra._LimitadorTaxaTri7.aguardar")
     @patch("backend.app.rotas.incra.registrar_auditoria")
     @patch("backend.app.rotas.incra.cliente_tri7")
     @patch("backend.app.rotas.incra.extrair_protocolos")
     def test_consulta_cada_protocolo_unico_e_enriquece_itens_repetidos(
-        self, extrair_mock, obter_cliente, _auditoria, _aguardar,
+        self, extrair_mock, obter_cliente, _auditoria,
     ):
         extrair_mock.return_value = _resultado_pdf()
         obter_cliente.return_value.buscar_protocolo_completo.side_effect = [
@@ -79,12 +78,11 @@ class RotaIncraTests(unittest.TestCase):
         self.assertEqual(resultado["itens"][2]["matriculas"][0]["atos"], ["AV.3"])
         obter_cliente.return_value.buscar_texto_matricula.assert_not_called()
 
-    @patch("backend.app.rotas.incra._LimitadorTaxaTri7.aguardar")
     @patch("backend.app.rotas.incra.registrar_auditoria")
     @patch("backend.app.rotas.incra.cliente_tri7")
     @patch("backend.app.rotas.incra.extrair_protocolos")
     def test_falhas_da_tri7_nao_apagam_resultado_do_relatorio(
-        self, extrair_mock, obter_cliente, _auditoria, _aguardar,
+        self, extrair_mock, obter_cliente, _auditoria,
     ):
         resultado_pdf = _resultado_pdf()
         resultado_pdf["itens"] = resultado_pdf["itens"][:2]
@@ -102,12 +100,11 @@ class RotaIncraTests(unittest.TestCase):
         self.assertEqual(resultado["falhas_tri7"], 1)
         self.assertEqual(resultado["itens"][0]["situacaoTri7"], "CONSULTA_INDISPONIVEL")
 
-    @patch("backend.app.rotas.incra._LimitadorTaxaTri7.aguardar")
     @patch("backend.app.rotas.incra.registrar_auditoria")
     @patch("backend.app.rotas.incra.cliente_tri7")
     @patch("backend.app.rotas.incra.extrair_protocolos")
     def test_protocolo_ausente_fica_sinalizado(
-        self, extrair_mock, obter_cliente, _auditoria, _aguardar,
+        self, extrair_mock, obter_cliente, _auditoria,
     ):
         resultado_pdf = _resultado_pdf()
         resultado_pdf["itens"] = resultado_pdf["itens"][:1]

@@ -80,7 +80,13 @@ async def seguranca_http(request: Request, call_next):
                 "requisicao_falhou id=%s metodo=%s rota=%s tipo=%s",
                 request_id, request.method, request.url.path, type(erro).__name__,
             )
-            raise
+            resposta = JSONResponse(
+                {
+                    "detail": "O servidor não conseguiu concluir a operação.",
+                    "identificador": request_id,
+                },
+                status_code=500,
+            )
     duracao_ms = round((time.perf_counter() - inicio) * 1000, 1)
     resposta.headers["X-Request-ID"] = request_id
     resposta.headers["X-Content-Type-Options"] = "nosniff"

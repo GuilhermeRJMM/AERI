@@ -3,7 +3,7 @@ import {escaparHtml} from './util.js';
 
 let usuarios = [];
 let divergenciasAnalise = [];
-const salvamentosUsuarios = new Map();
+let catalogoPermissoes = [];
 const CARGOS = [
     ['ADMIN', 'ADM'],
     ['SUBSTITUTO', 'Substituto'],
@@ -11,21 +11,6 @@ const CARGOS = [
     ['SUPERVISOR', 'Supervisor'],
     ['CONFERENTE', 'Conferente'],
     ['PRODUTOR', 'Produtor'],
-];
-const ATRIBUICOES = [
-    ['processar_matricula', 'Matrículas'],
-    ['revisar_auditoria', 'Auditoria registral'],
-    ['acessar_mapa_onr', 'MAPA-ONR'],
-    ['acessar_livro_protocolos', 'Livro de Protocolos'],
-    ['acessar_buscas', 'Buscas'],
-    ['acessar_poligonos', 'Polígonos'],
-    ['acessar_gerador_notas', 'Gerador de Notas'],
-    ['processar_incra', 'INCRA'],
-    ['gerenciar_custas', 'Informar Custas'],
-    ['ver_intimacoes', 'Ver intimações'],
-    ['criar_intimacoes', 'Criar/importar'],
-    ['alterar_intimacoes', 'Alterar'],
-    ['conferir_intimacoes', 'Check'],
 ];
 
 function cargoAdministrativo(perfil) {
@@ -43,15 +28,15 @@ function lerPermissoesFormulario() {
 
 function renderizarAtribuicoes(item) {
     if (cargoAdministrativo(item.perfil)) return '<span class="usuario-status ativo">Todas</span>';
-    if (item.perfil === 'AUDITOR') return `<div class="usuario-atribuicoes-lista">
-        <span class="usuario-status ativo">Matrículas e auditoria registral</span>
-        <label><input type="checkbox" data-acao="permissao" data-permissao="acessar_mapa_onr" data-usuario="${item.usuario}" ${item.permissoes?.acessar_mapa_onr ? 'checked' : ''}> MAPA-ONR</label>
-        <label><input type="checkbox" data-acao="permissao" data-permissao="acessar_livro_protocolos" data-usuario="${item.usuario}" ${item.permissoes?.acessar_livro_protocolos ? 'checked' : ''}> Livro de Protocolos</label>
-        <label><input type="checkbox" data-acao="permissao" data-permissao="acessar_buscas" data-usuario="${item.usuario}" ${item.permissoes?.acessar_buscas ? 'checked' : ''}> Buscas</label>
-        <label><input type="checkbox" data-acao="permissao" data-permissao="acessar_poligonos" data-usuario="${item.usuario}" ${item.permissoes?.acessar_poligonos ? 'checked' : ''}> Polígonos</label>
-    </div>`;
-    return `<div class="usuario-atribuicoes-lista">${ATRIBUICOES.map(([chave, rotulo]) => `
-        <label><input type="checkbox" data-acao="permissao" data-permissao="${chave}" data-usuario="${item.usuario}" ${item.permissoes?.[chave] ? 'checked' : ''}> ${rotulo}</label>
+    const visiveis = item.perfil === 'AUDITOR'
+        ? catalogoPermissoes.filter(permissao => permissao.auditorFixa || permissao.auditorOpcional)
+        : catalogoPermissoes;
+    return `<div class="usuario-atribuicoes-lista">${visiveis.map(permissao => `
+        <label title="${escaparHtml(permissao.modulo)}"><input type="checkbox" data-acao="permissao"
+            data-permissao="${permissao.chave}" data-usuario="${item.usuario}"
+            ${item.permissoes?.[permissao.chave] ? 'checked' : ''}
+            ${permissao.auditorFixa && item.perfil === 'AUDITOR' ? 'disabled' : ''}>
+            ${escaparHtml(permissao.nome)}</label>
     `).join('')}</div>`;
 }
 
@@ -60,19 +45,14 @@ function substituirUsuario(atualizado) {
     if (indice >= 0) usuarios[indice] = atualizado;
 }
 
-// Espelham PERMISSOES_AUDITOR e PERMISSOES_OPCIONAIS_AUDITOR do
-// autenticacao.py. Há teste exigindo que as listas sejam idênticas.
-//
-// Antes, esta tela tratava MAPA-ONR como a única opcional do AUDITOR, e
-// as três criadas depois (Livro, Buscas, Polígonos) ficavam desmarcadas e
-// travadas no formulário. Como salvar reenvia todas as permissões de uma
-// vez, abrir o cadastro de um auditor por qualquer motivo e salvar
-// apagava as três -- sem erro e sem aviso.
-const PERMISSOES_FIXAS_DO_AUDITOR = ['processar_matricula', 'revisar_auditoria'];
-const PERMISSOES_OPCIONAIS_DO_AUDITOR = [
-    'acessar_mapa_onr', 'acessar_livro_protocolos', 'acessar_buscas',
-    'acessar_poligonos',
-];
+function desenharPermissoesFormulario(marcadas = {}) {
+    const alvo = document.getElementById('usuario-permissoes-catalogo');
+    alvo.innerHTML = catalogoPermissoes.map(permissao => `<label title="${escaparHtml(permissao.modulo)}">
+        <input type="checkbox" data-permissao-form="${permissao.chave}"
+            ${marcadas[permissao.chave] !== false ? 'checked' : ''}>
+        ${escaparHtml(permissao.nome)}
+    </label>`).join('');
+}
 
 function atualizarAtribuicoesFormulario() {
     const perfil = document.getElementById('usuario-perfil').value;
@@ -80,12 +60,13 @@ function atualizarAtribuicoesFormulario() {
     const auditor = perfil === 'AUDITOR';
     document.querySelectorAll('[data-permissao-form]').forEach(campo => {
         const chave = campo.dataset.permissaoForm;
-        const opcional = PERMISSOES_OPCIONAIS_DO_AUDITOR.includes(chave);
+        const definicao = catalogoPermissoes.find(item => item.chave === chave) || {};
+        const opcional = Boolean(definicao.auditorOpcional);
         campo.disabled = admin || (auditor && !opcional);
         if (admin) campo.checked = true;
         // Só mexe no que o auditor não pode escolher. As opcionais ficam
         // como estão, para não desmarcar o que já foi concedido.
-        if (auditor && !opcional) campo.checked = PERMISSOES_FIXAS_DO_AUDITOR.includes(chave);
+        if (auditor && !opcional) campo.checked = Boolean(definicao.auditorFixa);
     });
 }
 
@@ -175,13 +156,16 @@ function renderizarDivergencias() {
 
 export async function carregarUsuarios() {
     if (!cargoAdministrativo(document.body.dataset.perfil)) return;
-    const [lista, auditoria, divergencias] = await Promise.all([
+    const [lista, auditoria, divergencias, catalogo] = await Promise.all([
         requisicaoAeri('/api/usuarios'),
         requisicaoAeri('/api/usuarios/auditoria'),
         requisicaoAeri('/analisar/divergencias?status=PENDENTE'),
+        requisicaoAeri('/api/usuarios/permissoes/catalogo'),
     ]);
     usuarios = lista;
     divergenciasAnalise = divergencias;
+    catalogoPermissoes = catalogo;
+    desenharPermissoesFormulario();
     renderizarUsuarios();
     renderizarDivergencias();
     document.getElementById('auditoria-tbody').innerHTML = auditoria.map(item => `<tr>
@@ -195,7 +179,7 @@ function abrirNovoUsuario() {
     if (!usuarioPodeCriarUsuarios()) return;
     document.getElementById('form-usuario').reset();
     document.getElementById('usuario-senha').value = senhaTemporaria();
-    document.querySelectorAll('[data-permissao-form]').forEach(campo => { campo.checked = true; campo.disabled = false; });
+    desenharPermissoesFormulario();
     atualizarAtribuicoesFormulario();
     document.getElementById('modal-usuario').classList.add('aberta');
     document.getElementById('usuario-nome').focus();
@@ -228,42 +212,6 @@ async function atualizar(item, alteracoes) {
     return salvo;
 }
 
-async function salvarUsuarioSerializado(usuario) {
-    const estado = salvamentosUsuarios.get(usuario) || {salvando:false, pendente:false};
-    if (estado.salvando) {
-        estado.pendente = true;
-        salvamentosUsuarios.set(usuario, estado);
-        return;
-    }
-    estado.salvando = true;
-    salvamentosUsuarios.set(usuario, estado);
-    try {
-        do {
-            estado.pendente = false;
-            const item = usuarios.find(atual => atual.usuario === usuario);
-            if (!item) return;
-            const salvo = await requisicaoAeri(`/api/usuarios/${usuario}`, {
-                method:'PUT',
-                headers:{'Content-Type':'application/json'},
-                body:JSON.stringify({
-                    usuario:item.usuario,
-                    nome:item.nome,
-                    perfil:item.perfil,
-                    ativo:item.ativo,
-                    permissoes:item.permissoes || {},
-                }),
-            });
-            substituirUsuario(salvo);
-        } while (estado.pendente);
-    } catch (erro) {
-        alert(erro.message);
-        await carregarUsuarios();
-    } finally {
-        salvamentosUsuarios.delete(usuario);
-        renderizarUsuarios();
-    }
-}
-
 async function acaoTabela(evento) {
     const alvo = evento.target.closest('[data-acao]');
     if (!alvo) return;
@@ -272,8 +220,13 @@ async function acaoTabela(evento) {
     try {
         if (alvo.dataset.acao === 'perfil' && evento.type === 'change') await atualizar(item, {perfil:alvo.value});
         if (alvo.dataset.acao === 'permissao' && evento.type === 'change') {
-            item.permissoes = {...(item.permissoes || {}), [alvo.dataset.permissao]:alvo.checked};
-            salvarUsuarioSerializado(item.usuario);
+            alvo.disabled = true;
+            const salvo = await requisicaoAeri(
+                `/api/usuarios/${item.usuario}/permissoes/${alvo.dataset.permissao}`,
+                {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({concedida:alvo.checked})},
+            );
+            substituirUsuario(salvo);
+            renderizarUsuarios();
         }
         if (alvo.dataset.acao === 'ativo') await atualizar(item, {ativo:!item.ativo});
         if (alvo.dataset.acao === 'senha') {

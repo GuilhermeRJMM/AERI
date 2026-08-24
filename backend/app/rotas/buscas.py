@@ -40,7 +40,6 @@ from backend.app.servicos.tri7 import (
 )
 
 from backend.app.rotas.buscas_indexacao import (
-    _LimitadorTaxa,
     _consultar_lote,
     _consultar_matricula,
     _estado_json,
@@ -63,7 +62,6 @@ router = APIRouter(
 LEASE_SEGUNDOS = 300
 MAX_WORKERS_TRI7 = 3
 MAX_WORKERS_REPROCESSAMENTO = 6
-REQUISICOES_POR_SEGUNDO_TRI7 = 3.0
 
 
 

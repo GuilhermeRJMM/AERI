@@ -1,7 +1,11 @@
+import base64
 import io
 import json
 import os
+import threading
+import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 from urllib.error import HTTPError
 
@@ -32,6 +36,12 @@ class RespostaFalsa:
 
     def __exit__(self, *_args):
         return False
+
+
+class RespostaBruta(RespostaFalsa):
+    def __init__(self, conteudo: bytes, status=200):
+        self.status = status
+        self._conteudo = conteudo
 
 
 class TesteClienteTri7(unittest.TestCase):
@@ -70,6 +80,22 @@ class TesteClienteTri7(unittest.TestCase):
 
         self.assertEqual(configuracao.access_token, "parte-1.parte-2.parte-3")
 
+    def test_limita_configuracao_de_tentativas_transitorias(self):
+        with patch.dict(
+            os.environ,
+            {
+                "TRI7_API_BASE_URL": "https://tri7.example",
+                "TRI7_API_USERNAME": "usuario",
+                "TRI7_API_PASSWORD": "senha",
+                "TRI7_API_ACCESS_TOKEN": "",
+                "TRI7_API_TRANSIENT_ATTEMPTS": "99",
+            },
+            clear=False,
+        ):
+            configuracao = ConfiguracaoTri7.do_ambiente()
+
+        self.assertEqual(configuracao.tentativas_transitorias, 5)
+
     def test_token_inicial_dispensa_novo_login(self):
         requisicoes = []
 
@@ -91,6 +117,24 @@ class TesteClienteTri7(unittest.TestCase):
         self.assertEqual(resultado["numero_matricula"], "1")
         self.assertEqual(len(requisicoes), 1)
 
+    def test_log_nao_expoe_token_nem_parametro_consultado(self):
+        def abrir(_requisicao, timeout):
+            return RespostaFalsa({"numero_matricula": 39767, "texto": "MATRÍCULA 39.767."})
+
+        configuracao = ConfiguracaoTri7(
+            "https://tri7.example", "", "", timeout=5,
+            access_token="token-muito-sensivel",
+        )
+        with patch.object(modulo_tri7.limitador_tri7(), "aguardar"), self.assertLogs(
+            "aeri.tri7", level="INFO"
+        ) as logs:
+            ClienteTri7(configuracao, abridor=abrir).buscar_texto_matricula(39767)
+
+        texto_logs = " ".join(logs.output)
+        self.assertNotIn("token-muito-sensivel", texto_logs)
+        self.assertNotIn("numero_matricula=39767", texto_logs)
+        self.assertIn("/api/v1/imoveis/texto-matricula", texto_logs)
+
     def test_repete_falha_transitoria_e_para_apos_sucesso(self):
         chamadas = 0
 
@@ -111,6 +155,45 @@ class TesteClienteTri7(unittest.TestCase):
 
         self.assertEqual(resultado["numero_matricula"], "1")
         self.assertEqual(chamadas, 3)
+
+    def test_repete_erro_503_mesmo_quando_proxy_devolve_html(self):
+        chamadas = 0
+
+        def abrir(_requisicao, timeout):
+            nonlocal chamadas
+            chamadas += 1
+            if chamadas == 1:
+                return RespostaBruta(b"Internal Server Error", status=503)
+            return RespostaFalsa({"numero_matricula": 1, "texto": "MATRÍCULA 1."})
+
+        configuracao = ConfiguracaoTri7(
+            "https://tri7.example", "", "", timeout=5, access_token="token"
+        )
+        with patch.object(modulo_tri7.limitador_tri7(), "aguardar"), patch.object(
+            modulo_tri7.time, "sleep"
+        ):
+            resultado = ClienteTri7(configuracao, abridor=abrir).buscar_texto_matricula(1)
+
+        self.assertEqual(resultado["numero_matricula"], "1")
+        self.assertEqual(chamadas, 2)
+
+    def test_numero_de_tentativas_transitorias_e_configuravel(self):
+        chamadas = 0
+
+        def abrir(_requisicao, timeout):
+            nonlocal chamadas
+            chamadas += 1
+            return RespostaFalsa({"detail": "temporário"}, status=503)
+
+        configuracao = ConfiguracaoTri7(
+            "https://tri7.example", "", "", timeout=5, access_token="token",
+            tentativas_transitorias=1,
+        )
+        with patch.object(modulo_tri7.limitador_tri7(), "aguardar"):
+            with self.assertRaises(modulo_tri7.ErroTri7):
+                ClienteTri7(configuracao, abridor=abrir).buscar_texto_matricula(1)
+
+        self.assertEqual(chamadas, 1)
 
     def test_autentica_no_backend_e_busca_texto(self):
         requisicoes = []
@@ -150,14 +233,73 @@ class TesteClienteTri7(unittest.TestCase):
         self.assertEqual(resultado["numero_matricula"], "8148")
         self.assertEqual((logins, consultas), (2, 2))
 
+    def test_renova_token_uma_vez_para_consultas_concorrentes(self):
+        logins = 0
+        trava = threading.Lock()
+        consultas_com_token_antigo = threading.Barrier(2)
+
+        def abrir(requisicao, timeout):
+            nonlocal logins
+            if requisicao.full_url.endswith("/api/v1/users/login"):
+                with trava:
+                    logins += 1
+                return RespostaFalsa({"access_token": "token-novo"})
+            if requisicao.headers["Authorization"] == "Bearer token-antigo":
+                consultas_com_token_antigo.wait(timeout=2)
+                raise HTTPError(
+                    requisicao.full_url, 401, "Unauthorized", {},
+                    io.BytesIO(b'{"detail":"expired"}'),
+                )
+            self.assertEqual(requisicao.headers["Authorization"], "Bearer token-novo")
+            return RespostaFalsa({"numero_matricula": 1, "texto": "MATRÍCULA 1."})
+
+        configuracao = ConfiguracaoTri7(
+            "https://tri7.example", "usuario", "senha", timeout=5,
+            access_token="token-antigo",
+        )
+        cliente = ClienteTri7(configuracao, abridor=abrir)
+        with patch.object(modulo_tri7.limitador_tri7(), "aguardar"):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                resultados = list(executor.map(cliente.buscar_texto_matricula, (1, 1)))
+
+        self.assertEqual([item["numero_matricula"] for item in resultados], ["1", "1"])
+        self.assertEqual(logins, 1)
+
+    def test_renova_antes_da_consulta_quando_jwt_esta_expirando(self):
+        def parte_jwt(dados):
+            bruto = json.dumps(dados, separators=(",", ":")).encode("utf-8")
+            return base64.urlsafe_b64encode(bruto).decode("ascii").rstrip("=")
+
+        token_expirado = f"{parte_jwt({'alg': 'none'})}.{parte_jwt({'exp': time.time() - 1})}.x"
+        logins = 0
+
+        def abrir(requisicao, timeout):
+            nonlocal logins
+            if requisicao.full_url.endswith("/api/v1/users/login"):
+                logins += 1
+                return RespostaFalsa({"access_token": "token-renovado"})
+            self.assertEqual(requisicao.headers["Authorization"], "Bearer token-renovado")
+            return RespostaFalsa({"numero_matricula": 1, "texto": "MATRÍCULA 1."})
+
+        configuracao = ConfiguracaoTri7(
+            "https://tri7.example", "usuario", "senha", timeout=5,
+            access_token=token_expirado,
+        )
+        with patch.object(modulo_tri7.limitador_tri7(), "aguardar"):
+            resultado = ClienteTri7(configuracao, abridor=abrir).buscar_texto_matricula(1)
+
+        self.assertEqual(resultado["numero_matricula"], "1")
+        self.assertEqual(logins, 1)
+
     def test_converte_404_em_erro_de_dominio(self):
         def abrir(requisicao, timeout):
             if requisicao.full_url.endswith("/api/v1/users/login"):
                 return RespostaFalsa({"access_token": "token"})
             raise HTTPError(requisicao.full_url, 404, "Not Found", {}, io.BytesIO(b'{"detail":"not found"}'))
 
-        with self.assertRaises(MatriculaTri7NaoEncontrada):
+        with self.assertRaises(MatriculaTri7NaoEncontrada) as contexto:
             ClienteTri7(self.configuracao(), abridor=abrir).buscar_texto_matricula(999999)
+        self.assertEqual(contexto.exception.status, 404)
 
     def test_recusa_numero_diferente_na_resposta(self):
         def abrir(requisicao, timeout):

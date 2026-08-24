@@ -1,5 +1,3 @@
-import threading
-import time
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
@@ -20,7 +18,7 @@ from backend.app.servicos.livro_protocolos import (
     referencias_textos_protocolo,
     registros_alterados_no_protocolo,
 )
-from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7, limitador_tri7
+from backend.app.servicos.tri7 import ErroTri7, ProtocoloTri7NaoEncontrado, cliente_tri7
 
 
 router = APIRouter(
@@ -29,32 +27,10 @@ router = APIRouter(
     dependencies=[Depends(preparar_banco)],
 )
 
-# Mesmo limite conservador usado na sincronização de Registros Auxiliares: a
-# Tri7 já demonstrou não tolerar bem paralelismo sem controle.
-REQUISICOES_POR_SEGUNDO_TRI7 = 3.0
-
-
-class _LimitadorTaxaTri7:
-    def __init__(self, requisicoes_por_segundo: float):
-        self._intervalo = 1.0 / requisicoes_por_segundo
-        self._proximo = 0.0
-        self._trava = threading.Lock()
-
-    def aguardar(self) -> None:
-        with self._trava:
-            agora = time.monotonic()
-            reservado = max(agora, self._proximo)
-            self._proximo = reservado + self._intervalo
-        espera = reservado - agora
-        if espera > 0:
-            time.sleep(espera)
-
-
 def _reindexar_registros_alterados(
     alterados: set[tuple[str, int]],
     cache_textos: dict[tuple[str, int], tuple[str | None, str | None]],
     cliente,
-    limitador,
     request: Request,
     usuario: str,
 ) -> dict:
@@ -135,7 +111,6 @@ async def analisar_livro_protocolos(
                 excecoes = frozenset((linha["titulo_tema"], linha["natureza_tema"]) for linha in cursor.fetchall())
 
         cliente = cliente_tri7()
-        limitador = limitador_tri7()
         cache_textos: dict[tuple[str, int], tuple[str | None, str | None]] = {}
         # O que o dia efetivamente alterou -- base do reprocessamento do índice.
         alterados: set[tuple[str, int]] = set()
@@ -173,7 +148,7 @@ async def analisar_livro_protocolos(
             resultados.append(registro)
 
         atualizacao = _reindexar_registros_alterados(
-            alterados, cache_textos, cliente, limitador, request, usuario,
+            alterados, cache_textos, cliente, request, usuario,
         )
 
         resumo = {

@@ -21,6 +21,7 @@ from backend.app.autenticacao import (
     PERMISSOES_OPCIONAIS_AUDITOR,
     permissoes_sessao,
 )
+from backend.app.permissoes import COLUNAS_LEGADAS
 
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -63,7 +64,7 @@ class TesteConsultaDaSessao(unittest.TestCase):
             arquivo.read_text(encoding="utf-8")
             for arquivo in MIGRACOES.glob("*.sql")
         )
-        sem_migracao = [c for c in PERMISSOES.values() if c not in sql]
+        sem_migracao = [c for c in COLUNAS_LEGADAS.values() if c not in sql]
         self.assertEqual(sem_migracao, [], f"colunas sem migração: {sem_migracao}")
 
 
@@ -90,6 +91,17 @@ class TestePermissoesDaSessao(unittest.TestCase):
         self.assertFalse(saida["acessar_poligonos"])
         # Coluna ausente do dicionário tem de valer False, e não estourar.
         self.assertFalse(saida["gerenciar_custas"])
+
+    def test_perfil_comum_prefere_relacoes_as_colunas_antigas(self):
+        sessao = self._sessao(
+            "CONFERENTE",
+            permissoes_relacionais={"acessar_buscas": True},
+            pode_acessar_buscas=False,
+            pode_acessar_poligonos=True,
+        )
+        saida = permissoes_sessao(sessao)
+        self.assertTrue(saida["acessar_buscas"])
+        self.assertFalse(saida["acessar_poligonos"])
 
     def test_auditor_recebe_as_fixas_e_as_opcionais_marcadas(self):
         sessao = self._sessao("AUDITOR", pode_acessar_poligonos=True)

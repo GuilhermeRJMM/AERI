@@ -11,6 +11,13 @@ from argon2.exceptions import InvalidHashError, VerifyMismatchError
 from fastapi import Depends, HTTPException, Request
 
 from backend.app.database import conectar
+from backend.app.permissoes import (
+    COLUNAS_LEGADAS,
+    PERMISSOES,
+    PERMISSOES_AUDITOR,
+    PERMISSOES_OPCIONAIS_AUDITOR,
+    permissoes_relacionais_do_registro,
+)
 from backend.app.seguranca_web import ip_cliente, validar_origem
 
 
@@ -19,29 +26,7 @@ SESSAO_SEGUNDOS = 60 * 60 * 8
 INATIVIDADE_SEGUNDOS = 60 * 30
 MAX_TENTATIVAS = 5
 JANELA_TENTATIVAS_MINUTOS = 15
-PERMISSOES = {
-    "processar_matricula": "pode_processar_matricula",
-    "revisar_auditoria": "pode_revisar_auditoria",
-    "acessar_mapa_onr": "pode_acessar_mapa_onr",
-    "acessar_livro_protocolos": "pode_acessar_livro_protocolos",
-    "acessar_buscas": "pode_acessar_buscas",
-    "acessar_poligonos": "pode_acessar_poligonos",
-    "acessar_gerador_notas": "pode_acessar_gerador_notas",
-    "processar_incra": "pode_processar_incra",
-    "gerenciar_custas": "pode_gerenciar_custas",
-    "ver_intimacoes": "pode_ver_intimacoes",
-    "criar_intimacoes": "pode_criar_intimacoes",
-    "alterar_intimacoes": "pode_alterar_intimacoes",
-    "conferir_intimacoes": "pode_conferir_intimacoes",
-}
 PERFIS_ADMINISTRATIVOS = {"ADMIN", "SUBSTITUTO"}
-PERMISSOES_AUDITOR = {"processar_matricula", "revisar_auditoria"}
-PERMISSOES_OPCIONAIS_AUDITOR = {
-    "acessar_mapa_onr",
-    "acessar_livro_protocolos",
-    "acessar_buscas",
-    "acessar_poligonos",
-}
 _argon2 = PasswordHasher(time_cost=2, memory_cost=19_456, parallelism=1)
 _HASH_SIMULADO = _argon2.hash("senha-inexistente-para-tempo-constante")
 
@@ -162,7 +147,18 @@ def _obter_sessao(request: Request) -> dict | None:
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
-                """SELECT s.*, u.*
+                """SELECT s.*, u.*,
+                COALESCE((
+                    SELECT jsonb_object_agg(chave, TRUE)
+                    FROM (
+                        SELECT pp.permissao AS chave
+                        FROM perfis_permissoes_aeri pp WHERE pp.perfil=u.perfil
+                        UNION
+                        SELECT up.permissao AS chave
+                        FROM usuarios_permissoes_aeri up
+                        WHERE up.usuario=u.usuario AND up.concedida=TRUE
+                    ) permissoes_efetivas
+                ), '{}'::jsonb) AS permissoes_relacionais
                 FROM sessoes_aeri s JOIN usuarios_aeri u ON u.usuario=s.usuario
                 WHERE s.token_hash=%s AND s.revogada_em IS NULL AND u.ativo=TRUE
                 AND s.expira_em > NOW() AND s.ultimo_acesso > NOW() - (%s * INTERVAL '1 second')""",
@@ -206,18 +202,23 @@ def usuario_atual(request: Request) -> str:
 def permissoes_sessao(sessao: dict) -> dict:
     if sessao["perfil"] in PERFIS_ADMINISTRATIVOS:
         return {chave: True for chave in PERMISSOES}
+    relacionais = permissoes_relacionais_do_registro(sessao)
+    if relacionais is not None:
+        if sessao["perfil"] == "AUDITOR":
+            relacionais = PERMISSOES_AUDITOR | (relacionais & PERMISSOES_OPCIONAIS_AUDITOR)
+        return {chave: chave in relacionais for chave in PERMISSOES}
     if sessao["perfil"] == "AUDITOR":
         return {
             chave: (
                 chave in PERMISSOES_AUDITOR
                 or (
                     chave in PERMISSOES_OPCIONAIS_AUDITOR
-                    and bool(sessao.get(PERMISSOES[chave]))
+                    and bool(sessao.get(COLUNAS_LEGADAS[chave]))
                 )
             )
             for chave in PERMISSOES
         }
-    return {chave: bool(sessao.get(coluna)) for chave, coluna in PERMISSOES.items()}
+    return {chave: bool(sessao.get(coluna)) for chave, coluna in COLUNAS_LEGADAS.items()}
 
 
 def exigir_perfis(*perfis: str):
@@ -239,19 +240,7 @@ def exigir_permissao(permissao: str):
         sessao = request.state.sessao
         if sessao["deve_trocar_senha"]:
             raise HTTPException(status_code=403, detail="Troque sua senha temporária para continuar.")
-        if sessao["perfil"] in PERFIS_ADMINISTRATIVOS:
-            return usuario
-        if sessao["perfil"] == "AUDITOR":
-            if (
-                permissao in PERMISSOES_AUDITOR
-                or (
-                    permissao in PERMISSOES_OPCIONAIS_AUDITOR
-                    and bool(sessao.get(PERMISSOES[permissao]))
-                )
-            ):
-                return usuario
-            raise HTTPException(status_code=403, detail="Você não possui permissão para esta operação.")
-        if bool(sessao.get(PERMISSOES[permissao])):
+        if permissoes_sessao(sessao).get(permissao):
             return usuario
         raise HTTPException(status_code=403, detail="Você não possui permissão para esta operação.")
 
