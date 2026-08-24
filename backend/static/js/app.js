@@ -1,5 +1,5 @@
 import {configurarAcessoAnaliseManual, iniciarAnalisador} from './analisador.js?v=20260821-controle-qualidade-v1';
-import {iniciarAutenticacao} from './autenticacao.js?v=20260820-robustez-v1';
+import {iniciarAutenticacao} from './autenticacao.js?v=20260824-permissoes-v2';
 import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260820-robustez-v1';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js?v=20260817-reindexa-v1';
@@ -69,6 +69,20 @@ function cargoAdministrativo(perfil) {
     return ['ADMIN', 'SUBSTITUTO'].includes(perfil);
 }
 
+function aplicarAcessosDaSessao(dados) {
+    sessaoAtual = dados;
+    configurarAcessoAnaliseManual(dados.perfil);
+    configurarAcessoMapaOnr(
+        !dados.deveTrocarSenha && permitido(dados, 'acessar_mapa_onr'),
+    );
+    configurarAcessoPoligonos(
+        !dados.deveTrocarSenha && permitido(dados, 'acessar_poligonos'),
+    );
+    configurarAcessoGeradorNotas(
+        !dados.deveTrocarSenha && permitido(dados, 'acessar_gerador_notas'),
+    );
+}
+
 function fecharSplash() {
     if (splashEncerrada) return;
     splashEncerrada = true;
@@ -78,26 +92,14 @@ function fecharSplash() {
     window.setTimeout(() => splash.remove(), 650);
     iniciarAutenticacao({
         aoEntrar: dados => {
-            sessaoAtual = dados;
-            configurarAcessoAnaliseManual(dados.perfil);
-            configurarAcessoMapaOnr(
-                !dados.deveTrocarSenha && (
-                    cargoAdministrativo(dados.perfil) || Boolean(dados.permissoes?.acessar_mapa_onr)
-                ),
-            );
-            configurarAcessoPoligonos(
-                !dados.deveTrocarSenha && (
-                    cargoAdministrativo(dados.perfil) || Boolean(dados.permissoes?.acessar_poligonos)
-                ),
-            );
-            configurarAcessoGeradorNotas(
-                !dados.deveTrocarSenha && (
-                    cargoAdministrativo(dados.perfil) || Boolean(dados.permissoes?.acessar_gerador_notas)
-                ),
-            );
+            aplicarAcessosDaSessao(dados);
             exigirTrocaSenha(dados.deveTrocarSenha);
             ativarPaginaAtual().catch(erro => console.error(erro));
             if (!dados.deveTrocarSenha) ativarStatusOnr();
+        },
+        aoAtualizar: dados => {
+            aplicarAcessosDaSessao(dados);
+            exigirTrocaSenha(dados.deveTrocarSenha);
         },
         aoSair: () => {
             sessaoAtual = null;

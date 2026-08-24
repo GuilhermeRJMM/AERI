@@ -3,6 +3,9 @@ import {definirCsrfToken, requisicaoAeri} from './api.js?v=20260820-robustez-v1'
 let autenticado = false;
 let aoEntrar = () => {};
 let aoSair = () => {};
+let aoAtualizar = () => {};
+let sincronizandoSessao = false;
+let ultimaSincronizacao = 0;
 
 function definirModuloVisivel(pageId, visivel) {
     const item = document.querySelector(`.nav-item[data-page="${pageId}"]`);
@@ -85,6 +88,33 @@ async function verificarSessao() {
     }
 }
 
+async function sincronizarSessao() {
+    const agora = Date.now();
+    if (!autenticado || sincronizandoSessao || agora - ultimaSincronizacao < 2_000) return;
+    sincronizandoSessao = true;
+    ultimaSincronizacao = agora;
+    try {
+        const resposta = await fetch('/api/sessao', {headers: {'X-AERI-Background': '1'}});
+        if (resposta.status === 401) {
+            autenticado = false;
+            window.dispatchEvent(new CustomEvent('aeri:sessao-expirada'));
+            return;
+        }
+        if (!resposta.ok) return;
+        const dados = await resposta.json();
+        definirCsrfToken(dados.csrfToken);
+        document.body.dataset.perfil = dados.perfil;
+        window.aeriPermissoes = dados.permissoes || {};
+        aplicarPermissoesSidebar(dados);
+        aoAtualizar(dados);
+    } catch (_erro) {
+        // Perda momentânea de rede não deve expulsar o usuário. A próxima
+        // troca de foco tenta sincronizar novamente.
+    } finally {
+        sincronizandoSessao = false;
+    }
+}
+
 async function fazerLogin(evento) {
     evento.preventDefault();
     const botao = document.getElementById('btn-login');
@@ -130,8 +160,13 @@ export function estaAutenticado() {
 export function iniciarAutenticacao(opcoes = {}) {
     aoEntrar = opcoes.aoEntrar || aoEntrar;
     aoSair = opcoes.aoSair || aoSair;
+    aoAtualizar = opcoes.aoAtualizar || aoAtualizar;
     document.getElementById('form-login').addEventListener('submit', fazerLogin);
     document.getElementById('btn-sair').addEventListener('click', sairAeri);
     window.addEventListener('aeri:sessao-expirada', abrirLogin);
+    window.addEventListener('focus', sincronizarSessao);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') sincronizarSessao();
+    });
     verificarSessao();
 }

@@ -45,12 +45,8 @@ def login(dados: dict, request: Request):
                 raise HTTPException(status_code=429, detail="Muitas tentativas. Aguarde 15 minutos.")
 
             cursor.execute(
-                """SELECT usuario, senha_hash, nome, perfil, deve_trocar_senha,
-                pode_processar_matricula, pode_revisar_auditoria,
-                pode_acessar_mapa_onr,
-                pode_processar_incra, pode_gerenciar_custas, pode_ver_intimacoes,
-                pode_criar_intimacoes, pode_alterar_intimacoes, pode_conferir_intimacoes
-                FROM usuarios_aeri WHERE UPPER(usuario)=UPPER(%s) AND ativo=TRUE""",
+                """SELECT * FROM usuarios_aeri
+                WHERE UPPER(usuario)=UPPER(%s) AND ativo=TRUE""",
                 (usuario,),
             )
             conta = cursor.fetchone()

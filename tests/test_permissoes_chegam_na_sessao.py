@@ -25,6 +25,7 @@ from backend.app.autenticacao import (
 
 RAIZ = Path(__file__).resolve().parent.parent
 AUTENTICACAO = RAIZ / "backend" / "app" / "autenticacao.py"
+ROTA_AUTENTICACAO = RAIZ / "backend" / "app" / "rotas" / "autenticacao.py"
 MIGRACOES = RAIZ / "backend" / "app" / "migrations"
 
 
@@ -35,15 +36,25 @@ def _consulta_da_sessao() -> str:
     return achado.group(0)
 
 
+def _consulta_do_login() -> str:
+    fonte = ROTA_AUTENTICACAO.read_text(encoding="utf-8")
+    achado = re.search(r'"""SELECT \* FROM usuarios_aeri.*?"""', fonte, re.S)
+    assert achado, "o login voltou a enumerar manualmente as permissões"
+    return achado.group(0)
+
+
 class TesteConsultaDaSessao(unittest.TestCase):
     def test_le_todas_as_colunas_de_permissao(self):
         consulta = _consulta_da_sessao()
-        faltando = [c for c in PERMISSOES.values() if c not in consulta]
-        self.assertEqual(
-            faltando, [],
-            "colunas ausentes no SELECT da sessão: a permissão grava no banco "
-            "e o módulo continua fechado, sem erro nenhum",
+        self.assertIn(
+            "u.*", consulta,
+            "a sessão voltou a enumerar colunas; a próxima permissão nova "
+            "poderá ser esquecida e ficar invisível mesmo gravada no banco",
         )
+
+    def test_login_le_todas_as_permissoes_sem_lista_manual(self):
+        consulta = _consulta_do_login()
+        self.assertIn("SELECT * FROM usuarios_aeri", consulta)
 
     def test_toda_coluna_tem_migracao_que_a_cria(self):
         # O contrário também quebra: mapear coluna que não existe faz o
