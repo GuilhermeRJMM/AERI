@@ -39,6 +39,24 @@ def ato_transmissao_repete_onus_seguinte(descricao: str, descricao_seguinte: str
     )
 
 
+def ato_cadastral_apenas_cita_onus(descricao: str, tipo_onus: str | None) -> bool:
+    """Evita que a origem documental de um ato cadastral seja tratada como gravame."""
+    texto = _normalizar(descricao)
+    cadastro = re.search(
+        r"\b(?:ATUALIZACAO\s+(?:DE|DA)\s+)?DESIGNACAO\s+CADASTRAL"
+        r"(?:\s+DO\s+IMOVEL)?\b",
+        texto[:420],
+    )
+    if not cadastro:
+        return False
+
+    # Se o próprio título constitutivo do ônus vier antes da referência cadastral,
+    # trata-se de um gravame verdadeiro que apenas menciona dados do imóvel.
+    onus = _normalizar(tipo_onus or "").strip()
+    posicao_onus = texto.find(onus) if onus else -1
+    return posicao_onus < 0 or cadastro.start() < posicao_onus
+
+
 def _remover_onus_duplicado_da_transmissao(atos: list[Ato]) -> None:
     for indice, ato in enumerate(atos[:-1]):
         seguinte = atos[indice + 1]
@@ -79,6 +97,10 @@ def processar_atos(texto: str, regras_aprendidas: list[dict] | None = None) -> l
             tipo_onus = identificar_tipo_onus(item["texto"]) or identificar_tipo_onus_aprendido(
                 item["texto"], regras_aprendidas
             )
+            if ato_cadastral_apenas_cita_onus(item["texto"], tipo_onus):
+                categoria = "IGNORAR"
+                impacta = False
+                tipo_onus = None
         atos.append(
             Ato(
                 codigo=item["codigo"],

@@ -843,6 +843,42 @@ class TesteCancelamentos(unittest.TestCase):
         self.assertEqual("AV.10", alienacao["cancelado_por"])
         self.assertEqual("NEGATIVA PARA ÔNUS", resultado["resultado"])
 
+    def test_matricula_18552_designacao_nao_herda_alienacao_da_escritura(self):
+        texto = """
+        MATRÍCULA 18.552. IMÓVEL: Lote 15, Quadra 25, Setor Aeroporto.
+        PROPRIETÁRIO: Rafael Rodrigues Romano.
+        AV.03-18.552 - DESIGNAÇÃO CADASTRAL DO IMÓVEL. Nos termos do
+        requerimento contido na Escritura Pública de Confissão de Dívida com
+        Constituição de Garantia em Alienação Fiduciária, procede-se a esta
+        averbação para constar o CCI n.º 126.614.
+        R.04-18.552 - ALIENAÇÃO FIDUCIÁRIA. DEVEDOR FIDUCIANTE: Rafael
+        Rodrigues Romano. CREDOR FIDUCIÁRIO: Dacarto Benvindo de Carvalho.
+        OBJETO DA GARANTIA: o imóvel desta matrícula.
+        AV.06-18.552 - CANCELAMENTO DE ALIENAÇÃO FIDUCIÁRIA. Procede-se ao
+        cancelamento da alienação fiduciária objeto do R.04 desta matrícula.
+        """
+        resultado = analisar_matricula(texto)
+        codigos = [ato["codigo"] for ato in resultado["atos"]]
+        alienacao = next(ato for ato in resultado["atos"] if ato["codigo"] == "R.04")
+
+        self.assertNotIn("AV.03", codigos)
+        self.assertEqual("CANCELADO", alienacao["status"])
+        self.assertEqual("AV.06", alienacao["cancelado_por"])
+        self.assertEqual("NEGATIVA PARA ÔNUS", resultado["resultado"])
+
+    def test_alienacao_verdadeira_nao_e_ignorada_por_mencionar_designacao(self):
+        texto = """
+        MATRÍCULA 1. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa Devedora.
+        R.04-1 - ALIENAÇÃO FIDUCIÁRIA. DEVEDOR FIDUCIANTE: Pessoa Devedora.
+        CREDOR FIDUCIÁRIO: Banco Exemplo. Atualiza-se também a designação
+        cadastral do imóvel. OBJETO DA GARANTIA: o imóvel desta matrícula.
+        """
+        resultado = analisar_matricula(texto)
+        alienacao = next(ato for ato in resultado["atos"] if ato["codigo"] == "R.04")
+
+        self.assertEqual("ATIVO", alienacao["status"])
+        self.assertEqual("POSITIVA PARA ÔNUS", resultado["resultado"])
+
 
 if __name__ == "__main__":
     unittest.main()
