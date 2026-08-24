@@ -103,10 +103,10 @@ def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_per
                     pode_processar_matricula, pode_revisar_auditoria,
                     pode_acessar_mapa_onr,
                     pode_acessar_livro_protocolos, pode_acessar_buscas,
-                    pode_acessar_poligonos,
+                    pode_acessar_poligonos, pode_acessar_gerador_notas,
                     pode_processar_incra, pode_gerenciar_custas, pode_ver_intimacoes,
                     pode_criar_intimacoes, pode_alterar_intimacoes, pode_conferir_intimacoes)
-                    VALUES (%s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
+                    VALUES (%s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *""",
                     (
                         usuario, nome, perfil, hash_senha(senha),
                         permissoes["pode_processar_matricula"],
@@ -115,6 +115,7 @@ def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_per
                         permissoes["pode_acessar_livro_protocolos"],
                         permissoes["pode_acessar_buscas"],
                         permissoes["pode_acessar_poligonos"],
+                        permissoes["pode_acessar_gerador_notas"],
                         permissoes["pode_processar_incra"],
                         permissoes["pode_gerenciar_custas"],
                         permissoes["pode_ver_intimacoes"],
@@ -154,7 +155,7 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
                 pode_processar_matricula=%s, pode_revisar_auditoria=%s,
                 pode_acessar_mapa_onr=%s,
                 pode_acessar_livro_protocolos=%s, pode_acessar_buscas=%s,
-                pode_acessar_poligonos=%s,
+                pode_acessar_poligonos=%s, pode_acessar_gerador_notas=%s,
                 pode_processar_incra=%s, pode_gerenciar_custas=%s, pode_ver_intimacoes=%s,
                 pode_criar_intimacoes=%s, pode_alterar_intimacoes=%s, pode_conferir_intimacoes=%s,
                 atualizado_em=NOW()
@@ -167,6 +168,7 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
                     permissoes["pode_acessar_livro_protocolos"],
                     permissoes["pode_acessar_buscas"],
                     permissoes["pode_acessar_poligonos"],
+                    permissoes["pode_acessar_gerador_notas"],
                     permissoes["pode_processar_incra"],
                     permissoes["pode_gerenciar_custas"],
                     permissoes["pode_ver_intimacoes"],

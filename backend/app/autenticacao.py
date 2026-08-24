@@ -26,6 +26,7 @@ PERMISSOES = {
     "acessar_livro_protocolos": "pode_acessar_livro_protocolos",
     "acessar_buscas": "pode_acessar_buscas",
     "acessar_poligonos": "pode_acessar_poligonos",
+    "acessar_gerador_notas": "pode_acessar_gerador_notas",
     "processar_incra": "pode_processar_incra",
     "gerenciar_custas": "pode_gerenciar_custas",
     "ver_intimacoes": "pode_ver_intimacoes",
@@ -165,7 +166,7 @@ def _obter_sessao(request: Request) -> dict | None:
                 u.pode_processar_matricula, u.pode_revisar_auditoria,
                 u.pode_acessar_mapa_onr,
                 u.pode_acessar_livro_protocolos, u.pode_acessar_buscas,
-                u.pode_acessar_poligonos,
+                u.pode_acessar_poligonos, u.pode_acessar_gerador_notas,
                 u.pode_processar_incra, u.pode_gerenciar_custas,
                 u.pode_ver_intimacoes, u.pode_criar_intimacoes,
                 u.pode_alterar_intimacoes, u.pode_conferir_intimacoes

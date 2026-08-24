@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Legislação cadastrada</title>
+<link rel="stylesheet" href="/static/gerador_notas/estilo.css?v=20260824-v1">
+</head>
+<body>
+
+<header class="topo">
+  <div class="marca">
+    <div class="selo">GN</div>
+    <div>
+      <h1>Legislação cadastrada</h1>
+      <p>As normas de onde sai a fundamentação das notas</p>
+    </div>
+  </div>
+  <div class="acoes-topo">
+    <span class="contagem" id="contagem"></span>
+    <a class="secundario botao-link" href="/api/gerador-notas/interface">Voltar à nota</a>
+  </div>
+</header>
+
+<main>
+  <div class="colunas">
+    <section class="cartao coluna">
+      <div class="cabeca">
+        <h2>Normas</h2>
+        <input id="filtro" class="busca" placeholder="Filtrar…" autocomplete="off">
+      </div>
+      <div id="normas" class="lista"></div>
+    </section>
+
+    <section class="cartao coluna">
+      <div class="cabeca">
+        <h2 id="titulo-detalhe">Selecione uma norma</h2>
+        <input id="busca-artigo" class="busca" placeholder="Artigo ou assunto…"
+               autocomplete="off" disabled>
+      </div>
+      <div id="detalhe" class="campos"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="rodape">
+  <div class="aviso" id="rodape"></div>
+</footer>
+
+<script src="/static/gerador_notas/legislacao.js?v=20260824-v1"></script>
+</body>
+</html>

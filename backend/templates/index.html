@@ -127,6 +127,13 @@
                     <span>Livro de Protocolos</span>
                 </div>
 
+                <div class="nav-item" data-page="geradornotas" title="Gerador de Notas" hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-5"/>
+                    </svg>
+                    <span>Gerador de Notas</span>
+                </div>
+
                 <div class="nav-item" data-page="custas" title="Informar Custas" hidden>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M4 5h16v14H4z"/><path d="M4 10h16M9 5v14M14 10v9"/>
@@ -243,6 +250,18 @@
                             loading="lazy"
                         ></iframe>
                     </section>
+                </main>
+            </div>
+
+            <div id="page-geradornotas" class="page">
+                <main class="layout gerador-notas-layout">
+                    <iframe
+                        id="gerador-notas-frame"
+                        title="Gerador de Notas devolutivas e de exigência"
+                        data-src="/api/gerador-notas/interface?v=20260824-v1"
+                        sandbox="allow-scripts allow-same-origin allow-downloads allow-forms"
+                        loading="lazy"
+                    ></iframe>
                 </main>
             </div>
 
@@ -893,6 +912,7 @@
                     <label><input type="checkbox" data-permissao-form="acessar_livro_protocolos"> Acessar Livro de Protocolos</label>
                     <label><input type="checkbox" data-permissao-form="acessar_buscas"> Acessar Buscas</label>
                     <label><input type="checkbox" data-permissao-form="acessar_poligonos"> Acessar Polígonos</label>
+                    <label><input type="checkbox" data-permissao-form="acessar_gerador_notas"> Acessar Gerador de Notas</label>
                     <label><input type="checkbox" data-permissao-form="processar_incra" checked> Processar relatório do INCRA</label>
                     <label><input type="checkbox" data-permissao-form="gerenciar_custas" checked> Gerenciar Informar Custas</label>
                     <label><input type="checkbox" data-permissao-form="ver_intimacoes" checked> Visualizar intimações</label>
@@ -937,6 +957,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260821-atalhos-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20260824-gerador-notas-v1"></script>
 </body>
 </html>

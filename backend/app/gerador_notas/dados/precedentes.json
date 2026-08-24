@@ -1,0 +1,53 @@
+{
+ "_leia_me": [
+  "Precedentes citaveis pelas exigencias, para os casos em que a regra nao esta em",
+  "artigo de lei. Diferente dos dispositivos, que sao lidos do PDF da norma, o texto",
+  "daqui e transcrito a mao - por isso cada entrada declara de onde veio, em 'fonte',",
+  "e nasce com 'revisado' false ate que um registrador confira a transcricao e a",
+  "pertinencia.",
+  "Nao acrescente precedente sem ter o inteiro teor a vista: citacao de segunda mao",
+  "e o tipo de erro que so aparece quando alguem contesta a nota."
+ ],
+ "precedentes": [
+  {
+   "id": "sentenca-duvida-morrinhos-2022",
+   "tipo": "Sentença em suscitação de dúvida registral",
+   "identificacao": "TJGO, Suscitação de Dúvida n.º 5303913-38.2021.8.09.0107, Juiz de Direito Leonardo Naciff Bezerra, 2ª Vara Cível, Criminal, de Família, das Fazendas Públicas, de Registros Públicos e Ambiental, sentença de 07.08.2022, transitada em julgado em 30.09.2022",
+   "texto": "A Retificação, na verdade, não se presta a alterar a dimensão do imóvel, quer para mais ou para menos, exceto em situações excepcionais permitidas pelo ordenamento jurídico como: existência de aluvião, alagamento de parcela do imóvel por represa, abertura de estradas, etc, pois não se retifica o imóvel, mas sua descrição. Nesse sentido, retificar significa corrigir falha ou inserir dado omisso. Não significa, necessariamente, adequar o Registro Imobiliário à realidade fática, pois muitas realidades fáticas não são juridicamente aceitas, como, por exemplo, uma parcela de terra adquirida do vizinho por acordo informal. (...) Com efeito, de acordo com a Nota Técnica/INCRA/DFG/nº 01/2010, de 22 de fevereiro de 2010, fixou-se o limite de 10% (dez por cento) na diferença, a maior, entre a área reconhecida e a área medida, de modo que a parte interessada deve comprovar o domínio sobre a área excedente para ter os limites retificados na área constante na matrícula. (...) Assim, tem-se que as imprecisões das dimensões da área rural recaem sobre elementos cruciais para a individualização matricial do imóvel, levando à conclusão de que o objetivo buscado pelo autor só poderia ser alcançado nas vias ordinárias, distintas do procedimento voluntário reservado ao Juízo do Registro Público. (...) JULGO PROCEDENTE a dúvida suscitada pelo Oficial do Cartório do 1º Ofício de Notas e Registro de Imóveis da Comarca de Morrinhos/GO, mantendo-se a negativa da retificação pretendida pela via administrativa.",
+   "fonte": "conferido contra o inteiro teor da sentença nos autos 5303913-38.2021.8.09.0107 (processo digitalizado, arquivo do cartório)",
+   "revisado": false
+  },
+  {
+   "id": "parecer-mp-morrinhos-2022",
+   "tipo": "Parecer do Ministério Público",
+   "identificacao": "Autos n.º 5303913-38.2021.8.09.0107, suscitação de dúvida registral, Jonisy Ferreira Figueiredo, Promotora de Justiça da 3ª Promotoria de Justiça de Morrinhos-GO, 09.05.2022",
+   "texto": "Em que pese o requerimento formulado pelo apresentante a respeito da área do imóvel, o Ministério Público entende que a parte interessada deve se valer das vias ordinárias para comprovar a posse e o domínio da área excedente em questão, já que o procedimento de suscitação de dúvida tem natureza administrativa (art. 204 da Lei n.º 6.015/1973) e não admite dilação probatória. Ora, o apresentante não conseguiu demonstrar a contento que o imóvel sempre teve aquela área e que a falha está no dado registrado.",
+   "fonte": "transcrito da nota do cartório; o teor confere com o resumo do parecer feito pela sentença, que não reproduz o texto integral",
+   "revisado": false
+  },
+  {
+   "id": "resp-1228288-rs",
+   "tipo": "Acórdão do Superior Tribunal de Justiça",
+   "identificacao": "REsp 1.228.288/RS (2011/0003239-6), Rel. Ministro João Otávio de Noronha, Terceira Turma do Superior Tribunal de Justiça, julgado em 03.03.2016, por unanimidade",
+   "texto": "RECURSO ESPECIAL. RETIFICAÇÃO DE REGISTRO DE IMÓVEL. ART. 213 DA LEI N. 6.015/73. PRETENSÃO DE AQUISIÇÃO DE PROPRIEDADE. IMPOSSIBILIDADE. 1. A Lei de Registros Públicos busca dar plena validade, eficácia e segurança aos registros, visando, sobretudo, proteger o interesse dos legítimos proprietários e de terceiros. 2. Não serve o procedimento de retificação constante da Lei de Registros Públicos como forma de aquisição ou aumento de propriedade imobiliária, pois destinado apenas à correção dos assentos existentes no registro de imóveis, considerando-se a situação fática do bem. 3. Recurso especial desprovido.",
+   "fonte": "conferido contra o inteiro teor: Fundamentações/REsp 1.228.288-RS.pdf",
+   "revisado": false
+  },
+  {
+   "id": "tjgo-apelacao-0388130-2016",
+   "tipo": "Acórdão do Tribunal de Justiça de Goiás",
+   "identificacao": "TJGO, Apelação Cível n.º 0388130-70.2016.8.09.0044, Rel. Dr. Sérgio Mendonça de Araújo, Juiz de Direito Substituto em 2º Grau, Primeira Turma Julgadora da 4ª Câmara Cível, julgado em 12.07.2018, por unanimidade",
+   "texto": "APELAÇÃO CÍVEL. PROCEDIMENTO DE SUSCITAÇÃO DE DÚVIDA. NATUREZA ADMINISTRATIVA DE COGNIÇÃO LIMITADA. AÇÃO DEMARCATÓRIA C/C REIVINDICATÓRIA PENDENTE. ALEGAÇÃO DE SOBREPOSIÇÃO DO IMÓVEL. DILAÇÃO PROBATÓRIA. INCOMPORTABILIDADE. VIAS JUDICIAIS ORDINÁRIAS. SENTENÇA MANTIDA. 1. Sendo a dúvida registrada um procedimento de natureza administrativa, inexiste lide, e o magistrado atua como Corregedor dos serviços executados pela serventia, direcionando os atos do Oficial de Registros, não cabendo dilação probatória. 2. Existindo dúvida quanto à regularidade do georreferenciamento, inclusive com alegação de sobreposição de imóveis, deve a suscitada/apelada valer-se das vias ordinárias para dirimir as questões controvertidas acerca da matéria posta a julgamento. APELAÇÃO CONHECIDA E DESPROVIDA.",
+   "fonte": "conferido contra o inteiro teor: Fundamentações/APELAÇÃO CÍVEL Nº 0388130.pdf",
+   "revisado": false
+  },
+  {
+   "id": "tjgo-apelacao-0216621-2017",
+   "tipo": "Acórdão do Tribunal de Justiça de Goiás",
+   "identificacao": "TJGO, Apelação n.º 0216621-58.2017.8.09.0134, Rel. Des. Kisleu Dias Maciel Filho, 5ª Câmara Cível, julgado em 23.06.2023",
+   "texto": "Caso a retificação do registro imobiliário indique acréscimo de área no registro da propriedade da parte que o requereu, mas disso não resultar diminuição dos limites das propriedades vizinhas, o procedimento de jurisdição voluntária de retificação de registro de imóvel impõe a citação de todos os confrontantes (art. 213, § 2º, da Lei n.º 6.015/73), proprietários e possuidores, para que estes tenham a oportunidade de impugnar a alteração da descrição das divisas ou da área do imóvel do requerente.",
+   "fonte": "transcrito da nota de devolução do próprio cartório, protocolo de georreferenciamento com retificação superior a 10%",
+   "revisado": false
+  }
+ ]
+}

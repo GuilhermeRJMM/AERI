@@ -3,6 +3,7 @@ import {iniciarAutenticacao} from './autenticacao.js?v=20260820-robustez-v1';
 import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260820-robustez-v1';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js?v=20260817-reindexa-v1';
+import {configurarAcessoGeradorNotas, iniciarGeradorNotas} from './gerador_notas.js?v=20260824-v1';
 import {configurarAcessoMapaOnr, iniciarMapaOnr, limparMapaOnr} from './mapa_onr.js?v=20260815-permissao-v1';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260820-robustez-v1';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260820-robustez-v1';
@@ -89,6 +90,11 @@ function fecharSplash() {
                     cargoAdministrativo(dados.perfil) || Boolean(dados.permissoes?.acessar_poligonos)
                 ),
             );
+            configurarAcessoGeradorNotas(
+                !dados.deveTrocarSenha && (
+                    cargoAdministrativo(dados.perfil) || Boolean(dados.permissoes?.acessar_gerador_notas)
+                ),
+            );
             exigirTrocaSenha(dados.deveTrocarSenha);
             ativarPaginaAtual().catch(erro => console.error(erro));
             if (!dados.deveTrocarSenha) ativarStatusOnr();
@@ -106,6 +112,7 @@ function fecharSplash() {
             configurarAcessoMapaOnr(false);
             limparPoligonos();
             configurarAcessoPoligonos(false);
+            configurarAcessoGeradorNotas(false);
             pararStatusOnr();
         },
     });
@@ -118,6 +125,7 @@ iniciarAnalisador();
 iniciarBuscas();
 iniciarIncra();
 iniciarLivroProtocolos();
+iniciarGeradorNotas();
 iniciarMapaOnr();
 iniciarPoligonos();
 iniciarCustas();

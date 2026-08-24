@@ -19,6 +19,7 @@ const ATRIBUICOES = [
     ['acessar_livro_protocolos', 'Livro de Protocolos'],
     ['acessar_buscas', 'Buscas'],
     ['acessar_poligonos', 'Polígonos'],
+    ['acessar_gerador_notas', 'Gerador de Notas'],
     ['processar_incra', 'INCRA'],
     ['gerenciar_custas', 'Informar Custas'],
     ['ver_intimacoes', 'Ver intimações'],

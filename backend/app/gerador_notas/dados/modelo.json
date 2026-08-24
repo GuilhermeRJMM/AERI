@@ -1,0 +1,36 @@
+{
+ "_leia_me": [
+  "Preambulos e fechos por especie de nota. Entre chaves ficam os dados que o",
+  "operador informa. O paragrafo 'preambulo_titulo_judicial' e acrescentado antes",
+  "do preambulo quando o titulo for judicial.",
+  "'ressalva_reapresentacao' e emendada ao fecho das especies com 'ressalva': true."
+ ],
+ "preambulo_titulo_judicial": "Preliminarmente é importante ressaltar que apesar de se tratar de título judicial, está ele sujeito à qualificação registrária, sob o estrito ângulo da regularidade formal. O exame da legalidade não promove incursão sobre o mérito da decisão judicial, mas à apreciação das formalidades extrínsecas da ordem e à conexão de seus dados com o registro e a sua formalização instrumental (TJSP - Ap. Cível nº 31881-0/1). Destarte, é incumbido ao oficial impedir o registro de título que não satisfaça os requisitos exigidos pela lei, quer sejam consubstanciados em instrumento público ou particular, quer em atos judiciais (TJSP - Ap. Cível nº 990.10.249.732-1).",
+ "especies": {
+  "devolutiva": {
+   "rotulo": "Nota Devolutiva",
+   "preambulo": "Iniciado o procedimento de qualificação registrária do título apresentado por V.S.ª, detectamos tratar-se de {titulo}, onde identificamos as seguintes pendências:",
+   "fecho": "Por fim, informamos que o valor para pagamento complementar relativo à realização do(s) ato(s) solicitado(s) será informado após superada(s) a(s) exigência(s) apresentada(s) na presente Nota, com a análise que concluir pela aptidão para registro, consoante art. 206-A, inc. II, da Lei Federal nº 6.015/1973. Cumprido o acima disposto será possível prosseguir com o registro do título de seu interesse.",
+   "ressalva": true
+  },
+  "exigencia": {
+   "rotulo": "Nota de Exigência",
+   "preambulo": "Iniciado o procedimento de qualificação registrária do título apresentado por V.S.ª, detectamos tratar-se de {titulo}, onde identificamos as seguintes pendências:",
+   "fecho": "Cumprido o acima disposto será possível prosseguir com o registro do título de seu interesse.",
+   "ressalva": true
+  },
+  "impossibilidade": {
+   "rotulo": "Nota de Impossibilidade",
+   "preambulo": "Iniciado o procedimento de qualificação registrária do título apresentado por V.S.ª, detectamos tratar-se de {titulo}, restando impossibilitado o ingresso do título no fólio real pelas razões a seguir:",
+   "fecho": "Isto posto, devolvemos-lhe por impossibilidade de registro o Título ora apresentado.",
+   "ressalva": false
+  },
+  "nota de nota": {
+   "rotulo": "Nota de Nota",
+   "preambulo": "Reiniciado o procedimento de qualificação registrária do título apresentado por V.S.ª, título este objeto da Nota anteriormente expedida, detectamos que remanescem as seguintes pendências:",
+   "fecho": "Cumprido o acima disposto será possível prosseguir com o registro do título de seu interesse.",
+   "ressalva": true
+  }
+ },
+ "ressalva_reapresentacao": "Ressaltamos que, após a reapresentação do título, acompanhado da documentação nova ou devidamente retificada, poderão ser identificadas novas exigências no curso da análise registral."
+}

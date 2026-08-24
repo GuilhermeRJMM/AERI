@@ -2827,6 +2827,25 @@ body.modo-incorporado .layout { padding-top:28px; }
 
 /* --- MAPA-ONR · CONVERSÃO ITN 003/2025 --- */
 .mapa-onr-layout { max-width: 1540px; }
+.gerador-notas-layout {
+  max-width: none;
+  width: 100%;
+  padding: 16px;
+}
+.gerador-notas-layout iframe {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 112px);
+  min-height: 720px;
+  border: 1px solid #27344a;
+  border-radius: 18px;
+  background: #0f172a;
+  box-shadow: 0 18px 46px rgba(2, 6, 23, .28);
+}
+@media (max-width: 720px) {
+  .gerador-notas-layout { padding: 8px; }
+  .gerador-notas-layout iframe { min-height: 780px; border-radius: 12px; }
+}
 .mapa-onr-header { margin-bottom: 18px; }
 .mapa-onr-consulta {
   margin-bottom: 16px;

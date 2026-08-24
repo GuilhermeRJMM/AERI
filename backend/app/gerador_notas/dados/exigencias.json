@@ -1,0 +1,1861 @@
+{
+ "_leia_me": [
+  "Catalogo de exigencias. Cada entrada gera um item da nota, montado assim:",
+  "   <defeito>  'Dessa forma, faz-se necessaria'  <providencia>, <fecho>.",
+  "Os trechos entre chaves sao campos preenchidos na hora, ou fragmentos reutilizaveis.",
+  "Os fundamentos apontam norma, artigo e - quando o artigo e longo - quais partes",
+  "citar. Sem 'partes' sai so o caput; com elas, o caput e os trechos pedidos,",
+  "separados por '(...)'. O texto vem da lei, lida dos PDFs de Fundamentacoes.",
+  "Trecho entre [colchetes] so entra se os campos dele estiverem preenchidos.",
+  "Campo com 'opcoes' vira lista de escolha na tela, em vez de digitacao.",
+  "Campo com 'padrao' e opcional: em branco, entra a redacao generica.",
+  "Exigencia com 'exemplos' troca o exemplo de um campo compartilhado.",
+  "Exigencia com 'precedentes' cita jurisprudencia, de dados/precedentes.json.",
+  "'impossibilidade': true marca a que devolve o titulo em vez de pedir conserto.",
+  "IMPORTANTE: 'revisado' diz se um registrador ja validou que o artigo e mesmo",
+  "pertinente aquela exigencia. Enquanto for false, a nota sai marcada como",
+  "fundamentacao nao revisada."
+ ],
+ "fragmentos": {
+  "assinatura": "devidamente assinado por meio físico, com firma reconhecida, ou digitalmente, mediante assinatura qualificada nos padrões da Infraestrutura de Chaves Públicas Brasileira – ICP-Brasil, de forma que o documento seja passível de validação (https://validar.iti.gov.br/)",
+  "protocolo_apartado": "em protocolo apartado",
+  "fecho": "a fim de possibilitar o prosseguimento do ato registral",
+  "fecho_averbacao": "a fim de possibilitar a atualização do registro imobiliário e o prosseguimento do presente ato registral",
+  "fecho_via_ordinaria": "não servindo a retificação administrativa como forma de aquisição ou aumento de propriedade"
+ },
+ "campos": {
+  "matricula": {
+   "rotulo": "Matrícula n.º",
+   "exemplo": "12.345"
+  },
+  "matricula_confrontante": {
+   "rotulo": "Matrícula confrontante n.º",
+   "exemplo": "10.100"
+  },
+  "matriculas_confrontantes": {
+   "rotulo": "Matrículas confrontantes n.º",
+   "exemplo": "10.100 e 10.200"
+  },
+  "proprietario": {
+   "rotulo": "Proprietário",
+   "exemplo": "João da Silva Pereira"
+  },
+  "denominacao_memorial": {
+   "rotulo": "Denominação no memorial",
+   "exemplo": "Fazenda Santa Rita"
+  },
+  "denominacao_matricula": {
+   "rotulo": "Denominação na matrícula",
+   "exemplo": "Fazenda Boa Vista"
+  },
+  "dado_divergente": {
+   "rotulo": "Dado divergente",
+   "exemplo": "o endereço"
+  },
+  "valor_documento": {
+   "rotulo": "Como consta no documento",
+   "exemplo": "Avenida B"
+  },
+  "valor_matricula": {
+   "rotulo": "Como consta na matrícula",
+   "exemplo": "Avenida das Palmeiras"
+  },
+  "via_confrontante": {
+   "rotulo": "Via confrontante",
+   "exemplo": "a Rodovia GO-147 e a Estrada Municipal"
+  },
+  "espolio": {
+   "rotulo": "Espólio de",
+   "exemplo": "Maria de Souza"
+  },
+  "parte": {
+   "rotulo": "Parte",
+   "exemplo": "Ana Ferreira Lima"
+  },
+  "regime": {
+   "rotulo": "Regime de bens",
+   "exemplo": "Comunhão Universal de Bens"
+  },
+  "documento": {
+   "rotulo": "Documento",
+   "exemplo": "a declaração de limites"
+  },
+  "adquirentes": {
+   "rotulo": "Adquirentes no título",
+   "exemplo": "Ana Ferreira Lima e Bruno Ferreira Lima"
+  },
+  "adquirentes_guia": {
+   "rotulo": "Adquirentes na guia",
+   "exemplo": "apenas Bruno Ferreira Lima"
+  },
+  "area_documento": {
+   "rotulo": "Área no documento",
+   "exemplo": "94,7423 ha"
+  },
+  "area_memorial": {
+   "rotulo": "Área no memorial",
+   "exemplo": "94,7616 ha"
+  },
+  "area_matricula": {
+   "rotulo": "Área na matrícula",
+   "exemplo": "139,63 m²"
+  },
+  "representante": {
+   "rotulo": "Representante",
+   "exemplo": "Carlos Eduardo Martins"
+  },
+  "representado": {
+   "rotulo": "Representado",
+   "exemplo": "a instituição financeira credora"
+  },
+  "falecido": {
+   "rotulo": "Falecido",
+   "exemplo": "Antônio Carlos Nunes"
+  },
+  "valor_declarado": {
+   "rotulo": "Valor declarado",
+   "exemplo": "R$ 48.500,00"
+  },
+  "valor_sefaz": {
+   "rotulo": "Valor apurado pela SEFAZ",
+   "exemplo": "R$ 150.023,83"
+  },
+  "dado_selo": {
+   "rotulo": "Dado divergente do selo",
+   "exemplo": "data de selagem"
+  },
+  "titulo_anterior": {
+   "rotulo": "Título que falta registrar",
+   "exemplo": "o título protocolado sob o n.º 180.000",
+   "padrao": "o título anterior"
+  },
+  "imovel": {
+   "rotulo": "Imóvel",
+   "exemplo": "o imóvel da matrícula n.º 12.345",
+   "padrao": "o imóvel objeto do título"
+  },
+  "area_sig": {
+   "rotulo": "Área lançada no SIG-RI",
+   "exemplo": "94,7423 ha"
+  },
+  "soma_fracoes": {
+   "rotulo": "Soma das frações ideais",
+   "exemplo": "100,03%"
+  },
+  "usufrutuario": {
+   "rotulo": "Usufrutuário",
+   "exemplo": "Ana Ferreira Lima",
+   "padrao": "o usufrutuário"
+  },
+  "incapaz": {
+   "rotulo": "Titular incapaz",
+   "exemplo": "o menor Bruno Ferreira Lima",
+   "padrao": "o titular incapaz"
+  },
+  "pessoa_juridica": {
+   "rotulo": "Pessoa jurídica",
+   "exemplo": "a sociedade adquirente",
+   "padrao": "a pessoa jurídica que comparece ao título"
+  },
+  "certidao": {
+   "rotulo": "Certidão",
+   "exemplo": "a certidão de casamento",
+   "padrao": "a certidão do registro civil apresentada"
+  },
+  "documento_fiscal": {
+   "rotulo": "Certidão exigida",
+   "exemplo": "a Certidão Negativa de Débitos relativos a Tributos Federais",
+   "padrao": "a certidão negativa de débitos exigida para o ato"
+  },
+  "area_registrada": {
+   "rotulo": "Área registrada na matrícula",
+   "exemplo": "43,5600 ha"
+  },
+  "area_levantada": {
+   "rotulo": "Área do levantamento",
+   "exemplo": "27,8945 ha"
+  },
+  "diferenca": {
+   "rotulo": "Diferença apurada",
+   "exemplo": "35,96%"
+  },
+  "peca_tecnica": {
+   "rotulo": "Peça técnica",
+   "exemplo": "planta apresentada"
+  },
+  "tipo_requerimento": {
+   "rotulo": "Tipo de requerimento",
+   "exemplo": "para averbação da atualização do CCI"
+  },
+  "transmitentes": {
+   "rotulo": "Transmitentes no título",
+   "exemplo": "João da Silva Pereira e Maria de Souza"
+  },
+  "transmitentes_guia": {
+   "rotulo": "Transmitentes na guia",
+   "exemplo": "apenas João da Silva Pereira"
+  },
+  "parte_qualificada": {
+   "rotulo": "De quem é a qualificação",
+   "exemplo": "do adquirente",
+   "opcoes": [
+    "do transmitente",
+    "do adquirente",
+    "das partes"
+   ]
+  },
+  "dado_pessoal": {
+   "rotulo": "Dado divergente",
+   "exemplo": "estado civil",
+   "opcoes": [
+    "nome",
+    "CPF",
+    "estado civil",
+    "regime de bens",
+    "data do casamento",
+    "profissão",
+    "nacionalidade",
+    "endereço residencial",
+    "qualificação do cônjuge"
+   ]
+  },
+  "documento_saneador": {
+   "rotulo": "Documento que sana",
+   "exemplo": "certidão de casamento atualizada"
+  },
+  "forma_documento": {
+   "rotulo": "Forma de apresentação",
+   "exemplo": "em via original ou cópia autenticada",
+   "opcoes": [
+    "em via original ou cópia autenticada",
+    "em via original",
+    "em cópia autenticada",
+    "em via original e cópia para arquivo"
+   ]
+  },
+  "dado_ccir": {
+   "rotulo": "Dado divergente",
+   "exemplo": "área",
+   "opcoes": [
+    "área",
+    "proprietário",
+    "número da matrícula",
+    "denominação do imóvel",
+    "código do imóvel rural",
+    "município",
+    "confrontações"
+   ]
+  },
+  "protocolo_dependido": {
+   "rotulo": "Protocolo de que depende",
+   "exemplo": "185.400"
+  },
+  "ato_dependido": {
+   "rotulo": "Ato pendente naquele protocolo",
+   "exemplo": "a averbação do georreferenciamento"
+  },
+  "ccir_consta": {
+   "rotulo": "Como consta no CCIR",
+   "exemplo": "281,5458 ha"
+  },
+  "matricula_consta": {
+   "rotulo": "Como consta na matrícula",
+   "exemplo": "1.685,5720 ha"
+  },
+  "tipo_folio": {
+   "rotulo": "Matrícula ou transcrição",
+   "exemplo": "matrícula",
+   "opcoes": [
+    "matrícula",
+    "transcrição"
+   ]
+  },
+  "numero_folio": {
+   "rotulo": "Número",
+   "exemplo": "12.345"
+  },
+  "signatario_declaracao": {
+   "rotulo": "Assinatura que falta",
+   "exemplo": "pelo proprietário do imóvel objeto do georreferenciamento",
+   "opcoes": [
+    "pelo responsável técnico",
+    "pelo proprietário do imóvel confrontante",
+    "pelo proprietário do imóvel objeto do georreferenciamento"
+   ]
+  },
+  "signatario_nome": {
+   "rotulo": "Nome de quem deveria assinar",
+   "exemplo": "João da Silva Pereira"
+  },
+  "signatario_art": {
+   "rotulo": "Assinatura que falta",
+   "exemplo": "do responsável técnico",
+   "opcoes": [
+    "do responsável técnico",
+    "do requerente do serviço",
+    "do responsável técnico e do requerente do serviço"
+   ]
+  },
+  "dado_declaracao": {
+   "rotulo": "O que diverge",
+   "exemplo": "os marcos e as medidas perimetrais",
+   "opcoes": [
+    "os marcos",
+    "as medidas perimetrais",
+    "os marcos e as medidas perimetrais",
+    "as confrontações",
+    "os marcos, as medidas perimetrais e as confrontações"
+   ]
+  },
+  "detalhe_declaracao": {
+   "rotulo": "Detalhe da divergência",
+   "exemplo": "a declaração indica o marco M-12, e o memorial, o M-14"
+  },
+  "area_art": {
+   "rotulo": "Área na ART",
+   "exemplo": "94,7423 ha"
+  }
+ },
+ "exigencias": [
+  {
+   "id": "area-divergente-itcd",
+   "rotulo": "Área do ITCD divergente da matrícula",
+   "assunto": "area",
+   "revisado": false,
+   "campos": [
+    "area_documento",
+    "area_matricula"
+   ],
+   "defeito": "Verifica-se que o Demonstrativo de Cálculo do ITCD aponta área de {area_documento}, enquanto a matrícula registra {area_matricula}. A divergência impede conferir o imposto sobre o imóvel efetivamente transmitido.",
+   "providencia": "a retificação do Demonstrativo de Cálculo do ITCD, para que dele conste a área da matrícula",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 811",
+     "partes": [
+      "§4º"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "art-area-nao-corresponde",
+   "rotulo": "ART com área de levantamento que não corresponde ao memorial nem à matrícula",
+   "assunto": "art_tec",
+   "revisado": false,
+   "campos": [
+    "area_art",
+    "area_memorial",
+    "area_matricula"
+   ],
+   "exemplos": {
+    "area_matricula": "94,5000 ha"
+   },
+   "defeito": "Verifica-se que a área de levantamento indicada na Anotação de Responsabilidade Técnica (ART) não corresponde nem à do Memorial Descritivo nem à registrada na matrícula.[ A ART indica {area_art}, o memorial {area_memorial} e a matrícula {area_matricula}.] A ART e o memorial retratam o mesmo trabalho técnico e não podem apontar áreas distintas.",
+   "providencia": "a retificação da Anotação de Responsabilidade Técnica e, se o equívoco estiver na peça técnica, também do Memorial Descritivo, de modo que ambos indiquem a mesma área de levantamento, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "L6496",
+     "artigo": "Art. 1"
+    },
+    {
+     "norma": "DEC4449",
+     "artigo": "Art. 9"
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 176"
+    }
+   ]
+  },
+  {
+   "id": "art-nao-apresentada",
+   "rotulo": "ART não apresentada",
+   "assunto": "art_tec",
+   "revisado": false,
+   "campos": [
+    "peca_tecnica"
+   ],
+   "defeito": "Verifica-se que não foi apresentada a Anotação de Responsabilidade Técnica (ART)[ da {peca_tecnica}]. Todo serviço de engenharia, arquitetura ou agronomia está sujeito a ela, e sem a ART não se afere quem responde pelo trabalho técnico.",
+   "providencia": "a apresentação da Anotação de Responsabilidade Técnica correspondente ao trabalho técnico apresentado, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "L6496",
+     "artigo": "Art. 1"
+    },
+    {
+     "norma": "DEC4449",
+     "artigo": "Art. 9"
+    }
+   ]
+  },
+  {
+   "id": "art-sem-assinatura",
+   "rotulo": "ART sem a assinatura devida",
+   "assunto": "art_tec",
+   "revisado": false,
+   "campos": [
+    "signatario_art"
+   ],
+   "defeito": "Verifica-se que a Anotação de Responsabilidade Técnica (ART) apresentada está sem a assinatura {signatario_art}. É a ART que define, para efeitos legais, quem responde tecnicamente pelo serviço, e sem a assinatura ela não cumpre esse papel.",
+   "providencia": "a apresentação da ART com a assinatura {signatario_art}, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "L6496",
+     "artigo": "Art. 1"
+    },
+    {
+     "norma": "L6496",
+     "artigo": "Art. 2"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 805"
+    }
+   ]
+  },
+  {
+   "id": "faixa-dominio-sem-declaracao",
+   "rotulo": "Falta declaração de respeito à faixa de domínio",
+   "assunto": "art_tec",
+   "revisado": false,
+   "campos": [
+    "via_confrontante"
+   ],
+   "defeito": "Verifica-se que o imóvel confronta com {via_confrontante}, e não veio a declaração do responsável técnico atestando que foram respeitadas a faixa de domínio público e a eventual área non aedificandi.",
+   "providencia": "a Declaração de respeito à faixa de domínio público, firmada pelo responsável técnico, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "DEC4449",
+     "artigo": "Art. 9",
+     "partes": [
+      "§ 6o"
+     ]
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 800"
+    }
+   ]
+  },
+  {
+   "id": "art-dados-divergentes",
+   "rotulo": "Planta/ART com dados divergentes da matrícula",
+   "assunto": "art_tec",
+   "revisado": false,
+   "campos": [
+    "dado_divergente",
+    "valor_documento",
+    "valor_matricula"
+   ],
+   "defeito": "Verifica-se que {dado_divergente} indicado na planta/projeto e na Anotação de Responsabilidade Técnica (ART) é “{valor_documento}”, ao passo que a matrícula registra “{valor_matricula}”. Os documentos técnicos precisam espelhar o que consta do fólio real.",
+   "providencia": "a retificação da planta/projeto e da ART, para que passem a coincidir com a matrícula, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "L6496",
+     "artigo": "Art. 1"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 805"
+    }
+   ]
+  },
+  {
+   "id": "car-nao-averbado",
+   "rotulo": "CAR não averbado em imóvel rural",
+   "assunto": "car",
+   "revisado": false,
+   "campos": [
+    "matricula"
+   ],
+   "defeito": "Desde o Provimento CN n.º 195, de 03.06.2025, que alterou o Provimento CN-CNJ n.º 149/2023, o Cadastro Ambiental Rural (CAR) deve constar da matrícula do imóvel rural antes de qualquer alteração em suas características. A matrícula n.º {matricula}, contudo, não traz o CAR averbado.",
+   "providencia": "a apresentação do Cadastro Ambiental Rural (CAR), acompanhada de requerimento {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CFLO",
+     "artigo": "Art. 29",
+     "partes": [
+      "§ 3º (4)"
+     ]
+    },
+    {
+     "norma": "L4947",
+     "artigo": "Art. 22"
+    },
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 440-AQ",
+     "partes": [
+      "IV",
+      "b) (2)"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "casamento-data-nao-comprovada",
+   "rotulo": "Data do casamento não comprovada (regime de bens)",
+   "assunto": "casamento",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que a matrícula não informa se o casamento do proprietário foi celebrado antes ou depois da Lei n.º 6.515/1977. A data decide o regime legal: até 26.12.1977 o silêncio das partes levava à comunhão universal; a partir dela, à comunhão parcial.",
+   "providencia": "a apresentação da certidão de casamento, em via original ou cópia autenticada, acompanhada de requerimento de inserção de dados {protocolo_apartado}, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "L6515",
+     "artigo": "Art. 50",
+     "partes": [
+      "7"
+     ]
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 914"
+    }
+   ]
+  },
+  {
+   "id": "cci-nao-averbado",
+   "rotulo": "CCI / designação cadastral não averbada",
+   "assunto": "cci",
+   "revisado": false,
+   "campos": [
+    "matricula"
+   ],
+   "defeito": "Verifica-se que a matrícula n.º {matricula} não traz averbada a designação cadastral do imóvel (CCI). Sem ela, falta ao imóvel urbano um dos dados que o identificam.",
+   "providencia": "o requerimento pedindo a averbação da designação cadastral à margem da matrícula n.º {matricula}, {assinatura}, {protocolo_apartado}",
+   "fecho": "fecho_averbacao",
+   "fundamentos": [
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 440-AQ",
+     "partes": [
+      "IV",
+      "a) (2)"
+     ]
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 852",
+     "partes": [
+      "II",
+      "b)"
+     ]
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 176"
+    }
+   ]
+  },
+  {
+   "id": "ccir-divergente-da-matricula",
+   "rotulo": "CCIR com dado divergente da matrícula",
+   "assunto": "ccir",
+   "revisado": false,
+   "campos": [
+    "dado_ccir",
+    "ccir_consta",
+    "matricula_consta"
+   ],
+   "defeito": "Verifica-se que o Certificado de Cadastro de Imóvel Rural (CCIR) não corresponde à matrícula no seguinte dado: {dado_ccir}.[ Consta do CCIR {ccir_consta}, ao passo que a matrícula registra {matricula_consta}.] A matrícula do imóvel rural deve conter os dados constantes do CCIR, sob pena de cadastro e fólio real retratarem imóveis diferentes.",
+   "providencia": "a retificação do CCIR perante o INCRA, para que seus dados correspondam aos da matrícula, ou a apresentação de documento que esclareça a divergência",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 852",
+     "partes": [
+      "II",
+      "3",
+      "a)"
+     ]
+    },
+    {
+     "norma": "L4947",
+     "artigo": "Art. 22"
+    }
+   ]
+  },
+  {
+   "id": "ccir-ausente",
+   "rotulo": "CCIR não apresentado",
+   "assunto": "ccir",
+   "revisado": false,
+   "campos": [
+    "matricula"
+   ],
+   "defeito": "Verifica-se que não foi apresentado o Certificado de Cadastro de Imóvel Rural (CCIR)[ do imóvel da matrícula n.º {matricula}], documento exigido para a prática de ato relativo a imóvel rural.",
+   "providencia": "a apresentação do CCIR vigente e quitado[, referente à matrícula n.º {matricula}]",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "L4947",
+     "artigo": "Art. 22",
+     "partes": [
+      "§ 3o"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "cep-nao-averbado",
+   "rotulo": "CEP não averbado na matrícula",
+   "assunto": "cep",
+   "revisado": false,
+   "campos": [
+    "matricula"
+   ],
+   "defeito": "Verifica-se que a matrícula n.º {matricula} não traz averbado o Código de Endereçamento Postal (CEP). Sem ele, o imóvel urbano não fica plenamente identificado no fólio real.",
+   "providencia": "o requerimento pedindo a averbação do CEP à margem da matrícula n.º {matricula}, {assinatura}, {protocolo_apartado}",
+   "fecho": "fecho_averbacao",
+   "fundamentos": [
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 440-AQ",
+     "partes": [
+      "§ 1",
+      "a) (3)"
+     ]
+    },
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 440-AV",
+     "partes": [
+      "Parágrafo único"
+     ]
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 176"
+    }
+   ]
+  },
+  {
+   "id": "certidao-rcpn-vencida",
+   "rotulo": "Certidão do registro civil fora do prazo",
+   "assunto": "certidao",
+   "revisado": false,
+   "campos": [
+    "certidao"
+   ],
+   "defeito": "Verifica-se que {certidao} foi expedida há mais de noventa dias da formalização do título, prazo além do qual ela não serve à averbação.",
+   "providencia": "a apresentação de certidão do registro civil expedida dentro do prazo",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 913"
+    }
+   ]
+  },
+  {
+   "id": "cnd-nao-apresentada",
+   "rotulo": "Certidão negativa de débitos ausente ou vencida",
+   "assunto": "certidao",
+   "revisado": false,
+   "campos": [
+    "documento_fiscal"
+   ],
+   "defeito": "Verifica-se que não veio {documento_fiscal}, ou que a apresentada está fora do prazo de validade nela declarado. A prova de quitação do tributo se faz por certidão vigente.",
+   "providencia": "a apresentação de certidão negativa de débitos, ou de certidão positiva com efeito de negativa, dentro do prazo de validade",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CTN",
+     "artigo": "Art. 205"
+    },
+    {
+     "norma": "CTN",
+     "artigo": "Art. 206"
+    }
+   ]
+  },
+  {
+   "id": "incorporacao-sem-memorial-registrado",
+   "rotulo": "Alienação de fração ideal sem memorial de incorporação registrado",
+   "assunto": "condominio",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que se pretende alienar ou onerar fração ideal correspondente a futura unidade autônoma sem que o memorial de incorporação esteja registrado nesta serventia.",
+   "providencia": "o prévio registro do memorial de incorporação, instruído com todos os documentos que a lei relaciona",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "L4591",
+     "artigo": "Art. 32"
+    }
+   ]
+  },
+  {
+   "id": "condominio-fracoes-nao-somam",
+   "rotulo": "Frações ideais que não somam 100%",
+   "assunto": "condominio",
+   "revisado": false,
+   "campos": [
+    "soma_fracoes"
+   ],
+   "defeito": "Verifica-se que a soma das frações ideais atribuídas às unidades atinge {soma_fracoes}, quando deveria corresponder exatamente à totalidade do terreno objeto da matrícula.",
+   "providencia": "a retificação do instrumento de instituição de condomínio, para que a soma das frações ideais corresponda a 100% do terreno",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CC",
+     "artigo": "Art. 1331",
+     "partes": [
+      "§ 3 o"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "declaracao-confrontacao-divergente",
+   "rotulo": "Declaração de confrontação divergente do memorial",
+   "assunto": "confront",
+   "revisado": false,
+   "campos": [
+    "matricula_confrontante",
+    "dado_declaracao",
+    "detalhe_declaracao"
+   ],
+   "defeito": "Verifica-se que a declaração de confrontação[ referente à matrícula n.º {matricula_confrontante}] indica {dado_declaracao} em desacordo com o Memorial Descritivo apresentado.[ Especificamente, {detalhe_declaracao}.] Os dois documentos devem descrever o mesmo perímetro, sob pena de não se saber qual deles retrata o imóvel.",
+   "providencia": "a retificação da declaração de confrontação ou do Memorial Descritivo, de modo que ambos descrevam o mesmo perímetro, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "DEC4449",
+     "artigo": "Art. 9",
+     "partes": [
+      "§ 6o"
+     ]
+    },
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 440-AX",
+     "partes": [
+      "§ 1",
+      "§ 2"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "declaracao-limites-sem-assinatura",
+   "rotulo": "Declaração de limites sem assinatura",
+   "assunto": "confront",
+   "revisado": false,
+   "campos": [
+    "matriculas_confrontantes",
+    "signatario_declaracao",
+    "signatario_nome"
+   ],
+   "defeito": "Verifica-se que a declaração de limites referente à(s) matrícula(s) n.º {matriculas_confrontantes} não foi assinada {signatario_declaracao}[, {signatario_nome}]. Sem essa assinatura, a declaração não comprova que os limites divisórios foram respeitados.",
+   "providencia": "a apresentação da(s) declaração(ões) de limites da(s) matrícula(s) n.º {matriculas_confrontantes}, firmada(s) também {signatario_declaracao}, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "DEC4449",
+     "artigo": "Art. 9",
+     "partes": [
+      "§ 6o"
+     ]
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 805"
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 176"
+    }
+   ]
+  },
+  {
+   "id": "confrontante-sem-declaracao",
+   "rotulo": "Falta a declaração de confrontação de um confrontante",
+   "assunto": "confront",
+   "revisado": false,
+   "campos": [
+    "matricula_confrontante",
+    "proprietario"
+   ],
+   "defeito": "Verifica-se que não veio a declaração de confrontação referente à matrícula n.º {matricula_confrontante}[, de titularidade de {proprietario}]. Sem ela não se comprova que os limites divisórios daquele imóvel foram respeitados.",
+   "providencia": "a apresentação da declaração de confrontação da matrícula n.º {matricula_confrontante}, firmada pelo respectivo titular, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 440-AX",
+     "partes": [
+      "§ 1",
+      "§ 2"
+     ]
+    },
+    {
+     "norma": "DEC4449",
+     "artigo": "Art. 9",
+     "partes": [
+      "§ 6o"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "continuidade-titulo-anterior",
+   "rotulo": "Título anterior não registrado",
+   "assunto": "continuidade",
+   "revisado": false,
+   "campos": [
+    "titulo_anterior"
+   ],
+   "defeito": "Verifica-se que {titulo_anterior} ainda não foi registrado. Como cada transmissão se apoia na que a antecede, o título ora apresentado não pode ingressar antes dele, sob pena de quebra da continuidade registral.",
+   "providencia": "o prévio registro desse título, restabelecendo o encadeamento das transmissões",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 195"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 372",
+     "partes": [
+      "Parágrafo único"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "documento-copia-simples",
+   "rotulo": "Documento apresentado em cópia simples",
+   "assunto": "copia",
+   "revisado": false,
+   "campos": [
+    "documento"
+   ],
+   "defeito": "Verifica-se que {documento} veio em cópia simples. Cópia sem autenticação não é documento hábil a ingressar no fólio real.",
+   "providencia": "a apresentação de {documento} em via original ou em cópia autenticada",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 221"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 800"
+    }
+   ]
+  },
+  {
+   "id": "dare-parcelamento-sem-quitacao",
+   "rotulo": "DARE parcelado, sem prova de quitação integral",
+   "assunto": "dare",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que os DAREs juntados referem-se a ITCD parcelado, o que não permite aferir se o imposto foi integralmente pago.",
+   "providencia": "a apresentação de todos os DAREs e comprovantes de pagamento que demonstrem a quitação integral do ITCD",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 811",
+     "partes": [
+      "§ 6º"
+     ]
+    },
+    {
+     "norma": "CTE-GO",
+     "artigo": "Art. 88-C",
+     "partes": [
+      "II"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "doacao-instrumento-particular",
+   "rotulo": "Doação de imóvel por instrumento particular",
+   "assunto": "doacao",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que a doação do imóvel foi formalizada por instrumento particular. A transmissão de direito real sobre imóvel de valor superior a trinta salários mínimos exige escritura pública.",
+   "providencia": "a apresentação da escritura pública de doação",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CC",
+     "artigo": "Art. 108"
+    },
+    {
+     "norma": "CC",
+     "artigo": "Art. 541"
+    }
+   ]
+  },
+  {
+   "id": "emolumentos-nao-complementados",
+   "rotulo": "Custas e emolumentos complementares não recolhidos",
+   "assunto": "emolumentos",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que não foi recolhido o valor complementar das custas e emolumentos apurado após a qualificação do título. O ato não pode ser praticado antes da quitação.",
+   "providencia": "o recolhimento do valor complementar das custas e emolumentos",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 206-A",
+     "partes": [
+      "I"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "desconto-50-nao-declarado",
+   "rotulo": "Declaração do desconto de 50% (SFH) não apresentada",
+   "assunto": "emolumentos",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que não veio a declaração dos adquirentes quanto ao direito à redução de 50% das custas e emolumentos, benefício que alcança a primeira aquisição de imóvel residencial financiada pelo Sistema Financeiro da Habitação. A condição de primeira aquisição por esse sistema não se extrai do título, de modo que, sem a declaração, não há como apurar o valor devido.",
+   "providencia": "a apresentação de declaração firmada pelos adquirentes, informando se esta é a primeira aquisição de imóvel residencial financiada pelo Sistema Financeiro da Habitação, sendo irrelevante, para o benefício, a existência de imóvel anterior adquirido por outra forma, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 290"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 211-A",
+     "partes": [
+      "§ 1º"
+     ]
+    },
+    {
+     "norma": "L4380",
+     "artigo": "Art. 8"
+    }
+   ]
+  },
+  {
+   "id": "desconto-50-declaracao-ambigua",
+   "rotulo": "Declaração do desconto de 50% com opções contraditórias",
+   "assunto": "emolumentos",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que a declaração de desconto apresentada traz as duas opções assinaladas, o que impede identificar se o adquirente declara ter ou não direito à redução de 50% das custas e emolumentos.",
+   "providencia": "a reapresentação da declaração com uma única opção assinalada, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 290"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 211-A"
+    }
+   ]
+  },
+  {
+   "id": "fiduciaria-sem-anuencia-credor",
+   "rotulo": "Alienação fiduciária em vigor sem anuência do credor",
+   "assunto": "fiduciaria",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que a matrícula registra propriedade fiduciária em vigor, e o título não traz a anuência do credor fiduciário. Enquanto não resolvida a garantia, o devedor detém apenas a posse direta e o direito real de aquisição.",
+   "providencia": "a anuência expressa do credor fiduciário ao ato pretendido, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "L9514",
+     "artigo": "Art. 22"
+    },
+    {
+     "norma": "L9514",
+     "artigo": "Art. 23"
+    }
+   ]
+  },
+  {
+   "id": "assinatura-digital-nao-validavel",
+   "rotulo": "Assinatura digital não passível de validação",
+   "assunto": "firma",
+   "revisado": false,
+   "campos": [
+    "documento"
+   ],
+   "defeito": "Verifica-se que a assinatura digital aposta em {documento} não pôde ser validada no verificador oficial, de modo que sua autenticidade não se confirma.",
+   "providencia": "a reapresentação de {documento} com assinatura qualificada nos padrões da ICP-Brasil, passível de validação em https://validar.iti.gov.br/, ou em via física com firma reconhecida",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 805"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 476"
+    }
+   ]
+  },
+  {
+   "id": "requerimento-sem-assinatura",
+   "rotulo": "Documento sem assinatura ou sem firma reconhecida",
+   "assunto": "firma",
+   "revisado": false,
+   "campos": [
+    "documento"
+   ],
+   "defeito": "Verifica-se que {documento} não está assinado, ou traz assinatura sem reconhecimento de firma. É a assinatura reconhecida que liga o documento a quem o subscreve.",
+   "providencia": "a apresentação de {documento} {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 917"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 476"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 805"
+    }
+   ]
+  },
+  {
+   "id": "geo-area-divergente",
+   "rotulo": "Área divergente entre documento e memorial certificado",
+   "assunto": "geo",
+   "revisado": false,
+   "campos": [
+    "documento",
+    "area_documento",
+    "area_memorial"
+   ],
+   "defeito": "Verifica-se que {documento} indica área de {area_documento}, enquanto o Memorial Descritivo Certificado aponta {area_memorial}. Os dois precisam descrever o mesmo imóvel.",
+   "providencia": "a retificação de {documento}, para que sua área coincida com a do Memorial Descritivo Certificado",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "DEC4449",
+     "artigo": "Art. 9",
+     "partes": [
+      "§ 1o"
+     ]
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 176"
+    }
+   ]
+  },
+  {
+   "id": "bem-de-incapaz-sem-alvara",
+   "rotulo": "Alienação de bem de incapaz sem alvará judicial",
+   "assunto": "incapaz",
+   "revisado": false,
+   "campos": [
+    "incapaz"
+   ],
+   "defeito": "Verifica-se que o título aliena ou grava imóvel pertencente a {incapaz}, sem que tenha vindo o alvará judicial que autorize o ato.",
+   "providencia": "a apresentação do alvará judicial que autorize o ato",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CC",
+     "artigo": "Art. 1691"
+    }
+   ]
+  },
+  {
+   "id": "itbi-adquirentes-divergentes",
+   "rotulo": "ITBI com adquirentes divergentes do título",
+   "assunto": "itbi",
+   "revisado": false,
+   "campos": [
+    "adquirentes",
+    "adquirentes_guia"
+   ],
+   "defeito": "Verifica-se que o título aponta como adquirentes {adquirentes}, mas a Guia do ITBI traz {adquirentes_guia}. O imposto deve alcançar todos os que adquirem.",
+   "providencia": "a retificação da Guia do ITBI, para que nela constem todos os adquirentes do título, com o recolhimento da diferença que houver",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 810"
+    }
+   ]
+  },
+  {
+   "id": "itbi-transmitentes-divergentes",
+   "rotulo": "ITBI com transmitentes divergentes do título",
+   "assunto": "itbi",
+   "revisado": false,
+   "campos": [
+    "transmitentes",
+    "transmitentes_guia"
+   ],
+   "defeito": "Verifica-se que o título aponta como transmitentes {transmitentes}, mas a Guia do ITBI traz {transmitentes_guia}. A guia deve espelhar as partes da transmissão levada a registro, sob pena de o imposto não corresponder ao negócio praticado.",
+   "providencia": "a retificação da Guia do ITBI, para que dela constem os transmitentes indicados no título",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 810"
+    }
+   ]
+  },
+  {
+   "id": "itbi-nao-apresentado",
+   "rotulo": "ITBI não apresentado",
+   "assunto": "itbi",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que o recolhimento do ITBI não foi comprovado: faltam a Guia de Lançamento e Pagamento do imposto, o DUAM e o comprovante de quitação.",
+   "providencia": "a apresentação da Guia do ITBI, do DUAM e do extrato de pagamento emitido pela Prefeitura Municipal, que demonstre a quitação",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 810"
+    }
+   ]
+  },
+  {
+   "id": "itcd-minuta",
+   "rotulo": "ITCD apresentado apenas em minuta",
+   "assunto": "itcd",
+   "revisado": false,
+   "campos": [
+    "espolio"
+   ],
+   "defeito": "Verifica-se que o ITCD do Espólio de {espolio} veio apenas como minuta. Minuta não é documento definitivo e não serve à qualificação registral.",
+   "providencia": "a apresentação do Demonstrativo definitivo do ITCD, emitido pelo órgão competente",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 811"
+    },
+    {
+     "norma": "CTE-GO",
+     "artigo": "Art. 88-C",
+     "partes": [
+      "II"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "itr-ausente",
+   "rotulo": "ITR apresentado apenas como recibo de entrega",
+   "assunto": "itr",
+   "revisado": false,
+   "campos": [
+    "tipo_folio",
+    "numero_folio"
+   ],
+   "defeito": "Verifica-se que o pagamento do ITR dos cinco últimos exercícios[ do imóvel objeto da {tipo_folio} n.º {numero_folio}] não foi comprovado: veio apenas o recibo de entrega da declaração, que atesta a entrega, não o pagamento.",
+   "providencia": "a apresentação dos comprovantes de pagamento do ITR dos cinco últimos exercícios[, referentes à {tipo_folio} n.º {numero_folio}]",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "L9393",
+     "artigo": "Art. 21"
+    }
+   ]
+  },
+  {
+   "id": "itr-nao-apresentado",
+   "rotulo": "ITR não apresentado",
+   "assunto": "itr",
+   "revisado": false,
+   "campos": [
+    "tipo_folio",
+    "numero_folio"
+   ],
+   "defeito": "Verifica-se que não foi apresentada a prova de quitação do Imposto sobre a Propriedade Territorial Rural (ITR)[ do imóvel objeto da {tipo_folio} n.º {numero_folio}], relativa aos cinco últimos exercícios. A comprovação é obrigatória para a prática dos atos de registro e averbação relativos a imóvel rural.",
+   "providencia": "a apresentação dos comprovantes de pagamento do ITR dos cinco últimos exercícios[, referentes à {tipo_folio} n.º {numero_folio}]",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "L9393",
+     "artigo": "Art. 21"
+    }
+   ]
+  },
+  {
+   "id": "levantamento-numero-ausente",
+   "rotulo": "Título sem o número da Certidão de Levantamento",
+   "assunto": "levantamento",
+   "revisado": false,
+   "campos": [
+    "matricula"
+   ],
+   "defeito": "Verifica-se que o título pede a atualização do imóvel da matrícula n.º {matricula}, mas não informa o número da Certidão de Levantamento correspondente.",
+   "providencia": "a retificação do título, para que nele constem os dados da Certidão de Levantamento",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 914"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 852",
+     "partes": [
+      "II"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "parcelamento-memorial-sem-origem",
+   "rotulo": "Memorial de parcelamento sem a matrícula de origem",
+   "assunto": "loteamento",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que a descrição inicial dos memoriais e mapas não indica a matrícula de origem do imóvel nem o seu código no INCRA, dados sem os quais não se liga o parcelamento ao fólio real.",
+   "providencia": "a retificação dos memoriais e mapas, para que a descrição inicial de todos indique a matrícula de origem e o código do imóvel no INCRA",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "DEC4449",
+     "artigo": "Art. 9"
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 176"
+    }
+   ]
+  },
+  {
+   "id": "loteamento-documentos-incompletos",
+   "rotulo": "Parcelamento submetido a registro sem a documentação exigida",
+   "assunto": "loteamento",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que o projeto de loteamento ou desmembramento aprovado foi submetido a registro sem a documentação que a lei relaciona, o que impede a qualificação do parcelamento.",
+   "providencia": "a apresentação dos documentos exigidos para o registro do parcelamento do solo",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "L6766",
+     "artigo": "Art. 18"
+    }
+   ]
+  },
+  {
+   "id": "memorial-denominacao-divergente",
+   "rotulo": "Denominação divergente entre memorial e matrícula",
+   "assunto": "memorial",
+   "revisado": false,
+   "campos": [
+    "matricula_confrontante",
+    "denominacao_memorial",
+    "denominacao_matricula"
+   ],
+   "defeito": "Verifica-se que o Memorial Descritivo Certificado chama a matrícula confrontante n.º {matricula_confrontante} de “{denominacao_memorial}”, ao passo que ela se denomina “{denominacao_matricula}” desde a abertura. Não há averbação de mudança de denominação que justifique a diferença.",
+   "providencia": "a averbação da alteração de denominação na matrícula n.º {matricula_confrontante}, acompanhada de requerimento específico {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "DEC4449",
+     "artigo": "Art. 9",
+     "partes": [
+      "§ 5o (2)"
+     ]
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 917"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 852",
+     "partes": [
+      "II",
+      "a)"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "obito-nao-averbado",
+   "rotulo": "Óbito do proprietário não averbado na matrícula",
+   "assunto": "obito",
+   "revisado": false,
+   "campos": [
+    "falecido"
+   ],
+   "defeito": "Verifica-se que o requerimento foi subscrito em nome do espólio de {falecido}, sem que o óbito esteja averbado na matrícula. A continuidade registral pede que a titularidade acompanhe os fatos já ocorridos.",
+   "providencia": "a prévia averbação do óbito de {falecido} à margem da matrícula, com a certidão de óbito e requerimento {assinatura}, {protocolo_apartado}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 195"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 913"
+    }
+   ]
+  },
+  {
+   "id": "hipoteca-ativa",
+   "rotulo": "Hipoteca ativa na matrícula",
+   "assunto": "onus",
+   "revisado": false,
+   "campos": [
+    "matricula"
+   ],
+   "defeito": "Verifica-se que a matrícula n.º {matricula} ainda registra hipoteca em vigor, e não veio documento capaz de cancelá-la.",
+   "providencia": "a autorização expressa ou a quitação outorgada pelo credor, em instrumento hábil ao cancelamento da hipoteca, acompanhada de requerimento {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 926"
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 251"
+    }
+   ]
+  },
+  {
+   "id": "pacto-antenupcial-ausente",
+   "rotulo": "Pacto antenupcial não apresentado nem registrado",
+   "assunto": "pacto",
+   "revisado": false,
+   "campos": [
+    "parte",
+    "regime"
+   ],
+   "defeito": "Verifica-se que {parte} contraiu casamento sob o regime da {regime}, depois da Lei n.º 6.515/1977 — hipótese que exige pacto antenupcial. Não vieram a escritura do pacto nem prova de seu registro.",
+   "providencia": "a apresentação da Escritura Pública de Pacto Antenupcial e da certidão de seu registro no Registro de Imóveis competente, com requerimento pedindo a averbação {protocolo_apartado}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 875"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 876",
+     "partes": [
+      "§2º",
+      "§3º"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "penhor-grau-divergente",
+   "rotulo": "Grau do penhor ou da hipoteca divergente da matrícula",
+   "assunto": "penhor",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que o grau da garantia indicado na cédula não corresponde à ordem das garantias já registradas na matrícula. A ordem do protocolo é que determina a preferência entre os direitos reais.",
+   "providencia": "a retificação da cédula, para que o grau da garantia corresponda à ordem já registrada",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 186"
+    }
+   ]
+  },
+  {
+   "id": "pj-atos-constitutivos-ausentes",
+   "rotulo": "Pessoa jurídica sem atos constitutivos ou prova de representação",
+   "assunto": "pj",
+   "revisado": false,
+   "campos": [
+    "pessoa_juridica"
+   ],
+   "defeito": "Verifica-se que {pessoa_juridica} comparece ao título sem que tenham vindo os atos constitutivos e a certidão que comprovem sua existência legal e os poderes de quem a representa.",
+   "providencia": "a apresentação do contrato social ou estatuto, da ata de eleição dos administradores e de certidão simplificada expedida há menos de noventa dias",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 352"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 451"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 807"
+    }
+   ]
+  },
+  {
+   "id": "prenotacao-vencida",
+   "rotulo": "Prenotação com prazo esgotado",
+   "assunto": "prazo",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que decorreram mais de vinte dias do lançamento do título no Protocolo sem que o registro se ultimasse, de modo que cessaram os efeitos da prenotação.",
+   "providencia": "a reapresentação do título, que receberá nova prenotação e nova ordem de prioridade",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 205"
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 188"
+    }
+   ]
+  },
+  {
+   "id": "procuracao-poderes-ausente",
+   "rotulo": "Procuração ou poderes de representação não comprovados",
+   "assunto": "procuracao",
+   "revisado": false,
+   "campos": [
+    "representado",
+    "representante"
+   ],
+   "defeito": "Verifica-se que {representado} comparece ao título representado por {representante}, sem que tenham vindo a Procuração Pública e o eventual substabelecimento. Não há como aferir se os poderes alcançam o ato praticado.",
+   "providencia": "a apresentação da Procuração Pública e do substabelecimento, se houver, com menção expressa aos poderes necessários ao ato",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 452"
+    }
+   ]
+  },
+  {
+   "id": "protocolo-vinculado-a-outro",
+   "rotulo": "Protocolo vinculado a outro, ainda pendente",
+   "assunto": "protocolo",
+   "revisado": false,
+   "campos": [
+    "protocolo_dependido",
+    "ato_dependido"
+   ],
+   "defeito": "Verifica-se que o ato pretendido depende de outro, ainda pendente no protocolo n.º {protocolo_dependido}[ — {ato_dependido}]. Enquanto aquele não se praticar, este título não tem como ingressar: a matrícula ainda não reúne os elementos de que este ato depende.",
+   "providencia": "o prévio cumprimento das exigências do protocolo n.º {protocolo_dependido} e a prática do respectivo ato, após o que este protocolo terá seguimento",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 914"
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 186"
+    }
+   ]
+  },
+  {
+   "id": "qualificacao-divergente-do-titulo",
+   "rotulo": "Dados pessoais das partes divergentes entre título e matrícula",
+   "assunto": "qualif",
+   "revisado": false,
+   "campos": [
+    "parte_qualificada",
+    "dado_pessoal",
+    "documento_saneador",
+    "forma_documento"
+   ],
+   "defeito": "Verifica-se que a qualificação {parte_qualificada} no título diverge da que consta da matrícula, no seguinte dado: {dado_pessoal}. A qualificação das partes deve ser completa, atual e correta, e havendo divergência cabe ao oficial exigir os documentos que a esclareçam.",
+   "providencia": "a apresentação de {documento_saneador}[, {forma_documento}], que comprove o dado correto, acompanhada de requerimento de inserção ou retificação de dados {protocolo_apartado}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 809"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 914"
+    }
+   ]
+  },
+  {
+   "id": "qualificacao-endereco-ausente",
+   "rotulo": "Falta endereço residencial da parte",
+   "assunto": "qualif",
+   "revisado": false,
+   "campos": [
+    "parte"
+   ],
+   "defeito": "Verifica-se que o título não informa o endereço residencial de {parte}, dado que integra a qualificação das partes.",
+   "providencia": "a comprovação de endereço, em via original ou cópia autenticada, ou declaração de residência {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 914"
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 176",
+     "partes": [
+      "II",
+      "a)"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "qualificacao-profissao-ausente",
+   "rotulo": "Falta profissão da parte ou do cônjuge",
+   "assunto": "qualif",
+   "revisado": false,
+   "campos": [
+    "parte"
+   ],
+   "defeito": "Verifica-se que não consta a profissão de {parte}, dado exigido para a qualificação completa e para o lançamento na matrícula.",
+   "providencia": "a apresentação de documento que comprove a profissão de {parte} — certidão de casamento em original ou cópia autenticada, ou declaração de profissão {assinatura} —, com requerimento de inserção de dados {protocolo_apartado}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 914"
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 176",
+     "partes": [
+      "II",
+      "a)"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "requerimento-nao-apresentado",
+   "rotulo": "Requerimento não apresentado",
+   "assunto": "requerimento",
+   "revisado": false,
+   "campos": [
+    "tipo_requerimento"
+   ],
+   "defeito": "Verifica-se que não foi apresentado o requerimento {tipo_requerimento}. A averbação depende de requerimento do interessado, com firma reconhecida e instruído com o documento que a comprove — não se pratica de ofício.",
+   "providencia": "a apresentação do requerimento {tipo_requerimento}, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 917"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 914"
+    }
+   ]
+  },
+  {
+   "id": "reserva-legal-insuficiente",
+   "rotulo": "Reserva legal insuficiente ou não individualizada",
+   "assunto": "reserva",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que a soma das áreas destinadas à reserva legal nos memoriais apresentados é menor que a averbada na matrícula de origem, e não há como identificar a reserva correspondente a cada parcela desmembrada.",
+   "providencia": "a retificação dos memoriais, para que a reserva legal de cada parcela fique identificada e a soma corresponda à área averbada",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CFLO",
+     "artigo": "Art. 12",
+     "partes": [
+      "§ 1º"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "retificacao-acima-do-limite",
+   "rotulo": "Retificação de área acima do limite de 10%",
+   "assunto": "retificacao",
+   "impossibilidade": true,
+   "revisado": false,
+   "campos": [
+    "area_registrada",
+    "area_levantada",
+    "diferenca"
+   ],
+   "defeito": "Verifica-se que o imóvel tem área registrada de {area_registrada}, enquanto a documentação apresentada indica {area_levantada} — diferença de {diferenca}. Alteração dessa ordem não é mera retificação: pode atingir os limites dos confrontantes e, na prática, transferir domínio por via transversa.",
+   "providencia": "o acertamento da área pelas vias ordinárias, nas quais se possa comprovar o domínio sobre a área excedente",
+   "fecho": "fecho_via_ordinaria",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 213"
+    },
+    {
+     "norma": "CC",
+     "artigo": "Art. 500"
+    }
+   ],
+   "precedentes": [
+    "sentenca-duvida-morrinhos-2022",
+    "parecer-mp-morrinhos-2022",
+    "resp-1228288-rs",
+    "tjgo-apelacao-0388130-2016",
+    "tjgo-apelacao-0216621-2017"
+   ]
+  },
+  {
+   "id": "sefaz-valor-divergente",
+   "rotulo": "Valor do ITCD divergente da avaliação da SEFAZ",
+   "assunto": "sefaz",
+   "revisado": false,
+   "campos": [
+    "valor_declarado",
+    "valor_sefaz"
+   ],
+   "defeito": "Verifica-se que o ITCD avalia o bem em {valor_declarado}, enquanto a avaliação da Secretaria da Economia do Estado de Goiás aponta {valor_sefaz}. A diferença é expressiva e altera a base de cálculo do imposto.",
+   "providencia": "a retificação do ITCD para que dele conste o valor de mercado apurado, com o recolhimento da diferença de imposto",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 289"
+    },
+    {
+     "norma": "CTE-GO",
+     "artigo": "Art. 77",
+     "partes": [
+      "§ 8º"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "selo-divergente",
+   "rotulo": "Selo eletrônico com dado divergente do ato",
+   "assunto": "selo",
+   "revisado": false,
+   "campos": [
+    "dado_selo"
+   ],
+   "defeito": "Verifica-se que o selo eletrônico do ato notarial traz {dado_selo} em desacordo com o próprio instrumento, conforme consulta ao sistema de selos.",
+   "providencia": "a adequação do selo eletrônico ao ato praticado",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 109",
+     "partes": [
+      "Parágrafo único"
+     ]
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 109-A",
+     "partes": [
+      "§ 2º"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "servidao-cancelamento-sem-credor",
+   "rotulo": "Cancelamento de servidão sem anuência do credor hipotecário",
+   "assunto": "servidao",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que se pretende cancelar servidão cujo prédio dominante está hipotecado, sem que tenha vindo a anuência do credor.",
+   "providencia": "a anuência expressa do credor hipotecário ao cancelamento da servidão, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 928"
+    },
+    {
+     "norma": "CC",
+     "artigo": "Art. 1378"
+    }
+   ]
+  },
+  {
+   "id": "sig-nao-lancado",
+   "rotulo": "Coordenadas não lançadas no SIG-RI",
+   "assunto": "sig",
+   "revisado": false,
+   "campos": [
+    "imovel"
+   ],
+   "defeito": "Verifica-se que {imovel} não teve as suas coordenadas geodésicas lançadas no Sistema de Informações Geográficas do Registro de Imóveis (SIG-RI). O lançamento cabe ao profissional técnico habilitado e credenciado junto ao ONR, e sem ele a poligonal não compõe o mosaico da circunscrição.",
+   "providencia": "o lançamento das coordenadas geodésicas no SIG-RI, feito por profissional técnico habilitado e credenciado junto ao ONR",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 343-G",
+     "partes": [
+      "§ 1"
+     ]
+    },
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 343-H"
+    }
+   ]
+  },
+  {
+   "id": "sig-marcos-divergentes",
+   "rotulo": "Marcos e coordenadas no SIG-RI divergentes do memorial",
+   "assunto": "sig",
+   "revisado": false,
+   "campos": [
+    "imovel"
+   ],
+   "defeito": "Verifica-se que os marcos e as coordenadas geodésicas lançados no SIG-RI para {imovel} não correspondem aos do Memorial Descritivo apresentado. A divergência impede fechar o polígono do imóvel e conferir sua posição no mosaico registral.",
+   "providencia": "a retificação dos marcos e das coordenadas lançados no SIG-RI, para que correspondam aos do Memorial Descritivo",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 343-F",
+     "partes": [
+      "II",
+      "a)"
+     ]
+    },
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 440-BD"
+    }
+   ]
+  },
+  {
+   "id": "sobreposicao-de-area",
+   "rotulo": "Sobreposição de área apontada pelo SIG-RI",
+   "assunto": "sig",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se, a partir do SIG-RI, coincidência total ou parcial entre a área do trabalho técnico apresentado e a de outro imóvel já georreferenciado e registrado.",
+   "providencia": "o saneamento da sobreposição apontada, na forma dos arts. 212 e 213 da Lei n.º 6.015/1973",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 440-AY"
+    },
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 440-AZ"
+    }
+   ]
+  },
+  {
+   "id": "sig-area-divergente",
+   "rotulo": "Área no SIG-RI divergente do memorial descritivo",
+   "assunto": "sig",
+   "revisado": false,
+   "campos": [
+    "area_sig",
+    "area_memorial"
+   ],
+   "defeito": "Verifica-se que a área lançada no SIG-RI é de {area_sig}, enquanto o Memorial Descritivo aponta {area_memorial}. O que consta do SIG-RI deve espelhar a descrição do imóvel, sob pena de o mosaico registral retratar imóvel diverso daquele que se pretende registrar.",
+   "providencia": "a retificação do lançamento no SIG-RI, para que a área coincida com a do Memorial Descritivo",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 343-F",
+     "partes": [
+      "I"
+     ]
+    },
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 343-G",
+     "partes": [
+      "§ 4"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "transcricao-sem-caracterizacao",
+   "rotulo": "Imóvel em transcrição, sem matrícula individualizada",
+   "assunto": "transcricao",
+   "revisado": false,
+   "campos": [],
+   "defeito": "Verifica-se que o imóvel ainda está sob transcrição, sem matrícula individualizada, e que faltam suas características e o endereçamento completo.",
+   "providencia": "a apresentação da Certidão de Levantamento, indispensável para caracterizar, localizar e individualizar o imóvel, {protocolo_apartado} e acompanhada de requerimento {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 914"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 852",
+     "partes": [
+      "II",
+      "b)"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "uniao-estavel-nao-declarada",
+   "rotulo": "União estável não declarada na qualificação",
+   "assunto": "uniao",
+   "revisado": false,
+   "campos": [
+    "parte"
+   ],
+   "defeito": "Verifica-se que o título qualifica {parte} sem dizer se há ou não união estável. O dado integra a qualificação subjetiva e repercute na titularidade.",
+   "providencia": "a apresentação de declaração quanto à existência ou inexistência de união estável, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 914"
+    }
+   ]
+  },
+  {
+   "id": "usufruto-ativo-sem-anuencia",
+   "rotulo": "Usufruto em vigor sem anuência do usufrutuário",
+   "assunto": "usufruto",
+   "revisado": false,
+   "campos": [
+    "usufrutuario"
+   ],
+   "defeito": "Verifica-se que a matrícula registra usufruto em vigor em favor de {usufrutuario}, e o título não traz a anuência dele nem prova da extinção do direito.",
+   "providencia": "a anuência do usufrutuário no título, ou a prova da extinção do usufruto, acompanhada de requerimento {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CC",
+     "artigo": "Art. 1390"
+    },
+    {
+     "norma": "CC",
+     "artigo": "Art. 1410"
+    }
+   ]
+  }
+ ]
+}

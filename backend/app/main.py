@@ -13,8 +13,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from backend.app.rotas import (
-    analisador, autenticacao, buscas, custas, incra, intimacoes, livro_protocolos, registros_auxiliares,
-    mapa_onr, poligonos, status_onr, usuarios,
+    analisador, autenticacao, buscas, custas, gerador_notas, incra, intimacoes,
+    livro_protocolos, registros_auxiliares, mapa_onr, poligonos, status_onr, usuarios,
 )
 from backend.app.seguranca_web import politica_frame_ancestors
 from backend.app.database import conectar
@@ -52,6 +52,7 @@ app.include_router(custas.router)
 app.include_router(registros_auxiliares.router)
 app.include_router(livro_protocolos.router)
 app.include_router(mapa_onr.router)
+app.include_router(gerador_notas.router)
 app.include_router(poligonos.router)
 app.include_router(intimacoes.router)
 app.include_router(status_onr.router)
@@ -87,7 +88,10 @@ async def seguranca_http(request: Request, call_next):
     resposta.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
     resposta.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     frame_ancestors = politica_frame_ancestors()
-    if request.url.path == "/api/mapa-onr/conversor" and frame_ancestors == "'none'":
+    if (
+        request.url.path == "/api/mapa-onr/conversor"
+        or request.url.path.startswith("/api/gerador-notas/interface")
+    ) and frame_ancestors == "'none'":
         frame_ancestors = "'self'"
     resposta.headers["Content-Security-Policy"] = (
         "default-src 'self'; base-uri 'self'; form-action 'self'; "
@@ -100,6 +104,7 @@ async def seguranca_http(request: Request, call_next):
     if (
         request.url.path.startswith("/api/")
         or request.url.path == "/api/mapa-onr/conversor"
+        or request.url.path.startswith("/api/gerador-notas/interface")
         or request.url.path in {"/analisar", "/analisar-incra"}
     ):
         resposta.headers["Cache-Control"] = "no-store"

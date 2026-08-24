@@ -1,0 +1,215 @@
+{
+ "_leia_me": "Catalogo de normas. 'nome' e exatamente como a norma deve aparecer no cabecalho do bloco de fundamentacao da nota. 'fonte' e o nome do PDF (sem extensao) na pasta Fundamentacoes, de onde o texto dos artigos e conferido. Para acrescentar uma norma: salve o PDF na pasta e escreva uma entrada aqui.",
+ "normas": [
+  {
+   "id": "CNPFE-GO",
+   "nome": "Código de Normas e Procedimentos do Foro Extrajudicial do Estado de Goiás",
+   "referencia": "Provimento CGJ-GO n.º 46/2020, atualizado até o Provimento n.º 194/2026",
+   "esfera": "estadual",
+   "fonte": "Provimento 46-2020 - CGJ-GO - Codigo de Normas e Procedimentos do Foro Extrajudicial - Atualizado ate Prov. 194-2026"
+  },
+  {
+   "id": "LRP",
+   "nome": "Lei Federal n.º 6.015/1973 (Lei de Registros Públicos)",
+   "referencia": "Lei n.º 6.015, de 31 de dezembro de 1973",
+   "esfera": "federal",
+   "fonte": "L6.015compilada"
+  },
+  {
+   "id": "CNN-CNJ",
+   "nome": "Código Nacional de Normas da Corregedoria Nacional de Justiça do Conselho Nacional de Justiça - Foro Extrajudicial",
+   "referencia": "Provimento CNJ n.º 149/2023",
+   "esfera": "federal",
+   "fonte": "Codigo nacional de normas"
+  },
+  {
+   "id": "DEC4449",
+   "nome": "Decreto Federal n.º 4.449/2002",
+   "referencia": "Decreto n.º 4.449, de 30 de outubro de 2002",
+   "esfera": "federal",
+   "fonte": "Decreto Federal 4.449-2002"
+  },
+  {
+   "id": "L6496",
+   "nome": "Lei Federal n.º 6.496/1977",
+   "referencia": "Lei n.º 6.496, de 7 de dezembro de 1977 (Anotação de Responsabilidade Técnica)",
+   "esfera": "federal",
+   "fonte": "Lei Federal 6.496-1977"
+  },
+  {
+   "id": "L4947",
+   "nome": "Lei Federal n.º 4.947/1966",
+   "referencia": "Lei n.º 4.947, de 6 de abril de 1966",
+   "esfera": "federal",
+   "fonte": "Lei Federal 4.947-1966"
+  },
+  {
+   "id": "CFLO",
+   "nome": "Lei Federal n.º 12.651/2012 (Código Florestal)",
+   "referencia": "Lei n.º 12.651, de 25 de maio de 2012",
+   "esfera": "federal",
+   "fonte": "Lei Federal 12.651-2012 (Código Florestal)"
+  },
+  {
+   "id": "CTE-GO",
+   "nome": "Lei Estadual nº 11.651/1991 – Código Tributário Estadual",
+   "referencia": "Lei n.º 11.651, de 26 de dezembro de 1991",
+   "esfera": "estadual",
+   "fonte": "Codigo tributatio de goias"
+  },
+  {
+   "id": "L19191",
+   "nome": "Lei Estadual nº 19.191/2015",
+   "referencia": "Lei n.º 19.191, de 29 de dezembro de 2015 (emolumentos)",
+   "esfera": "estadual",
+   "fonte": "Lei Estadual 19.191-2015"
+  },
+  {
+   "id": "CC",
+   "nome": "Código Civil",
+   "referencia": "Lei n.º 10.406, de 10 de janeiro de 2002",
+   "esfera": "federal",
+   "fonte": "Código civil"
+  },
+  {
+   "id": "CPC",
+   "nome": "Código de Processo Civil",
+   "referencia": "Lei n.º 13.105, de 16 de março de 2015",
+   "esfera": "federal",
+   "fonte": "L13105"
+  },
+  {
+   "id": "L8935",
+   "nome": "Lei Federal n.º 8.935/1994",
+   "referencia": "Lei n.º 8.935, de 18 de novembro de 1994",
+   "esfera": "federal",
+   "fonte": "L8935"
+  },
+  {
+   "id": "L9514",
+   "nome": "Lei Federal n.º 9.514/1997",
+   "referencia": "Lei n.º 9.514, de 20 de novembro de 1997",
+   "esfera": "federal",
+   "fonte": "L9514"
+  },
+  {
+   "id": "L10267",
+   "nome": "Lei Federal n.º 10.267/2001",
+   "referencia": "Lei n.º 10.267, de 28 de agosto de 2001",
+   "esfera": "federal",
+   "fonte": "L10267"
+  },
+  {
+   "id": "RES35",
+   "nome": "Resolução CNJ n.º 35/2007",
+   "referencia": "Resolução n.º 35, de 24 de abril de 2007",
+   "esfera": "federal",
+   "fonte": "Resolucao 35"
+  },
+  {
+   "id": "DL167",
+   "nome": "Decreto-Lei n.º 167/1967",
+   "referencia": "Decreto-Lei n.º 167, de 14 de fevereiro de 1967",
+   "esfera": "federal",
+   "fonte": "Decreto lei 167"
+  },
+  {
+   "id": "L4829",
+   "nome": "Lei Federal n.º 4.829/1965",
+   "referencia": "Lei n.º 4.829, de 5 de novembro de 1965",
+   "esfera": "federal",
+   "fonte": "L4829"
+  },
+  {
+   "id": "CTM",
+   "nome": "Código Tributário do Município de Morrinhos/GO",
+   "referencia": "Código Tributário Municipal de Morrinhos",
+   "esfera": "municipal",
+   "fonte": "Código Tributário Municipal de Morrinhos, Goiás"
+  },
+  {
+   "id": "LC120",
+   "nome": "Lei Complementar Municipal n.º 120/2024 (Código de Obras)",
+   "referencia": "Lei Complementar n.º 120, de 29 de maio de 2024",
+   "esfera": "municipal",
+   "fonte": "2024-05-29 - Lei Complementar nº 120 (Codigo de Obras Municipal)"
+  },
+  {
+   "id": "LC114",
+   "nome": "Lei Complementar Municipal n.º 114/2023 (ITBI)",
+   "referencia": "Lei Complementar n.º 114, de 11 de outubro de 2023",
+   "esfera": "municipal",
+   "fonte": "2023-10-11 - Lei Complementar n.º 114 (ITBI - Reducao aliquota para 3%)"
+  },
+  {
+   "id": "PROV161",
+   "nome": "Provimento CNJ n.º 161/2024",
+   "referencia": "Provimento n.º 161, de 2024 (PLD/FTP)",
+   "esfera": "federal",
+   "fonte": "Provimento nº 161-2024 do CNJ, que trata de diretrizes sobre PLD-FTP (Prevenção à Lavagem de Dinheiro e Financiamento ao Terrorismo)"
+  },
+  {
+   "id": "PROV151",
+   "nome": "Provimento CNJ n.º 151/2023",
+   "referencia": "Provimento n.º 151, de 26 de setembro de 2023",
+   "esfera": "federal",
+   "fonte": "original191421202309296517220ddf9d0"
+  },
+  {
+   "id": "L9393",
+   "nome": "Lei Federal n.º 9.393/1996",
+   "referencia": "Lei n.º 9.393, de 19 de dezembro de 1996 (Imposto sobre a Propriedade Territorial Rural)",
+   "esfera": "federal",
+   "fonte": "Lei do ITR"
+  },
+  {
+   "id": "L4591",
+   "nome": "Lei Federal n.º 4.591/1964",
+   "referencia": "Lei n.º 4.591, de 16 de dezembro de 1964 (condomínio em edificações e incorporações imobiliárias)",
+   "esfera": "federal",
+   "fonte": "Lei 4.591-1964 (Condomínio e incorporações)"
+  },
+  {
+   "id": "CTN",
+   "nome": "Código Tributário Nacional",
+   "referencia": "Lei n.º 5.172, de 25 de outubro de 1966",
+   "esfera": "federal",
+   "fonte": "CTN — Lei 5.172-1966"
+  },
+  {
+   "id": "L6766",
+   "nome": "Lei Federal n.º 6.766/1979",
+   "referencia": "Lei n.º 6.766, de 19 de dezembro de 1979 (parcelamento do solo urbano)",
+   "esfera": "federal",
+   "fonte": "Lei 6.766-1979 (Parcelamento do solo urbano)"
+  },
+  {
+   "id": "L6515",
+   "nome": "Lei Federal n.º 6.515/1977",
+   "referencia": "Lei n.º 6.515, de 26 de dezembro de 1977 (dissolução da sociedade conjugal)",
+   "esfera": "federal",
+   "fonte": "L6515-77"
+  },
+  {
+   "id": "L13097",
+   "nome": "Lei Federal n.º 13.097/2015",
+   "referencia": "Lei n.º 13.097, de 19 de janeiro de 2015 (concentração de atos na matrícula)",
+   "esfera": "federal",
+   "fonte": "L13097"
+  },
+  {
+   "id": "NE92-INCRA",
+   "nome": "Norma de Execução INCRA/DF n.º 92/2010",
+   "referencia": "Norma de Execução INCRA/DF n.º 92, de 22 de fevereiro de 2010 (certificação e atualização cadastral de imóveis rurais)",
+   "esfera": "federal",
+   "fonte": "Nota Técnica INCRA-DFG nº 01-2010, de 22.02.2010"
+  },
+  {
+   "id": "L4380",
+   "nome": "Lei Federal n.º 4.380/1964",
+   "referencia": "Lei n.º 4.380, de 21 de agosto de 1964 (Sistema Financeiro da Habitação)",
+   "esfera": "federal",
+   "fonte": "L4380"
+  }
+ ]
+}

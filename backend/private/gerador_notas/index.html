@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gerador de Notas — AERI</title>
+<link rel="stylesheet" href="/static/gerador_notas/estilo.css?v=20260824-v1">
+</head>
+<body>
+
+<header class="topo">
+  <div class="marca">
+    <div class="selo">GN</div>
+    <div>
+      <h1>Gerador de Notas</h1>
+      <p>Notas devolutivas e de exigência · Registro de Imóveis</p>
+    </div>
+  </div>
+  <div class="acoes-topo">
+    <span class="contagem" id="contagem">nenhuma pendência selecionada</span>
+    <a class="secundario botao-link" href="/api/gerador-notas/interface/legislacao">Legislação</a>
+    <a class="secundario botao-link" href="/api/gerador-notas/interface/revisao">Revisar fundamentação</a>
+  </div>
+</header>
+
+<main>
+  <section class="cartao dados">
+    <div class="campo">
+      <label for="especie">Espécie</label>
+      <select id="especie"></select>
+    </div>
+    <div class="campo">
+      <label for="protocolo">Protocolo</label>
+      <input id="protocolo" placeholder="185.000" autocomplete="off">
+    </div>
+    <div class="campo cresce">
+      <label for="titulo">Título apresentado</label>
+      <input id="titulo" autocomplete="off"
+             placeholder="Formal de Partilha expedido em 10.07.2026, autos n.º 5000000-00.2026.8.09.0000">
+    </div>
+    <label class="chave" for="judicial">
+      <input type="checkbox" id="judicial">
+      <span class="trilho"><span class="botao"></span></span>
+      <span>Título judicial</span>
+    </label>
+  </section>
+
+  <div class="colunas">
+    <section class="cartao coluna">
+      <div class="cabeca">
+        <h2>Pendências</h2>
+        <div class="cabeca-acoes">
+          <button id="apenas-selecionadas" class="alternador" type="button" aria-pressed="false"
+                  title="Mostrar apenas as pendências já selecionadas">Apenas selecionadas</button>
+          <input id="filtro" class="busca" placeholder="Filtrar…" autocomplete="off">
+        </div>
+      </div>
+      <div id="lista" class="lista"></div>
+    </section>
+
+    <section class="cartao coluna">
+      <div class="cabeca"><h2>Dados de cada exigência</h2></div>
+      <div id="campos" class="campos"></div>
+    </section>
+
+    <section class="cartao coluna">
+      <div class="cabeca">
+        <h2>Como vai sair</h2>
+        <span id="previa-aviso" class="previa-aviso"></span>
+      </div>
+      <div id="previa" class="previa"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="rodape">
+  <div id="aviso" class="aviso"></div>
+  <button id="gerar" class="primario">Gerar nota</button>
+</footer>
+
+<div id="modal" class="modal" hidden>
+  <div class="caixa">
+    <h3 id="modal-titulo"></h3>
+    <div id="modal-corpo"></div>
+    <div class="acoes">
+      <button id="modal-pasta" class="secundario" hidden>Abrir pasta</button>
+      <button id="modal-fechar" class="primario">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/gerador_notas/app.js?v=20260824-v1"></script>
+</body>
+</html>
