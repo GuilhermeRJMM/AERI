@@ -30,12 +30,24 @@ def ato_transmissao_repete_onus_seguinte(descricao: str, descricao_seguinte: str
     atual = _normalizar(descricao)
     seguinte = _normalizar(descricao_seguinte)
     protocolo = _protocolo_ato(descricao)
-    if not protocolo or protocolo != _protocolo_ato(descricao_seguinte):
+    protocolo_seguinte = _protocolo_ato(descricao_seguinte)
+    mesma_operacao = (
+        bool(protocolo and protocolo_seguinte and protocolo == protocolo_seguinte)
+        or not protocolo and not protocolo_seguinte
+    )
+    if not mesma_operacao:
         return False
+    garantia_seguinte = (
+        "ALIENACAO FIDUCIARIA" in seguinte[:1200]
+        or (
+            "FIDUCIANTE" in seguinte[:700]
+            and re.search(r"\bCREDOR(?:A)?\s*/?\s*FIDUCIARI[AO]\b", seguinte[:700])
+        )
+    )
     return bool(
         re.search(r"\b(?:VENDA\s+E\s+COMPRA|COMPRA\s+E\s+VENDA)\b", atual[:420])
         and "ALIENACAO FIDUCIARIA" in atual
-        and "ALIENACAO FIDUCIARIA" in seguinte[:420]
+        and garantia_seguinte
     )
 
 

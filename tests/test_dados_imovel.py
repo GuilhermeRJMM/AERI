@@ -902,6 +902,21 @@ class TesteDadosImovel(unittest.TestCase):
 
         self.assertEqual(valores_por_rotulo(areas, "Área Construída"), ["82,37 m²"])
 
+    def test_matricula_22684_atualiza_numero_e_cadastro_na_construcao(self):
+        texto = """
+        MATRÍCULA 22.684. IMÓVEL: Rua 22-B, Setor Aeroporto, Lote 27,
+        Quadra 23-B, com área de 324,00m². Cadastrado na Prefeitura Municipal
+        sob o n.º 23-B/27-S.A. PROPRIETÁRIO: Pessoa Exemplo.
+        AV.04-22.684 - CONSTRUÇÃO. Os proprietários EDIFICARAM no imóvel uma
+        CASA RESIDENCIAL, de n.º 88, com 177,62m² de área construída.
+        *Imóvel com inscrição cadastral municipal n.º 129455.
+        """
+        imovel = analisar_matricula(texto)["imovel"]
+
+        self.assertEqual(valores_por_rotulo(imovel["identificacao"], "Número"), ["88"])
+        self.assertEqual(valores_por_rotulo(imovel["areas"], "Área Construída"), ["177,62 m²"])
+        self.assertEqual(valores_por_rotulo(imovel["cadastros"], "Cadastro municipal"), ["129455"])
+
     def test_area_construida_com_dois_pontos_apos_de(self):
         texto = """
         MATRÍCULA 15.385. IMÓVEL: Lote 1, com área de 300m².

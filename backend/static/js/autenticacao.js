@@ -1,4 +1,4 @@
-import {definirCsrfToken, requisicaoAeri} from './api.js?v=20260820-robustez-v1';
+import {definirCsrfToken, requisicaoAeri} from './api.js?v=20260824-csrf-v1';
 
 let autenticado = false;
 let aoEntrar = () => {};

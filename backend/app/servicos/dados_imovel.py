@@ -506,7 +506,8 @@ def _extrair_confrontacoes(descricao: str, origem: str = "Cabeçalho", rua: Opti
 
 def _extrair_numero_edificacao(descricao: str) -> Optional[str]:
     numero_edificacao = re.search(
-        r"\b(?:casa|prédio|edificação)\b[^,;.]{0,80}?(?:,|\bde)\s*"
+        r"\b(?:casa|prédio|edificação)\b[^,;.]{0,80}?"
+        r"(?:,\s*(?:de\s+)?|\bde\s+)"
         r"(?:(?:n(?:[.º°o]|os|s)*)|número)\s*(\d[\d.]*)\b",
         descricao,
         re.IGNORECASE,
@@ -970,6 +971,19 @@ def _averbar_designacao_cadastral(resultado, descricao_ato, codigo, normalizado,
 
 def _averbar_cci_historico(resultado, descricao_ato, codigo, normalizado, rural, rua):
     """Formatos históricos do CCI ("CCI-127902", número mascarado)."""
+
+    inscricao_municipal = re.search(
+        r"\binscri[çc][ãa]o\s+cadastral\s+municipal\s+"
+        r"n?[.º°o\s-]*([0-9][\d./-]*)",
+        descricao_ato,
+        re.IGNORECASE,
+    )
+    if inscricao_municipal:
+        _substituir_por_rotulo(resultado["cadastros"], {
+            "rotulo": "Cadastro municipal",
+            "valor": inscricao_municipal.group(1).rstrip(".,;"),
+            "origem": codigo,
+        })
 
     # Formatos históricos também registram o cadastro como "CCI-127902"
     # ou inserem uma máscara antes do número efetivo retornado pela Tri7.

@@ -826,6 +826,34 @@ class TesteCancelamentos(unittest.TestCase):
         ]
         self.assertEqual(["R.05"], [ato["codigo"] for ato in alienacoes])
 
+    def test_matricula_22684_venda_sem_protocolo_nao_duplica_alienacao(self):
+        texto = """
+        MATRÍCULA 22.684. IMÓVEL: Lote 27. PROPRIETÁRIOS: Pessoas iniciais.
+        R.01-22.684 - CONTRATO POR INSTRUMENTO PARTICULAR DE COMPRA E VENDA
+        DE TERRENO, MÚTUO PARA OBRAS E ALIENAÇÃO FIDUCIÁRIA EM GARANTIA.
+        O imóvel foi adquirido por Elisabete Camilo do Nascimento Batista e
+        João Luiz Batista.
+        R.02-22.684 - DEVEDORES/FIDUCIANTES: Elisabete Camilo do Nascimento
+        Batista e João Luiz Batista. CREDORA/FIDUCIÁRIA: Caixa Econômica
+        Federal. TÍTULO: contrato de compra e venda e alienação fiduciária.
+        OBJETO DA GARANTIA: em alienação fiduciária, o imóvel desta matrícula.
+        AV.05-22.684 - CANCELAMENTO DE ALIENAÇÃO FIDUCIÁRIA. Fica cancelada a
+        alienação fiduciária constante do R.02 desta matrícula.
+        R.07-22.684 - ALIENAÇÃO FIDUCIÁRIA. DEVEDOR/FIDUCIANTE: Gustavo
+        Cardoso Porto. CREDORA/FIDUCIÁRIA: Caixa Econômica Federal.
+        OBJETO DA GARANTIA: o imóvel desta matrícula.
+        """
+        resultado = analisar_matricula(texto)
+        alienacoes = {
+            ato["codigo"]: ato for ato in resultado["atos"]
+            if ato.get("tipo_onus") == "ALIENAÇÃO FIDUCIÁRIA"
+        }
+
+        self.assertNotIn("R.01", [ato["codigo"] for ato in resultado["atos"]])
+        self.assertEqual({"R.02", "R.07"}, set(alienacoes))
+        self.assertEqual("CANCELADO", alienacoes["R.02"]["status"])
+        self.assertEqual("ATIVO", alienacoes["R.07"]["status"])
+
     def test_leiloes_negativos_extinguem_alienacao_sem_referencia(self):
         texto = """
         MATRÍCULA 3.538. IMÓVEL: Lote 1. PROPRIETÁRIO: Pessoa Devedora.

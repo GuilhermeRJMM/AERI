@@ -1,4 +1,4 @@
-import {requisicaoAeri} from './api.js?v=20260820-robustez-v1';
+import {requisicaoAeri} from './api.js?v=20260824-csrf-v1';
 import {escaparHtml} from './util.js';
 
 let sincronizando = false;
