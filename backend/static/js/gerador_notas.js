@@ -30,10 +30,16 @@ function vazio(texto) {
 function abrirModal(titulo, corpo) {
     $('modal-titulo').textContent = titulo;
     $('modal-corpo').innerHTML = corpo;
-    $('modal').hidden = false;
+    const modal = $('modal');
+    modal.hidden = false;
+    modal.classList.add('aberta');
 }
 
-function fecharModal() { $('modal').hidden = true; }
+function fecharModal() {
+    const modal = $('modal');
+    modal.classList.remove('aberta');
+    modal.hidden = true;
+}
 
 function montarItens() {
     return [...selecionadas].map(id => {

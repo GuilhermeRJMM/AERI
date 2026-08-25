@@ -3,7 +3,7 @@ import {iniciarAutenticacao} from './autenticacao.js?v=20260824-permissoes-v2';
 import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260820-robustez-v1';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js?v=20260817-reindexa-v1';
-import {configurarAcessoGeradorNotas, iniciarGeradorNotas} from './gerador_notas.js?v=20260824-nativo-v1';
+import {configurarAcessoGeradorNotas, iniciarGeradorNotas} from './gerador_notas.js?v=20260825-modal-v1';
 import {configurarAcessoMapaOnr, iniciarMapaOnr, limparMapaOnr} from './mapa_onr.js?v=20260815-permissao-v1';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260820-robustez-v1';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260820-robustez-v1';
@@ -11,7 +11,7 @@ import {iniciarNavegacao} from './navegacao.js?v=20260820-robustez-v1';
 import {carregarPoligonos, configurarAcessoPoligonos, iniciarPoligonos, limparPoligonos} from './poligonos.js?v=20260819-poligonos-v13';
 import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260820-robustez-v1';
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260820-robustez-v1';
-import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260824-relacional-v1';
+import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260825-modal-v1';
 import {iniciarAtualizacaoPeriodica} from './util.js?v=20260820-robustez-v1';
 import {iniciarAtalhosGlobais} from './atalhos.js?v=20260821-atalhos-v1';
 

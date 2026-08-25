@@ -36,6 +36,19 @@ class TesteCatalogoDinamico(unittest.TestCase):
         opcionais = {item["chave"] for item in itens if item["auditorOpcional"]}
         self.assertFalse(fixas & opcionais)
 
+    def test_modal_exibe_a_senha_temporaria_gerada(self):
+        fonte = USUARIOS_JS.read_text(encoding="utf-8")
+        inicio = fonte.index("function revelarSenha")
+        fim = fonte.index("async function copiarSenhaRevelada", inicio)
+        revelar = fonte[inicio:fim]
+        self.assertIn("modal.hidden = false", revelar)
+        self.assertIn("modal.classList.add('aberta')", revelar)
+
+        inicio = fonte.index("'btn-fechar-senha-gerada'")
+        fechar = fonte[inicio:]
+        self.assertIn("modal.classList.remove('aberta')", fechar)
+        self.assertIn("modal.hidden = true", fechar)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -91,7 +91,9 @@ function revelarSenha(titulo, senha) {
     document.getElementById('senha-gerada-titulo').textContent = titulo;
     document.getElementById('senha-gerada-valor').textContent = senha;
     document.getElementById('senha-gerada-status').textContent = '';
-    document.getElementById('modal-senha-gerada').hidden = false;
+    const modal = document.getElementById('modal-senha-gerada');
+    modal.hidden = false;
+    modal.classList.add('aberta');
 }
 
 async function copiarSenhaRevelada() {
@@ -304,7 +306,9 @@ export function iniciarUsuarios() {
     document.getElementById('btn-fechar-troca-senha').addEventListener('click', () => exigirTrocaSenha(false));
     document.getElementById('btn-copiar-senha-gerada').addEventListener('click', copiarSenhaRevelada);
     document.getElementById('btn-fechar-senha-gerada').addEventListener('click', () => {
-        document.getElementById('modal-senha-gerada').hidden = true;
+        const modal = document.getElementById('modal-senha-gerada');
+        modal.classList.remove('aberta');
+        modal.hidden = true;
         document.getElementById('senha-gerada-valor').textContent = '';
     });
 }

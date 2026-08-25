@@ -57,6 +57,12 @@ class GeradorNotasTest(unittest.TestCase):
         self.assertIn("function carregarSeNecessario()", javascript)
         self.assertIn("aeri:pagina-alterada", javascript)
 
+    def test_modal_nativo_recebe_classe_visivel(self):
+        raiz = Path(__file__).resolve().parent.parent
+        javascript = (raiz / "backend/static/js/gerador_notas.js").read_text(encoding="utf-8")
+        self.assertIn("modal.classList.add('aberta')", javascript)
+        self.assertIn("modal.classList.remove('aberta')", javascript)
+
 
 if __name__ == "__main__":
     unittest.main()
