@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260824-nativo-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260825-legislacao-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -300,7 +300,23 @@
 
                     <section id="gn-legislacao" class="gerador-notas-pagina aeri-card gerador-notas-consulta" hidden>
                         <header><div><span class="eyebrow">FONTES CADASTRADAS</span><h2>Legislação</h2></div><input id="gn-legislacao-filtro" placeholder="Filtrar norma…"></header>
-                        <div id="gn-legislacao-lista" class="gerador-notas-grade"></div>
+                        <div class="gerador-notas-legislacao-colunas">
+                            <section class="gerador-notas-legislacao-normas">
+                                <div id="gn-legislacao-lista" class="gerador-notas-legislacao-lista"></div>
+                            </section>
+                            <section class="gerador-notas-legislacao-detalhe">
+                                <header>
+                                    <div>
+                                        <h3 id="gn-legislacao-titulo">Selecione uma lei</h3>
+                                        <p id="gn-legislacao-meta">Clique em uma norma ao lado para consultar seus artigos.</p>
+                                    </div>
+                                    <input id="gn-artigo-filtro" placeholder="Artigo ou assunto…" autocomplete="off" disabled>
+                                </header>
+                                <div id="gn-artigo-lista" class="gerador-notas-artigos">
+                                    <div class="gerador-notas-vazio">Selecione uma lei para iniciar a pesquisa.</div>
+                                </div>
+                            </section>
+                        </div>
                     </section>
 
                     <section id="gn-base" class="gerador-notas-pagina aeri-card gerador-notas-consulta" hidden>
@@ -1000,6 +1016,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260825-modal-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20260825-legislacao-v1"></script>
 </body>
 </html>

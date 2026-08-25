@@ -6,8 +6,11 @@ let acessoPermitido = false;
 let iniciado = false;
 let catalogo = null;
 let legislacao = null;
+let legislacaoAtual = null;
 let base = null;
 let apenasSelecionadas = false;
+let temporizadorArtigos;
+let sequenciaArtigos = 0;
 const selecionadas = new Set();
 const valores = new Map();
 const $ = id => document.getElementById(`gn-${id}`);
@@ -123,17 +126,29 @@ async function atualizarPrevia() {
 }
 
 function baixarDocumento(base64, nome) {
+    if (typeof base64 !== 'string' || !base64 || typeof nome !== 'string' || !nome) {
+        throw new Error('O servidor não devolveu um documento válido.');
+    }
     const bytes = Uint8Array.from(atob(base64), caractere => caractere.charCodeAt(0));
     const url = URL.createObjectURL(new Blob([bytes], {type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}));
     const link = document.createElement('a');
-    link.href = url; link.download = nome;
+    link.href = url; link.download = nome; link.hidden = true;
     document.body.appendChild(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 async function gerar() {
-    if (!selecionadas.size) return abrirModal('Nota vazia', '<p>Selecione ao menos uma pendência.</p>');
-    if (!$('titulo').value.trim()) return abrirModal('Falta o título', '<p>Informe o título apresentado.</p>');
+    if (!selecionadas.size) {
+        estado('erro', 'Selecione ao menos uma pendência para gerar o DOCX.');
+        abrirModal('Nota vazia', '<p>Selecione ao menos uma pendência.</p>');
+        return;
+    }
+    if (!$('titulo').value.trim()) {
+        estado('erro', 'Informe o título apresentado para gerar o DOCX.');
+        $('titulo').focus();
+        abrirModal('Falta o título', '<p>Informe o título apresentado. O texto exibido em cinza é apenas um exemplo.</p>');
+        return;
+    }
     $('gerar').disabled = true;
     estado('', 'Gerando o documento…');
     try {
@@ -154,11 +169,63 @@ async function gerar() {
 
 function renderizarLegislacao() {
     const termo = $('legislacao-filtro').value.trim().toLocaleLowerCase('pt-BR');
-    const itens = legislacao.filter(item => `${item.nome} ${item.referencia} ${item.esfera}`.toLocaleLowerCase('pt-BR').includes(termo));
-    $('legislacao-lista').innerHTML = itens.length ? itens.map(item => `<article>
-        <h3>${escaparHtml(item.nome)}</h3><p>${escaparHtml(item.referencia || 'Referência não informada')}</p>
-        <p>${escaparHtml(item.esfera || 'Esfera não informada')} · ${item.artigos} dispositivo(s) indexado(s)</p>
-    </article>`).join('') : vazio('Nenhuma norma encontrada.');
+    const itens = legislacao.filter(item => `${item.nome} ${item.referencia} ${item.esfera} ${item.id}`.toLocaleLowerCase('pt-BR').includes(termo));
+    $('legislacao-lista').innerHTML = itens.length ? itens.map(item => `<button type="button" class="gerador-notas-norma ${legislacaoAtual === item.id ? 'ativa' : ''}" data-gn-norma="${escaparHtml(item.id)}">
+        <strong>${escaparHtml(item.nome)}</strong>
+        <span>${escaparHtml(item.referencia || 'Referência não informada')}</span>
+        <small>${escaparHtml(item.esfera || 'Esfera não informada')} · ${item.artigos} artigo(s)</small>
+    </button>`).join('') : vazio('Nenhuma norma encontrada.');
+}
+
+function mostrarFichaDaNorma() {
+    const norma = legislacao.find(item => item.id === legislacaoAtual);
+    if (!norma) return;
+    $('legislacao-titulo').textContent = norma.nome;
+    $('legislacao-meta').textContent = `${norma.referencia || 'Referência não informada'} · ${norma.artigos} artigo(s) indexado(s)`;
+    $('artigo-lista').innerHTML = `<div class="gerador-notas-legislacao-ficha">
+        <div><span>Esfera</span><strong>${escaparHtml(norma.esfera || 'Não informada')}</strong></div>
+        <div><span>Fonte</span><strong>${escaparHtml(norma.arquivo || 'Não informada')}</strong></div>
+        <div><span>Pesquisa</span><strong>Digite o número do artigo ou um assunto.</strong></div>
+    </div>`;
+}
+
+function selecionarNorma(id) {
+    if (!legislacao.some(item => item.id === id)) return;
+    legislacaoAtual = id;
+    sequenciaArtigos += 1;
+    renderizarLegislacao();
+    $('artigo-filtro').disabled = false;
+    $('artigo-filtro').value = '';
+    mostrarFichaDaNorma();
+    $('artigo-filtro').focus();
+}
+
+async function buscarArtigos() {
+    if (!legislacaoAtual) return;
+    const termo = $('artigo-filtro').value.trim();
+    if (!termo) {
+        sequenciaArtigos += 1;
+        mostrarFichaDaNorma();
+        return;
+    }
+    const sequencia = ++sequenciaArtigos;
+    $('artigo-lista').innerHTML = vazio('Pesquisando nesta lei…');
+    try {
+        const artigos = await requisicaoAeri(`${API}/artigos?norma=${encodeURIComponent(legislacaoAtual)}&q=${encodeURIComponent(termo)}`);
+        if (sequencia !== sequenciaArtigos) return;
+        $('artigo-lista').innerHTML = artigos.length ? artigos.map(item => `<article class="gerador-notas-artigo">
+            <h4>${escaparHtml(item.artigo)}</h4>
+            <p>${escaparHtml(item.texto)}</p>
+        </article>`).join('') : vazio('Nenhum artigo encontrado nesta lei.');
+    } catch (erro) {
+        if (sequencia !== sequenciaArtigos) return;
+        $('artigo-lista').innerHTML = vazio(identificarErro(erro));
+    }
+}
+
+function agendarBuscaArtigos() {
+    clearTimeout(temporizadorArtigos);
+    temporizadorArtigos = setTimeout(buscarArtigos, 250);
 }
 
 function renderizarBase() {
@@ -228,6 +295,11 @@ export function iniciarGeradorNotas() {
     ['especie', 'titulo', 'judicial'].forEach(id => $(id).addEventListener(id === 'judicial' ? 'change' : 'input', solicitarPrevia));
     $('gerar').addEventListener('click', gerar);
     $('legislacao-filtro').addEventListener('input', () => legislacao && renderizarLegislacao());
+    $('legislacao-lista').addEventListener('click', evento => {
+        const norma = evento.target.closest('[data-gn-norma]');
+        if (norma) selecionarNorma(norma.dataset.gnNorma);
+    });
+    $('artigo-filtro').addEventListener('input', agendarBuscaArtigos);
     $('base-filtro').addEventListener('input', () => base && renderizarBase());
     $('modal-fechar').addEventListener('click', fecharModal);
     $('modal-ok').addEventListener('click', fecharModal);

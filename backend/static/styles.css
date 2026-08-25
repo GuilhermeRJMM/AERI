@@ -2879,6 +2879,27 @@ body.modo-incorporado .layout { padding-top:28px; }
 .gerador-notas-consulta { padding-bottom:14px; }
 .gerador-notas-consulta > header h2 { margin-top:4px; }
 .gerador-notas-consulta > header input { width:min(320px,45vw); }
+.gerador-notas-legislacao-colunas { display:grid; grid-template-columns:minmax(280px,.72fr) minmax(420px,1.28fr); min-height:570px; }
+.gerador-notas-legislacao-normas { min-width:0; border-right:1px solid rgba(139,152,178,.14); }
+.gerador-notas-legislacao-lista { display:grid; align-content:start; gap:7px; max-height:650px; overflow:auto; padding:12px; }
+.gerador-notas-norma { display:grid; gap:4px; width:100%; padding:12px 13px; border:1px solid transparent; border-radius:10px; color:var(--text-main); background:transparent; text-align:left; cursor:pointer; font:inherit; }
+.gerador-notas-norma:hover { background:rgba(139,152,178,.07); }
+.gerador-notas-norma.ativa { border-color:rgba(109,74,255,.58); background:rgba(109,74,255,.13); }
+.gerador-notas-norma strong { font-size:.74rem; }
+.gerador-notas-norma span,.gerador-notas-norma small { color:var(--text-soft); font-size:.66rem; line-height:1.4; }
+.gerador-notas-legislacao-detalhe { min-width:0; }
+.gerador-notas-legislacao-detalhe > header { display:flex; align-items:center; justify-content:space-between; gap:14px; min-height:72px; padding:12px 14px; border-bottom:1px solid rgba(139,152,178,.14); }
+.gerador-notas-legislacao-detalhe > header > div { min-width:0; }
+.gerador-notas-legislacao-detalhe h3 { margin:0; color:var(--text-main); font-size:.8rem; }
+.gerador-notas-legislacao-detalhe header p { margin:4px 0 0; color:var(--text-soft); font-size:.66rem; }
+.gerador-notas-legislacao-detalhe input { width:min(320px,44%); flex:none; }
+.gerador-notas-artigos { display:grid; align-content:start; gap:9px; max-height:575px; overflow:auto; padding:14px; }
+.gerador-notas-legislacao-ficha { display:grid; gap:8px; padding:14px; border:1px dashed rgba(139,152,178,.28); border-radius:11px; background:rgba(12,20,35,.4); }
+.gerador-notas-legislacao-ficha div { display:grid; grid-template-columns:90px 1fr; gap:10px; color:var(--text-soft); font-size:.7rem; }
+.gerador-notas-legislacao-ficha span { color:var(--text-muted); font-size:.63rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; }
+.gerador-notas-artigo { padding:13px 14px; border:1px solid rgba(139,152,178,.14); border-left:3px solid rgba(109,74,255,.7); border-radius:10px; background:rgba(12,20,35,.55); }
+.gerador-notas-artigo h4 { margin:0 0 7px; color:#c4b5fd; font-size:.75rem; }
+.gerador-notas-artigo p { margin:0; color:var(--text-soft); font-size:.72rem; line-height:1.6; white-space:pre-line; }
 .gerador-notas-grade { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px; padding:14px; }
 .gerador-notas-grade article,.gerador-notas-base-item { padding:13px; border:1px solid rgba(139,152,178,.14); border-radius:11px; background:rgba(12,20,35,.55); }
 .gerador-notas-grade h3,.gerador-notas-base-item h3 { margin:0 0 7px; font-size:.77rem; }
@@ -2889,6 +2910,7 @@ body.modo-incorporado .layout { padding-top:28px; }
 .gerador-notas-base-item summary { cursor:pointer; color:#c4b5fd; font-weight:800; }
 .gerador-notas-modal-corpo { color:var(--text-soft); font-size:.78rem; line-height:1.55; }
 @media(max-width:1150px){.gerador-notas-colunas{grid-template-columns:1fr 1fr}.gerador-notas-previa-coluna{grid-column:1/-1}.gerador-notas-dados{flex-wrap:wrap}}
+@media(max-width:900px){.gerador-notas-legislacao-colunas{grid-template-columns:1fr}.gerador-notas-legislacao-normas{border-right:0;border-bottom:1px solid rgba(139,152,178,.14)}.gerador-notas-legislacao-lista{max-height:300px}.gerador-notas-legislacao-detalhe > header{align-items:stretch;flex-direction:column}.gerador-notas-legislacao-detalhe input{width:100%}}
 @media(max-width:720px){.gerador-notas-colunas{grid-template-columns:1fr}.gerador-notas-previa-coluna{grid-column:auto}.gerador-notas-dados{align-items:stretch;flex-direction:column}.gerador-notas-abas{overflow:auto}.gerador-notas-campo{grid-template-columns:1fr}}
 .mapa-onr-header { margin-bottom: 18px; }
 .mapa-onr-consulta {

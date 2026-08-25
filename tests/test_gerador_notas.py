@@ -63,6 +63,23 @@ class GeradorNotasTest(unittest.TestCase):
         self.assertIn("modal.classList.add('aberta')", javascript)
         self.assertIn("modal.classList.remove('aberta')", javascript)
 
+    def test_legislacao_abre_uma_norma_e_pesquisa_artigos_nela(self):
+        raiz = Path(__file__).resolve().parent.parent
+        html = (raiz / "backend/templates/index.html").read_text(encoding="utf-8")
+        javascript = (raiz / "backend/static/js/gerador_notas.js").read_text(encoding="utf-8")
+        self.assertIn('id="gn-artigo-filtro"', html)
+        self.assertIn('id="gn-artigo-lista"', html)
+        self.assertIn('data-gn-norma=', javascript)
+        self.assertIn("function selecionarNorma(id)", javascript)
+        self.assertIn("`${API}/artigos?norma=${encodeURIComponent(legislacaoAtual)}", javascript)
+
+    def test_geracao_docx_explica_campos_ausentes_antes_da_requisicao(self):
+        raiz = Path(__file__).resolve().parent.parent
+        javascript = (raiz / "backend/static/js/gerador_notas.js").read_text(encoding="utf-8")
+        self.assertIn("Selecione ao menos uma pendência para gerar o DOCX.", javascript)
+        self.assertIn("Informe o título apresentado para gerar o DOCX.", javascript)
+        self.assertIn("O texto exibido em cinza é apenas um exemplo.", javascript)
+
 
 if __name__ == "__main__":
     unittest.main()
