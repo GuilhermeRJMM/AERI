@@ -61,7 +61,10 @@ def _analisar_itens_livro(
                 for referencia in referencias_textos_protocolo(protocolo_json):
                     if referencia not in cache_textos:
                         try:
-                            resposta_texto = cliente.buscar_texto_matricula(referencia[1])
+                            if referencia[0] == "M":
+                                resposta_texto = cliente.buscar_texto_matricula(referencia[1])
+                            else:
+                                resposta_texto = cliente.buscar_texto_registro_auxiliar(referencia[1])
                             cache_textos[referencia] = (resposta_texto["texto"], None)
                         except ErroTri7 as erro:
                             cache_textos[referencia] = (None, str(erro))
@@ -123,9 +126,8 @@ def _reindexar_registros_alterados(
 
     Fecha a lacuna entre registrar um ato e a busca refletir esse ato: até
     aqui era preciso descobrir à mão quais matrículas mudaram e revisar uma a
-    uma. As matrículas saem de graça -- o texto já foi baixado para a
-    conferência e está no cache; os Registros Auxiliares custam uma consulta
-    cada, porque a conferência não precisa do texto deles.
+    uma. Os textos já baixados para a conferência, tanto de matrículas quanto
+    de Registros Auxiliares, são reaproveitados pelo cache desta requisição.
 
     Uma falha isolada não derruba a conferência: o protocolo continua
     conferido e o número entra na contagem de falhas para nova tentativa.
@@ -151,7 +153,9 @@ def _reindexar_registros_alterados(
                         relatorio["matriculasNovas"] += int(bool(novo))
                         relatorio["matriculasAlteradas"] += int(bool(alterado))
                     else:
-                        texto = cliente.buscar_texto_registro_auxiliar(numero)["texto"]
+                        texto = (cache_textos.get((tipo, numero)) or (None, None))[0]
+                        if texto is None:
+                            texto = cliente.buscar_texto_registro_auxiliar(numero)["texto"]
                         _, inserido = _salvar_indice_auxiliar(cursor, numero, texto)
                         relatorio["registrosAuxiliares"] += 1
                         relatorio["registrosAuxiliaresNovos"] += int(bool(inserido))

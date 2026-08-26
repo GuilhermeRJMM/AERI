@@ -1,12 +1,13 @@
 import asyncio
 import unittest
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from uuid import uuid4
 
 from fastapi import HTTPException
 
 from backend.app.rotas.livro_protocolos import (
+    _analisar_itens_livro,
     analisar_livro_protocolos,
     analisar_livro_protocolos_por_data,
     confirmar_excecao_natureza_titulo,
@@ -37,6 +38,42 @@ def _rodar(coro):
 
 
 class TesteAnalisarLivroProtocolos(unittest.TestCase):
+    @patch("backend.app.rotas.livro_protocolos.registrar_auditoria")
+    @patch("backend.app.rotas.livro_protocolos._reindexar_registros_alterados", return_value={})
+    @patch("backend.app.rotas.livro_protocolos.conferir_protocolo", return_value=[])
+    @patch("backend.app.rotas.livro_protocolos.conectar")
+    def test_baixa_matricula_e_registro_auxiliar_para_a_conferencia(
+        self, conectar_mock, conferir_mock, _reindexar, _auditoria,
+    ):
+        conectar_mock.return_value = _conexao_sem_excecoes()
+        cliente = Mock()
+        cliente.buscar_protocolo_completo.return_value = {
+            "protocolo": {"protocolo_numero": 185546},
+            "itens_do_pedido": [
+                {
+                    "dados_imovel": {"tipo_registro": "M", "numero_registro": 32463},
+                    "atos_registrados": {"ato_tipo": "R", "ato_numero": 17},
+                },
+                {
+                    "dados_imovel": {"tipo_registro": "A", "numero_registro": 29569},
+                    "atos_registrados": {"ato_tipo": "S", "ato_numero": 0},
+                },
+            ],
+        }
+        cliente.buscar_texto_matricula.return_value = {"texto": "TEXTO MATRÍCULA"}
+        cliente.buscar_texto_registro_auxiliar.return_value = {"texto": "TEXTO REGISTRO AUXILIAR"}
+
+        _analisar_itens_livro(
+            [{"numero": "185546", "status": "REGISTRADO", "data": "2026-08-19"}],
+            date(2026, 8, 19), Mock(), "OPERADOR", cliente=cliente,
+        )
+
+        cliente.buscar_texto_matricula.assert_called_once_with(32463)
+        cliente.buscar_texto_registro_auxiliar.assert_called_once_with(29569)
+        textos = conferir_mock.call_args.kwargs["textos_registros"]
+        self.assertEqual(textos[("M", 32463)], "TEXTO MATRÍCULA")
+        self.assertEqual(textos[("A", 29569)], "TEXTO REGISTRO AUXILIAR")
+
     @patch("backend.app.rotas.livro_protocolos.registrar_auditoria")
     def test_rejeita_arquivo_que_nao_comeca_com_assinatura_pdf(self, _auditoria):
         requisicao = _requisicao_pdf(b"nao e um pdf")

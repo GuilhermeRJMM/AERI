@@ -25,12 +25,13 @@ def _conexao_falsa():
 
 class TesteRegistrosAlterados(unittest.TestCase):
     def test_inclui_registro_auxiliar_alem_da_matricula(self):
-        # referencias_textos_protocolo existe para a conferência e só precisa
-        # do texto das matrículas. Para saber o que ficou desatualizado no
-        # índice, os Registros Auxiliares também contam.
+        # A conferência de custas precisa ler as duas saídas do protocolo.
         protocolo = {"itens_do_pedido": [_item("M", 24070), _item("RA", 29555)]}
 
-        self.assertEqual(referencias_textos_protocolo(protocolo), {("M", 24070)})
+        self.assertEqual(
+            referencias_textos_protocolo(protocolo),
+            {("M", 24070), ("RA", 29555)},
+        )
         self.assertEqual(
             registros_alterados_no_protocolo(protocolo),
             {("M", 24070), ("RA", 29555)},
@@ -93,6 +94,15 @@ class TesteReindexacaoPeloLivro(unittest.TestCase):
         salvar_ra.assert_called_once()
         self.assertEqual(relatorio["registrosAuxiliares"], 1)
         self.assertEqual(relatorio["registrosAuxiliaresNovos"], 1)
+
+    def test_registro_auxiliar_reaproveita_texto_baixado_na_conferencia(self):
+        cache = {("RA", 29555): ("CPR ...", None)}
+
+        relatorio, _, salvar_ra = self._reindexar({("RA", 29555)}, cache)
+
+        self.cliente.buscar_texto_registro_auxiliar.assert_not_called()
+        salvar_ra.assert_called_once()
+        self.assertEqual(relatorio["registrosAuxiliares"], 1)
 
     def test_falha_em_um_numero_nao_derruba_os_demais(self):
         # A conferência do dia não pode ser perdida porque um número falhou.

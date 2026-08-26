@@ -373,8 +373,16 @@ def _regra_natureza_bate_com_titulo(
         ):
             return []
 
+    # Ao sugerir a correção, itens meramente preparatórios não podem vencer
+    # o ato principal num empate textual. Ex.: protocolo 185.366 com título
+    # cadastrado por engano como "INSCRIÇÃO NO CAR", mas cujo resultado real
+    # é CEP + Venda e Compra. A sugestão útil é Venda e Compra, não o CEP.
+    candidatos_principais = [
+        item for item in itens_com_natureza
+        if natureza_permite_excecao(str(item["natureza_formal_descricao"]))
+    ]
     item_candidato = max(
-        itens_com_natureza,
+        candidatos_principais or itens_com_natureza,
         key=lambda item: _pontuacao_natureza(
             str(descricao_titulo), str(item["natureza_formal_descricao"]),
         ),
@@ -433,7 +441,14 @@ def referencias_textos_protocolo(protocolo_json: dict) -> set[tuple[str, int]]:
     referencias = set()
     for item in protocolo_json.get("itens_do_pedido") or []:
         chave = _chave_registro(item)
-        if chave and chave[0] == "M" and _codigo_ato_registrado(item):
+        if not chave or chave[1] <= 0:
+            continue
+        if chave[0] == "M":
+            if _codigo_ato_registrado(item):
+                referencias.add(chave)
+            continue
+        registrado = item.get("atos_registrados") or {}
+        if registrado.get("ato_tipo") is not None and registrado.get("ato_numero") is not None:
             referencias.add(chave)
     return referencias
 
@@ -441,14 +456,24 @@ def referencias_textos_protocolo(protocolo_json: dict) -> set[tuple[str, int]]:
 def registros_alterados_no_protocolo(protocolo_json: dict) -> set[tuple[str, int]]:
     """Matrículas e Registros Auxiliares que este protocolo efetivamente alterou.
 
-    Diferente de referencias_textos_protocolo, que só reúne as matrículas cujo
-    texto a conferência precisa ler: aqui entram todos os tipos de registro,
-    porque o alvo é saber o que ficou desatualizado no índice de buscas.
+    Matrículas seguem a numeração registral R/AV. No Registro Auxiliar, a Tri7
+    pode devolver tipo ``S`` e ato número zero mesmo após o registro; por isso,
+    nele a presença objetiva do ato registrado é a evidência utilizada.
     """
     alterados = set()
     for item in protocolo_json.get("itens_do_pedido") or []:
         chave = _chave_registro(item)
-        if chave and chave[1] > 0 and _codigo_ato_registrado(item):
+        if not chave or chave[1] <= 0:
+            continue
+        if chave[0] == "M" and _codigo_ato_registrado(item):
+            alterados.add(chave)
+            continue
+        registrado = item.get("atos_registrados") or {}
+        if (
+            chave[0] != "M"
+            and registrado.get("ato_tipo") is not None
+            and registrado.get("ato_numero") is not None
+        ):
             alterados.add(chave)
     return alterados
 
@@ -520,9 +545,11 @@ def _regra_total_custas_agrupadas(
     prenotação, busca e outros itens do agrupamento. Portanto, comparar esse
     texto apenas com ``total_do_item`` do ato principal produz falso erro.
 
-    A regra é deliberadamente conservadora: só conclui quando existe um único
-    ato registral oneroso no agrupamento. Se houver dois atos onerosos, não há
-    informação suficiente para repartir a soma com segurança.
+    Quando o agrupamento produz matrícula e Registro Auxiliar, cada saída tem
+    cotação própria. Nesse caso, a soma das cotações impressas nas duas saídas
+    deve ser comparada à soma de todos os itens agrupados. Entre vários atos
+    somente de matrícula, preserva a cautela anterior e não tenta repartir
+    custos sem informação suficiente.
     """
     textos_registros = textos_registros or {}
     itens = protocolo_json.get("itens_do_pedido") or []
@@ -545,32 +572,65 @@ def _regra_total_custas_agrupadas(
         candidatos = []
         for item, total in zip(itens_grupo, totais):
             chave = _chave_registro(item)
-            codigo = _codigo_ato_registrado(item)
-            if chave and chave[0] == "M" and codigo and total > 0:
-                candidatos.append((item, chave, codigo))
-        if len(candidatos) != 1:
+            if not chave or chave[1] <= 0 or total <= 0:
+                continue
+            registrado = item.get("atos_registrados") or {}
+            if chave[0] == "M":
+                codigo = _codigo_ato_registrado(item)
+                if codigo:
+                    candidatos.append((item, chave, codigo))
+            elif registrado.get("ato_tipo") is not None and registrado.get("ato_numero") is not None:
+                candidatos.append((
+                    item,
+                    chave,
+                    (
+                        _normalizar(str(registrado.get("ato_tipo") or "REG")),
+                        int(registrado.get("ato_numero") or 0),
+                    ),
+                ))
+        if not candidatos:
+            continue
+        tipos_saida = {chave[0] for _item, chave, _codigo in candidatos}
+        if len(candidatos) > 1 and tipos_saida == {"M"}:
             continue
 
-        _item, chave, codigo = candidatos[0]
-        alvo = (chave, codigo)
-        if alvo in alvos_conferidos:
+        totais_saidas = []
+        rotulos_saidas = []
+        alvos_grupo = []
+        for _item, chave, codigo in candidatos:
+            alvo = (chave, codigo)
+            if alvo in alvos_conferidos:
+                continue
+            texto_registro = textos_registros.get(chave)
+            if not texto_registro:
+                totais_saidas = []
+                break
+            if chave[0] == "M":
+                bloco = dict(_atos_do_texto(texto_registro)).get(codigo)
+                total_saida = _total_cotacao_no_texto(bloco or "")
+                rotulo = f"{codigo[0]}.{codigo[1]}"
+            else:
+                total_saida = _total_cotacao_no_texto(texto_registro)
+                rotulo = f"Registro Auxiliar {chave[1]:,}".replace(",", ".")
+            if total_saida is None:
+                totais_saidas = []
+                break
+            totais_saidas.append(total_saida)
+            rotulos_saidas.append(rotulo)
+            alvos_grupo.append(alvo)
+        if not totais_saidas or len(totais_saidas) != len(candidatos):
             continue
-        alvos_conferidos.add(alvo)
-        texto_matricula = textos_registros.get(chave)
-        if not texto_matricula:
-            continue
-        bloco = dict(_atos_do_texto(texto_matricula)).get(codigo)
-        total_texto = _total_cotacao_no_texto(bloco or "")
-        if total_texto is None:
-            continue
+        alvos_conferidos.update(alvos_grupo)
+
+        total_texto = sum(totais_saidas, Decimal("0.00"))
         total_agrupado = sum(totais, Decimal("0.00"))
         if total_texto != total_agrupado:
-            rotulo = f"{codigo[0]}.{codigo[1]}"
+            rotulo = " e ".join(rotulos_saidas)
             ocorrencias.append({
                 "regra": "TOTAL_CUSTAS_DIVERGENTE",
                 "gravidade": "GRAVE",
                 "descricao": (
-                    f"{rotulo}: total da cotação R$ {_formatar_reais(total_texto)} "
+                    f"{rotulo}: total das cotações R$ {_formatar_reais(total_texto)} "
                     f"diverge da soma dos itens agrupados "
                     f"(R$ {_formatar_reais(total_agrupado)})."
                 ),
@@ -627,19 +687,35 @@ def _ocorrencias_campos_ato_com_isencao(
 
 
 def _regra_ordem_itens_protocolo(protocolo_json: dict) -> list[dict]:
-    """Confere a sequência em que os atos foram praticados.
+    """Confere a ordem registral por fase, sem confiar na ordem do JSON.
 
-    A data/hora do selo é a evidência mais precisa quando a Tri7 a informa.
-    O array ``itens_do_pedido`` nem sempre vem nessa ordem (no protocolo
-    185.569, R.11 chegou antes de AV.10, embora o selo da AV.10 seja anterior).
-    Sem data válida em todos os atos da matrícula, preserva a ordem do array
-    como compatibilidade. A numeração continua independente por matrícula.
+    A Tri7 pode devolver o ato principal antes das averbações preparatórias e
+    vários selos podem ter o mesmo segundo. A numeração R./AV. é a fonte da
+    sequência efetivamente praticada. Nessa sequência, atualizações do imóvel
+    devem anteceder atualizações das pessoas e, por fim, o ato principal.
     """
+    padrao_imovel = re.compile(
+        r"\b(?:CODIGO DE ENDERECAMENTO POSTAL|CEP|ITR|CCIR|INCRA|CAR|CCI|"
+        r"CADASTRO MUNICIPAL|DESIGNACAO CADASTRAL|ATUALIZACAO DE DESIGNACAO|"
+        r"DENOMINACAO DO IMOVEL|LOGRADOURO|NUMERACAO PREDIAL)\b"
+    )
+    padrao_pessoa = re.compile(
+        r"\b(?:INSERCAO|ATUALIZACAO|RETIFICACAO)\s+(?:DE\s+)?(?:DADOS|"
+        r"QUALIFICACAO|CPF|CNPJ|NOME|ESTADO CIVIL|REGIME DE CASAMENTO)\b|"
+        r"\b(?:REGIME DE CASAMENTO|ALTERACAO DE NOME|QUALIFICACAO PESSOAL)\b"
+    )
+
+    def fase(item: dict) -> int:
+        natureza = _normalizar(str(item.get("natureza_formal_descricao") or ""))
+        if padrao_imovel.search(natureza):
+            return 0
+        if padrao_pessoa.search(natureza):
+            return 1
+        return 2
+
     ocorrencias = []
-    sequencias: dict[
-        tuple[str, int], list[tuple[tuple[str, int], float | None, int]]
-    ] = {}
-    for posicao, item in enumerate(protocolo_json.get("itens_do_pedido") or []):
+    sequencias: dict[tuple[str, int], list[tuple[tuple[str, int], int, str]]] = {}
+    for item in protocolo_json.get("itens_do_pedido") or []:
         chave = _chave_registro(item)
         registrado = item.get("atos_registrados") or {}
         tipo = _normalizar(str(registrado.get("ato_tipo") or ""))
@@ -650,31 +726,33 @@ def _regra_ordem_itens_protocolo(protocolo_json: dict) -> list[dict]:
             codigo = ("AV" if tipo in {"A", "AV"} else tipo, int(numero))
         except (TypeError, ValueError):
             continue
-        datas_selo = []
-        for selo in item.get("selos") or []:
-            if not isinstance(selo, dict) or not _texto_valido(selo.get("data")):
-                continue
-            try:
-                datas_selo.append(
-                    datetime.fromisoformat(str(selo["data"]).replace("Z", "+00:00")).timestamp()
-                )
-            except ValueError:
-                pass
-        data_selo = min(datas_selo) if datas_selo else None
-        sequencias.setdefault(chave, []).append((codigo, data_selo, posicao))
+        natureza = _colapsar_espacos(str(item.get("natureza_formal_descricao") or ""))
+        sequencias.setdefault(chave, []).append((codigo, fase(item), natureza))
 
     for chave, itens_sequencia in sequencias.items():
-        if itens_sequencia and all(data_selo is not None for _codigo, data_selo, _pos in itens_sequencia):
-            itens_sequencia.sort(key=lambda valor: (valor[1], valor[2]))
-        codigos = [codigo for codigo, _data_selo, _posicao in itens_sequencia]
-        for anterior, atual in zip(codigos, codigos[1:]):
-            if atual[1] < anterior[1]:
+        # Um mesmo ato pode aparecer repetido em itens de custas. Consolida-o
+        # e usa a numeração oficial, nunca a posição instável no retorno.
+        por_codigo: dict[tuple[str, int], tuple[int, str]] = {}
+        for codigo, fase_item, natureza in itens_sequencia:
+            anterior = por_codigo.get(codigo)
+            if anterior is None or fase_item < anterior[0]:
+                por_codigo[codigo] = (fase_item, natureza)
+        ordenados = sorted(
+            ((codigo, *dados) for codigo, dados in por_codigo.items()),
+            key=lambda valor: valor[0][1],
+        )
+        for anterior, atual in zip(ordenados, ordenados[1:]):
+            codigo_anterior, fase_anterior, natureza_anterior = anterior
+            codigo_atual, fase_atual, natureza_atual = atual
+            if fase_atual < fase_anterior:
                 ocorrencias.append({
-                    "regra": "ORDEM_NUMERICA",
+                    "regra": "ORDEM_OPERACIONAL",
                     "gravidade": "GRAVE",
                     "descricao": (
-                        f"Matrícula {chave[1]}: ordem dos itens do protocolo fora de sequência, "
-                        f"{anterior[0]}.{anterior[1]} seguido de {atual[0]}.{atual[1]}."
+                        f"Matrícula {chave[1]}: sequência operacional incompatível; "
+                        f"{codigo_anterior[0]}.{codigo_anterior[1]} ({natureza_anterior}) "
+                        f"foi numerado antes de {codigo_atual[0]}.{codigo_atual[1]} "
+                        f"({natureza_atual})."
                     ),
                 })
     return ocorrencias

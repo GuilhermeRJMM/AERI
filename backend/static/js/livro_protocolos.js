@@ -164,11 +164,6 @@ function avisoAtualizacao(atualizacao) {
     return `<p class="livroproto-atualizacao">Índice de buscas atualizado: ${partes.join(' e ')}.${falhas}</p>`;
 }
 
-function avisoCobertura(cobertura) {
-    if (!cobertura) return '';
-    return `<p class="livroproto-cobertura">Busca provisória por data: o AERI consultou automaticamente ${cobertura.consultas} períodos, cobrindo apresentações de ${formatarDataIso(cobertura.inicio)} a ${formatarDataIso(cobertura.fim)}, e filtrou os registros pela data escolhida. O PDF continua disponível como alternativa para protocolos apresentados antes dessa janela.</p>`;
-}
-
 function renderizarLivroProtocolos(filtro) {
     if (!resultadoLivroProto) return;
     const resumo = resultadoLivroProto.resumo;
@@ -197,7 +192,6 @@ function renderizarLivroProtocolos(filtro) {
             <div><strong>${resumo.totalOcorrencias}</strong><span>Ocorrências encontradas</span></div>
             <div><strong>${formatarDataIso(resultadoLivroProto.dataEsperada)}</strong><span>Data analisada</span></div>
         </div>
-        ${avisoCobertura(resultadoLivroProto.cobertura)}
         ${avisoAtualizacao(resultadoLivroProto.atualizacao)}
         <div class="incra-toolbar">
             <div class="incra-filtros">

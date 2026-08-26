@@ -2,7 +2,7 @@ import {configurarAcessoAnaliseManual, iniciarAnalisador} from './analisador.js?
 import {iniciarAutenticacao} from './autenticacao.js?v=20260824-permissoes-v2';
 import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20260820-robustez-v1';
 import {iniciarIncra} from './incra.js?v=20260810-tri7-status-v1';
-import {iniciarLivroProtocolos} from './livro_protocolos.js?v=20260826-data-v1';
+import {iniciarLivroProtocolos} from './livro_protocolos.js?v=20260826-ordem-v2';
 import {configurarAcessoGeradorNotas, iniciarGeradorNotas} from './gerador_notas.js?v=20260825-legislacao-v1';
 import {configurarAcessoMapaOnr, iniciarMapaOnr, limparMapaOnr} from './mapa_onr.js?v=20260815-permissao-v1';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260820-robustez-v1';

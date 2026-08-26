@@ -69,6 +69,30 @@ def _protocolo_185569(total_no_texto: str) -> dict:
     }
 
 
+def _protocolo_185546() -> dict:
+    grupo = "00032608195500000000001"
+
+    def item(natureza, tipo, numero, total, ato_tipo=None, ato_numero=None):
+        return {
+            "natureza_formal_descricao": natureza,
+            "dados_imovel": {"tipo_registro": tipo, "numero_registro": numero},
+            "atos_registrados": {"ato_tipo": ato_tipo, "ato_numero": ato_numero, "texto": ""},
+            "detalhes_emolumentos": {"total_do_item": total},
+            "selos": [{"selo_agrupador": grupo}],
+        }
+
+    return {
+        "protocolo": {"protocolo_numero": 185546, "descricao_titulo": "CÉDULA DE CRÉDITO BANCÁRIO"},
+        "itens_do_pedido": [
+            item("Prenotação de Cédula", None, None, 35.01),
+            item("Busca de Cédula", None, None, 23.99),
+            item("Cédula de Crédito Bancário - Crédito Rural (Alienação)", "M", 32463, 1016.29, "R", 17),
+            item("Cédula de Crédito Bancário - Crédito Rural (Penhor)", "A", 29569, 455.73, "S", 0),
+            item("Penhor Rural/Imóvel de Localização", "M", 32463, 0, "A", 16),
+        ],
+    }
+
+
 class TesteClassificarStatus(unittest.TestCase):
     def test_reconhece_prenotado(self):
         self.assertEqual(classificar_status("185.200 FULANO 05/08/2026 Prenotado CÉDULA"), "PRENOTADO")
@@ -282,7 +306,7 @@ class TesteConferirProtocolo(unittest.TestCase):
             textos_registros={("M", 5292): texto},
         )
         self.assertFalse(any(o["regra"] == "TOTAL_CUSTAS_DIVERGENTE" for o in ocorrencias))
-        self.assertFalse(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
+        self.assertFalse(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
 
     def test_total_que_ignora_prenotacao_e_busca_e_divergente(self):
         protocolo = _protocolo_185569("4.447,53")
@@ -306,6 +330,36 @@ class TesteConferirProtocolo(unittest.TestCase):
             textos_registros={("M", 5292): texto},
         )
         self.assertFalse(any(o["regra"] == "TOTAL_CUSTAS_DIVERGENTE" for o in ocorrencias))
+
+    def test_total_soma_matricula_e_registro_auxiliar_do_mesmo_protocolo(self):
+        protocolo = _protocolo_185546()
+        textos = {
+            ("M", 32463): "AV.16-32.463 PENHOR. Total: R$0.\nR.17-32.463 CÉDULA. Total: R$1.075,29.",
+            ("A", 29569): "REGISTRO AUXILIAR 29.569. CÉDULA. Total: R$455,73.",
+        }
+
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 19), textos_registros=textos,
+        )
+
+        self.assertFalse(any(o["regra"] == "TOTAL_CUSTAS_DIVERGENTE" for o in ocorrencias))
+
+    def test_total_alerta_quando_soma_das_duas_saidas_realmente_diverge(self):
+        protocolo = _protocolo_185546()
+        textos = {
+            ("M", 32463): "R.17-32.463 CÉDULA. Total: R$1.075,29.",
+            ("A", 29569): "REGISTRO AUXILIAR 29.569. CÉDULA. Total: R$455,72.",
+        }
+
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 19), textos_registros=textos,
+        )
+        relevantes = [o for o in ocorrencias if o["regra"] == "TOTAL_CUSTAS_DIVERGENTE"]
+
+        self.assertEqual(len(relevantes), 1)
+        self.assertIn("R.17 e Registro Auxiliar 29.569", relevantes[0]["descricao"])
+        self.assertIn("1.531,01", relevantes[0]["descricao"])
+        self.assertIn("1.531,02", relevantes[0]["descricao"])
 
     def test_descricao_titulo_em_branco_e_ocorrencia_grave(self):
         protocolo = _protocolo_base()
@@ -418,6 +472,30 @@ class TesteConferirProtocolo(unittest.TestCase):
         self.assertIn("Código de Endereçamento Postal", relevantes[0]["descricao"])
         self.assertEqual(relevantes[0]["tituloOriginal"], "GEORREFERENCIAMENTO")
         self.assertEqual(relevantes[0]["naturezaOriginal"], "Código de Endereçamento Postal - CEP")
+
+    def test_protocolo_185366_sugere_venda_e_compra_em_vez_de_cep(self):
+        protocolo = _protocolo_base(
+            protocolo={"protocolo_numero": 185366, "descricao_titulo": "INSCRIÇÃO NO CAR"},
+            itens_do_pedido=[
+                {
+                    "natureza_formal_descricao": "Código de Endereçamento Postal - CEP",
+                    "dados_imovel": {"tipo_registro": "M", "numero_registro": 38687},
+                    "atos_registrados": {"ato_tipo": "A", "ato_numero": 8, "texto": ""},
+                },
+                {
+                    "natureza_formal_descricao": "Venda e Compra Imóvel Urbano (Simples)",
+                    "dados_imovel": {"tipo_registro": "M", "numero_registro": 38687},
+                    "atos_registrados": {"ato_tipo": "R", "ato_numero": 9, "texto": ""},
+                },
+            ],
+        )
+
+        ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 24))
+        relevantes = [o for o in ocorrencias if o["regra"] == "NATUREZA_TITULO"]
+
+        self.assertEqual(len(relevantes), 1)
+        self.assertEqual(relevantes[0]["naturezaOriginal"], "Venda e Compra Imóvel Urbano (Simples)")
+        self.assertNotIn("Código de Endereçamento Postal", relevantes[0]["descricao"])
 
     def test_cancelamento_nao_e_confundido_com_constituicao_do_mesmo_direito(self):
         protocolo = _protocolo_base(
@@ -544,7 +622,7 @@ class TesteConferirProtocolo(unittest.TestCase):
             textos_registros={("M", 34712): texto},
         )
         self.assertFalse(any(o["regra"] == "NATUREZA_TITULO" for o in ocorrencias))
-        self.assertFalse(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
+        self.assertFalse(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
 
     def _itens_com_busca(self, numero_registro):
         return [
@@ -579,7 +657,7 @@ class TesteConferirProtocolo(unittest.TestCase):
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
         self.assertTrue(any(o["regra"] == "BUSCA_COM_MATRICULA" for o in ocorrencias))
 
-    def test_ordem_numerica_fora_de_sequencia_e_ocorrencia_grave(self):
+    def test_ordem_do_array_nao_e_usada_como_ordem_registral(self):
         imovel = {"tipo_registro": "M", "numero_registro": 152}
         protocolo = _protocolo_base(itens_do_pedido=[
             {"natureza_formal_descricao": "Registro", "dados_imovel": imovel,
@@ -593,9 +671,9 @@ class TesteConferirProtocolo(unittest.TestCase):
             self._item_registrado(), protocolo, date(2026, 8, 6),
             textos_registros={("M", 152): "R.01-152 texto\nAV.03-152 texto\nR.02-152 texto"},
         )
-        self.assertTrue(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
+        self.assertFalse(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
 
-    def test_ordem_e_a_do_protocolo_mesmo_quando_texto_da_matricula_esta_ordenado(self):
+    def test_atualizacoes_anteriores_ao_ato_principal_nao_dependem_da_ordem_do_json(self):
         imovel = {"tipo_registro": "M", "numero_registro": 34712}
         protocolo = _protocolo_base(
             protocolo={
@@ -620,11 +698,10 @@ class TesteConferirProtocolo(unittest.TestCase):
                 "AV.06-34.712 CEP\nAV.07-34.712 CANCELAMENTO\nR.08-34.712 VENDA E COMPRA"
             )},
         )
-        ordem = [o for o in ocorrencias if o["regra"] == "ORDEM_NUMERICA"]
-        self.assertEqual(len(ordem), 1)
-        self.assertIn("R.8 seguido de AV.7", ordem[0]["descricao"])
+        ordem = [o for o in ocorrencias if o["regra"] == "ORDEM_OPERACIONAL"]
+        self.assertEqual(ordem, [])
 
-    def test_abertura_m0_participa_da_ordem_do_protocolo(self):
+    def test_abertura_m0_nao_e_comparada_pela_posicao_no_array(self):
         imovel = {"tipo_registro": "M", "numero_registro": 39834}
         protocolo = _protocolo_base(itens_do_pedido=[
             {"natureza_formal_descricao": "Traslado", "dados_imovel": imovel,
@@ -633,7 +710,7 @@ class TesteConferirProtocolo(unittest.TestCase):
              "atos_registrados": {"ato_tipo": "M", "ato_numero": 0, "texto": ""}},
         ])
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
-        self.assertTrue(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
+        self.assertFalse(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
 
     def test_ordem_numerica_nao_compara_matriculas_novas_distintas_sem_numero(self):
         # Regressão: protocolo que abre duas matrículas novas de uma vez
@@ -650,7 +727,7 @@ class TesteConferirProtocolo(unittest.TestCase):
              "atos_registrados": {"ato_tipo": "M", "ato_numero": 5, "texto": ""}},
         ])
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
-        self.assertFalse(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
+        self.assertFalse(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
 
     def test_ordem_numerica_crescente_nao_gera_ocorrencia(self):
         # As três naturezas batem com o título (por conteúdo) para isolar
@@ -683,25 +760,66 @@ class TesteConferirProtocolo(unittest.TestCase):
              "atos_registrados": {"ato_tipo": "A", "ato_numero": 32, "texto": ""}},
         ])
         ocorrencias = conferir_protocolo(self._item_registrado(), protocolo, date(2026, 8, 6))
-        self.assertFalse(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
+        self.assertFalse(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
 
-    def test_ordem_numerica_ainda_detecta_erro_dentro_do_mesmo_imovel(self):
+    def test_detecta_atualizacao_do_imovel_numerada_depois_do_ato_principal(self):
         protocolo = _protocolo_base(itens_do_pedido=[
-            {"natureza_formal_descricao": "Cédula de Produto Rural",
+            {"natureza_formal_descricao": "Venda e Compra Imóvel Urbano (Simples)",
              "dados_imovel": {"tipo_registro": "M", "numero_registro": 152},
              "atos_registrados": {"ato_tipo": "R", "ato_numero": 1, "texto": ""}},
-            {"natureza_formal_descricao": "Cédula de Produto Rural",
+            {"natureza_formal_descricao": "Código de Endereçamento Postal - CEP",
              "dados_imovel": {"tipo_registro": "M", "numero_registro": 152},
-             "atos_registrados": {"ato_tipo": "A", "ato_numero": 3, "texto": ""}},
-            {"natureza_formal_descricao": "Cédula de Produto Rural",
-             "dados_imovel": {"tipo_registro": "M", "numero_registro": 152},
-             "atos_registrados": {"ato_tipo": "R", "ato_numero": 2, "texto": ""}},
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 2, "texto": ""}},
         ])
         ocorrencias = conferir_protocolo(
             self._item_registrado(), protocolo, date(2026, 8, 6),
-            textos_registros={("M", 152): "R.01-152 texto\nAV.03-152 texto\nR.02-152 texto"},
+            textos_registros={("M", 152): "R.01-152 VENDA E COMPRA\nAV.02-152 CEP"},
         )
-        self.assertTrue(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
+        self.assertTrue(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
+
+    def test_api_pode_retornar_ato_principal_antes_das_duas_fases_preparatorias(self):
+        imovel = {"tipo_registro": "M", "numero_registro": 27090}
+        protocolo = _protocolo_base(itens_do_pedido=[
+            {"natureza_formal_descricao": "Venda e Compra Imóvel Urbano (Simples)",
+             "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "R", "ato_numero": 3, "texto": ""}},
+            {"natureza_formal_descricao": "Inserção de Dados Pessoais",
+             "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 2, "texto": ""}},
+            {"natureza_formal_descricao": "Código de Endereçamento Postal - CEP",
+             "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 1, "texto": ""}},
+        ])
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 6),
+            textos_registros={("M", 27090): (
+                "AV.01-27.090 CEP\nAV.02-27.090 INSERÇÃO DE DADOS\n"
+                "R.03-27.090 VENDA E COMPRA"
+            )},
+        )
+        self.assertFalse(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
+
+    def test_desmembramento_184896_nao_gera_falso_alerta_de_ordem(self):
+        imovel = {"tipo_registro": "M", "numero_registro": 30506}
+        protocolo = _protocolo_base(itens_do_pedido=[
+            {"natureza_formal_descricao": "Desmembramento de Imóvel Urbano",
+             "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 5, "texto": ""}},
+            {"natureza_formal_descricao": "Encerramento de Matrícula",
+             "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 6, "texto": ""}},
+            {"natureza_formal_descricao": "Atualização de Designação Cadastral do Imóvel",
+             "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 4, "texto": ""}},
+        ])
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 25),
+            textos_registros={("M", 30506): (
+                "AV.04-30.506 DESIGNAÇÃO CADASTRAL\nAV.05-30.506 DESMEMBRAMENTO\n"
+                "AV.06-30.506 ENCERRAMENTO"
+            )},
+        )
+        self.assertFalse(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
 
     def test_data_placeholder_xx_e_ignorado_por_enquanto(self):
         protocolo = _protocolo_base()
