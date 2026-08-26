@@ -30,6 +30,43 @@ def _protocolo_base(**sobrescritas) -> dict:
     return base
 
 
+def _protocolo_185569(total_no_texto: str) -> dict:
+    grupo = "00032608195900425430003"
+
+    def item(natureza, total, ato_tipo=None, ato_numero=None, data_selo=None):
+        return {
+            "natureza_formal_descricao": natureza,
+            "dados_imovel": (
+                {"tipo_registro": "M", "numero_registro": 5292}
+                if ato_tipo else {}
+            ),
+            "atos_registrados": {
+                "ato_tipo": ato_tipo,
+                "ato_numero": ato_numero,
+                "texto": "",
+            },
+            "detalhes_emolumentos": {"total_do_item": total},
+            "selos": [{"selo_agrupador": grupo, "data": data_selo}],
+        }
+
+    return {
+        "protocolo": {
+            "protocolo_numero": 185569,
+            "descricao_titulo": "ESCRITURA PÚBLICA DE VENDA E COMPRA",
+        },
+        "itens_do_pedido": [
+            item("Venda e Compra Imóvel Urbano (Simples)", 4447.53, "R", 11, "2026-08-25T15:32:51"),
+            item("Prenotação", 35.01, data_selo="2026-08-20T09:12:04"),
+            item("Busca", 23.99, data_selo="2026-08-25T15:32:52"),
+            item("Código de Endereçamento Postal - CEP", 0.0, "A", 10, "2026-08-25T15:32:45"),
+        ],
+        "_texto_matricula": (
+            "AV.10-5.292 CEP. Total: R$0.\n"
+            f"R.11-5.292 VENDA E COMPRA. Total: R${total_no_texto}."
+        ),
+    }
+
+
 class TesteClassificarStatus(unittest.TestCase):
     def test_reconhece_prenotado(self):
         self.assertEqual(classificar_status("185.200 FULANO 05/08/2026 Prenotado CÉDULA"), "PRENOTADO")
@@ -170,6 +207,39 @@ class TesteConferirProtocolo(unittest.TestCase):
             self._item_registrado(), _protocolo_base(), data_esperada=date(2026, 8, 6),
         )
         self.assertEqual(ocorrencias, [])
+
+    def test_total_do_ato_principal_considera_itens_do_mesmo_agrupamento(self):
+        protocolo = _protocolo_185569("4.506,53")
+        texto = protocolo.pop("_texto_matricula")
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 25),
+            textos_registros={("M", 5292): texto},
+        )
+        self.assertFalse(any(o["regra"] == "TOTAL_CUSTAS_DIVERGENTE" for o in ocorrencias))
+        self.assertFalse(any(o["regra"] == "ORDEM_NUMERICA" for o in ocorrencias))
+
+    def test_total_que_ignora_prenotacao_e_busca_e_divergente(self):
+        protocolo = _protocolo_185569("4.447,53")
+        texto = protocolo.pop("_texto_matricula")
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 25),
+            textos_registros={("M", 5292): texto},
+        )
+        relevantes = [o for o in ocorrencias if o["regra"] == "TOTAL_CUSTAS_DIVERGENTE"]
+        self.assertEqual(len(relevantes), 1)
+        self.assertEqual(relevantes[0]["gravidade"], "GRAVE")
+        self.assertIn("4.447,53", relevantes[0]["descricao"])
+        self.assertIn("4.506,53", relevantes[0]["descricao"])
+
+    def test_dois_atos_onerosos_no_mesmo_grupo_nao_geram_falso_positivo(self):
+        protocolo = _protocolo_185569("4.506,53")
+        texto = protocolo.pop("_texto_matricula")
+        protocolo["itens_do_pedido"][3]["detalhes_emolumentos"]["total_do_item"] = 10.0
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 25),
+            textos_registros={("M", 5292): texto},
+        )
+        self.assertFalse(any(o["regra"] == "TOTAL_CUSTAS_DIVERGENTE" for o in ocorrencias))
 
     def test_descricao_titulo_em_branco_e_ocorrencia_grave(self):
         protocolo = _protocolo_base()

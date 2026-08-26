@@ -2,7 +2,8 @@ import io
 import re
 import unicodedata
 from collections import Counter
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 
 from pypdf import PdfReader
 
@@ -23,6 +24,10 @@ PADRAO_DATA_PLACEHOLDER = re.compile(r"\bxx[./]\d{2}[./]\d{4}\b|\b\d{2}[./]xx[./
 PADRAO_VALOR_EM_BRANCO = re.compile(r"R\$\s*;|R\$\s*\.")
 PADRAO_SELO_EM_BRANCO = re.compile(r"\bSelo:\s*\.")
 PADRAO_FECHO_EM_BRANCO = re.compile(r"-\s*[A-ZÀ-Ü]{2},\s*de\s+de\.", re.IGNORECASE)
+PADRAO_TOTAL_COTACAO = re.compile(
+    r"\bTotal\s*:\s*R\$\s*([0-9][0-9.\s]*(?:,[0-9]{1,2})?)",
+    re.IGNORECASE,
+)
 
 STATUS_VALIDOS = ("PRENOTADO", "REGISTRADO", "SEM_EFEITO", "INDEFINIDO")
 
@@ -367,6 +372,113 @@ def _atos_do_texto(texto: str) -> list[tuple[tuple[str, int], str]]:
     return resultado
 
 
+def _decimal_monetario(valor: object) -> Decimal | None:
+    if isinstance(valor, bool) or valor is None:
+        return None
+    try:
+        if isinstance(valor, (int, float, Decimal)):
+            return Decimal(str(valor)).quantize(Decimal("0.01"))
+        texto = str(valor).strip().replace("R$", "").replace(" ", "")
+        if not texto:
+            return None
+        if "," in texto:
+            texto = texto.replace(".", "").replace(",", ".")
+        return Decimal(texto).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+
+def _total_cotacao_no_texto(texto: str) -> Decimal | None:
+    encontrados = PADRAO_TOTAL_COTACAO.findall(texto or "")
+    if not encontrados:
+        return None
+    return _decimal_monetario(encontrados[-1].rstrip("."))
+
+
+def _formatar_reais(valor: Decimal) -> str:
+    formatado = f"{valor:,.2f}"
+    return formatado.replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def _grupos_de_selo(item: dict) -> set[str]:
+    grupos = set()
+    for selo in item.get("selos") or []:
+        if not isinstance(selo, dict):
+            continue
+        agrupador = str(selo.get("selo_agrupador") or "").strip()
+        if agrupador:
+            grupos.add(agrupador)
+    return grupos
+
+
+def _regra_total_custas_agrupadas(
+    protocolo_json: dict,
+    textos_registros: dict[tuple[str, int], str] | None = None,
+) -> list[dict]:
+    """Compara a cotação do ato com todos os itens do mesmo selo agrupador.
+
+    Na Tri7, o total impresso no ato principal pode reunir as custas do ato,
+    prenotação, busca e outros itens do agrupamento. Portanto, comparar esse
+    texto apenas com ``total_do_item`` do ato principal produz falso erro.
+
+    A regra é deliberadamente conservadora: só conclui quando existe um único
+    ato registral oneroso no agrupamento. Se houver dois atos onerosos, não há
+    informação suficiente para repartir a soma com segurança.
+    """
+    textos_registros = textos_registros or {}
+    itens = protocolo_json.get("itens_do_pedido") or []
+    por_grupo: dict[str, list[dict]] = {}
+    for item in itens:
+        for grupo in _grupos_de_selo(item):
+            por_grupo.setdefault(grupo, []).append(item)
+
+    ocorrencias = []
+    alvos_conferidos: set[tuple[tuple[str, int], tuple[str, int]]] = set()
+    for itens_grupo in por_grupo.values():
+        if len(itens_grupo) < 2:
+            continue
+        totais = [
+            _decimal_monetario((item.get("detalhes_emolumentos") or {}).get("total_do_item"))
+            for item in itens_grupo
+        ]
+        if any(total is None for total in totais):
+            continue
+        candidatos = []
+        for item, total in zip(itens_grupo, totais):
+            chave = _chave_registro(item)
+            codigo = _codigo_ato_registrado(item)
+            if chave and chave[0] == "M" and codigo and total > 0:
+                candidatos.append((item, chave, codigo))
+        if len(candidatos) != 1:
+            continue
+
+        _item, chave, codigo = candidatos[0]
+        alvo = (chave, codigo)
+        if alvo in alvos_conferidos:
+            continue
+        alvos_conferidos.add(alvo)
+        texto_matricula = textos_registros.get(chave)
+        if not texto_matricula:
+            continue
+        bloco = dict(_atos_do_texto(texto_matricula)).get(codigo)
+        total_texto = _total_cotacao_no_texto(bloco or "")
+        if total_texto is None:
+            continue
+        total_agrupado = sum(totais, Decimal("0.00"))
+        if total_texto != total_agrupado:
+            rotulo = f"{codigo[0]}.{codigo[1]}"
+            ocorrencias.append({
+                "regra": "TOTAL_CUSTAS_DIVERGENTE",
+                "gravidade": "GRAVE",
+                "descricao": (
+                    f"{rotulo}: total da cotação R$ {_formatar_reais(total_texto)} "
+                    f"diverge da soma dos itens agrupados "
+                    f"(R$ {_formatar_reais(total_agrupado)})."
+                ),
+            })
+    return ocorrencias
+
+
 def _ocorrencias_campos_ato(codigo: tuple[str, int], texto: str) -> list[dict]:
     return _ocorrencias_campos_ato_com_isencao(codigo, texto, isento=False)
 
@@ -416,16 +528,19 @@ def _ocorrencias_campos_ato_com_isencao(
 
 
 def _regra_ordem_itens_protocolo(protocolo_json: dict) -> list[dict]:
-    """Confere a sequência oficial devolvida em ``itens_do_pedido``.
+    """Confere a sequência em que os atos foram praticados.
 
-    O Explorer da Tri7 não ordena a resposta no navegador: ele exibe o JSON
-    bruto. Logo, a posição dos itens no array é a ordem operacional do
-    protocolo (atualização do imóvel, pessoas e transferência, por exemplo).
-    A numeração continua independente para cada matrícula.
+    A data/hora do selo é a evidência mais precisa quando a Tri7 a informa.
+    O array ``itens_do_pedido`` nem sempre vem nessa ordem (no protocolo
+    185.569, R.11 chegou antes de AV.10, embora o selo da AV.10 seja anterior).
+    Sem data válida em todos os atos da matrícula, preserva a ordem do array
+    como compatibilidade. A numeração continua independente por matrícula.
     """
     ocorrencias = []
-    sequencias: dict[tuple[str, int], list[tuple[str, int]]] = {}
-    for item in protocolo_json.get("itens_do_pedido") or []:
+    sequencias: dict[
+        tuple[str, int], list[tuple[tuple[str, int], float | None, int]]
+    ] = {}
+    for posicao, item in enumerate(protocolo_json.get("itens_do_pedido") or []):
         chave = _chave_registro(item)
         registrado = item.get("atos_registrados") or {}
         tipo = _normalizar(str(registrado.get("ato_tipo") or ""))
@@ -436,9 +551,23 @@ def _regra_ordem_itens_protocolo(protocolo_json: dict) -> list[dict]:
             codigo = ("AV" if tipo in {"A", "AV"} else tipo, int(numero))
         except (TypeError, ValueError):
             continue
-        sequencias.setdefault(chave, []).append(codigo)
+        datas_selo = []
+        for selo in item.get("selos") or []:
+            if not isinstance(selo, dict) or not _texto_valido(selo.get("data")):
+                continue
+            try:
+                datas_selo.append(
+                    datetime.fromisoformat(str(selo["data"]).replace("Z", "+00:00")).timestamp()
+                )
+            except ValueError:
+                pass
+        data_selo = min(datas_selo) if datas_selo else None
+        sequencias.setdefault(chave, []).append((codigo, data_selo, posicao))
 
-    for chave, codigos in sequencias.items():
+    for chave, itens_sequencia in sequencias.items():
+        if itens_sequencia and all(data_selo is not None for _codigo, data_selo, _pos in itens_sequencia):
+            itens_sequencia.sort(key=lambda valor: (valor[1], valor[2]))
+        codigos = [codigo for codigo, _data_selo, _posicao in itens_sequencia]
         for anterior, atual in zip(codigos, codigos[1:]):
             if atual[1] < anterior[1]:
                 ocorrencias.append({
@@ -531,6 +660,7 @@ def conferir_protocolo(
         *_regra_busca_com_matricula(protocolo_json),
         *_regra_ordem_itens_protocolo(protocolo_json),
         *_regra_ordem_e_texto_dos_atos(protocolo_json, textos_registros, falhas_textos),
+        *_regra_total_custas_agrupadas(protocolo_json, textos_registros),
         # Regra de data desativada por enquanto: mesmo com inferir_data_esperada()
         # olhando a própria folha em vez de "hoje - 1 dia" fixo, ainda gerou
         # ocorrência em casos legítimos. Fica pausada até a lógica ser revista;
