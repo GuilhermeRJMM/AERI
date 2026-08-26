@@ -13,9 +13,13 @@ from backend.app.gerador_notas.servico import (
 class GeradorNotasTest(unittest.TestCase):
     def test_importa_catalogo_completo_do_repositorio_fonte(self):
         catalogo = catalogo_para_tela()
-        self.assertEqual(len(catalogo["exigencias"]), 65)
+        self.assertEqual(len(catalogo["exigencias"]), 72)
         self.assertEqual(len(catalogo["especies"]), 4)
         self.assertTrue(catalogo["somente_leitura"])
+        ids = {item["id"] for item in catalogo["exigencias"]}
+        self.assertIn("construcao-sem-habite-se", ids)
+        self.assertIn("alienacao-fiduciaria-ativa", ids)
+        self.assertIn("indisponibilidade-ativa", ids)
 
     def test_importa_base_legislativa_e_pesquisa_artigos(self):
         self.assertEqual(len(legislacao()), 30)
@@ -31,6 +35,18 @@ class GeradorNotasTest(unittest.TestCase):
         })
         self.assertNotIn("<img", resultado["html"])
         self.assertIn("&lt;img", resultado["html"])
+
+    def test_nova_exigencia_de_construcao_sem_habite_se_entra_na_previa(self):
+        resultado = previa({
+            "especie": "devolutiva",
+            "titulo": "Averbação de construção",
+            "itens": [{
+                "exigencia": "construcao-sem-habite-se",
+                "valores": {"matricula": "18.552"},
+            }],
+        })
+        self.assertIn("habite-se", resultado["html"].lower())
+        self.assertIn("18.552", resultado["html"])
 
     def test_gera_docx_em_memoria_com_nome_saneado(self):
         nome, conteudo, nao_revisadas = gerar_documento({

@@ -46,11 +46,14 @@
     let m = s.match(/\b(\d{2})[./](\d{2})[./](\d{4})\b/);
     if (m) return m[1] + '/' + m[2] + '/' + m[3];
     const k = chave(s);
-    const re = new RegExp('(\\d{1,2})\\s+de\\s+(' + MESES.join('|') + ')\\s+de\\s+(\\d{4})');
+    // O ano aparece com ponto de milhar nos livros antigos: "25 de abril de
+    // 1.995". Sem tolerar o ponto, a matricula ficava sem data - e sem data nao
+    // ha motivo_envio, nem data do ato, nem abertura reconhecida como ato.
+    const re = new RegExp('(\\d{1,2})\\s+de\\s+(' + MESES.join('|') + ')\\s+de\\s+(\\d{1,2}\\.?\\d{3})');
     m = k.match(re);
     if (m) {
       return String(+m[1]).padStart(2, '0') + '/'
-        + String(MESES.indexOf(m[2]) + 1).padStart(2, '0') + '/' + m[3];
+        + String(MESES.indexOf(m[2]) + 1).padStart(2, '0') + '/' + m[3].replace('.', '');
     }
     return null;
   }
@@ -65,7 +68,7 @@
     if (m) return achado(dataDeTexto(m[1]), m[0], 'Data:');
     // O dia PRECISA ter fronteira a esquerda: sem isso, o numero da matricula no cabecalho
     // faz "11 de Agosto" ser lido como "1 de Agosto" (erro real observado).
-    m = cabecalho.match(/(?:^|[^\d])(\d{1,2})\s+de\s+([A-Za-zçÀ-ÿ]+)\s+de\s+(\d{4})/i);
+    m = cabecalho.match(/(?:^|[^\d])(\d{1,2})\s+de\s+([A-Za-zçÀ-ÿ]+)\s+de\s+(\d{1,2}\.?\d{3})/i);
     if (m) return achado(dataDeTexto(m[1] + ' de ' + m[2] + ' de ' + m[3]), m[0], 'cabecalho');
     const d = dataDeTexto(cabecalho);
     if (d) return achado(d, cabecalho.slice(0, 90), 'cabecalho');
@@ -117,17 +120,28 @@
     { re: /(desapropriacao)/, ato: 4, alteracao_titularidade: 17, rotulo: 'desapropriacao' },
     { re: /(venda e compra|compra e venda|compra a venda|adquiriu por compra)/,
       ato: 4, alteracao_titularidade: 1, rotulo: 'compra e venda' },
-    { re: /(inventario\/partilha|formal de partilha|adjudicacao|arrolamento dos bens)/,
+    // "INVENTARIO/ADJUDCACAO" existe assim no acervo, sem o "i" - o titulo do
+    // ato e digitado a mao, e o padrao aceita as duas grafias.
+    { re: /(inventario\s*\/\s*(?:partilha|adjud\w*)|formal de partilha|adjudicacao|adjudcacao|arrolamento dos bens)/,
       ato: 4, alteracao_titularidade: 9, rotulo: 'partilha/adjudicacao por obito' },
+    // Caracterizacao do imovel (art. 213, I, "b"): e o ato que descreve o imovel
+    // como ele e hoje - area, numero na rua, lote e quadra saem dele.
+    { re: /caracterizacao do imovel/, ato: 5, alteracao_imovel: 10,
+      rotulo: 'caracterizacao do imovel (retificacao)' },
     // Divisao amigavel e transmissao SO quando atribui a alguem ("coube
     // exclusivamente aos condominos: X e Y"): ali o quinhao dos outros muda de
     // mao, e o enum nao tem item proprio - 16 e "outras nao onerosas".
     // A divisao que apenas parte o imovel em glebas e encerra a matricula
     // (AV.51 da 1.999, "DIVISAO AMIGAVEL/DESMEMBRAMENTO") nao transmite nada:
     // cai na regra de desmembramento, ato 5, e nao pede valor_transacao.
-    { re: /divisao amigavel[\s\S]{0,3000}?(coube|couberam|cabendo)/,
+    { re: /divisao amigavel[\s\S]{0,3000}?(coube|couberam|cabendo|cabera)/,
       ato: 4, alteracao_titularidade: 16,
       rotulo: 'divisao amigavel com atribuicao de quinhao' },
+    // Divisao amigavel REGISTRADA (R.xx) e a transmissao em si, mesmo quando a
+    // atribuicao dos quinhoes esta na averbacao seguinte (R.09 da 28.501, com a
+    // AV.10 desmembrando). Averbacao nao transmite; registro transmite.
+    { re: /divisao amigavel/, ato: 4, alteracao_titularidade: 16, soRegistro: true,
+      rotulo: 'divisao amigavel registrada (extincao de condominio)' },
     { re: /partilha por divorcio/, ato: 4, alteracao_titularidade: 10 },
     { re: /dissolucao de uniao estavel/, ato: 4, alteracao_titularidade: 11 },
     { re: /(doacao|escritura publica de doacao)/, ato: 4, alteracao_titularidade: 6 },
@@ -179,8 +193,12 @@
     return semCabecalho.slice(0, 120);
   }
 
-  function classificaAto(textoAto) {
+  function classificaAto(textoAto, tipoAto) {
     const titulo = tituloDoAto(textoAto);
+    // Registro ou averbacao, deduzido do proprio cabecalho quando nao vem dado:
+    // ha regra que so vale em registro, porque averbacao nao transmite.
+    const tipo = tipoAto != null ? tipoAto
+      : (/^[\s>*]*(?:R|REGISTRO)\b/i.test(String(textoAto || '').trim()) ? 1 : 2);
     // A escritura de "doacao da parte disponivel COM RESERVA DE USUFRUTO" gera
     // DOIS atos com o mesmo titulo: um registra a doacao da nua propriedade
     // (transmissao) e o outro registra o usufruto reservado. Quem separa os dois
@@ -200,6 +218,8 @@
     for (const escopo of [{ txt: titulo, onde: 'titulo do ato' }, { txt: textoAto, onde: 'corpo do ato' }]) {
       const k = chave(escopo.txt);
       for (const regra of REGRAS_ATO) {
+        // Regra que so vale em REGISTRO (a averbacao nao transmite).
+        if (regra.soRegistro && tipo !== 1) continue;
         const m = k.match(regra.re);
         if (!m) continue;
         const evidencia = escopo.onde === 'titulo do ato'
@@ -260,7 +280,22 @@
     if (!atoClassificado || !atoClassificado.ato || atoClassificado.ato.valor !== 4) return null;
     const candidatos = valoresRotulados(textoAto)
       .filter((c) => c.moeda === 'R$' || c.rotulado);
-    if (!candidatos.length) return null;
+    if (!candidatos.length) {
+      // Divisao amigavel nao tem preco: nao ha compra, ha repartição do que ja
+      // era dos condominos. O que o ato declara e a base de calculo do ITBI (na
+      // 28.501, R$350.000,00, com isencao do imposto). Decisao da serventia
+      // (17/08/2026): e ela que vai como valor do negocio.
+      const rotulo = (atoClassificado.ato.rotulo || '')
+        + ' ' + ((atoClassificado.alteracao_titularidade || {}).rotulo || '');
+      if (/divisao amigavel/i.test(rotulo)) {
+        const base = extraiImpostos(textoAto).base_calculo_itbi;
+        if (base) {
+          return achado(base.valor, base.trecho,
+            'base de calculo do ITBI (divisao amigavel nao tem preco)');
+        }
+      }
+      return null;
+    }
     const preferido = candidatos.find((c) => c.rotulado) || candidatos[0];
     return achado(preferido.valor, preferido.trecho,
       preferido.moeda === 'R$' ? 'valor do negocio' : 'valor do negocio em ' + preferido.moeda);
@@ -287,6 +322,11 @@
    * prioridade baixa/zero = area de parcela, garantia ou negocio.
    */
   const REGRAS_AREA = [
+    // Retificacao de area por georreferenciamento: e o dado mais atual e mais
+    // forte que a matricula tem ("que RETIFICADA passa a ter a area total de
+    // 2,6925ha"). Vence a descricao da abertura e o CCIR.
+    { re: /RETIFICADA\s+passa\s+a\s+ter\s+a\s+[áa]rea\s+(?:total\s+)?de\s+([\d.]+,\d+)\s*ha/i,
+      peso: 105, rotulo: 'area retificada por georreferenciamento' },
     { re: /remanescente\s+de\s+([\d.]+,\d+)\s*ha/i, peso: 100, rotulo: 'REMANESCENTE de' },
     // A area declarada na descricao do imovel ("IMOVEL: Fazenda X, com a area de
     // 281,5458ha") e a DESTE imovel. A area total do CCIR pode ser a do cadastro
@@ -426,7 +466,9 @@
       if (limpo.length === 12 || limpo.length === 13) out.cod_sncr = achado(limpo, m[0], 'codigo do imovel rural');
     }
 
-    // CIF urbano: "CCI n.º 10.630" (codigo cadastral da Prefeitura) ou
+    // CIF urbano: "CCI n.º 10.630" (codigo cadastral da Prefeitura). CCI e o
+    // Certificado de Cadastro Imobiliario do imovel - nao confundir com a
+    // cedula de credito imobiliario, que nada tem a ver com este campo. Ou
     // "Cadastrado na Prefeitura sob o Nº 51/01-C.R.2ª Etapa".
     // "CCI n.º 10.630" - o "n.º" precisa ser consumido inteiro (o "º" nao e \w),
     // senao a captura para na sigla e devolve "CCI".
@@ -579,6 +621,11 @@
     { re: /(?:Avalista\(s\)|Avalistas?|Intervenientes? [Gg]arantes?|interveniente garantidora)\s*:?/gi,
       relacao_juridica: 18, rotulo: 'avalista/garante' },
     { re: /C[ôo]njuge\s*:/gi, rotulo: 'conjuge' },
+    // A NOTA do ato explica o negocio; nao qualifica partes. No inventario da
+    // 28.501 ela cita sete CPF de cedentes de direitos hereditarios, que ja
+    // cederam e nao sao partes do registro - e todos herdavam o "ADQUIRENTE:"
+    // da frase anterior, entrando na titularidade do imovel.
+    { re: /\*?\s*NOTAS?\s*:/gi, nota: true, rotulo: 'nota do ato (nao qualifica partes)' },
   ];
 
   // Alem das palavras inteiras, as ABREVIATURAS de documento: o acervo escreve
@@ -823,6 +870,9 @@
     const pctParaCada = mCada ? numeroBR(mCada[1]) : null;
 
     const pessoas = [];
+    // Ultima pessoa que NAO foi citada como conjuge: e nela que o estado civil e
+    // o regime do casal estao declarados.
+    let titular = null;
     const vistos = new Set();
     RE_DOC.lastIndex = 0;
     let m;
@@ -842,6 +892,8 @@
         if (/^\s*[.\-]?\s*\d/.test(depois)) continue;
       }
       const papel = papelDe(m.index);
+      // Documento citado dentro da NOTA do ato: e mencao, nao parte.
+      if (papel && papel.nota) continue;
       const marca = marcaDe(m.index);
       // Janela limitada ao pedaco da propria pessoa (ver janelaDaPessoa).
       const jp = janelaDaPessoa(t, m.index, 320, 320);
@@ -889,6 +941,25 @@
 
       const ec = estadoCivilDe(janela);
       const rb = regimeBensDe(janela, dataDoAto);
+      // O casal tem um estado civil e um regime, declarados uma vez, no titular.
+      // Quando a qualificacao dele e longa - "casado sob o regime da comunhao
+      // universal [...] conforme escritura de Pacto Antenupcial lavrada no
+      // Cartorio [...], com Clarinda" sao 429 caracteres - a janela do conjuge
+      // nao alcanca o "casado" e ainda pega "Pacto Antenupcial" como se fosse o
+      // regime dele. Nesse caso vale o que foi declarado para o titular.
+      if (achadoNome && achadoNome.conjuge && titular) {
+        if (ec.estado_civil == null && titular.estado_civil != null) {
+          ec.estado_civil = titular.estado_civil;
+          ec.trecho = (titular.evidencia_estado_civil || '') + ' (declarado para o casal)';
+        }
+        if (titular.regime_bens != null
+          && (rb.regime_bens == null || rb.regime_bens === 6 || rb.presumido)) {
+          rb.regime_bens = titular.regime_bens;
+          rb.presumido = !!titular.regime_presumido;
+          rb.ambiguo = false;
+          rb.trecho = (titular.evidencia_regime || '') + ' (declarado para o casal)';
+        }
+      }
       const pct = percentualDe(janelaPct);
       const ehPJ = digitos.length === 14;
 
@@ -922,6 +993,29 @@
         evidencia_regime: rb.trecho || null,
         evidencia_estado_civil: ec.trecho || null,
       });
+      // Guarda o titular do casal para o conjuge que venha em seguida.
+      if (!(achadoNome && achadoNome.conjuge)) titular = pessoas[pessoas.length - 1];
+    }
+
+    // Divisao amigavel RECIPROCA: "celebrada entre as outorgantes e
+    // RECIPROCAMENTE OUTORGADAS". Cada condomino transmite a parte que cede e
+    // adquire o quinhao que recebe - as duas coisas, no mesmo ato. Como
+    // condicao_parte aceita um valor por pessoa, cada um entra duas vezes
+    // (decisao da serventia, 17/08/2026).
+    // So quando o ato NAO atribui os quinhoes: se ele diz a quem cabe (o "coube
+    // exclusivamente" da 15.733), quem recebe e adquirente e quem sai e
+    // alienante, e nao ha reciprocidade a declarar.
+    if (/reciprocamente outorgad/i.test(t)
+      && !/\b(coube|couberam|cabendo|cabera|caberao)\b/.test(kt)) {
+      const reciprocas = [];
+      for (const p of pessoas) {
+        if (!p.cpf_cnpj || p.representante_legal) { reciprocas.push(p); continue; }
+        reciprocas.push(Object.assign({}, p, { condicao_parte: 1,
+          papel: (p.papel || '') + ' (divisao reciproca: transmite)' }));
+        reciprocas.push(Object.assign({}, p, { condicao_parte: 2, relacao_juridica: 1,
+          papel: (p.papel || '') + ' (divisao reciproca: adquire)' }));
+      }
+      return reciprocas;
     }
     return pessoas;
   }
@@ -1055,6 +1149,14 @@
     const depoisDaVia = bruto.slice(achouVia.m.index + achouVia.m[0].length, achouVia.m.index + achouVia.m[0].length + 90);
     const mNum = depoisDaVia.match(/(?:N[ºo°]\.?|n[úu]mero)\s*(\d{1,6}[A-Za-z]?)/i);
     if (mNum) out.numero_logradouro = achado(mNum[1], compacta(nomeVia + ' ' + mNum[0]), 'numero apos o logradouro');
+    // Na caracterizacao o numero vem ANTES da via, ligado a casa: "a citada casa
+    // possui o n.º 330, situado na Rua Maestro Vicente Jose Vieira".
+    if (!out.numero_logradouro) {
+      const mCasa = bruto.match(/(?:casa|pr[ée]dio|im[óo]vel|edifica[çc][ãa]o)[^.;]{0,40}?possui o n\.?[ºo°]?\s*(\d{1,6}[A-Za-z]?)/i);
+      if (mCasa) {
+        out.numero_logradouro = achado(mCasa[1], compacta(mCasa[0]), 'numero da casa na descricao');
+      }
+    }
 
     // Bairro: "Setor X", "Jardim Y", "Loteamento Z" no restante da descricao.
     const depois = bruto.slice(achouVia.m.index);
@@ -1095,6 +1197,13 @@
   function candidatosAreaUrbana(texto) {
     const t = compacta(texto);
     const saida = [];
+    // Ato de desmembramento: as areas que ele cita sao dos imoveis NOVOS, cada
+    // um com sua matricula ("Lote 15, com a area de 180,00m2, [...] constantes
+    // da matr. 39.501"). A area DESTE imovel e a de antes da divisao - na 28.501
+    // o desmembramento fazia o arquivo sair com 180m2 em vez de 360m2.
+    // Cuidado: "matricula procedida em virtude de desmembramento" e a ORIGEM da
+    // matricula, e ali a area E a do imovel. So conta o ato que efetua a divisao.
+    if (/(?:foi|fica|ficam)\s+DESMEMBRAD[OA]S?\b/i.test(t)) return saida;
     // "com a área de 246,50m2", "com área de 175,00m²" (sem o "a"),
     // "área total: 300,00m²", "medindo 360,00m2".
     let m = t.match(/(?:terreno[^.]{0,80}?)?com\s+(?:a\s+)?[áa]rea\s+de\s+([\d.]+,\d+)\s*m[²2]/i);
@@ -1264,13 +1373,13 @@
     if (m && m.index < 40) {
       out.numero_matricula = achado(m[1].replace(/\D/g, ''), m[0], 'cabecalho da matricula');
     }
-    const md = t.slice(0, 200).match(/(\d{1,2}\s+de\s+[A-Za-zç]+\s+de\s+\d{4}|\d{2}[./]\d{2}[./]\d{4})/i);
+    const md = t.slice(0, 200).match(/(\d{1,2}\s+de\s+[A-Za-zçÀ-ÿ]+\s+de\s+\d{1,2}\.?\d{3}|\d{2}[./]\d{2}[./]\d{4})/i);
     if (md) {
       out.data_matricula = achado(dataDeTexto(md[1]), md[0], 'cabecalho da matricula');
     } else {
       // Matricula sem cabecalho (aberta por desmembramento): a data de abertura
       // e a do fecho do preambulo ("Morrinhos-GO, 18 de julho de 2025").
-      const mf = t.match(/Morrinhos[^,]{0,6},\s*(\d{1,2}\s+de\s+[A-Za-zçã]+\s+de\s+\d{4})/i);
+      const mf = t.match(/Morrinhos[^,]{0,6},\s*(\d{1,2}\s+de\s+[A-Za-zçãÀ-ÿ]+\s+de\s+\d{1,2}\.?\d{3})/i);
       if (mf) out.data_matricula = achado(dataDeTexto(mf[1]), mf[0], 'fecho do preambulo');
       else {
         // "Protocolo n.º 177.671, de 27.06.2025" - o mesmo padrao do protocolo

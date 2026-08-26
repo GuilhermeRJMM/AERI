@@ -28,6 +28,18 @@ TIRA_NUMERO = re.compile(r"^\s*Art(?:igo)?\.?\s*[\d.]+\s*[ºo°]?\s*"
 # dos paragrafos citados e seguido de ")".
 JUNTA_PONTOS = re.compile(r"(?<=[^\s.])\.{2,}(?=\s|$)")
 
+# O catalogo aponta o artigo por um id sem ponto de milhar ("Art. 1063"), que e
+# como o indice o guarda; a lei escreve "Art. 1.063". Como esse id vira o rotulo
+# em negrito da citacao, o ponto e reposto na hora de imprimir - o que sai na
+# nota tem de ser a numeracao da norma, nao a chave interna.
+MILHAR = re.compile(r"^(Art\. \d)(\d{3})\b")
+
+# Sobra irma da anterior: a anotacao removida levava consigo o ponto final da
+# propria anotacao, mas ele ficava. "II - a averbacao: (Redacao dada pela Lei no
+# 6.216, de 1975)." virava "II - a averbacao:." na nota. Depois de dois-pontos ou
+# ponto-e-virgula, ponto nenhum e legitimo em texto de lei.
+PONTO_ORFAO = re.compile(r"(?<=[:;])\s*\.")
+
 # Ambas tem caso de regressao em ferramentas/testa_redator.py.
 
 
@@ -144,9 +156,11 @@ class Redator:
                     (self.cat.nome_norma(norma), {"negrito"})]))
                 norma_atual = norma
             texto = self.cat.texto_dispositivo(norma, artigo, partes)
-            corpo = JUNTA_PONTOS.sub(".", TIRA_NUMERO.sub("", texto))
+            corpo = TIRA_NUMERO.sub("", texto)
+            corpo = PONTO_ORFAO.sub("", JUNTA_PONTOS.sub(".", corpo))
             blocos.append(Bloco("fund_artigo", partes=[
-                (artigo + ".", {"negrito"}), (" " + corpo, set())]))
+                (MILHAR.sub(r"\1.\2", artigo) + ".", {"negrito"}),
+                (" " + corpo, set())]))
 
         # Jurisprudencia: entra depois da lei, sob cabecalho proprio, porque nao
         # e norma - e o modo como os tribunais leem a norma.

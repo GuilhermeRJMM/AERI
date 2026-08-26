@@ -265,7 +265,10 @@
         for (const cpf of Object.keys(vigente.pessoas)) {
           const p = vigente.pessoas[cpf];
           if (!p.nome_completo) continue;
-          if (b.texto.indexOf(p.nome_completo) < 0) continue;
+          // Comparacao por chave, nao literal: a AV.02 da 11.573 escreve
+          // "DIVINA CANDIDO DA SILVA PENA" em maiusculas e a AV.04, que declara
+          // o casamento, escreve "Divina Cândido da Silva Pena".
+          if (X.chaveNome(b.texto).indexOf(X.chaveNome(p.nome_completo)) < 0) continue;
           p.estado_civil = 2;
           p.ato_estado_civil = b.rotulo + ' (casamento averbado)';
           if (rb.regime_bens != null && !rb.presumido) {
@@ -1244,7 +1247,7 @@
     sistema_referencia: 'sistema de referencia (DATUM)',
     sistema_coordenadas: 'sistema de coordenadas', fuso_zona: 'fuso / zona',
     centroide: 'centroide', cib: 'CIB (cadastro na Receita Federal)',
-    cif: 'CIF / CCI (cadastro na Prefeitura)', ccir: 'CCIR (certificado do INCRA)',
+    cif: 'CIF / CCI - Certificado de Cadastro Imobiliario (Prefeitura)', ccir: 'CCIR (certificado do INCRA)',
     cod_sncr: 'codigo do imovel rural no INCRA', car: 'CAR (cadastro ambiental rural)',
     nirf: 'NIRF', imovel_possui_nome: 'o imovel tem nome', nome_imovel: 'nome do imovel',
     area_terreno_total: 'area total do imovel', area_construida: 'area construida',

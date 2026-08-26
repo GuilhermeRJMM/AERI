@@ -292,11 +292,72 @@
    "fonte": "lei"
   },
   {
-   "norma": "CNPFE-GO",
-   "artigo": "Art. 800",
-   "texto": "Art. 800. As cópias de documentos fiscais ou emitidos por órgãos ou entidades públicos consideram-se válidas desde que autenticadas por tabelião ou, em se tratando de documento eletrônico, contenha código de validação por sistema digital do emitente.",
-   "caput": "Art. 800. As cópias de documentos fiscais ou emitidos por órgãos ou entidades públicos consideram-se válidas desde que autenticadas por tabelião ou, em se tratando de documento eletrônico, contenha código de validação por sistema digital do emitente.",
-   "partes": [],
+   "norma": "CNN-CNJ",
+   "artigo": "Art. 440-AX",
+   "texto": "Art. 440 -AX. A averbação de retificação de área de imóveis urbanos e rurais será realizada na forma dos arts. 212 e 213 da Lei n. 6.015/1973 , resultando em posterior averbação de encerramento da matrícula retificada e abertura de nova matrícula com a atual descrição e as devidas remissões recíprocas. § 1.º. A declaração expressa dos confinantes de que os limites divisórios foram respeitados poderá ser realizada na planta, no memorial descritivo ou em instrumento apartado, observando o disposto no art. 220 do Código Civil. § 2.º. As declarações apresentadas pelo proprietário, pelo profissional técnico e pelos confinantes deverão ser assinadas com firma reconhecida ou mediante assinatura eletrônica avançada ou qualificada. § 3.º. É dispensada a anuência do confinante: I - no caso de imóveis rurais, se o imóvel confrontante e a nova descrição do imóvel objeto da retificação tiverem sido certificados pelo Incra na forma do § 5.º do art. 176 da Lei n. 6.015/1973; e II – se o imóvel confrontante for bem público e consistir em: a) águas públicas, tais como rios navegáveis, correntes ou depósitos hídricos, com respeito aos pertinentes terrenos reservados, nos termos do art. 14 do Código de Águas (Decreto n. 24.643/1934); e b) bem público de uso comum, tais como estradas, rodovias, ferrovias e outras vias de circulação, respeitada a faixa de domínio público e eventual área non aedificandi. § 4.º. Havendo necessidade de retificação da área global do imóvel rural e tendo o requerente apresentado pedido concomitante de desmembramento, cujas poligonais desmembradas estejam georreferenciadas e certificadas no Incra, deverá o oficial, nesta ordem: I - realizar a averbação de retificação administrativa da área global; e II - posteriormente, realizar averbação de desmembramento, com posterior averbação de encerramento da matrícula anterior, abrindo tantas matrículas quantas forem as parcelas desmembradas. § 5.º. Na hipótese do § 4.º deste artigo, é dispensada a certificação pelo Incra da área global objeto do memorial descritivo (art. 176, § 5.º, da Lei n. 6.015/1973), desde que as parcelas desmembradas tenham sido certificadas pelo Incra e correspondam integralmente ao somatório da área global, conforme mapa e memorial descritivo elaborados por profissional técnico habilitado, caso em que os prazos de eficácia da prenotação em relação ao desmembramento ficarão suspensos enquanto o procedimento de retificação extrajudicial estiver em curso. § 6.º. Aplica-se à unificação ou fusão de imóveis, no que couber, a regra procedimental prevista nos §§ 4.º e 5.º deste artigo. § 7.º. O deferimento do pedido de retificação de área dependerá do cumprimento dos requisitos legais e do convencimento do oficial de registro de imóveis, na forma da Lei de Registros Públicos e da legislação processual. § 8.º. Em caso de indeferimento, deverá ser expedida nota devolutiva fundamentada na qual o oficial de registro de imóveis indicará as razões da formação de seu convencimento e, sempre que possível, informará os meios de o requerente cumprir as exigências legais, podendo requisitar a apresentação de declarações, laudos, arquivos eletrônicos ou outros documentos complementares, especialmente, como meios de prova e de análise da conformidade dos trabalhos técnicos. § 9.º. Havendo indícios de grilagem de terras, fraude procedimental, declaração falsa ou cometimento de qualquer outro ato ilícito pelo requerente ou pelo profissional técnico, o oficial de registro comunicará o fato ao juízo competente e ao Ministério Público com as cópias dos documentos necessários à análise. Seção III Do Saneamento de Irregularidades Existentes nas Matrículas Subseção I Da Sobreposição de Área entre Imóveis",
+   "caput": "Art. 440 -AX. A averbação de retificação de área de imóveis urbanos e rurais será realizada na forma dos arts. 212 e 213 da Lei n. 6.015/1973 , resultando em posterior averbação de encerramento da matrícula retificada e abertura de nova matrícula com a atual descrição e as devidas remissões recíprocas.",
+   "partes": [
+    {
+     "rotulo": "§ 1",
+     "texto": "§ 1.º. A declaração expressa dos confinantes de que os limites divisórios foram respeitados poderá ser realizada na planta, no memorial descritivo ou em instrumento apartado, observando o disposto no art. 220 do Código Civil."
+    },
+    {
+     "rotulo": "§ 2",
+     "texto": "§ 2.º. As declarações apresentadas pelo proprietário, pelo profissional técnico e pelos confinantes deverão ser assinadas com firma reconhecida ou mediante assinatura eletrônica avançada ou qualificada."
+    },
+    {
+     "rotulo": "§ 3",
+     "texto": "§ 3.º. É dispensada a anuência do confinante:"
+    },
+    {
+     "rotulo": "I",
+     "texto": "I - no caso de imóveis rurais, se o imóvel confrontante e a nova descrição do imóvel objeto da retificação tiverem sido certificados pelo Incra na forma do § 5.º do art. 176 da Lei n. 6.015/1973; e"
+    },
+    {
+     "rotulo": "II",
+     "texto": "II – se o imóvel confrontante for bem público e consistir em:"
+    },
+    {
+     "rotulo": "a)",
+     "texto": "a) águas públicas, tais como rios navegáveis, correntes ou depósitos hídricos, com respeito aos pertinentes terrenos reservados, nos termos do art. 14 do Código de Águas (Decreto n. 24.643/1934); e"
+    },
+    {
+     "rotulo": "b)",
+     "texto": "b) bem público de uso comum, tais como estradas, rodovias, ferrovias e outras vias de circulação, respeitada a faixa de domínio público e eventual área non aedificandi."
+    },
+    {
+     "rotulo": "§ 4",
+     "texto": "§ 4.º. Havendo necessidade de retificação da área global do imóvel rural e tendo o requerente apresentado pedido concomitante de desmembramento, cujas poligonais desmembradas estejam georreferenciadas e certificadas no Incra, deverá o oficial, nesta ordem:"
+    },
+    {
+     "rotulo": "I (2)",
+     "texto": "I - realizar a averbação de retificação administrativa da área global; e"
+    },
+    {
+     "rotulo": "II (2)",
+     "texto": "II - posteriormente, realizar averbação de desmembramento, com posterior averbação de encerramento da matrícula anterior, abrindo tantas matrículas quantas forem as parcelas desmembradas."
+    },
+    {
+     "rotulo": "§ 5",
+     "texto": "§ 5.º. Na hipótese do § 4.º deste artigo, é dispensada a certificação pelo Incra da área global objeto do memorial descritivo (art. 176, § 5.º, da Lei n. 6.015/1973), desde que as parcelas desmembradas tenham sido certificadas pelo Incra e correspondam integralmente ao somatório da área global, conforme mapa e memorial descritivo elaborados por profissional técnico habilitado, caso em que os prazos de eficácia da prenotação em relação ao desmembramento ficarão suspensos enquanto o procedimento de retificação extrajudicial estiver em curso."
+    },
+    {
+     "rotulo": "§ 6",
+     "texto": "§ 6.º. Aplica-se à unificação ou fusão de imóveis, no que couber, a regra procedimental prevista nos §§ 4.º e 5.º deste artigo."
+    },
+    {
+     "rotulo": "§ 7",
+     "texto": "§ 7.º. O deferimento do pedido de retificação de área dependerá do cumprimento dos requisitos legais e do convencimento do oficial de registro de imóveis, na forma da Lei de Registros Públicos e da legislação processual."
+    },
+    {
+     "rotulo": "§ 8",
+     "texto": "§ 8.º. Em caso de indeferimento, deverá ser expedida nota devolutiva fundamentada na qual o oficial de registro de imóveis indicará as razões da formação de seu convencimento e, sempre que possível, informará os meios de o requerente cumprir as exigências legais, podendo requisitar a apresentação de declarações, laudos, arquivos eletrônicos ou outros documentos complementares, especialmente, como meios de prova e de análise da conformidade dos trabalhos técnicos."
+    },
+    {
+     "rotulo": "§ 9",
+     "texto": "§ 9.º. Havendo indícios de grilagem de terras, fraude procedimental, declaração falsa ou cometimento de qualquer outro ato ilícito pelo requerente ou pelo profissional técnico, o oficial de registro comunicará o fato ao juízo competente e ao Ministério Público com as cópias dos documentos necessários à análise. Seção III Do Saneamento de Irregularidades Existentes nas Matrículas"
+    }
+   ],
    "revogadas": [],
    "fonte": "lei"
   },
@@ -967,76 +1028,6 @@
    "fonte": "lei"
   },
   {
-   "norma": "CNN-CNJ",
-   "artigo": "Art. 440-AX",
-   "texto": "Art. 440 -AX. A averbação de retificação de área de imóveis urbanos e rurais será realizada na forma dos arts. 212 e 213 da Lei n. 6.015/1973 , resultando em posterior averbação de encerramento da matrícula retificada e abertura de nova matrícula com a atual descrição e as devidas remissões recíprocas. § 1.º. A declaração expressa dos confinantes de que os limites divisórios foram respeitados poderá ser realizada na planta, no memorial descritivo ou em instrumento apartado, observando o disposto no art. 220 do Código Civil. § 2.º. As declarações apresentadas pelo proprietário, pelo profissional técnico e pelos confinantes deverão ser assinadas com firma reconhecida ou mediante assinatura eletrônica avançada ou qualificada. § 3.º. É dispensada a anuência do confinante: I - no caso de imóveis rurais, se o imóvel confrontante e a nova descrição do imóvel objeto da retificação tiverem sido certificados pelo Incra na forma do § 5.º do art. 176 da Lei n. 6.015/1973; e II – se o imóvel confrontante for bem público e consistir em: a) águas públicas, tais como rios navegáveis, correntes ou depósitos hídricos, com respeito aos pertinentes terrenos reservados, nos termos do art. 14 do Código de Águas (Decreto n. 24.643/1934); e b) bem público de uso comum, tais como estradas, rodovias, ferrovias e outras vias de circulação, respeitada a faixa de domínio público e eventual área non aedificandi. § 4.º. Havendo necessidade de retificação da área global do imóvel rural e tendo o requerente apresentado pedido concomitante de desmembramento, cujas poligonais desmembradas estejam georreferenciadas e certificadas no Incra, deverá o oficial, nesta ordem: I - realizar a averbação de retificação administrativa da área global; e II - posteriormente, realizar averbação de desmembramento, com posterior averbação de encerramento da matrícula anterior, abrindo tantas matrículas quantas forem as parcelas desmembradas. § 5.º. Na hipótese do § 4.º deste artigo, é dispensada a certificação pelo Incra da área global objeto do memorial descritivo (art. 176, § 5.º, da Lei n. 6.015/1973), desde que as parcelas desmembradas tenham sido certificadas pelo Incra e correspondam integralmente ao somatório da área global, conforme mapa e memorial descritivo elaborados por profissional técnico habilitado, caso em que os prazos de eficácia da prenotação em relação ao desmembramento ficarão suspensos enquanto o procedimento de retificação extrajudicial estiver em curso. § 6.º. Aplica-se à unificação ou fusão de imóveis, no que couber, a regra procedimental prevista nos §§ 4.º e 5.º deste artigo. § 7.º. O deferimento do pedido de retificação de área dependerá do cumprimento dos requisitos legais e do convencimento do oficial de registro de imóveis, na forma da Lei de Registros Públicos e da legislação processual. § 8.º. Em caso de indeferimento, deverá ser expedida nota devolutiva fundamentada na qual o oficial de registro de imóveis indicará as razões da formação de seu convencimento e, sempre que possível, informará os meios de o requerente cumprir as exigências legais, podendo requisitar a apresentação de declarações, laudos, arquivos eletrônicos ou outros documentos complementares, especialmente, como meios de prova e de análise da conformidade dos trabalhos técnicos. § 9.º. Havendo indícios de grilagem de terras, fraude procedimental, declaração falsa ou cometimento de qualquer outro ato ilícito pelo requerente ou pelo profissional técnico, o oficial de registro comunicará o fato ao juízo competente e ao Ministério Público com as cópias dos documentos necessários à análise. Seção III Do Saneamento de Irregularidades Existentes nas Matrículas Subseção I Da Sobreposição de Área entre Imóveis",
-   "caput": "Art. 440 -AX. A averbação de retificação de área de imóveis urbanos e rurais será realizada na forma dos arts. 212 e 213 da Lei n. 6.015/1973 , resultando em posterior averbação de encerramento da matrícula retificada e abertura de nova matrícula com a atual descrição e as devidas remissões recíprocas.",
-   "partes": [
-    {
-     "rotulo": "§ 1",
-     "texto": "§ 1.º. A declaração expressa dos confinantes de que os limites divisórios foram respeitados poderá ser realizada na planta, no memorial descritivo ou em instrumento apartado, observando o disposto no art. 220 do Código Civil."
-    },
-    {
-     "rotulo": "§ 2",
-     "texto": "§ 2.º. As declarações apresentadas pelo proprietário, pelo profissional técnico e pelos confinantes deverão ser assinadas com firma reconhecida ou mediante assinatura eletrônica avançada ou qualificada."
-    },
-    {
-     "rotulo": "§ 3",
-     "texto": "§ 3.º. É dispensada a anuência do confinante:"
-    },
-    {
-     "rotulo": "I",
-     "texto": "I - no caso de imóveis rurais, se o imóvel confrontante e a nova descrição do imóvel objeto da retificação tiverem sido certificados pelo Incra na forma do § 5.º do art. 176 da Lei n. 6.015/1973; e"
-    },
-    {
-     "rotulo": "II",
-     "texto": "II – se o imóvel confrontante for bem público e consistir em:"
-    },
-    {
-     "rotulo": "a)",
-     "texto": "a) águas públicas, tais como rios navegáveis, correntes ou depósitos hídricos, com respeito aos pertinentes terrenos reservados, nos termos do art. 14 do Código de Águas (Decreto n. 24.643/1934); e"
-    },
-    {
-     "rotulo": "b)",
-     "texto": "b) bem público de uso comum, tais como estradas, rodovias, ferrovias e outras vias de circulação, respeitada a faixa de domínio público e eventual área non aedificandi."
-    },
-    {
-     "rotulo": "§ 4",
-     "texto": "§ 4.º. Havendo necessidade de retificação da área global do imóvel rural e tendo o requerente apresentado pedido concomitante de desmembramento, cujas poligonais desmembradas estejam georreferenciadas e certificadas no Incra, deverá o oficial, nesta ordem:"
-    },
-    {
-     "rotulo": "I (2)",
-     "texto": "I - realizar a averbação de retificação administrativa da área global; e"
-    },
-    {
-     "rotulo": "II (2)",
-     "texto": "II - posteriormente, realizar averbação de desmembramento, com posterior averbação de encerramento da matrícula anterior, abrindo tantas matrículas quantas forem as parcelas desmembradas."
-    },
-    {
-     "rotulo": "§ 5",
-     "texto": "§ 5.º. Na hipótese do § 4.º deste artigo, é dispensada a certificação pelo Incra da área global objeto do memorial descritivo (art. 176, § 5.º, da Lei n. 6.015/1973), desde que as parcelas desmembradas tenham sido certificadas pelo Incra e correspondam integralmente ao somatório da área global, conforme mapa e memorial descritivo elaborados por profissional técnico habilitado, caso em que os prazos de eficácia da prenotação em relação ao desmembramento ficarão suspensos enquanto o procedimento de retificação extrajudicial estiver em curso."
-    },
-    {
-     "rotulo": "§ 6",
-     "texto": "§ 6.º. Aplica-se à unificação ou fusão de imóveis, no que couber, a regra procedimental prevista nos §§ 4.º e 5.º deste artigo."
-    },
-    {
-     "rotulo": "§ 7",
-     "texto": "§ 7.º. O deferimento do pedido de retificação de área dependerá do cumprimento dos requisitos legais e do convencimento do oficial de registro de imóveis, na forma da Lei de Registros Públicos e da legislação processual."
-    },
-    {
-     "rotulo": "§ 8",
-     "texto": "§ 8.º. Em caso de indeferimento, deverá ser expedida nota devolutiva fundamentada na qual o oficial de registro de imóveis indicará as razões da formação de seu convencimento e, sempre que possível, informará os meios de o requerente cumprir as exigências legais, podendo requisitar a apresentação de declarações, laudos, arquivos eletrônicos ou outros documentos complementares, especialmente, como meios de prova e de análise da conformidade dos trabalhos técnicos."
-    },
-    {
-     "rotulo": "§ 9",
-     "texto": "§ 9.º. Havendo indícios de grilagem de terras, fraude procedimental, declaração falsa ou cometimento de qualquer outro ato ilícito pelo requerente ou pelo profissional técnico, o oficial de registro comunicará o fato ao juízo competente e ao Ministério Público com as cópias dos documentos necessários à análise. Seção III Do Saneamento de Irregularidades Existentes nas Matrículas"
-    }
-   ],
-   "revogadas": [],
-   "fonte": "lei"
-  },
-  {
    "norma": "LRP",
    "artigo": "Art. 195",
    "texto": "Art. 195 - Se o imóvel não estiver matriculado ou registrado em nome do outorgante, o oficial exigirá a prévia matrícula e o registro do título anterior, qualquer que seja a sua natureza, para manter a continuidade do registro..",
@@ -1170,6 +1161,15 @@
      "texto": "§ 6º Os contratos e termos administrativos mencionados no inciso VI deverão ser submetidos à qualificação registral pelo oficial do registro de imóveis, previamente ao pagamento do valor devido ao expropriado."
     }
    ],
+   "revogadas": [],
+   "fonte": "lei"
+  },
+  {
+   "norma": "CNPFE-GO",
+   "artigo": "Art. 800",
+   "texto": "Art. 800. As cópias de documentos fiscais ou emitidos por órgãos ou entidades públicos consideram-se válidas desde que autenticadas por tabelião ou, em se tratando de documento eletrônico, contenha código de validação por sistema digital do emitente.",
+   "caput": "Art. 800. As cópias de documentos fiscais ou emitidos por órgãos ou entidades públicos consideram-se válidas desde que autenticadas por tabelião ou, em se tratando de documento eletrônico, contenha código de validação por sistema digital do emitente.",
+   "partes": [],
    "revogadas": [],
    "fonte": "lei"
   },
@@ -1666,6 +1666,28 @@
     {
      "rotulo": "Parágrafo único",
      "texto": "Parágrafo único. São solidariamente responsáveis pelo imposto e pelos acréscimos legais, nos termos do art. 134 da Lei nº 5.172, de 25 de outubro de 1966 - Sistema Tributário Nacional, os serventuários do registro de imóveis que descumprirem o disposto neste artigo, sem prejuízo de outras sanções legais. Depósito Judicial na Desapropriação"
+    }
+   ],
+   "revogadas": [],
+   "fonte": "lei"
+  },
+  {
+   "norma": "LRP",
+   "artigo": "Art. 225",
+   "texto": "Art. 225 - Os tabeliães, escrivães e juizes farão com que, nas escrituras e nos autos judiciais, as partes indiquem, com precisão, os característicos, as confrontações e as localizações dos imóveis, mencionando os nomes dos confrontantes e, ainda, quando se tratar só de terreno, se esse fica do lado par ou do lado ímpar do logradouro, em que quadra e a que distância métrica da edificação ou da esquina mais próxima, exigindo dos interessados certidão do registro imobiliário.. § 1º As mesmas minúcias, com relação à caracterização do imóvel, devem constar dos instrumentos particulares apresentados em cartório para registro. § 2º Consideram-se irregulares, para efeito de matrícula, os títulos nos quais a caracterização do imóvel não coincida com a que consta do registro anterior. § 3o Nos autos judiciais que versem sobre imóveis rurais, a localização, os limites e as confrontações serão obtidos a partir de memorial descritivo assinado por profissional habilitado e com a devida Anotação de Responsabilidade Técnica – ART, contendo as coordenadas dos vértices definidores dos limites dos imóveis rurais, geo-referenciadas ao Sistema Geodésico Brasileiro e com precisão posicional a ser fixada pelo INCRA, garantida a isenção de custos financeiros aos proprietários de imóveis rurais cuja somatória da área não exceda a quatro módulos fiscais.",
+   "caput": "Art. 225 - Os tabeliães, escrivães e juizes farão com que, nas escrituras e nos autos judiciais, as partes indiquem, com precisão, os característicos, as confrontações e as localizações dos imóveis, mencionando os nomes dos confrontantes e, ainda, quando se tratar só de terreno, se esse fica do lado par ou do lado ímpar do logradouro, em que quadra e a que distância métrica da edificação ou da esquina mais próxima, exigindo dos interessados certidão do registro imobiliário..",
+   "partes": [
+    {
+     "rotulo": "§ 1º",
+     "texto": "§ 1º As mesmas minúcias, com relação à caracterização do imóvel, devem constar dos instrumentos particulares apresentados em cartório para registro."
+    },
+    {
+     "rotulo": "§ 2º",
+     "texto": "§ 2º Consideram-se irregulares, para efeito de matrícula, os títulos nos quais a caracterização do imóvel não coincida com a que consta do registro anterior."
+    },
+    {
+     "rotulo": "§ 3o",
+     "texto": "§ 3o Nos autos judiciais que versem sobre imóveis rurais, a localização, os limites e as confrontações serão obtidos a partir de memorial descritivo assinado por profissional habilitado e com a devida Anotação de Responsabilidade Técnica – ART, contendo as coordenadas dos vértices definidores dos limites dos imóveis rurais, geo-referenciadas ao Sistema Geodésico Brasileiro e com precisão posicional a ser fixada pelo INCRA, garantida a isenção de custos financeiros aos proprietários de imóveis rurais cuja somatória da área não exceda a quatro módulos fiscais."
     }
    ],
    "revogadas": [],
@@ -2327,28 +2349,6 @@
    "fonte": "lei"
   },
   {
-   "norma": "CC",
-   "artigo": "Art. 500",
-   "texto": "Art. 500. Se, na venda de um imóvel, se estipular o preço por medida de extensão, ou se determinar a respectiva área, e esta não corresponder, em qualquer dos casos, às dimensões dadas, o comprador terá o direito de exigir o complemento da área, e, não sendo isso possível, o de reclamar a resolução do contrato ou abatimento proporcional ao preço. § 1 o Presume-se que a referência às dimensões foi simplesmente enunciativa, quando a diferença encontrada não exceder de um vigésimo da área total enunciada, ressalvado ao comprador o direito de provar que, em tais circunstâncias, não teria realizado o negócio. § 2 o Se em vez de falta houver excesso, e o vendedor provar que tinha motivos para ignorar a medida exata da área vendida, caberá ao comprador, à sua escolha, completar o valor correspondente ao preço ou devolver o excesso. § 3 o Não haverá complemento de área, nem devolução de excesso, se o imóvel for vendido como coisa certa e discriminada, tendo sido apenas enunciativa a referência às suas dimensões, ainda que não conste, de modo expresso, ter sido a venda ad corpus .",
-   "caput": "Art. 500. Se, na venda de um imóvel, se estipular o preço por medida de extensão, ou se determinar a respectiva área, e esta não corresponder, em qualquer dos casos, às dimensões dadas, o comprador terá o direito de exigir o complemento da área, e, não sendo isso possível, o de reclamar a resolução do contrato ou abatimento proporcional ao preço.",
-   "partes": [
-    {
-     "rotulo": "§ 1 o",
-     "texto": "§ 1 o Presume-se que a referência às dimensões foi simplesmente enunciativa, quando a diferença encontrada não exceder de um vigésimo da área total enunciada, ressalvado ao comprador o direito de provar que, em tais circunstâncias, não teria realizado o negócio."
-    },
-    {
-     "rotulo": "§ 2 o",
-     "texto": "§ 2 o Se em vez de falta houver excesso, e o vendedor provar que tinha motivos para ignorar a medida exata da área vendida, caberá ao comprador, à sua escolha, completar o valor correspondente ao preço ou devolver o excesso."
-    },
-    {
-     "rotulo": "§ 3 o",
-     "texto": "§ 3 o Não haverá complemento de área, nem devolução de excesso, se o imóvel for vendido como coisa certa e discriminada, tendo sido apenas enunciativa a referência às suas dimensões, ainda que não conste, de modo expresso, ter sido a venda ad corpus ."
-    }
-   ],
-   "revogadas": [],
-   "fonte": "lei"
-  },
-  {
    "norma": "LRP",
    "artigo": "Art. 289",
    "texto": "Art. 289. No exercício de suas funções, cumpre aos oficiais de registro fazer rigorosa fiscalização do pagamento dos impostos devidos por força dos atos que lhes forem apresentados em razão do ofício.",
@@ -2718,6 +2718,548 @@
     {
      "rotulo": "VIII",
      "texto": "VIII - Pelo não uso, ou não fruição, da coisa em que o usufruto recai (arts. 1.390 e 1.399)."
+    }
+   ],
+   "revogadas": [],
+   "fonte": "lei"
+  },
+  {
+   "norma": "CNPFE-GO",
+   "artigo": "Art. 796",
+   "texto": "Art. 796 . Caso a matrícula esteja gravada com algum ônus impeditivo de alienação ou oneração, deverá ser apresentado requerimento do interessado solicitando o cancelamento do ônus, acompanhado de documentação competente, ou mandado judicial de registro ou levantamento do ônus. §1º. Constituem ônus impeditivos da alienação ou oneração, entre outros: Parágrafo único. Constituem ônus impeditivos da alienação ou oneração, entre outros: I – hipoteca constituída por cédula de crédito rural, industrial, comercial e cédula à exportação; I – hipoteca cedular; II – hipoteca do Sistema Financeiro da Habitação; III – penhora da União ou do Instituto Nacional do Seguro Social – INSS; IV – cláusula de inalienabilidade; V – bloqueio de matrícula; e VI – indisponibilidade. §2º. O imóvel gravado com os ônus previstos nos incisos I ou II do §1º deste artigo poderá ser alienado ou onerado mediante anuência do credor, por escrito.. §3º. No caso de sucessão causa mortis, os ônus previstos nos incisos I a VI do §1º deste artigo não serão considerados impeditivos do registro da partilha.. 359",
+   "caput": "Art. 796 . Caso a matrícula esteja gravada com algum ônus impeditivo de alienação ou oneração, deverá ser apresentado requerimento do interessado solicitando o cancelamento do ônus, acompanhado de documentação competente, ou mandado judicial de registro ou levantamento do ônus.",
+   "partes": [
+    {
+     "rotulo": "§1º",
+     "texto": "§1º. Constituem ônus impeditivos da alienação ou oneração, entre outros:"
+    },
+    {
+     "rotulo": "Parágrafo único",
+     "texto": "Parágrafo único. Constituem ônus impeditivos da alienação ou oneração, entre outros:"
+    },
+    {
+     "rotulo": "I",
+     "texto": "I – hipoteca constituída por cédula de crédito rural, industrial, comercial e cédula à exportação;"
+    },
+    {
+     "rotulo": "I (2)",
+     "texto": "I – hipoteca cedular;"
+    },
+    {
+     "rotulo": "II",
+     "texto": "II – hipoteca do Sistema Financeiro da Habitação;"
+    },
+    {
+     "rotulo": "III",
+     "texto": "III – penhora da União ou do Instituto Nacional do Seguro Social – INSS;"
+    },
+    {
+     "rotulo": "IV",
+     "texto": "IV – cláusula de inalienabilidade;"
+    },
+    {
+     "rotulo": "V",
+     "texto": "V – bloqueio de matrícula; e VI – indisponibilidade."
+    },
+    {
+     "rotulo": "§2º",
+     "texto": "§2º. O imóvel gravado com os ônus previstos nos incisos I ou II do §1º deste artigo poderá ser alienado ou onerado mediante anuência do credor, por escrito.."
+    },
+    {
+     "rotulo": "§3º",
+     "texto": "§3º. No caso de sucessão causa mortis, os ônus previstos nos incisos I a VI do §1º deste artigo não serão considerados impeditivos do registro da partilha.."
+    }
+   ],
+   "revogadas": [],
+   "fonte": "lei"
+  },
+  {
+   "norma": "LRP",
+   "artigo": "Art. 214",
+   "texto": "Art. 214 - As nulidades de pleno direito do registro, uma vez provadas, invalidam-no, independentemente de ação direta.. § 1o A nulidade será decretada depois de ouvidos os atingidos. § 2o Da decisão tomada no caso do § 1o caberá apelação ou agravo conforme o caso. § 3o Se o juiz entender que a superveniência de novos registros poderá causar danos de difícil reparação poderá determinar de ofício, a qualquer momento, ainda que sem oitiva das partes, o bloqueio da matrícula do imóvel. § 4o Bloqueada a matrícula, o oficial não poderá mais nela praticar qualquer ato, salvo com autorização judicial, permitindo-se, todavia, aos interessados a prenotação de seus títulos, que ficarão com o prazo prorrogado até a solução do bloqueio. § 5o A nulidade não será decretada se atingir terceiro de boa-fé que já tiver preenchido as condições de usucapião do imóvel.",
+   "caput": "Art. 214 - As nulidades de pleno direito do registro, uma vez provadas, invalidam-no, independentemente de ação direta..",
+   "partes": [
+    {
+     "rotulo": "§ 1o",
+     "texto": "§ 1o A nulidade será decretada depois de ouvidos os atingidos."
+    },
+    {
+     "rotulo": "§ 2o",
+     "texto": "§ 2o Da decisão tomada no caso do § 1o caberá apelação ou agravo conforme o caso."
+    },
+    {
+     "rotulo": "§ 3o",
+     "texto": "§ 3o Se o juiz entender que a superveniência de novos registros poderá causar danos de difícil reparação poderá determinar de ofício, a qualquer momento, ainda que sem oitiva das partes, o bloqueio da matrícula do imóvel."
+    },
+    {
+     "rotulo": "§ 4o",
+     "texto": "§ 4o Bloqueada a matrícula, o oficial não poderá mais nela praticar qualquer ato, salvo com autorização judicial, permitindo-se, todavia, aos interessados a prenotação de seus títulos, que ficarão com o prazo prorrogado até a solução do bloqueio."
+    },
+    {
+     "rotulo": "§ 5o",
+     "texto": "§ 5o A nulidade não será decretada se atingir terceiro de boa-fé que já tiver preenchido as condições de usucapião do imóvel."
+    }
+   ],
+   "revogadas": [],
+   "fonte": "lei"
+  },
+  {
+   "norma": "L9514",
+   "artigo": "Art. 25",
+   "texto": "Art. 25. Com o pagamento da dívida e seus encargos, resolve-se, nos termos deste artigo, a propriedade fiduciária do imóvel. § 1º No prazo de trinta dias, a contar da data de liquidação da dívida, o fiduciário fornecerá o respectivo termo de quitação ao fiduciante, sob pena de multa em favor deste, equivalente a meio por cento ao mês, ou fração, sobre o valor do contrato. § 1º No prazo de 30 (trinta) dias, contado da data de liquidação da dívida, o fiduciário fornecerá o termo de quitação ao devedor e, se for o caso, ao terceiro fiduciante. § 1º-A O não fornecimento do termo de quitação no prazo previsto no § 1º deste artigo acarretará multa ao fiduciário equivalente a 0,5% (meio por cento) ao mês, ou fração, sobre o valor do contrato, que se reverterá em favor daquele a quem o termo não tiver sido disponibilizado no referido prazo. § 2º À vista do termo de quitação de que trata o parágrafo anterior, o oficial do competente Registro de Imóveis efetuará o cancelamento do registro da propriedade fiduciária. § 3o Nas hipóteses em que a quitação da dívida decorrer da portabilidade do financiamento para outra instituição financeira, não será emitido o termo de quitação de que trata este artigo, cabendo, quanto à alienação fiduciária, a mera averbação da sua transferência.",
+   "caput": "Art. 25. Com o pagamento da dívida e seus encargos, resolve-se, nos termos deste artigo, a propriedade fiduciária do imóvel.",
+   "partes": [
+    {
+     "rotulo": "§ 1º",
+     "texto": "§ 1º No prazo de trinta dias, a contar da data de liquidação da dívida, o fiduciário fornecerá o respectivo termo de quitação ao fiduciante, sob pena de multa em favor deste, equivalente a meio por cento ao mês, ou fração, sobre o valor do contrato."
+    },
+    {
+     "rotulo": "§ 1º (2)",
+     "texto": "§ 1º No prazo de 30 (trinta) dias, contado da data de liquidação da dívida, o fiduciário fornecerá o termo de quitação ao devedor e, se for o caso, ao terceiro fiduciante."
+    },
+    {
+     "rotulo": "§ 1º (3)",
+     "texto": "§ 1º-A O não fornecimento do termo de quitação no prazo previsto no § 1º deste artigo acarretará multa ao fiduciário equivalente a 0,5% (meio por cento) ao mês, ou fração, sobre o valor do contrato, que se reverterá em favor daquele a quem o termo não tiver sido disponibilizado no referido prazo."
+    },
+    {
+     "rotulo": "§ 2º",
+     "texto": "§ 2º À vista do termo de quitação de que trata o parágrafo anterior, o oficial do competente Registro de Imóveis efetuará o cancelamento do registro da propriedade fiduciária."
+    }
+   ],
+   "revogadas": [
+    {
+     "rotulo": "§ 3o",
+     "motivo": "marcada como revogada no texto",
+     "texto": "§ 3o Nas hipóteses em que a quitação da dívida decorrer da portabilidade do financiamento para outra instituição financeira, não será emitido o termo de quitação de que trata este artigo, cabendo, quanto à alienação fiduciária, a mera averbação da sua transferência."
+    }
+   ],
+   "fonte": "lei"
+  },
+  {
+   "norma": "L9514",
+   "artigo": "Art. 29",
+   "texto": "Art. 29. O fiduciante, com anuência expressa do fiduciário, poderá transmitir os direitos de que seja titular sobre o imóvel objeto da alienação fiduciária em garantia, assumindo o adquirente as respectivas obrigações.",
+   "caput": "Art. 29. O fiduciante, com anuência expressa do fiduciário, poderá transmitir os direitos de que seja titular sobre o imóvel objeto da alienação fiduciária em garantia, assumindo o adquirente as respectivas obrigações.",
+   "partes": [],
+   "revogadas": [],
+   "fonte": "lei"
+  },
+  {
+   "norma": "CNPFE-GO",
+   "artigo": "Art. 985",
+   "texto": "Art. 985. O devedor fiduciante, com anuência expressa do credor fiduciário, poderá transmitir seu direito real de aquisição sobre o imóvel objeto da alienação fiduciária em garantia, assumindo o cessionário adquirente as respectivas obrigações, na condição de novo devedor fiduciante. §1º. O título de transferência desses direitos e obrigações será registrada na matrícula do imóvel, cabendo ao oficial observar a regularidade do recolhimento do imposto de transmissão. §2º. Independem de anuência do credor fiduciário a partilha dos direitos do devedor fiduciante falecido.",
+   "caput": "Art. 985. O devedor fiduciante, com anuência expressa do credor fiduciário, poderá transmitir seu direito real de aquisição sobre o imóvel objeto da alienação fiduciária em garantia, assumindo o cessionário adquirente as respectivas obrigações, na condição de novo devedor fiduciante.",
+   "partes": [
+    {
+     "rotulo": "§1º",
+     "texto": "§1º. O título de transferência desses direitos e obrigações será registrada na matrícula do imóvel, cabendo ao oficial observar a regularidade do recolhimento do imposto de transmissão."
+    },
+    {
+     "rotulo": "§2º",
+     "texto": "§2º. Independem de anuência do credor fiduciário a partilha dos direitos do devedor fiduciante falecido."
+    }
+   ],
+   "revogadas": [],
+   "fonte": "lei"
+  },
+  {
+   "norma": "LRP",
+   "artigo": "Art. 167",
+   "texto": "Art. 167 - No Registro de Imóveis, além da matrícula, serão feitos.. I - o registro:. 1) da instituição de bem de família; 2) das hipotecas legais, judiciais e convencionais; 3) dos contratos de locação de prédios, nos quais tenha sido consignada cláusula de vigência no caso de alienação da coisa locada; 4) do penhor de máquinas e de aparelhos utilizados na indústria, instalados e em funcionamento, com os respectivos pertences ou sem eles; 5) das penhoras, arrestos e seqüestros de imóveis; 6) das servidões em geral; 7) do usufruto e do uso sobre imóveis e da habitação, quando não resultarem do direito de família; 8) das rendas constituídas sobre imóveis ou a eles vinculadas por disposição de última vontade; 9) dos contratos de compromisso de compra e venda de cessão deste e de promessa de cessão, com ou sem cláusula de arrependimento, que tenham por objeto imóveis não loteados e cujo preço tenha sido pago no ato de sua celebração, ou deva sê-lo a prazo, de uma só vez ou em prestações; 10) da enfiteuse; 11) da anticrese; 12) das convenções antenupciais; 13) 14) das cédulas de crédito, industrial; 15) dos contratos de penhor rural; 16) dos empréstimos por obrigações ao portador ou debêntures, inclusive as conversíveis em ações; 17) das incorporações, instituições e convenções de condomínio; 18. dos contratos de promessa de venda, cessão ou promessa de cessão de unidades autônomas condominiais e de promessa de permuta, a que se refere a Lei nº 4.591, de 16 de dezembro de 1964, quando a incorporação ou a instituição de condomínio se formalizar na vigência desta Lei; 19) dos loteamentos urbanos e rurais; 20) dos contratos de promessa de compra e venda de terrenos loteados em conformidade com o Decreto-lei nº 58, de 10 de dezembro de 1937, e respectiva cessão e promessa de cessão, quando o loteamento se formalizar na vigência desta Lei; 21) das citações de ações reais ou pessoais reipersecutórias, relativas a imóveis; 22) 23) dos julgados e atos jurídicos entre vivos que dividirem imóveis ou os demarcarem inclusive nos casos de incorporação que resultarem em constituição de condomínio e atribuírem uma ou mais unidades aos incorporadores; 24) das sentenças que nos inventários, arrolamentos e partilhas, adjudicarem bens de raiz em pagamento das dívidas da herança; 25) dos atos de entrega de legados de imóveis, dos formais de partilha e das sentenças de adjudicação em inventário ou arrolamento quando não houver partilha; 26) da arrematação e da adjudicação em hasta pública; 27) do dote; 28) das sentenças declaratórias de usucapião; 29) da compra e venda pura e da condicional; 30. da permuta e da promessa de permuta; 31) da dação em pagamento; 32) da transferência, de imóvel a sociedade, quando integrar quota social; 33) da doação entre vivos; 34) da desapropriação amigável e das sentenças que, em processo de desapropriação, fixarem o valor da indenização; 35) da alienação fiduciária em garantia de coisa imóvel. 36) da imissão provisória na posse, quando concedida à União, aos Estados, ao Distrito Federal, aos Municípios ou às suas entidades delegadas, e respectiva cessão e promessa de cessão; 37) dos termos administrativos ou das sentenças declaratórias da concessão de uso especial para fins de moradia; 38) (VETADO) 39) da constituição do direito de superfície de imóvel urbano; 40) do contrato de concessão de direito real de uso de imóvel público. 41. da legitimação de posse; 42. da conversão da legitimação de posse em propriedade, prevista no art. 60 da Lei nº 11.977, de 7 de julho de 2009; 43. da Certidão de Regularização Fundiária (CRF); 44. da legitimação fundiária; 45. do contrato de pagamento por serviços ambientais, quando este estipular obrigações de natureza propter rem; e 46. do ato de tombamento definitivo, sem conteúdo financeiro; 47. do patrimônio rural em afetação em garantia; 48. de outros negócios jurídicos de transmissão do direito real de propriedade sobre imóveis ou de instituição de direitos reais sobre imóveis, ressalvadas as hipóteses de averbação previstas em lei e respeitada a forma exigida por lei para o negócio jurídico, a exemplo do art. 108 da Lei nº 10.406, de 10 de janeiro de 2002 (Código Civil). II - a averbação:. 1) das convenções antenupciais e do regime de bens diversos do legal, nos registros referentes a imóveis ou a direitos reais pertencentes a qualquer dos cônjuges, inclusive os adquiridos posteriormente ao casamento; 2) por cancelamento, da extinção dos ônus e direitos reais; 3) dos contratos de promessa de compra e venda, das cessões e das promessas de cessão a que alude o Decreto-lei nº 58, de 10 de dezembro de 1937, quando o loteamento se tiver formalizado anteriormente à vigência desta Lei; 4) da mudança de denominação e de numeração dos prédios, da edificação, da reconstrução, da demolição, do desmembramento e do loteamento de imóveis; 5) da alteração do nome por casamento ou por desquite, ou, ainda, de outras circunstâncias que, de qualquer modo, tenham influência no registro ou nas pessoas nele interessadas; 6) dos atos pertinentes a unidades autônomas condominiais a que alude a Lei nº 4.591, de 16 de dezembro de 1964, quando a incorporação tiver sido formalizada anteriormente à vigência desta Lei; 7) das cédulas hipotecárias; 8. da caução e da cessão fiduciária de direitos reais relativos a imóveis; 9) das sentenças de separação de dote; 10) do restabelecimento da sociedade conjugal; 11) das cláusulas de inalienabilidade, impenhorabilidade e incomunicabilidade impostas a imóveis, bem como da constituição de fideicomisso; 12) das decisões, recursos e seus efeitos, que tenham por objeto atos ou títulos registrados ou averbados; 13) \" ex offício \", dos nomes dos logradouros, decretados pelo poder público. 14) das sentenças de separação judicial, de divórcio e de nulidade ou anulação de casamento, quando nas respectivas partilhas existirem imóveis ou direitos reais sujeitos a registro. 15 - da re-ratificação do contrato de mútuo com pacto adjeto de hipoteca em favor de entidade integrante do Sistema Financeiro da Habitação, ainda que importando elevação da dívida, desde que mantidas as mesmas partes e que inexista outra hipoteca registrada em favor de terceiros. 16) do contrato de locação, para os fins de exercício de direito de preferência. 17) do Termo de Securitização de créditos imobiliários, quando submetidos a regime fiduciário. 18) da notificação para parcelamento, edificação ou utilização compulsórios de imóvel urbano; 19) da extinção da concessão de uso especial para fins de moradia; 20) da extinção do direito de superfície do imóvel urbano. 21. da cessão do crédito com garantia real sobre imóvel, ressalvado o disposto no item 35 deste inciso; 22. da reserva legal; 23. da servidão ambiental. 24. do destaque de imóvel de gleba pública originária. 25. 26. do auto de demarcação urbanística. 27. da extinção da legitimação de posse; 28. da extinção da concessão de uso especial para fins de moradia; 29. da extinção da concessão de direito real de uso. 30. da sub-rogação de dívida, da respectiva garantia fiduciária ou hipotecária e da alteração das condições contratuais, em nome do credor que venha a assumir essa condição nos termos do art. 31 da Lei nº 9.514, de 20 de novembro de 1997, ou do art. 347 da Lei nº 10.406, de 10 de janeiro de 2002 (Código Civil), realizada em ato único, a requerimento do interessado, instruído com documento comprobatório firmado pelo credor original e pelo mutuário, ressalvado o disposto no item 35 deste inciso; 31. da certidão de liberação de condições resolutivas dos títulos de domínio resolúvel emitidos pelos órgãos fundiários federais na Amazônia Legal. 32. do termo de quitação de contrato de compromisso de compra e venda registrado e do termo de quitação dos instrumentos públicos ou privados oriundos da implantação de empreendimentos ou de processo de regularização fundiária, firmado pelo empreendedor proprietário de imóvel ou pelo promotor do empreendimento ou da regularização fundiária objeto de loteamento, desmembramento, condomínio de qualquer modalidade ou de regularização fundiária, exclusivamente para fins de exoneração da sua responsabilidade sobre tributos municipais incidentes sobre o imóvel perante o Município, não implicando transferência de domínio ao compromissário comprador ou ao beneficiário da regularização. 33. Vigência encerrada 34. da existência dos penhores previstos no art. 178 desta Lei, de ofício, sem conteúdo financeiro, por ocasião do registro no livro auxiliar em relação a imóveis de titularidade do devedor pignoratício ou a imóveis objeto de contratos registrados no Livro nº 2 - Registro Geral; 35. da cessão de crédito ou da sub-rogação de dívida decorrentes de transferência do financiamento com garantia real sobre imóvel, nos termos do Capítulo II-A da Lei nº 9.514, de 20 de novembro de 1997; e 36. do processo de tombamento de bens imóveis e de seu eventual cancelamento, sem conteúdo financeiro. 37. da extensão da garantia real à nova operação de crédito, nas hipóteses autorizadas por lei. 38. do contrato entre gerador e desenvolvedor de projeto de crédito de carbono, quando cabível. Parágrafo único. O registro previsto no item 3 do inciso I do caput e a averbação prevista no item 16 do inciso II do caput deste artigo serão efetuados no registro de imóveis da circunscrição onde o imóvel estiver matriculado, mediante apresentação de uma via do contrato assinado pelas partes, admitida a forma eletrônica e bastando a coincidência entre o nome de um dos proprietários e o do locador.",
+   "caput": "Art. 167 - No Registro de Imóveis, além da matrícula, serão feitos..",
+   "partes": [
+    {
+     "rotulo": "I",
+     "texto": "I - o registro:."
+    },
+    {
+     "rotulo": "1",
+     "texto": "1) da instituição de bem de família;"
+    },
+    {
+     "rotulo": "2",
+     "texto": "2) das hipotecas legais, judiciais e convencionais;"
+    },
+    {
+     "rotulo": "3",
+     "texto": "3) dos contratos de locação de prédios, nos quais tenha sido consignada cláusula de vigência no caso de alienação da coisa locada;"
+    },
+    {
+     "rotulo": "4",
+     "texto": "4) do penhor de máquinas e de aparelhos utilizados na indústria, instalados e em funcionamento, com os respectivos pertences ou sem eles;"
+    },
+    {
+     "rotulo": "5",
+     "texto": "5) das penhoras, arrestos e seqüestros de imóveis;"
+    },
+    {
+     "rotulo": "6",
+     "texto": "6) das servidões em geral;"
+    },
+    {
+     "rotulo": "7",
+     "texto": "7) do usufruto e do uso sobre imóveis e da habitação, quando não resultarem do direito de família;"
+    },
+    {
+     "rotulo": "8",
+     "texto": "8) das rendas constituídas sobre imóveis ou a eles vinculadas por disposição de última vontade;"
+    },
+    {
+     "rotulo": "9",
+     "texto": "9) dos contratos de compromisso de compra e venda de cessão deste e de promessa de cessão, com ou sem cláusula de arrependimento, que tenham por objeto imóveis não loteados e cujo preço tenha sido pago no ato de sua celebração, ou deva sê-lo a prazo, de uma só vez ou em prestações;"
+    },
+    {
+     "rotulo": "10",
+     "texto": "10) da enfiteuse;"
+    },
+    {
+     "rotulo": "11",
+     "texto": "11) da anticrese;"
+    },
+    {
+     "rotulo": "12",
+     "texto": "12) das convenções antenupciais;"
+    },
+    {
+     "rotulo": "14",
+     "texto": "14) das cédulas de crédito, industrial;"
+    },
+    {
+     "rotulo": "15",
+     "texto": "15) dos contratos de penhor rural;"
+    },
+    {
+     "rotulo": "16",
+     "texto": "16) dos empréstimos por obrigações ao portador ou debêntures, inclusive as conversíveis em ações;"
+    },
+    {
+     "rotulo": "17",
+     "texto": "17) das incorporações, instituições e convenções de condomínio;"
+    },
+    {
+     "rotulo": "18",
+     "texto": "18. dos contratos de promessa de venda, cessão ou promessa de cessão de unidades autônomas condominiais e de promessa de permuta, a que se refere a Lei nº 4.591, de 16 de dezembro de 1964, quando a incorporação ou a instituição de condomínio se formalizar na vigência desta Lei;"
+    },
+    {
+     "rotulo": "19",
+     "texto": "19) dos loteamentos urbanos e rurais;"
+    },
+    {
+     "rotulo": "20",
+     "texto": "20) dos contratos de promessa de compra e venda de terrenos loteados em conformidade com o Decreto-lei nº 58, de 10 de dezembro de 1937, e respectiva cessão e promessa de cessão, quando o loteamento se formalizar na vigência desta Lei;"
+    },
+    {
+     "rotulo": "21",
+     "texto": "21) das citações de ações reais ou pessoais reipersecutórias, relativas a imóveis;"
+    },
+    {
+     "rotulo": "23",
+     "texto": "23) dos julgados e atos jurídicos entre vivos que dividirem imóveis ou os demarcarem inclusive nos casos de incorporação que resultarem em constituição de condomínio e atribuírem uma ou mais unidades aos incorporadores;"
+    },
+    {
+     "rotulo": "24",
+     "texto": "24) das sentenças que nos inventários, arrolamentos e partilhas, adjudicarem bens de raiz em pagamento das dívidas da herança;"
+    },
+    {
+     "rotulo": "25",
+     "texto": "25) dos atos de entrega de legados de imóveis, dos formais de partilha e das sentenças de adjudicação em inventário ou arrolamento quando não houver partilha;"
+    },
+    {
+     "rotulo": "26",
+     "texto": "26) da arrematação e da adjudicação em hasta pública;"
+    },
+    {
+     "rotulo": "27",
+     "texto": "27) do dote;"
+    },
+    {
+     "rotulo": "28",
+     "texto": "28) das sentenças declaratórias de usucapião;"
+    },
+    {
+     "rotulo": "29",
+     "texto": "29) da compra e venda pura e da condicional;"
+    },
+    {
+     "rotulo": "30",
+     "texto": "30. da permuta e da promessa de permuta;"
+    },
+    {
+     "rotulo": "31",
+     "texto": "31) da dação em pagamento;"
+    },
+    {
+     "rotulo": "32",
+     "texto": "32) da transferência, de imóvel a sociedade, quando integrar quota social;"
+    },
+    {
+     "rotulo": "33",
+     "texto": "33) da doação entre vivos;"
+    },
+    {
+     "rotulo": "34",
+     "texto": "34) da desapropriação amigável e das sentenças que, em processo de desapropriação, fixarem o valor da indenização;"
+    },
+    {
+     "rotulo": "35",
+     "texto": "35) da alienação fiduciária em garantia de coisa imóvel."
+    },
+    {
+     "rotulo": "36",
+     "texto": "36) da imissão provisória na posse, quando concedida à União, aos Estados, ao Distrito Federal, aos Municípios ou às suas entidades delegadas, e respectiva cessão e promessa de cessão;"
+    },
+    {
+     "rotulo": "37",
+     "texto": "37) dos termos administrativos ou das sentenças declaratórias da concessão de uso especial para fins de moradia;"
+    },
+    {
+     "rotulo": "38",
+     "texto": "38) (VETADO)"
+    },
+    {
+     "rotulo": "39",
+     "texto": "39) da constituição do direito de superfície de imóvel urbano;"
+    },
+    {
+     "rotulo": "40",
+     "texto": "40) do contrato de concessão de direito real de uso de imóvel público."
+    },
+    {
+     "rotulo": "41",
+     "texto": "41. da legitimação de posse;"
+    },
+    {
+     "rotulo": "42",
+     "texto": "42. da conversão da legitimação de posse em propriedade, prevista no art. 60 da Lei nº 11.977, de 7 de julho de 2009;"
+    },
+    {
+     "rotulo": "43",
+     "texto": "43. da Certidão de Regularização Fundiária (CRF);"
+    },
+    {
+     "rotulo": "44",
+     "texto": "44. da legitimação fundiária;"
+    },
+    {
+     "rotulo": "45",
+     "texto": "45. do contrato de pagamento por serviços ambientais, quando este estipular obrigações de natureza propter rem; e"
+    },
+    {
+     "rotulo": "46",
+     "texto": "46. do ato de tombamento definitivo, sem conteúdo financeiro;"
+    },
+    {
+     "rotulo": "47",
+     "texto": "47. do patrimônio rural em afetação em garantia;"
+    },
+    {
+     "rotulo": "48",
+     "texto": "48. de outros negócios jurídicos de transmissão do direito real de propriedade sobre imóveis ou de instituição de direitos reais sobre imóveis, ressalvadas as hipóteses de averbação previstas em lei e respeitada a forma exigida por lei para o negócio jurídico, a exemplo do art. 108 da Lei nº 10.406, de 10 de janeiro de 2002 (Código Civil)."
+    },
+    {
+     "rotulo": "II",
+     "texto": "II - a averbação:."
+    },
+    {
+     "rotulo": "1 (2)",
+     "texto": "1) das convenções antenupciais e do regime de bens diversos do legal, nos registros referentes a imóveis ou a direitos reais pertencentes a qualquer dos cônjuges, inclusive os adquiridos posteriormente ao casamento;"
+    },
+    {
+     "rotulo": "2 (2)",
+     "texto": "2) por cancelamento, da extinção dos ônus e direitos reais;"
+    },
+    {
+     "rotulo": "3 (2)",
+     "texto": "3) dos contratos de promessa de compra e venda, das cessões e das promessas de cessão a que alude o Decreto-lei nº 58, de 10 de dezembro de 1937, quando o loteamento se tiver formalizado anteriormente à vigência desta Lei;"
+    },
+    {
+     "rotulo": "4 (2)",
+     "texto": "4) da mudança de denominação e de numeração dos prédios, da edificação, da reconstrução, da demolição, do desmembramento e do loteamento de imóveis;"
+    },
+    {
+     "rotulo": "5 (2)",
+     "texto": "5) da alteração do nome por casamento ou por desquite, ou, ainda, de outras circunstâncias que, de qualquer modo, tenham influência no registro ou nas pessoas nele interessadas;"
+    },
+    {
+     "rotulo": "6 (2)",
+     "texto": "6) dos atos pertinentes a unidades autônomas condominiais a que alude a Lei nº 4.591, de 16 de dezembro de 1964, quando a incorporação tiver sido formalizada anteriormente à vigência desta Lei;"
+    },
+    {
+     "rotulo": "7 (2)",
+     "texto": "7) das cédulas hipotecárias;"
+    },
+    {
+     "rotulo": "8 (2)",
+     "texto": "8. da caução e da cessão fiduciária de direitos reais relativos a imóveis;"
+    },
+    {
+     "rotulo": "9 (2)",
+     "texto": "9) das sentenças de separação de dote;"
+    },
+    {
+     "rotulo": "10 (2)",
+     "texto": "10) do restabelecimento da sociedade conjugal;"
+    },
+    {
+     "rotulo": "11 (2)",
+     "texto": "11) das cláusulas de inalienabilidade, impenhorabilidade e incomunicabilidade impostas a imóveis, bem como da constituição de fideicomisso;"
+    },
+    {
+     "rotulo": "12 (2)",
+     "texto": "12) das decisões, recursos e seus efeitos, que tenham por objeto atos ou títulos registrados ou averbados;"
+    },
+    {
+     "rotulo": "13",
+     "texto": "13) \" ex offício \", dos nomes dos logradouros, decretados pelo poder público."
+    },
+    {
+     "rotulo": "14 (2)",
+     "texto": "14) das sentenças de separação judicial, de divórcio e de nulidade ou anulação de casamento, quando nas respectivas partilhas existirem imóveis ou direitos reais sujeitos a registro."
+    },
+    {
+     "rotulo": "15 (2)",
+     "texto": "15 - da re-ratificação do contrato de mútuo com pacto adjeto de hipoteca em favor de entidade integrante do Sistema Financeiro da Habitação, ainda que importando elevação da dívida, desde que mantidas as mesmas partes e que inexista outra hipoteca registrada em favor de terceiros."
+    },
+    {
+     "rotulo": "16 (2)",
+     "texto": "16) do contrato de locação, para os fins de exercício de direito de preferência."
+    },
+    {
+     "rotulo": "17 (2)",
+     "texto": "17) do Termo de Securitização de créditos imobiliários, quando submetidos a regime fiduciário."
+    },
+    {
+     "rotulo": "18 (2)",
+     "texto": "18) da notificação para parcelamento, edificação ou utilização compulsórios de imóvel urbano;"
+    },
+    {
+     "rotulo": "19 (2)",
+     "texto": "19) da extinção da concessão de uso especial para fins de moradia;"
+    },
+    {
+     "rotulo": "20 (2)",
+     "texto": "20) da extinção do direito de superfície do imóvel urbano."
+    },
+    {
+     "rotulo": "21 (2)",
+     "texto": "21. da cessão do crédito com garantia real sobre imóvel, ressalvado o disposto no item 35 deste inciso;"
+    },
+    {
+     "rotulo": "22",
+     "texto": "22. da reserva legal;"
+    },
+    {
+     "rotulo": "23 (2)",
+     "texto": "23. da servidão ambiental."
+    },
+    {
+     "rotulo": "24 (2)",
+     "texto": "24. do destaque de imóvel de gleba pública originária."
+    },
+    {
+     "rotulo": "25 (2)",
+     "texto": "25."
+    },
+    {
+     "rotulo": "26 (2)",
+     "texto": "26. do auto de demarcação urbanística."
+    },
+    {
+     "rotulo": "27 (2)",
+     "texto": "27. da extinção da legitimação de posse;"
+    },
+    {
+     "rotulo": "28 (2)",
+     "texto": "28. da extinção da concessão de uso especial para fins de moradia;"
+    },
+    {
+     "rotulo": "29 (2)",
+     "texto": "29. da extinção da concessão de direito real de uso."
+    },
+    {
+     "rotulo": "30 (2)",
+     "texto": "30. da sub-rogação de dívida, da respectiva garantia fiduciária ou hipotecária e da alteração das condições contratuais, em nome do credor que venha a assumir essa condição nos termos do art. 31 da Lei nº 9.514, de 20 de novembro de 1997, ou do art. 347 da Lei nº 10.406, de 10 de janeiro de 2002 (Código Civil), realizada em ato único, a requerimento do interessado, instruído com documento comprobatório firmado pelo credor original e pelo mutuário, ressalvado o disposto no item 35 deste inciso;"
+    },
+    {
+     "rotulo": "31 (2)",
+     "texto": "31. da certidão de liberação de condições resolutivas dos títulos de domínio resolúvel emitidos pelos órgãos fundiários federais na Amazônia Legal."
+    },
+    {
+     "rotulo": "32 (2)",
+     "texto": "32. do termo de quitação de contrato de compromisso de compra e venda registrado e do termo de quitação dos instrumentos públicos ou privados oriundos da implantação de empreendimentos ou de processo de regularização fundiária, firmado pelo empreendedor proprietário de imóvel ou pelo promotor do empreendimento ou da regularização fundiária objeto de loteamento, desmembramento, condomínio de qualquer modalidade ou de regularização fundiária, exclusivamente para fins de exoneração da sua responsabilidade sobre tributos municipais incidentes sobre o imóvel perante o Município, não implicando transferência de domínio ao compromissário comprador ou ao beneficiário da regularização."
+    },
+    {
+     "rotulo": "33 (2)",
+     "texto": "33. Vigência encerrada 34. da existência dos penhores previstos no art. 178 desta Lei, de ofício, sem conteúdo financeiro, por ocasião do registro no livro auxiliar em relação a imóveis de titularidade do devedor pignoratício ou a imóveis objeto de contratos registrados no Livro nº 2 - Registro Geral;"
+    },
+    {
+     "rotulo": "35 (2)",
+     "texto": "35. da cessão de crédito ou da sub-rogação de dívida decorrentes de transferência do financiamento com garantia real sobre imóvel, nos termos do Capítulo II-A da Lei nº 9.514, de 20 de novembro de 1997; e"
+    },
+    {
+     "rotulo": "36 (2)",
+     "texto": "36. do processo de tombamento de bens imóveis e de seu eventual cancelamento, sem conteúdo financeiro."
+    },
+    {
+     "rotulo": "37 (2)",
+     "texto": "37. da extensão da garantia real à nova operação de crédito, nas hipóteses autorizadas por lei."
+    },
+    {
+     "rotulo": "38 (2)",
+     "texto": "38. do contrato entre gerador e desenvolvedor de projeto de crédito de carbono, quando cabível."
+    },
+    {
+     "rotulo": "Parágrafo único",
+     "texto": "Parágrafo único. O registro previsto no item 3 do inciso I do caput e a averbação prevista no item 16 do inciso II do caput deste artigo serão efetuados no registro de imóveis da circunscrição onde o imóvel estiver matriculado, mediante apresentação de uma via do contrato assinado pelas partes, admitida a forma eletrônica e bastando a coincidência entre o nome de um dos proprietários e o do locador."
+    }
+   ],
+   "revogadas": [
+    {
+     "rotulo": "13",
+     "motivo": "marcada como revogada no texto",
+     "texto": "13)"
+    },
+    {
+     "rotulo": "22",
+     "motivo": "marcada como revogada no texto",
+     "texto": "22)"
+    }
+   ],
+   "fonte": "lei"
+  },
+  {
+   "norma": "CNPFE-GO",
+   "artigo": "Art. 1063",
+   "texto": "Art. 1.063. A averbação de construção de prédio só poderá ser feita mediante apresentação de documento hábil, como habite-se ou certidão de conclusão de obra, expedido pela prefeitura municipal. §1º. Será objeto de retificação eventual divergência entre a área construída constante do documento da prefeitura e a planta aprovada. §2º Para averbação da construção é inexigível a apresentação da Certidão Negativa de Débitos Previdenciários referente à obra (STF: ADI nº 173 e 394 e CNJ: PP Nº 0001230-82.2015.2.00.0000 e PP Nº 0004771-50.2020.2.00.0000). §2º. Para averbação da construção será exigida a apresentação da Certidão Negativa de Débitos Previdenciários referente à obra, cuja área deverá corresponder à área total construída do prédio. §3º. Concluída a obra com a certidão municipal comprobatória, serão praticados os seguintes atos: I – abertura das matrículas das unidades autônomas; II – averbação de construção na matrícula primitiva; III – averbação de construção em cada uma das matrículas derivadas já abertas ou abertas por ocasião da conclusão da obra; e IV – averbação da certidão negativa de débito de contribuições previdenciárias na matrícula primitiva. 440",
+   "caput": "Art. 1.063. A averbação de construção de prédio só poderá ser feita mediante apresentação de documento hábil, como habite-se ou certidão de conclusão de obra, expedido pela prefeitura municipal.",
+   "partes": [
+    {
+     "rotulo": "§1º",
+     "texto": "§1º. Será objeto de retificação eventual divergência entre a área construída constante do documento da prefeitura e a planta aprovada."
+    },
+    {
+     "rotulo": "§2º",
+     "texto": "§2º Para averbação da construção é inexigível a apresentação da Certidão Negativa de Débitos Previdenciários referente à obra (STF: ADI nº 173 e 394 e CNJ: PP Nº 0001230-82.2015.2.00.0000 e PP Nº 0004771-50.2020.2.00.0000)."
+    },
+    {
+     "rotulo": "§2º (2)",
+     "texto": "§2º. Para averbação da construção será exigida a apresentação da Certidão Negativa de Débitos Previdenciários referente à obra, cuja área deverá corresponder à área total construída do prédio."
+    },
+    {
+     "rotulo": "§3º",
+     "texto": "§3º. Concluída a obra com a certidão municipal comprobatória, serão praticados os seguintes atos:"
+    },
+    {
+     "rotulo": "I",
+     "texto": "I – abertura das matrículas das unidades autônomas;"
+    },
+    {
+     "rotulo": "II",
+     "texto": "II – averbação de construção na matrícula primitiva;"
+    },
+    {
+     "rotulo": "III",
+     "texto": "III – averbação de construção em cada uma das matrículas derivadas já abertas ou abertas por ocasião da conclusão da obra; e IV – averbação da certidão negativa de débito de contribuições previdenciárias na matrícula primitiva."
     }
    ],
    "revogadas": [],

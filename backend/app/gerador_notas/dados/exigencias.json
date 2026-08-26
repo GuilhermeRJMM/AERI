@@ -314,6 +314,29 @@
   "area_art": {
    "rotulo": "Área na ART",
    "exemplo": "94,7423 ha"
+  },
+  "ato_matricula": {
+   "rotulo": "Ato ou atos na matrícula",
+   "exemplo": "AV.04"
+  },
+  "documento_faltante": {
+   "rotulo": "Documentos que faltaram",
+   "exemplo": "o título de propriedade do imóvel ou a certidão da matrícula; a certidão da situação jurídica atualizada do imóvel",
+   "opcoes": [
+    "o título de propriedade do imóvel ou a certidão da matrícula",
+    "o histórico dos títulos de propriedade do imóvel, dos últimos 20 anos, com os respectivos comprovantes",
+    "a certidão negativa de tributos federais, estaduais e municipais incidentes sobre o imóvel",
+    "a certidão negativa de ações reais referentes ao imóvel, do período de 10 anos",
+    "a certidão negativa de ações penais por crime contra o patrimônio e contra a Administração Pública",
+    "a certidão dos cartórios de protesto de títulos, em nome do loteador, do período de 5 anos",
+    "a certidão de ações cíveis relativas ao loteador, do período de 10 anos",
+    "a certidão da situação jurídica atualizada do imóvel",
+    "a certidão de ações penais contra o loteador, do período de 10 anos",
+    "a cópia do ato de aprovação do loteamento e o comprovante do termo de verificação da execução das obras",
+    "o exemplar do contrato padrão de promessa de venda, de cessão ou de promessa de cessão",
+    "a declaração do cônjuge do requerente consentindo no registro do loteamento"
+   ],
+   "multiplos": true
   }
  },
  "exigencias": [
@@ -431,15 +454,18 @@
    "fecho": "fecho",
    "fundamentos": [
     {
-     "norma": "DEC4449",
-     "artigo": "Art. 9",
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 440-AX",
      "partes": [
-      "§ 6o"
+      "§ 2",
+      "§ 3",
+      "II",
+      "b)"
      ]
     },
     {
-     "norma": "CNPFE-GO",
-     "artigo": "Art. 800"
+     "norma": "DEC4449",
+     "artigo": "Art. 9"
     }
    ]
   },
@@ -495,7 +521,8 @@
      "artigo": "Art. 440-AQ",
      "partes": [
       "IV",
-      "b) (2)"
+      "b) (2)",
+      "3"
      ]
     }
    ]
@@ -540,7 +567,8 @@
      "artigo": "Art. 440-AQ",
      "partes": [
       "IV",
-      "a) (2)"
+      "a) (2)",
+      "1 (2)"
      ]
     },
     {
@@ -692,7 +720,10 @@
    "fundamentos": [
     {
      "norma": "L4591",
-     "artigo": "Art. 32"
+     "artigo": "Art. 32",
+     "partes": [
+      "§ 1º"
+     ]
     }
    ]
   },
@@ -973,8 +1004,10 @@
    "rotulo": "Alienação fiduciária em vigor sem anuência do credor",
    "assunto": "fiduciaria",
    "revisado": false,
-   "campos": [],
-   "defeito": "Verifica-se que a matrícula registra propriedade fiduciária em vigor, e o título não traz a anuência do credor fiduciário. Enquanto não resolvida a garantia, o devedor detém apenas a posse direta e o direito real de aquisição.",
+   "campos": [
+    "ato_matricula"
+   ],
+   "defeito": "Verifica-se que a matrícula registra propriedade fiduciária em vigor[ ({ato_matricula})], e o título não traz a anuência do credor fiduciário. Enquanto não resolvida a garantia, o devedor detém apenas a posse direta e o direito real de aquisição.",
    "providencia": "a anuência expressa do credor fiduciário ao ato pretendido, {assinatura}",
    "fecho": "fecho",
    "fundamentos": [
@@ -1215,13 +1248,14 @@
      "artigo": "Art. 914"
     },
     {
-     "norma": "CNPFE-GO",
-     "artigo": "Art. 852",
+     "norma": "LRP",
+     "artigo": "Art. 225",
      "partes": [
-      "II"
+      "§ 2º"
      ]
     }
-   ]
+   ],
+   "fundamentacao_pendente": "A Certidão de Levantamento não é tratada por nenhuma das normas indexadas — confirmado na busca das 30. A fundamentação é genérica, por decisão da serventia (26/08/2026): o art. 914 do CNPFE-GO manda o oficial exigir a qualificação completa do imóvel, e o art. 225 da Lei 6.015 exige que o próprio título indique os característicos com precisão."
   },
   {
    "id": "parcelamento-memorial-sem-origem",
@@ -1248,14 +1282,32 @@
    "rotulo": "Parcelamento submetido a registro sem a documentação exigida",
    "assunto": "loteamento",
    "revisado": false,
-   "campos": [],
-   "defeito": "Verifica-se que o projeto de loteamento ou desmembramento aprovado foi submetido a registro sem a documentação que a lei relaciona, o que impede a qualificação do parcelamento.",
-   "providencia": "a apresentação dos documentos exigidos para o registro do parcelamento do solo",
+   "campos": [
+    "documento_faltante"
+   ],
+   "defeito": "Verifica-se que o projeto de loteamento ou desmembramento aprovado foi submetido a registro sem toda a documentação que a lei relaciona. Falta, especificamente: {documento_faltante}. A ausência impede a qualificação do parcelamento.",
+   "providencia": "a apresentação da documentação acima especificada, para o registro do parcelamento do solo",
    "fecho": "fecho",
    "fundamentos": [
     {
      "norma": "L6766",
-     "artigo": "Art. 18"
+     "artigo": "Art. 18",
+     "partes": [
+      "I (2)",
+      "II",
+      "III",
+      "a)",
+      "b)",
+      "c)",
+      "IV",
+      "a) (4)",
+      "b) (4)",
+      "c) (4)",
+      "d) (3)",
+      "V (3)",
+      "VI",
+      "VII"
+     ]
     }
    ]
   },
@@ -1322,9 +1374,10 @@
    "assunto": "onus",
    "revisado": false,
    "campos": [
-    "matricula"
+    "matricula",
+    "ato_matricula"
    ],
-   "defeito": "Verifica-se que a matrícula n.º {matricula} ainda registra hipoteca em vigor, e não veio documento capaz de cancelá-la.",
+   "defeito": "Verifica-se que a matrícula n.º {matricula} ainda registra hipoteca em vigor[ ({ato_matricula})], e não veio documento capaz de cancelá-la.",
    "providencia": "a autorização expressa ou a quitação outorgada pelo credor, em instrumento hábil ao cancelamento da hipoteca, acompanhada de requerimento {assinatura}",
    "fecho": "fecho",
    "fundamentos": [
@@ -1334,7 +1387,10 @@
     },
     {
      "norma": "LRP",
-     "artigo": "Art. 251"
+     "artigo": "Art. 251",
+     "partes": [
+      "I"
+     ]
     }
    ]
   },
@@ -1395,7 +1451,10 @@
    "fundamentos": [
     {
      "norma": "CNPFE-GO",
-     "artigo": "Art. 352"
+     "artigo": "Art. 352",
+     "partes": [
+      "VII"
+     ]
     },
     {
      "norma": "CNPFE-GO",
@@ -1604,11 +1663,11 @@
    "fundamentos": [
     {
      "norma": "LRP",
-     "artigo": "Art. 213"
-    },
-    {
-     "norma": "CC",
-     "artigo": "Art. 500"
+     "artigo": "Art. 213",
+     "partes": [
+      "II",
+      "§ 6o"
+     ]
     }
    ],
    "precedentes": [
@@ -1841,9 +1900,10 @@
    "assunto": "usufruto",
    "revisado": false,
    "campos": [
-    "usufrutuario"
+    "usufrutuario",
+    "ato_matricula"
    ],
-   "defeito": "Verifica-se que a matrícula registra usufruto em vigor em favor de {usufrutuario}, e o título não traz a anuência dele nem prova da extinção do direito.",
+   "defeito": "Verifica-se que a matrícula registra usufruto em vigor[ ({ato_matricula})] em favor de {usufrutuario}, e o título não traz a anuência do titular do usufruto nem prova da extinção do direito.",
    "providencia": "a anuência do usufrutuário no título, ou a prova da extinção do usufruto, acompanhada de requerimento {assinatura}",
    "fecho": "fecho",
    "fundamentos": [
@@ -1853,7 +1913,224 @@
     },
     {
      "norma": "CC",
-     "artigo": "Art. 1410"
+     "artigo": "Art. 1410",
+     "partes": [
+      "I",
+      "II",
+      "VI"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "indisponibilidade-ativa",
+   "rotulo": "Indisponibilidade ainda ativa na matrícula",
+   "assunto": "onus",
+   "revisado": false,
+   "campos": [
+    "matricula",
+    "ato_matricula"
+   ],
+   "defeito": "Verifica-se que a matrícula n.º {matricula} traz averbada indisponibilidade ainda em vigor[ ({ato_matricula})]. Enquanto ela subsistir, o imóvel não pode ser alienado nem onerado, e o título apresentado não tem como ingressar no fólio real.",
+   "providencia": "o cancelamento da indisponibilidade, por mandado judicial que determine o seu levantamento ou por requerimento do interessado, acompanhado da documentação competente e {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 796",
+     "partes": [
+      "§1º",
+      "V"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "bloqueio-matricula-ativo",
+   "rotulo": "Bloqueio da matrícula ainda ativo",
+   "assunto": "onus",
+   "revisado": false,
+   "campos": [
+    "matricula",
+    "ato_matricula"
+   ],
+   "defeito": "Verifica-se que a matrícula n.º {matricula} está bloqueada por determinação judicial[ ({ato_matricula})], e o bloqueio permanece em vigor. Bloqueada a matrícula, nenhum ato pode ser nela praticado sem autorização do juízo: ao título apresentado resta a prenotação, cujo prazo fica prorrogado até a solução do bloqueio.",
+   "providencia": "a autorização judicial para a prática do ato, ou o mandado que determine o levantamento do bloqueio da matrícula",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 214",
+     "partes": [
+      "§ 3o",
+      "§ 4o"
+     ]
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 796",
+     "partes": [
+      "§1º",
+      "V"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "cib-nao-averbado",
+   "rotulo": "Número do ITR/CIB não averbado na matrícula",
+   "assunto": "cib",
+   "revisado": false,
+   "campos": [
+    "matricula"
+   ],
+   "defeito": "Verifica-se que a matrícula n.º {matricula} não traz averbado o número do imóvel na Receita Federal (NIRF/CIB), que é cadastro imobiliário obrigatório do imóvel rural e deve constar do fólio real. A averbação não decorre do título ora apresentado: é ato autônomo, que depende de requerimento próprio do interessado e corre em protocolo apartado.",
+   "providencia": "o requerimento pedindo a averbação do número do imóvel na Receita Federal (NIRF/CIB) à margem da matrícula n.º {matricula}, {assinatura}, {protocolo_apartado}",
+   "fecho": "fecho_averbacao",
+   "fundamentos": [
+    {
+     "norma": "CNN-CNJ",
+     "artigo": "Art. 440-AQ",
+     "partes": [
+      "IV",
+      "b) (2)",
+      "2 (3)",
+      "§ 3"
+     ]
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 176",
+     "partes": [
+      "3"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "alienacao-fiduciaria-ativa",
+   "rotulo": "Alienação fiduciária ativa na matrícula",
+   "assunto": "fiduciaria",
+   "revisado": false,
+   "campos": [
+    "matricula",
+    "ato_matricula"
+   ],
+   "defeito": "Verifica-se que a matrícula n.º {matricula} ainda registra alienação fiduciária em garantia[ ({ato_matricula})]. Enquanto a garantia não se resolver, a propriedade do imóvel é do credor fiduciário, e ao devedor fiduciante restam apenas a posse direta e o direito real de aquisição — de modo que ele não pode, sozinho, alienar nem onerar o imóvel.",
+   "providencia": "a prova da quitação da dívida, que resolve a propriedade fiduciária, ou a anuência expressa do credor fiduciário à transmissão dos direitos do fiduciante, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "L9514",
+     "artigo": "Art. 22"
+    },
+    {
+     "norma": "L9514",
+     "artigo": "Art. 25"
+    },
+    {
+     "norma": "L9514",
+     "artigo": "Art. 29"
+    },
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 985"
+    }
+   ]
+  },
+  {
+   "id": "desmembramento-benfeitoria-sem-gleba",
+   "rotulo": "Desmembramento rural sem indicar em qual gleba fica a benfeitoria",
+   "assunto": "desmembramento",
+   "revisado": false,
+   "campos": [
+    "matricula"
+   ],
+   "defeito": "Verifica-se que o imóvel a ser desmembrado[ (matrícula n.º {matricula})] possui benfeitoria, e as peças técnicas não indicam em qual das glebas resultantes ela permanecerá. Cada gleba receberá matrícula própria, que deve descrever o imóvel com as suas características, e a benfeitoria não pode ficar sem destino no fólio real.",
+   "providencia": "a declaração do responsável técnico, acompanhada da respectiva Anotação de Responsabilidade Técnica, indicando em qual gleba permanecerá a benfeitoria, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 167",
+     "partes": [
+      "II",
+      "4 (2)"
+     ]
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 176",
+     "partes": [
+      "3"
+     ]
+    },
+    {
+     "norma": "L6496",
+     "artigo": "Art. 1"
+    },
+    {
+     "norma": "DEC4449",
+     "artigo": "Art. 9"
+    }
+   ]
+  },
+  {
+   "id": "desmembramento-edificacao-sem-lote",
+   "rotulo": "Desmembramento urbano sem indicar em qual lote fica a edificação",
+   "assunto": "desmembramento",
+   "revisado": false,
+   "campos": [
+    "matricula"
+   ],
+   "defeito": "Verifica-se que o imóvel a ser desmembrado[ (matrícula n.º {matricula})] possui edificação, e as peças técnicas não indicam em qual dos lotes resultantes ela permanecerá. Cada lote receberá matrícula própria, que deve descrever o imóvel com as suas características, e a edificação não pode ficar sem destino no fólio real.",
+   "providencia": "a declaração do responsável técnico, acompanhada da respectiva Anotação de Responsabilidade Técnica, indicando em qual lote permanecerá a edificação, {assinatura}",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "LRP",
+     "artigo": "Art. 167",
+     "partes": [
+      "II",
+      "4 (2)"
+     ]
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 176",
+     "partes": [
+      "3"
+     ]
+    },
+    {
+     "norma": "L6496",
+     "artigo": "Art. 1"
+    }
+   ]
+  },
+  {
+   "id": "construcao-sem-habite-se",
+   "rotulo": "Averbação de construção sem habite-se ou certidão de conclusão de obra",
+   "assunto": "edificacao",
+   "revisado": false,
+   "campos": [
+    "matricula"
+   ],
+   "defeito": "Verifica-se que se pretende averbar a construção[ na matrícula n.º {matricula}] sem que tenha vindo o habite-se ou a certidão de conclusão de obra expedida pela prefeitura municipal. É esse documento que comprova, perante o registro, a conclusão da obra.",
+   "providencia": "a apresentação do habite-se ou da certidão de conclusão de obra, expedido pela prefeitura municipal",
+   "fecho": "fecho",
+   "fundamentos": [
+    {
+     "norma": "CNPFE-GO",
+     "artigo": "Art. 1063"
+    },
+    {
+     "norma": "LRP",
+     "artigo": "Art. 167",
+     "partes": [
+      "II",
+      "4 (2)"
+     ]
     }
    ]
   }

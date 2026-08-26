@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Escreve a nota em .docx reaproveitando uma nota real como molde.
 
-Nao usa python-docx (o lxml nao compila na Python 3.15). Um .docx e um zip de
+Nao usa python-docx, por escolha (ver Ambiente no CLAUDE.md). Um .docx e um zip de
 XML: copiamos todas as pecas do molde e trocamos so word/document.xml, mantendo
 inclusive o <w:sectPr> original - papel, margens e orientacao vem do arquivo do
 cartorio, nao de numeros escritos aqui.

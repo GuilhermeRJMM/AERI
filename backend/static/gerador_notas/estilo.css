@@ -324,3 +324,66 @@ button:disabled { opacity: .5; cursor: default; filter: none; }
   background: var(--destaque); border-color: var(--destaque); color: #fff;
 }
 @media (max-width: 1280px) { .busca { width: 140px; } }
+
+/* Recado de falha na tela de revisão: o servidor recusa com status 200 e
+   explica no campo 'erro', e antes essa explicação era descartada. */
+.aviso-revisao {
+  margin: .5rem 0 0;
+  padding: .5rem .75rem;
+  border-left: 3px solid #b45309;
+  background: #fffbeb;
+  color: #7c2d12;
+  font-size: .875rem;
+}
+
+/* Campo de lista fechada com marcação múltipla ('multiplos' em
+   dados/exigencias.json). Fechada, parece um select; aberta, mostra a lista.
+   Doze itens sempre visíveis viravam uma parede na tela. */
+.multi { position: relative; flex: 1; min-width: 0; }
+.multi-gatilho {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; text-align: left;
+  font: inherit; color: var(--texto);
+  background: var(--superficie-2);
+  border: 1px solid var(--borda-forte);
+  border-radius: 8px; padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color .12s, box-shadow .12s;
+}
+.multi-gatilho:hover { border-color: var(--destaque); }
+.multi-gatilho[aria-expanded="true"] {
+  border-color: var(--destaque);
+  box-shadow: 0 0 0 3px var(--destaque-sup);
+}
+.multi-resumo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.multi-resumo.multi-vazio { color: var(--texto-fraco); }
+.multi-seta { flex: none; color: var(--texto-fraco); font-size: 11px; }
+
+/* fixed, e nao absolute: a coluna dos campos rola e ha tres ancestrais que
+   cortam o transbordo - em absolute o painel saia como uma listra de 5 px. As
+   coordenadas vem do gatilho, em posicionaMulti() no app.js. */
+.multi-painel {
+  position: fixed; z-index: 60;
+  overflow-y: auto;
+  background: var(--superficie);
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  padding: 6px;
+}
+.multi-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 8px; border-radius: 8px;
+  font-size: 12.5px; line-height: 1.35; cursor: pointer;
+}
+.multi-item:hover { background: var(--destaque-sup); }
+/* A regra geral do formulário (.grupo .linha input) é feita para caixa de
+   texto: flex 1 1 0 com min-width 0. Aplicada a uma marcação, ela some — fica
+   com largura 0. Por isso o tamanho vai explícito aqui. */
+.multi-item input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 1rem; height: 1rem; min-width: 1rem;
+  margin: .1rem 0 0;
+  accent-color: var(--destaque);
+  cursor: pointer;
+}

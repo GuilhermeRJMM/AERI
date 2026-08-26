@@ -245,7 +245,9 @@ Três cuidados que o urbano exigiu:
 - **Endereço só vale da abertura ou de ato que altera o imóvel.** Num ato de
   transmissão, "Quadra 03, Lote 16" é onde as partes *moram*, não o imóvel.
 - **`cif`** sai do cadastro da Prefeitura ("CCI n.º 10.630" ou "Cadastrado na
-  Prefeitura sob o Nº...").
+  Prefeitura sob o Nº..."). **CCI = Certificado de Cadastro Imobiliário** do
+  imóvel, a designação cadastral do Município — não cédula de crédito
+  imobiliário.
 
 ## Limitações conhecidas
 

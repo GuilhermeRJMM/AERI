@@ -10,6 +10,55 @@ const valores = new Map();         // "exigencia|campo" -> texto digitado
 
 const $ = (id) => document.getElementById(id);
 
+// Fecha qualquer caixa de marcação aberta ao clicar fora ou apertar Esc. Um
+// ouvinte so, montado uma vez: a lista de exigencias e redesenhada a cada
+// filtro, e um ouvinte por campo se acumularia a cada redesenho.
+// O painel e 'position: fixed' e recebe as coordenadas do gatilho a cada
+// abertura. Motivo: a coluna dos campos rola e tem tres ancestrais que cortam o
+// que transborda (.grupo, .campos, .cartao) - em 'absolute' o painel aparecia
+// como uma listra de 5 px, o resto ficava fora do recorte.
+function posicionaMulti(caixa) {
+  const gatilho = caixa.querySelector('.multi-gatilho');
+  const painel = caixa.querySelector('.multi-painel');
+  if (!gatilho || !painel || painel.hidden) return;
+  const r = gatilho.getBoundingClientRect();
+  const abaixo = window.innerHeight - r.bottom - 12;
+  const acima = r.top - 12;
+  const paraCima = abaixo < 180 && acima > abaixo;   // sem espaco embaixo, abre para cima
+  painel.style.left = r.left + 'px';
+  painel.style.width = r.width + 'px';
+  painel.style.maxHeight = Math.min(320, paraCima ? acima : abaixo) + 'px';
+  if (paraCima) {
+    painel.style.top = 'auto';
+    painel.style.bottom = (window.innerHeight - r.top + 4) + 'px';
+  } else {
+    painel.style.bottom = 'auto';
+    painel.style.top = (r.bottom + 4) + 'px';
+  }
+}
+
+// Rolagem e redimensionamento nao fecham a caixa: ela e reposicionada, para nao
+// descolar do gatilho. Rolar dentro do proprio painel tambem passa por aqui, e
+// nesse caso o gatilho nao se moveu - reposicionar e inofensivo.
+function reposicionaMultiplos() {
+  for (const painel of document.querySelectorAll('.multi-painel:not([hidden])')) {
+    posicionaMulti(painel.closest('.multi'));
+  }
+}
+window.addEventListener('resize', reposicionaMultiplos);
+document.addEventListener('scroll', reposicionaMultiplos, true);
+
+function fechaMultiplos(alvoClique) {
+  for (const painel of document.querySelectorAll('.multi-painel:not([hidden])')) {
+    const caixa = painel.closest('.multi');
+    if (alvoClique && caixa && caixa.contains(alvoClique)) continue;
+    painel.hidden = true;
+    caixa?.querySelector('.multi-gatilho')?.setAttribute('aria-expanded', 'false');
+  }
+}
+document.addEventListener('click', (ev) => fechaMultiplos(ev.target));
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') fechaMultiplos(null); });
+
 function escaparHtml(valor) {
   const elemento = document.createElement('span');
   elemento.textContent = String(valor ?? '');
@@ -26,16 +75,28 @@ async function requisicao(caminho, opcoes = {}) {
       csrfToken = (await sessao.json()).csrfToken || '';
     }
     headers.set('X-CSRF-Token', csrfToken);
+  }
+  if (opcoes.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
+
   const resposta = await fetch(`${API}${caminho}`, {
     ...opcoes,
     method: metodo,
     headers,
     credentials: 'same-origin',
   });
-  const dados = await resposta.json().catch(() => ({}));
-  if (!resposta.ok) throw new Error(dados.detail || 'Não foi possível concluir a operação.');
+  const texto = await resposta.text();
+  let dados = {};
+  try {
+    dados = texto ? JSON.parse(texto) : {};
+  } catch (_erro) {
+    throw new Error('O servidor respondeu em um formato inesperado. Atualize a página e tente novamente.');
+  }
+
+  if (!resposta.ok) {
+    throw new Error(dados.detail || dados.erro || `Não foi possível concluir a operação (${resposta.status}).`);
+  }
   return dados;
 }
 
@@ -180,6 +241,73 @@ function desenhaCampos() {
         op.textContent = ' (opcional)';
         lab.append(op);
       }
+      // Lista fechada com 'multiplos' vira uma caixa que abre: fechada mostra o
+      // resumo do que foi marcado; aberta, a lista com uma marcação por item.
+      // Doze itens sempre à mostra viravam uma parede na tela. O valor guardado
+      // é o texto dos marcados unido por "; ", na ordem da lista, de modo que
+      // servidor, redator e .docx continuam recebendo uma string.
+      if (info.opcoes && info.multiplos) {
+        const caixa = document.createElement('div');
+        caixa.className = 'multi';
+
+        const gatilho = document.createElement('button');
+        gatilho.type = 'button';
+        gatilho.className = 'multi-gatilho';
+        const resumo = document.createElement('span');
+        resumo.className = 'multi-resumo';
+        const seta = document.createElement('span');
+        seta.className = 'multi-seta';
+        seta.textContent = '▾';
+        gatilho.append(resumo, seta);
+
+        const painel = document.createElement('div');
+        painel.className = 'multi-painel';
+        painel.hidden = true;
+
+        const atuais = new Set((valores.get(e.id + '|' + c) || '')
+                               .split(';').map(x => x.trim()).filter(Boolean));
+        const vazio = opcional ? '— não informar —' : '— escolha —';
+        const mostraResumo = () => {
+          const n = atuais.size;
+          resumo.textContent = n === 0 ? vazio
+                             : n === 1 ? [...atuais][0]
+                             : n + ' selecionados';
+          resumo.classList.toggle('multi-vazio', n === 0);
+        };
+        const recolhe = () => {
+          valores.set(e.id + '|' + c, info.opcoes.filter(o => atuais.has(o)).join('; '));
+          mostraResumo();
+          pedePrevia();
+        };
+        for (const o of info.opcoes) {
+          const item = document.createElement('label');
+          item.className = 'multi-item';
+          const cx = document.createElement('input');
+          cx.type = 'checkbox';
+          cx.checked = atuais.has(o);
+          cx.addEventListener('change', () => {
+            cx.checked ? atuais.add(o) : atuais.delete(o);
+            recolhe();
+          });
+          const txt = document.createElement('span');
+          txt.textContent = o;
+          item.append(cx, txt);
+          painel.append(item);
+        }
+        gatilho.addEventListener('click', () => {
+          const abrindo = painel.hidden;
+          fechaMultiplos(null);                 // so uma aberta por vez
+          painel.hidden = !abrindo;
+          gatilho.setAttribute('aria-expanded', String(abrindo));
+          if (abrindo) posicionaMulti(caixa);
+        });
+        mostraResumo();
+        caixa.append(gatilho, painel);
+        linha.append(lab, caixa);
+        g.append(linha);
+        continue;
+      }
+
       // campo com lista fechada vira <select>; os demais, caixa de texto
       const inp = document.createElement(info.opcoes ? 'select' : 'input');
       if (info.opcoes) {
@@ -235,15 +363,16 @@ async function atualizaPrevia() {
   }
   try {
     const res = await requisicao('/previa', {
-    method: 'POST',
-    body: JSON.stringify({
-      especie: $('especie').value,
-      titulo: $('titulo').value.trim(),
-      judicial: $('judicial').checked,
-      itens: montaItens(),
-    }),
+      method: 'POST',
+      body: JSON.stringify({
+        especie: $('especie').value,
+        titulo: $('titulo').value.trim(),
+        judicial: $('judicial').checked,
+        itens: montaItens(),
+      }),
     });
-    alvo.innerHTML = res.html || '<div class="vazio">A prévia ainda não possui conteúdo.</div>';
+    const semConteudo = res.erro || 'A prévia ainda não possui conteúdo.';
+    alvo.innerHTML = res.html || `<div class="vazio">${escaparHtml(semConteudo)}</div>`;
     $('previa-aviso').textContent = res.faltando && res.faltando.length
       ? `falta preencher: ${res.faltando.join(', ')}`
       : '';

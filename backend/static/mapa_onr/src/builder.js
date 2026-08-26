@@ -201,7 +201,8 @@
       } else {
         falta('cif', 'obrigatorio se motivo_envio = 1. CIF = Cadastro Imobiliario Fiscal, '
           + 'o numero do imovel na Prefeitura (o mesmo do IPTU). Na matricula ele aparece '
-          + 'como "CCI n.º ..." nas averbacoes de designacao cadastral');
+          + 'como "CCI n.º ..." nas averbacoes de designacao cadastral - CCI e o '
+          + 'Certificado de Cadastro Imobiliario do imovel, NAO cedula de credito');
       }
     }
 

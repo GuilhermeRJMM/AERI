@@ -36,12 +36,13 @@
   /** Data escrita: "aos 11 de agosto de 2010", "11 de agosto de 2010". */
   function dataEscrita(texto) {
     const t = semAcento(texto).toLowerCase();
-    const re = new RegExp('(\\d{1,2})\\s+de\\s+(' + MESES.join('|') + ')\\s+de\\s+(\\d{4})');
+    // "1.995": nos livros antigos o ano vem com ponto de milhar.
+    const re = new RegExp('(\\d{1,2})\\s+de\\s+(' + MESES.join('|') + ')\\s+de\\s+(\\d{1,2}\\.?\\d{3})');
     const m = t.match(re);
     if (!m) return null;
     const dia = String(parseInt(m[1], 10)).padStart(2, '0');
     const mes = String(MESES.indexOf(m[2]) + 1).padStart(2, '0');
-    return dia + '/' + mes + '/' + m[3];
+    return dia + '/' + mes + '/' + m[3].replace('.', '');
   }
 
   function achado(valor, trecho) {
@@ -147,7 +148,7 @@
     const t = String(preambulo || '').replace(/\s+/g, ' ');
     if (t.trim().length < 60) return false;
     const descreve = /IM[ÓO]VEL\s*:|PROPRIET[ÁA]RI|T[ÍI]TULO\s+AQUISITIVO/i.test(t);
-    const temData = /\d{1,2}\s+de\s+[A-Za-zçãé]+\s+de\s+\d{4}/i.test(t)
+    const temData = /\d{1,2}\s+de\s+[A-Za-zçãéÀ-ÿ]+\s+de\s+\d{1,2}\.?\d{3}/i.test(t)
       || /\b\d{2}[./]\d{2}[./]\d{4}\b/.test(t);
     return descreve && temData;
   }

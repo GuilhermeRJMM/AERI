@@ -54,6 +54,9 @@ class Catalogo:
             return d["caput"]
 
         disponiveis = {p["rotulo"]: p["texto"] for p in d["partes"]}
+        # A ordem em que as partes aparecem no artigo: e ela que diz se duas
+        # citadas em seguida sao vizinhas ou se ha texto pulado entre elas.
+        ordem = {p["rotulo"]: i for i, p in enumerate(d["partes"])}
         # A ultima trava: dispositivo revogado nao sai impresso numa nota, ainda
         # que o catalogo o aponte. Errar aqui e erro do cartorio perante a
         # Corregedoria - o custo nao e simetrico.
@@ -67,8 +70,20 @@ class Catalogo:
                 raise KeyError(
                     f"{norma} {artigo} nao tem a parte '{r}' "
                     f"(tem: {', '.join(disponiveis) or 'nenhuma'})")
-            escolhidas.append(disponiveis[r])
-        return d["caput"] + " (...) " + " (...) ".join(escolhidas)
+            escolhidas.append(r)
+        # "(...)" afirma que algo foi omitido. Entre partes vizinhas nao ha
+        # omissao nenhuma, e a marca mentia: "IV - os codigos dos seguintes
+        # cadastros: (...) a) no caso de imoveis urbanos: (...) 1) o Cadastro
+        # Imobiliario Fiscal" e texto corrido no original. So separa de fato o
+        # que tem buraco no meio.
+        fora = [caput := d["caput"]]
+        anterior = -1                      # o caput vem antes da parte 0
+        for r in escolhidas:
+            i = ordem[r]
+            fora.append(" " if i == anterior + 1 else " (...) ")
+            fora.append(disponiveis[r])
+            anterior = i
+        return "".join(fora)
 
     def nome_norma(self, id_):
         return self.normas[id_]["nome"]
