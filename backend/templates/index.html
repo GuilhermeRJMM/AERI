@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260825-legislacao-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260826-livro-data-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -634,19 +634,31 @@
                     <div class="hero hero-incra">
                         <span class="eyebrow">CONFERÊNCIA FINAL</span>
                         <h1>Livro de Protocolos</h1>
-                        <p>Envie o Livro de Protocolos em PDF. O AERI separa Prenotados, Registrados e Sem Efeito e confere cada protocolo registrado direto na Tri7.</p>
+                        <p>Escolha o dia do expediente. O AERI localiza os títulos apresentados e registrados nessa data e confere os atos diretamente na Tri7.</p>
                     </div>
 
-                    <div class="incra-upload-card">
-                        <input id="livroproto-pdf" type="file" accept="application/pdf,.pdf" hidden>
-                        <label for="livroproto-pdf" class="incra-dropzone" id="livroproto-dropzone">
-                            <span class="incra-upload-icon">
-                                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>
-                            </span>
-                            <strong id="livroproto-file-name">Selecionar Livro de Protocolos</strong>
-                            <small>PDF exportado da Tri7</small>
-                        </label>
-                        <button class="btn btn-primary incra-processar" id="btn-livroproto" disabled>Conferir protocolos</button>
+                    <div class="incra-upload-card livroproto-consulta-card">
+                        <label class="livroproto-data-label" for="livroproto-data">Data do expediente</label>
+                        <div class="livroproto-data-linha">
+                            <input id="livroproto-data" class="livroproto-data-input" type="date">
+                            <button class="btn btn-primary" id="btn-livroproto-data">Analisar o dia</button>
+                        </div>
+                        <p class="livroproto-data-ajuda">As três consultas necessárias são feitas automaticamente. O resultado reúne protocolos apresentados e registrados na data escolhida.</p>
+
+                        <details class="livroproto-pdf-alternativa">
+                            <summary>Usar relatório PDF como alternativa</summary>
+                            <div class="livroproto-pdf-conteudo">
+                                <input id="livroproto-pdf" type="file" accept="application/pdf,.pdf" hidden>
+                                <label for="livroproto-pdf" class="incra-dropzone livroproto-dropzone-compacta" id="livroproto-dropzone">
+                                    <span class="incra-upload-icon">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>
+                                    </span>
+                                    <strong id="livroproto-file-name">Selecionar Livro de Protocolos</strong>
+                                    <small>PDF exportado da Tri7</small>
+                                </label>
+                                <button class="btn btn-secondary incra-processar" id="btn-livroproto-pdf" disabled>Conferir pelo PDF</button>
+                            </div>
+                        </details>
                     </div>
 
                     <section id="livroproto-resultado" class="incra-resultado" aria-live="polite"></section>
@@ -1016,6 +1028,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260825-legislacao-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20260826-livro-data-v1"></script>
 </body>
 </html>

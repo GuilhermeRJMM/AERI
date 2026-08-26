@@ -16,13 +16,26 @@ function selecionarPdfLivroProto(evento) {
     if (!arquivo) return;
     arquivoLivroProto = arquivo;
     document.getElementById('livroproto-file-name').textContent = arquivo.name;
-    document.getElementById('btn-livroproto').disabled = false;
+    document.getElementById('btn-livroproto-pdf').disabled = false;
     document.getElementById('livroproto-dropzone').classList.add('com-arquivo');
 }
 
-async function analisarLivroProtocolos() {
+function formatarDataIso(valor) {
+    const data = String(valor || '').slice(0, 10);
+    const partes = data.split('-');
+    return partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : '—';
+}
+
+function dataLocalIso(data) {
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+}
+
+async function analisarLivroProtocolosPdf() {
     if (!arquivoLivroProto) return;
-    const botao = document.getElementById('btn-livroproto');
+    const botao = document.getElementById('btn-livroproto-pdf');
     const resultado = document.getElementById('livroproto-resultado');
     botao.disabled = true;
     botao.textContent = 'Conferindo na Tri7...';
@@ -38,7 +51,30 @@ async function analisarLivroProtocolos() {
         resultado.innerHTML = `<div class="incra-erro">${escaparHtml(erro.message || 'Não foi possível processar o PDF.')}</div>`;
     } finally {
         botao.disabled = false;
-        botao.textContent = 'Conferir protocolos';
+        botao.textContent = 'Conferir pelo PDF';
+    }
+}
+
+async function analisarLivroProtocolosPorData() {
+    const campo = document.getElementById('livroproto-data');
+    const botao = document.getElementById('btn-livroproto-data');
+    const resultado = document.getElementById('livroproto-resultado');
+    if (!campo.value) return;
+    botao.disabled = true;
+    botao.textContent = 'Consultando três períodos...';
+    resultado.innerHTML = `<div class="incra-loading">Localizando os protocolos apresentados e registrados em ${formatarDataIso(campo.value)} e conferindo os atos na Tri7…</div>`;
+    try {
+        resultadoLivroProto = await requisicaoAeri('/api/livro-protocolos/analisar-data', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({data: campo.value}),
+        });
+        renderizarLivroProtocolos('TODOS');
+    } catch (erro) {
+        resultado.innerHTML = `<div class="incra-erro">${escaparHtml(erro.message || 'Não foi possível consultar o Livro pela data.')}</div>`;
+    } finally {
+        botao.disabled = false;
+        botao.textContent = 'Analisar o dia';
     }
 }
 
@@ -128,12 +164,17 @@ function avisoAtualizacao(atualizacao) {
     return `<p class="livroproto-atualizacao">Índice de buscas atualizado: ${partes.join(' e ')}.${falhas}</p>`;
 }
 
+function avisoCobertura(cobertura) {
+    if (!cobertura) return '';
+    return `<p class="livroproto-cobertura">Busca provisória por data: o AERI consultou automaticamente ${cobertura.consultas} períodos, cobrindo apresentações de ${formatarDataIso(cobertura.inicio)} a ${formatarDataIso(cobertura.fim)}, e filtrou os registros pela data escolhida. O PDF continua disponível como alternativa para protocolos apresentados antes dessa janela.</p>`;
+}
+
 function renderizarLivroProtocolos(filtro) {
     if (!resultadoLivroProto) return;
     const resumo = resultadoLivroProto.resumo;
     const linhas = itensLivroProto(filtro).map(item => `
         <tr>
-            <td><strong>${escaparHtml(item.numeroFormatado)}</strong><small>${escaparHtml(item.data ? new Intl.DateTimeFormat('pt-BR').format(new Date(item.data)) : '—')}</small></td>
+            <td><strong>${escaparHtml(item.numeroFormatado)}</strong><small>${escaparHtml(formatarDataIso(item.data))}</small></td>
             <td>${escaparHtml(item.nomeApresentante)}</td>
             <td><span class="livroproto-status livroproto-status-${item.status.toLowerCase()}">${escaparHtml(ROTULOS_STATUS[item.status] || item.status)}</span></td>
             <td>${renderizarOcorrencias(item)}</td>
@@ -150,12 +191,13 @@ function renderizarLivroProtocolos(filtro) {
     ];
 
     document.getElementById('livroproto-resultado').innerHTML = `
-        <div class="incra-resumo">
-            <div><strong>${resumo.total}</strong><span>Protocolos na folha</span></div>
+        <div class="incra-resumo livroproto-resumo">
+            <div><strong>${resumo.total}</strong><span>${resultadoLivroProto.fonte === 'PDF' ? 'Protocolos na folha' : 'Protocolos do dia'}</span></div>
             <div><strong>${resumo.conferidos}</strong><span>Conferidos na Tri7</span></div>
             <div><strong>${resumo.totalOcorrencias}</strong><span>Ocorrências encontradas</span></div>
-            <div><strong>${new Intl.DateTimeFormat('pt-BR').format(new Date(resultadoLivroProto.dataEsperada))}</strong><span>Data esperada dos registros</span></div>
+            <div><strong>${formatarDataIso(resultadoLivroProto.dataEsperada)}</strong><span>Data analisada</span></div>
         </div>
+        ${avisoCobertura(resultadoLivroProto.cobertura)}
         ${avisoAtualizacao(resultadoLivroProto.atualizacao)}
         <div class="incra-toolbar">
             <div class="incra-filtros">
@@ -178,7 +220,14 @@ function tratarAcaoResultado(evento) {
 }
 
 export function iniciarLivroProtocolos() {
+    const campoData = document.getElementById('livroproto-data');
+    const hoje = new Date();
+    const ontem = new Date(hoje);
+    ontem.setDate(ontem.getDate() - 1);
+    campoData.max = dataLocalIso(hoje);
+    campoData.value = dataLocalIso(ontem);
     document.getElementById('livroproto-pdf').addEventListener('change', selecionarPdfLivroProto);
-    document.getElementById('btn-livroproto').addEventListener('click', analisarLivroProtocolos);
+    document.getElementById('btn-livroproto-data').addEventListener('click', analisarLivroProtocolosPorData);
+    document.getElementById('btn-livroproto-pdf').addEventListener('click', analisarLivroProtocolosPdf);
     document.getElementById('livroproto-resultado').addEventListener('click', tratarAcaoResultado);
 }

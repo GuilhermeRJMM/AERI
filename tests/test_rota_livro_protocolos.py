@@ -8,6 +8,7 @@ from fastapi import HTTPException
 
 from backend.app.rotas.livro_protocolos import (
     analisar_livro_protocolos,
+    analisar_livro_protocolos_por_data,
     confirmar_excecao_natureza_titulo,
     listar_excecoes_natureza_titulo,
     remover_excecao_natureza_titulo,
@@ -140,6 +141,61 @@ class TesteAnalisarLivroProtocolos(unittest.TestCase):
         conferir_mock.assert_not_called()
         self.assertEqual(resultado["resumo"]["falhasConsulta"], 1)
         self.assertEqual(resultado["protocolos"][0]["erro"], "A Tri7 está indisponível.")
+
+
+class TesteAnalisarLivroProtocolosPorData(unittest.TestCase):
+    @patch("backend.app.rotas.livro_protocolos.registrar_auditoria")
+    @patch("backend.app.rotas.livro_protocolos.conectar")
+    @patch("backend.app.rotas.livro_protocolos.cliente_tri7")
+    @patch("backend.app.rotas.livro_protocolos.conferir_protocolo", return_value=[])
+    def test_faz_tres_consultas_e_reune_as_duas_secoes_do_dia(
+        self, _conferir, obter_cliente, conectar_mock, _auditoria,
+    ):
+        conectar_mock.return_value = _conexao_sem_excecoes()
+        obter_cliente.return_value.buscar_livro_protocolos.side_effect = [
+            {"protocolos": [
+                {
+                    "protocolo": 185646,
+                    "data_apresentacao": "2026-08-25T08:00:00",
+                    "data_registro": None,
+                    "apresentante": "DAVI",
+                    "itens": [],
+                },
+                {
+                    "protocolo": 185569,
+                    "data_apresentacao": "2026-08-20T09:00:00",
+                    "data_registro": "2026-08-25T15:00:00",
+                    "apresentante": "RODRIGO",
+                    "itens": [],
+                },
+            ]},
+            {"protocolos": []},
+            {"protocolos": []},
+        ]
+        obter_cliente.return_value.buscar_protocolo_completo.return_value = {
+            "protocolo": {"protocolo_numero": 185569},
+            "itens_do_pedido": [],
+        }
+
+        resultado = analisar_livro_protocolos_por_data(
+            {"data": "2026-08-25"}, request=Mock(), usuario="operador",
+        )
+
+        self.assertEqual(obter_cliente.return_value.buscar_livro_protocolos.call_count, 3)
+        self.assertEqual(resultado["resumo"]["total"], 2)
+        self.assertEqual(resultado["resumo"]["registrados"], 1)
+        self.assertEqual(resultado["resumo"]["prenotados"], 1)
+        self.assertEqual(resultado["cobertura"]["dias"], 90)
+        self.assertEqual(resultado["cobertura"]["consultas"], 3)
+        self.assertEqual(resultado["fonte"], "TRI7_DATA")
+
+    @patch("backend.app.rotas.livro_protocolos.registrar_auditoria")
+    def test_rejeita_data_invalida(self, _auditoria):
+        with self.assertRaises(HTTPException) as contexto:
+            analisar_livro_protocolos_por_data(
+                {"data": "25/08/2026"}, request=Mock(), usuario="operador",
+            )
+        self.assertEqual(contexto.exception.status_code, 422)
 
 
 def _conexao_falsa():

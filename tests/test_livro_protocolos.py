@@ -8,6 +8,8 @@ from backend.app.servicos.livro_protocolos import (
     conferir_protocolo,
     extrair_protocolos_pdf,
     inferir_data_esperada,
+    janelas_livro_protocolos,
+    montar_protocolos_do_dia,
     normalizar_tema,
 )
 
@@ -194,6 +196,70 @@ class TesteInferirDataEsperada(unittest.TestCase):
             {"status": "REGISTRADO", "data": "2026-08-07"},
         ]
         self.assertEqual(inferir_data_esperada(linhas), date(2026, 8, 7))
+
+
+class TesteLivroProtocolosPorData(unittest.TestCase):
+    def test_divide_noventa_dias_em_tres_consultas_sem_sobreposicao(self):
+        janelas = janelas_livro_protocolos(date(2026, 8, 25))
+
+        self.assertEqual(janelas, [
+            (date(2026, 7, 27), date(2026, 8, 25)),
+            (date(2026, 6, 27), date(2026, 7, 26)),
+            (date(2026, 5, 28), date(2026, 6, 26)),
+        ])
+
+    def test_reune_apresentados_e_registrados_com_registro_prevalecendo(self):
+        respostas = [{"protocolos": [
+            {
+                "protocolo": 185646,
+                "data_apresentacao": "2026-08-25T08:00:00",
+                "data_registro": None,
+                "apresentante": "DAVI SILVA VELOSO",
+                "itens": [{"natureza": "VENDA E COMPRA"}],
+            },
+            {
+                "protocolo": 185659,
+                "data_apresentacao": "2026-08-25T09:00:00",
+                "data_registro": "2026-08-25T16:00:00",
+                "apresentante": "LAZARO ROBERTO DA SILVA",
+                "itens": [{"natureza": "CEP"}],
+            },
+            {
+                "protocolo": 185569,
+                "data_apresentacao": "2026-08-20T09:12:03.825000",
+                "data_registro": "2026-08-25T15:32:53.134000",
+                "apresentante": "RODRIGO FERREIRA BORGES",
+                "itens": [{"natureza": "VENDA E COMPRA"}],
+            },
+            {
+                "protocolo": 185647,
+                "data_apresentacao": "2026-08-24T09:00:00",
+                "data_registro": "2026-08-26T09:00:00",
+                "apresentante": "FORA DO DIA",
+                "itens": [],
+            },
+        ]}]
+
+        itens = montar_protocolos_do_dia(respostas, date(2026, 8, 25))
+
+        self.assertEqual([item["numero"] for item in itens], ["185646", "185659", "185569"])
+        self.assertEqual([item["status"] for item in itens], ["PRENOTADO", "REGISTRADO", "REGISTRADO"])
+        self.assertEqual(itens[1]["origemDia"], "APRESENTADO_E_REGISTRADO")
+        self.assertEqual(itens[2]["origemDia"], "REGISTRADO")
+
+    def test_remove_protocolo_repetido_entre_as_janelas(self):
+        item = {
+            "protocolo": 185569,
+            "data_apresentacao": "2026-08-20T09:12:03",
+            "data_registro": "2026-08-25T15:32:53",
+            "apresentante": "RODRIGO",
+            "itens": [],
+        }
+        resultado = montar_protocolos_do_dia(
+            [{"protocolos": [item]}, {"protocolos": [dict(item)]}],
+            date(2026, 8, 25),
+        )
+        self.assertEqual(len(resultado), 1)
 
 
 class TesteConferirProtocolo(unittest.TestCase):

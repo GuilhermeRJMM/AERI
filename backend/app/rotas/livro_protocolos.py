@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
@@ -13,6 +13,8 @@ from backend.app.servicos.livro_protocolos import (
     conferir_protocolo,
     extrair_protocolos_pdf,
     inferir_data_esperada,
+    janelas_livro_protocolos,
+    montar_protocolos_do_dia,
     natureza_permite_excecao,
     normalizar_tema,
     referencias_textos_protocolo,
@@ -26,6 +28,89 @@ router = APIRouter(
     tags=["livro de protocolos"],
     dependencies=[Depends(preparar_banco)],
 )
+
+
+def _analisar_itens_livro(
+    itens: list[dict],
+    data_esperada: date,
+    request: Request,
+    usuario: str,
+    *,
+    cliente=None,
+    acao_auditoria: str = "analisar_livro_protocolos",
+    fonte: str = "PDF",
+    cobertura: dict | None = None,
+) -> dict:
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute("SELECT titulo_tema, natureza_tema FROM livro_protocolos_excecoes_natureza_aeri")
+            excecoes = frozenset((linha["titulo_tema"], linha["natureza_tema"]) for linha in cursor.fetchall())
+
+    cliente = cliente or cliente_tri7()
+    cache_textos: dict[tuple[str, int], tuple[str | None, str | None]] = {}
+    alterados: set[tuple[str, int]] = set()
+    resultados = []
+    for item in itens:
+        registro = {**item, "conferido": False, "ocorrencias": [], "erro": None}
+        if item["status"] == "REGISTRADO":
+            try:
+                protocolo_json = cliente.buscar_protocolo_completo(item["numero"])
+                alterados |= registros_alterados_no_protocolo(protocolo_json)
+                textos_registros = {}
+                falhas_textos = {}
+                for referencia in referencias_textos_protocolo(protocolo_json):
+                    if referencia not in cache_textos:
+                        try:
+                            resposta_texto = cliente.buscar_texto_matricula(referencia[1])
+                            cache_textos[referencia] = (resposta_texto["texto"], None)
+                        except ErroTri7 as erro:
+                            cache_textos[referencia] = (None, str(erro))
+                    texto, falha = cache_textos[referencia]
+                    if texto:
+                        textos_registros[referencia] = texto
+                    elif falha:
+                        falhas_textos[referencia] = falha
+                registro["ocorrencias"] = conferir_protocolo(
+                    item, protocolo_json, data_esperada, excecoes,
+                    textos_registros=textos_registros,
+                    falhas_textos=falhas_textos,
+                )
+                registro["conferido"] = True
+            except ProtocoloTri7NaoEncontrado:
+                registro["erro"] = "Protocolo não encontrado na Tri7."
+            except ErroTri7 as erro:
+                registro["erro"] = str(erro)
+        resultados.append(registro)
+
+    atualizacao = _reindexar_registros_alterados(
+        alterados, cache_textos, cliente, request, usuario,
+    )
+    resumo = {
+        "total": len(resultados),
+        "prenotados": sum(1 for r in resultados if r["status"] == "PRENOTADO"),
+        "registrados": sum(1 for r in resultados if r["status"] == "REGISTRADO"),
+        "semEfeito": sum(1 for r in resultados if r["status"] == "SEM_EFEITO"),
+        "indefinidos": sum(1 for r in resultados if r["status"] == "INDEFINIDO"),
+        "conferidos": sum(1 for r in resultados if r["conferido"]),
+        "falhasConsulta": sum(1 for r in resultados if r["erro"]),
+        "comOcorrencias": sum(1 for r in resultados if r["ocorrencias"]),
+        "totalOcorrencias": sum(len(r["ocorrencias"]) for r in resultados),
+    }
+    detalhes_auditoria = {**resumo, "atualizacao": atualizacao, "fonte": fonte}
+    if cobertura:
+        detalhes_auditoria["cobertura"] = cobertura
+    registrar_auditoria(
+        request, acao_auditoria, "sucesso", usuario,
+        detalhes=detalhes_auditoria,
+    )
+    return {
+        "dataEsperada": data_esperada.isoformat(),
+        "protocolos": resultados,
+        "resumo": resumo,
+        "atualizacao": atualizacao,
+        "fonte": fonte,
+        "cobertura": cobertura,
+    }
 
 def _reindexar_registros_alterados(
     alterados: set[tuple[str, int]],
@@ -105,73 +190,10 @@ async def analisar_livro_protocolos(
             datetime.now(ZoneInfo("America/Sao_Paulo")).date() - timedelta(days=1)
         )
 
-        with conectar() as conexao:
-            with conexao.cursor() as cursor:
-                cursor.execute("SELECT titulo_tema, natureza_tema FROM livro_protocolos_excecoes_natureza_aeri")
-                excecoes = frozenset((linha["titulo_tema"], linha["natureza_tema"]) for linha in cursor.fetchall())
-
-        cliente = cliente_tri7()
-        cache_textos: dict[tuple[str, int], tuple[str | None, str | None]] = {}
-        # O que o dia efetivamente alterou -- base do reprocessamento do índice.
-        alterados: set[tuple[str, int]] = set()
-        resultados = []
-        for item in itens_pdf:
-            registro = {**item, "conferido": False, "ocorrencias": [], "erro": None}
-            if item["status"] == "REGISTRADO":
-                try:
-                    protocolo_json = cliente.buscar_protocolo_completo(item["numero"])
-                    alterados |= registros_alterados_no_protocolo(protocolo_json)
-                    textos_registros = {}
-                    falhas_textos = {}
-                    for referencia in referencias_textos_protocolo(protocolo_json):
-                        if referencia not in cache_textos:
-                            try:
-                                resposta_texto = cliente.buscar_texto_matricula(referencia[1])
-                                cache_textos[referencia] = (resposta_texto["texto"], None)
-                            except ErroTri7 as erro:
-                                cache_textos[referencia] = (None, str(erro))
-                        texto, falha = cache_textos[referencia]
-                        if texto:
-                            textos_registros[referencia] = texto
-                        elif falha:
-                            falhas_textos[referencia] = falha
-                    registro["ocorrencias"] = conferir_protocolo(
-                        item, protocolo_json, data_esperada, excecoes,
-                        textos_registros=textos_registros,
-                        falhas_textos=falhas_textos,
-                    )
-                    registro["conferido"] = True
-                except ProtocoloTri7NaoEncontrado:
-                    registro["erro"] = "Protocolo não encontrado na Tri7."
-                except ErroTri7 as erro:
-                    registro["erro"] = str(erro)
-            resultados.append(registro)
-
-        atualizacao = _reindexar_registros_alterados(
-            alterados, cache_textos, cliente, request, usuario,
+        return _analisar_itens_livro(
+            itens_pdf, data_esperada, request, usuario,
+            fonte="PDF",
         )
-
-        resumo = {
-            "total": len(resultados),
-            "prenotados": sum(1 for r in resultados if r["status"] == "PRENOTADO"),
-            "registrados": sum(1 for r in resultados if r["status"] == "REGISTRADO"),
-            "semEfeito": sum(1 for r in resultados if r["status"] == "SEM_EFEITO"),
-            "indefinidos": sum(1 for r in resultados if r["status"] == "INDEFINIDO"),
-            "conferidos": sum(1 for r in resultados if r["conferido"]),
-            "falhasConsulta": sum(1 for r in resultados if r["erro"]),
-            "comOcorrencias": sum(1 for r in resultados if r["ocorrencias"]),
-            "totalOcorrencias": sum(len(r["ocorrencias"]) for r in resultados),
-        }
-        registrar_auditoria(
-            request, "analisar_livro_protocolos", "sucesso", usuario,
-            detalhes={**resumo, "atualizacao": atualizacao},
-        )
-        return {
-            "dataEsperada": data_esperada.isoformat(),
-            "protocolos": resultados,
-            "resumo": resumo,
-            "atualizacao": atualizacao,
-        }
     except HTTPException:
         raise
     except ValueError as exc:
@@ -179,6 +201,54 @@ async def analisar_livro_protocolos(
     except Exception as exc:
         registrar_auditoria(request, "analisar_livro_protocolos", "falha", usuario)
         raise HTTPException(status_code=422, detail="Não foi possível processar o relatório.") from exc
+
+
+@router.post("/analisar-data", dependencies=[Depends(proteger_csrf)])
+def analisar_livro_protocolos_por_data(
+    dados: dict,
+    request: Request,
+    usuario: str = Depends(exigir_permissao("acessar_livro_protocolos")),
+):
+    try:
+        try:
+            data_alvo = date.fromisoformat(str(dados.get("data") or ""))
+        except ValueError as erro:
+            raise HTTPException(status_code=422, detail="Informe uma data válida para a conferência.") from erro
+        hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+        if data_alvo > hoje:
+            raise HTTPException(status_code=422, detail="A data da conferência não pode estar no futuro.")
+
+        cliente = cliente_tri7()
+        janelas = janelas_livro_protocolos(data_alvo)
+        respostas = [
+            cliente.buscar_livro_protocolos(inicio, fim)
+            for inicio, fim in janelas
+        ]
+        itens = montar_protocolos_do_dia(respostas, data_alvo)
+        cobertura = {
+            "inicio": min(inicio for inicio, _fim in janelas).isoformat(),
+            "fim": data_alvo.isoformat(),
+            "dias": sum((fim - inicio).days + 1 for inicio, fim in janelas),
+            "consultas": len(janelas),
+            "provisoria": True,
+        }
+        return _analisar_itens_livro(
+            itens, data_alvo, request, usuario,
+            cliente=cliente,
+            acao_auditoria="analisar_livro_protocolos_por_data",
+            fonte="TRI7_DATA",
+            cobertura=cobertura,
+        )
+    except HTTPException:
+        raise
+    except ErroTri7 as exc:
+        registrar_auditoria(request, "analisar_livro_protocolos_por_data", "falha", usuario)
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        registrar_auditoria(request, "analisar_livro_protocolos_por_data", "falha", usuario)
+        raise HTTPException(status_code=422, detail="Não foi possível consultar o Livro pela data.") from exc
 
 
 def _excecao_json(item: dict) -> dict:

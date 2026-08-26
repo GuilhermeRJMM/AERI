@@ -6,6 +6,7 @@ import threading
 import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 from unittest.mock import patch
 from urllib.error import HTTPError
 
@@ -383,6 +384,42 @@ class TesteClienteTri7(unittest.TestCase):
 
         with self.assertRaises(RespostaTri7Invalida):
             ClienteTri7(self.configuracao(), abridor=abrir).buscar_protocolo_completo(185126)
+
+    def test_busca_livro_protocolos_por_periodo(self):
+        resposta = {
+            "data_inicio": "2026-08-01",
+            "data_fim": "2026-08-25",
+            "protocolos": [{"protocolo": 185569}],
+        }
+
+        def abrir(requisicao, timeout):
+            if requisicao.full_url.endswith("/api/v1/users/login"):
+                return RespostaFalsa({"access_token": "token"})
+            self.assertIn("/api/v1/imoveis/livro-protocolo", requisicao.full_url)
+            self.assertIn("data_inicio=2026-08-01", requisicao.full_url)
+            self.assertIn("data_fim=2026-08-25", requisicao.full_url)
+            return RespostaFalsa(resposta)
+
+        resultado = ClienteTri7(self.configuracao(), abridor=abrir).buscar_livro_protocolos(
+            date(2026, 8, 1), date(2026, 8, 25),
+        )
+        self.assertEqual(resultado, resposta)
+
+    def test_livro_recusa_intervalo_superior_a_trinta_e_um_dias(self):
+        cliente = ClienteTri7(self.configuracao(), abridor=lambda *_args, **_kwargs: None)
+        with self.assertRaises(ValueError):
+            cliente.buscar_livro_protocolos(date(2026, 7, 1), date(2026, 8, 1))
+
+    def test_livro_recusa_resposta_sem_lista_de_protocolos(self):
+        def abrir(requisicao, timeout):
+            if requisicao.full_url.endswith("/api/v1/users/login"):
+                return RespostaFalsa({"access_token": "token"})
+            return RespostaFalsa({"protocolos": None})
+
+        with self.assertRaises(RespostaTri7Invalida):
+            ClienteTri7(self.configuracao(), abridor=abrir).buscar_livro_protocolos(
+                date(2026, 8, 1), date(2026, 8, 25),
+            )
 
 
 if __name__ == "__main__":

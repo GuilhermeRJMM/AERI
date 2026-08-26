@@ -1302,10 +1302,39 @@ body.sidebar-recolhida .nav-item {
 }
 .livroproto-confirmar-excecao:hover { background: rgba(146,64,14,.1); }
 .livroproto-confirmar-excecao:disabled { opacity: .5; cursor: not-allowed; }
+.livroproto-consulta-card { max-width: 760px; padding: 24px; }
+.livroproto-data-label {
+  display: block; margin-bottom: 9px; color: var(--text-soft);
+  font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+}
+.livroproto-data-linha { display: grid; grid-template-columns: minmax(210px, 1fr) auto; gap: 12px; }
+.livroproto-data-input {
+  width: 100%; min-height: 46px; padding: 10px 13px; border: 1px solid var(--glass-border);
+  border-radius: 10px; background: var(--surface-bg-strong); color: var(--text-main);
+  font: 700 .92rem "Outfit", sans-serif; color-scheme: dark;
+}
+.livroproto-data-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(16,185,129,.14); }
+.livroproto-data-ajuda { margin-top: 10px; color: var(--text-muted); font-size: .76rem; line-height: 1.5; }
+.livroproto-pdf-alternativa { margin-top: 19px; padding-top: 16px; border-top: 1px solid var(--glass-border); }
+.livroproto-pdf-alternativa summary {
+  width: max-content; color: var(--text-muted); font-size: .76rem; font-weight: 700;
+  cursor: pointer; transition: color .2s ease;
+}
+.livroproto-pdf-alternativa summary:hover { color: var(--text-main); }
+.livroproto-pdf-conteudo { margin-top: 14px; }
+.livroproto-dropzone-compacta { min-height: 112px; }
+.livroproto-dropzone-compacta .incra-upload-icon { width: 44px; height: 44px; border-radius: 12px; }
+.livroproto-cobertura {
+  margin: 0; padding: 11px 19px; border-bottom: 1px solid var(--glass-border);
+  color: var(--text-muted); font-size: .76rem; line-height: 1.45;
+}
+.livroproto-resumo { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 @media (max-width: 820px) {
   .incra-resumo { grid-template-columns: 1fr; }
   .incra-toolbar { align-items: flex-start; flex-direction: column; }
+  .livroproto-data-linha { grid-template-columns: 1fr; }
+  .livroproto-data-linha .btn { width: 100%; justify-content: center; }
 }
 
 /* --- ROTINA - INTIMAÇÃO --- */

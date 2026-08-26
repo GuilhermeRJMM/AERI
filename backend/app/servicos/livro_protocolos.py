@@ -2,7 +2,7 @@ import io
 import re
 import unicodedata
 from collections import Counter
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from pypdf import PdfReader
@@ -30,6 +30,8 @@ PADRAO_TOTAL_COTACAO = re.compile(
 )
 
 STATUS_VALIDOS = ("PRENOTADO", "REGISTRADO", "SEM_EFEITO", "INDEFINIDO")
+DIAS_RETROATIVOS_LIVRO = 90
+DIAS_POR_CONSULTA_LIVRO = 30
 
 
 def _colapsar_espacos(valor: str) -> str:
@@ -151,6 +153,103 @@ def inferir_data_esperada(linhas: list[dict]) -> date | None:
         return None
     mais_comum, _contagem = Counter(datas).most_common(1)[0]
     return date.fromisoformat(mais_comum)
+
+
+def janelas_livro_protocolos(
+    data_alvo: date,
+    *,
+    dias_retroativos: int = DIAS_RETROATIVOS_LIVRO,
+    dias_por_consulta: int = DIAS_POR_CONSULTA_LIVRO,
+) -> list[tuple[date, date]]:
+    """Divide a busca retroativa em intervalos aceitos pela Tri7.
+
+    O endpoint limita cada chamada a 31 dias. Usamos três intervalos de 30
+    dias para cobrir 90 dias de apresentações sem sobreposição.
+    """
+    if dias_retroativos < 1 or dias_por_consulta < 1 or dias_por_consulta > 31:
+        raise ValueError("Período de consulta do Livro de Protocolos inválido.")
+    limite = data_alvo - timedelta(days=dias_retroativos - 1)
+    janelas = []
+    fim = data_alvo
+    while fim >= limite:
+        inicio = max(limite, fim - timedelta(days=dias_por_consulta - 1))
+        janelas.append((inicio, fim))
+        fim = inicio - timedelta(days=1)
+    return janelas
+
+
+def _data_tri7(valor: object) -> date | None:
+    if valor is None or valor == "":
+        return None
+    if isinstance(valor, datetime):
+        return valor.date()
+    if isinstance(valor, date):
+        return valor
+    try:
+        return datetime.fromisoformat(str(valor).strip().replace("Z", "+00:00")).date()
+    except ValueError as erro:
+        raise ValueError("A Tri7 retornou uma data inválida no Livro de Protocolos.") from erro
+
+
+def _formatar_numero_protocolo(numero: int) -> str:
+    return f"{numero:,}".replace(",", ".")
+
+
+def montar_protocolos_do_dia(
+    respostas_periodos: list[dict], data_alvo: date,
+) -> list[dict]:
+    """Reproduz as duas seções do Livro para uma data sem depender do PDF.
+
+    Entram os títulos apresentados no dia e os títulos, ainda que apresentados
+    antes, que tiveram registro no dia. Se um protocolo estiver nas duas
+    seções, ele aparece uma vez e prevalece o estado REGISTRADO, igual ao
+    comportamento já adotado na importação do PDF.
+    """
+    por_numero: dict[int, dict] = {}
+    for resposta in respostas_periodos:
+        for item in resposta.get("protocolos") or []:
+            if not isinstance(item, dict):
+                continue
+            try:
+                numero = int(item.get("protocolo"))
+            except (TypeError, ValueError):
+                raise ValueError("A Tri7 retornou um protocolo inválido no Livro.")
+            if numero <= 0:
+                raise ValueError("A Tri7 retornou um protocolo inválido no Livro.")
+            por_numero[numero] = item
+
+    selecionados = []
+    for numero, item in por_numero.items():
+        data_apresentacao = _data_tri7(item.get("data_apresentacao"))
+        data_registro = _data_tri7(item.get("data_registro"))
+        apresentado_no_dia = data_apresentacao == data_alvo
+        registrado_no_dia = data_registro == data_alvo
+        if not apresentado_no_dia and not registrado_no_dia:
+            continue
+        naturezas = [
+            _colapsar_espacos(str(subitem.get("natureza") or ""))
+            for subitem in item.get("itens") or []
+            if isinstance(subitem, dict) and _texto_valido(subitem.get("natureza"))
+        ]
+        selecionados.append({
+            "numero": str(numero),
+            "numeroFormatado": _formatar_numero_protocolo(numero),
+            "data": data_apresentacao.isoformat() if data_apresentacao else None,
+            "dataRegistro": data_registro.isoformat() if data_registro else None,
+            "nomeApresentante": _colapsar_espacos(str(item.get("apresentante") or "")) or "NÃO CONSTA",
+            "status": "REGISTRADO" if registrado_no_dia else "PRENOTADO",
+            "resumoBruto": "; ".join(dict.fromkeys(naturezas))[:600],
+            "origemDia": (
+                "APRESENTADO_E_REGISTRADO" if apresentado_no_dia and registrado_no_dia
+                else "APRESENTADO" if apresentado_no_dia
+                else "REGISTRADO"
+            ),
+            "_ordem": (0 if apresentado_no_dia else 1, numero),
+        })
+    selecionados.sort(key=lambda item: item["_ordem"])
+    for item in selecionados:
+        item.pop("_ordem", None)
+    return selecionados
 
 
 PADRAO_ITEM_AUXILIAR = re.compile(

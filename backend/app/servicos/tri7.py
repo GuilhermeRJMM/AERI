@@ -7,6 +7,7 @@ import re
 import threading
 import time
 from dataclasses import dataclass
+from datetime import date
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request as UrlRequest
@@ -341,6 +342,24 @@ class ClienteTri7:
             raise RespostaTri7Invalida("A Tri7 retornou um número de protocolo inválido.") from erro
         if numero_retornado != numero:
             raise RespostaTri7Invalida("A Tri7 retornou um protocolo diferente do solicitado.")
+        return dados
+
+    def buscar_livro_protocolos(self, data_inicio: date, data_fim: date) -> dict:
+        if not isinstance(data_inicio, date) or not isinstance(data_fim, date):
+            raise ValueError("Informe datas válidas para consultar o Livro de Protocolos.")
+        intervalo = (data_fim - data_inicio).days
+        if intervalo < 0:
+            raise ValueError("A data inicial do Livro não pode ser posterior à final.")
+        if intervalo > 30:
+            raise ValueError("Cada consulta do Livro pode abranger no máximo 31 dias.")
+        status, dados = self._buscar_json_autenticado(
+            "/api/v1/imoveis/livro-protocolo",
+            {"data_inicio": data_inicio.isoformat(), "data_fim": data_fim.isoformat()},
+        )
+        if status < 200 or status >= 300:
+            raise ErroTri7("A Tri7 não conseguiu consultar o Livro de Protocolos.", status=status)
+        if not isinstance(dados, dict) or not isinstance(dados.get("protocolos"), list):
+            raise RespostaTri7Invalida("A Tri7 retornou uma resposta inválida para o Livro de Protocolos.")
         return dados
 
 
