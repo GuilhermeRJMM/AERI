@@ -614,6 +614,25 @@ def _bloco_do_adquirente(texto):
     )
     if m: return m.group(1).strip().rstrip(';, ')
 
+    # Integralizações antigas do acervo adotam a fórmula "foi incorporado
+    # pelos seus referidos proprietários à Empresa X, ... CNPJ ..., neste ato
+    # representada por Fulano". A pessoa jurídica é a adquirente; o gerente
+    # citado depois apenas a representa e não pode continuar como titular.
+    m = re.search(
+        r'foi\s+incorporad[oa]\s+'
+        r'(?:pel[oa]s?\s+(?:(?:seus?|suas?)\s+)?referid[oa]s?\s+'
+        r'propriet[áa]ri[oa]s?\s*,?\s*)'
+        r'(?:(?:a|à|ao)\s+)?'
+        r'(.*?)'
+        r'(?=,\s*neste\s+ato\s+representad[oa]\b|'
+        r';\s*para\s+integraliza[çc][ãa]o\b|'
+        r'\bpor\s+integraliza[çc][ãa]o\s+feita\b|'
+        r'\bO\s+Capital\s+Social\b|\*NOTA|\bDOU\s+F[ÉE]\b)',
+        texto,
+        re.I | re.DOTALL,
+    )
+    if m: return m.group(1).strip().rstrip(';, ')
+
     m = None if re.search(r'\blavrada\b', texto, re.I) else re.search(
         r';\s*(.*?)(?=,?\s*adquiriu\s+por\s+compra\b)',
         texto,

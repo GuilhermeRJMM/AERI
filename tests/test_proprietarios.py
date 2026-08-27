@@ -1169,6 +1169,44 @@ class TesteProprietarios(unittest.TestCase):
         self.assertEqual(transmitentes[0]["nome"], "José Renato Chiari")
         self.assertEqual(transmitentes[0]["cpf"], "071.092.738-06")
 
+    def test_incorporacao_historica_transfere_imovel_para_empresa_e_nao_gerente(self):
+        cabecalho = (
+            "MATRÍCULA 630. PROPRIETÁRIO: Ronan Rodrigues da Silva, brasileiro, "
+            "inscrito no CPF n.º 001.715.811-72."
+        )
+        formas_historicas = (
+            "pelos seus referidos proprietários à PROGNE",
+            "pelos seus referidos proprietários, à PROGNE",
+            "pelos seus referidos proprietários PROGNE",
+        )
+
+        for forma in formas_historicas:
+            with self.subTest(forma=forma):
+                incorporacao = f"""
+                R.09-630 - Morrinhos, 02 de outubro de 1987. INCORPORAÇÃO. O imóvel,
+                de propriedade de Ronan Rodrigues da Silva e sua mulher Neusa Batista
+                da Silva, foi incorporado {forma}
+                AGROPECUÁRIA LTDA, empresa sediada em Belo Horizonte-MG, inscrita no
+                CNPJ/MF sob o n.º 22.236.870/0001-98, neste ato representada por seu
+                gerente Ronan Rodrigues da Silva; para integralização de seu Capital
+                Social na referida Empresa. DOU FÉ.
+                """
+
+                resultado = calcular_cadeia_dominial(
+                    [SimpleNamespace(descricao=incorporacao)],
+                    cabecalho + incorporacao,
+                )
+
+                self.assertEqual(
+                    resultado,
+                    [{
+                        "nome": "PROGNE AGROPECUÁRIA LTDA",
+                        "cpf": "22.236.870/0001-98",
+                        "proporcao": "100%",
+                        "proporcao_incerta": False,
+                    }],
+                )
+
     def test_partilha_integral_em_atos_consecutivos_substitui_proprietario_anterior(self):
         cabecalho = "MATRÍCULA 210. PROPRIETÁRIO: Custódio Lopes de Souza, CPF 016.800.801-00."
         partilha_1 = """
