@@ -799,6 +799,33 @@ class TesteConferirProtocolo(unittest.TestCase):
         )
         self.assertFalse(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
 
+    def test_matricula_15914_confirma_r7_mesmo_com_texto_matricula_atrasado(self):
+        imovel = {"tipo_registro": "M", "numero_registro": 15914}
+        protocolo = _protocolo_base(itens_do_pedido=[
+            {
+                "natureza_formal_descricao": "Venda e Compra Imóvel Urbano (Simples)",
+                "dados_imovel": imovel,
+                "atos_registrados": {"ato_tipo": "R", "ato_numero": 7, "texto": "R.06-15.914"},
+            },
+        ])
+        texto_atrasado = (
+            "R.01-15.914 TEXTO\nR.02-15.914 TEXTO\nAV.03-15.914 TEXTO\n"
+            "AV.04-15.914 CEP\nAV.05-15.914 CCI\nAV.06-15.914 CASAMENTO"
+        )
+
+        sem_confirmacao = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 26),
+            textos_registros={("M", 15914): texto_atrasado},
+        )
+        com_confirmacao = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 26),
+            textos_registros={("M", 15914): texto_atrasado},
+            atos_confirmados={("M", 15914): {("R", 7)}},
+        )
+
+        self.assertTrue(any(o["regra"] == "ATO_NAO_LOCALIZADO" for o in sem_confirmacao))
+        self.assertFalse(any(o["regra"] == "ATO_NAO_LOCALIZADO" for o in com_confirmacao))
+
     def test_desmembramento_184896_nao_gera_falso_alerta_de_ordem(self):
         imovel = {"tipo_registro": "M", "numero_registro": 30506}
         protocolo = _protocolo_base(itens_do_pedido=[

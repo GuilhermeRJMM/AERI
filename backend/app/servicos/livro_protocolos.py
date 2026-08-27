@@ -496,6 +496,21 @@ def _atos_do_texto(texto: str) -> list[tuple[tuple[str, int], str]]:
     return resultado
 
 
+def codigos_atos_confirmados(resposta_atos: dict) -> set[tuple[str, int]]:
+    """Normaliza R./Av. registrados pelo endpoint ``matricula-atos``."""
+    confirmados = set()
+    if not isinstance(resposta_atos, dict):
+        return confirmados
+    for item in resposta_atos.get("atos") or []:
+        if not isinstance(item, dict) or _normalizar(str(item.get("status") or "")) != "REGISTRADO":
+            continue
+        codigo = _normalizar(str(item.get("ato") or ""))
+        match = re.fullmatch(r"(R|AV)\.?0*(\d+)", codigo)
+        if match:
+            confirmados.add((match.group(1), int(match.group(2))))
+    return confirmados
+
+
 def _decimal_monetario(valor: object) -> Decimal | None:
     if isinstance(valor, bool) or valor is None:
         return None
@@ -762,10 +777,12 @@ def _regra_ordem_e_texto_dos_atos(
     protocolo_json: dict,
     textos_registros: dict[tuple[str, int], str] | None = None,
     falhas_textos: dict[tuple[str, int], str] | None = None,
+    atos_confirmados: dict[tuple[str, int], set[tuple[str, int]]] | None = None,
 ) -> list[dict]:
     ocorrencias = []
     textos_registros = textos_registros or {}
     falhas_textos = falhas_textos or {}
+    atos_confirmados = atos_confirmados or {}
     alvos_por_registro: dict[tuple[str, int], dict[tuple[str, int], list[dict]]] = {}
     for item in protocolo_json.get("itens_do_pedido") or []:
         chave = _chave_registro(item)
@@ -792,6 +809,11 @@ def _regra_ordem_e_texto_dos_atos(
         atos_texto = _atos_do_texto(texto)
         por_codigo = {codigo: bloco for codigo, bloco in atos_texto}
         encontrados = {codigo for codigo, _bloco in atos_texto if codigo in codigos_alvo}
+        # O cadastro objetivo de atos pode estar adiante do texto corrido na
+        # Tri7. Se ele confirma o R./AV. como Registrado, não acusa ausência
+        # do ato; as verificações de conteúdo só são executadas quando o bloco
+        # textual correspondente estiver realmente disponível.
+        encontrados |= codigos_alvo & atos_confirmados.get(chave, set())
         ausentes = sorted(codigos_alvo - encontrados, key=lambda codigo: codigo[1])
         for codigo in ausentes:
             ocorrencias.append({
@@ -831,12 +853,15 @@ def conferir_protocolo(
     excecoes_natureza_titulo: frozenset[tuple[str, str]] = frozenset(),
     textos_registros: dict[tuple[str, int], str] | None = None,
     falhas_textos: dict[tuple[str, int], str] | None = None,
+    atos_confirmados: dict[tuple[str, int], set[tuple[str, int]]] | None = None,
 ) -> list[dict]:
     return [
         *_regra_natureza_bate_com_titulo(protocolo_json, excecoes_natureza_titulo),
         *_regra_busca_com_matricula(protocolo_json),
         *_regra_ordem_itens_protocolo(protocolo_json),
-        *_regra_ordem_e_texto_dos_atos(protocolo_json, textos_registros, falhas_textos),
+        *_regra_ordem_e_texto_dos_atos(
+            protocolo_json, textos_registros, falhas_textos, atos_confirmados,
+        ),
         *_regra_total_custas_agrupadas(protocolo_json, textos_registros),
         # Regra de data desativada por enquanto: mesmo com inferir_data_esperada()
         # olhando a própria folha em vez de "hoje - 1 dia" fixo, ainda gerou

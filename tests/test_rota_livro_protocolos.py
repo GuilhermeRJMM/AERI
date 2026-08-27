@@ -62,6 +62,10 @@ class TesteAnalisarLivroProtocolos(unittest.TestCase):
         }
         cliente.buscar_texto_matricula.return_value = {"texto": "TEXTO MATRÍCULA"}
         cliente.buscar_texto_registro_auxiliar.return_value = {"texto": "TEXTO REGISTRO AUXILIAR"}
+        cliente.buscar_atos_matricula.return_value = {
+            "numero_matricula": "32463",
+            "atos": [{"status": "Registrado", "ato": "R.17"}],
+        }
 
         _analisar_itens_livro(
             [{"numero": "185546", "status": "REGISTRADO", "data": "2026-08-19"}],
@@ -69,10 +73,15 @@ class TesteAnalisarLivroProtocolos(unittest.TestCase):
         )
 
         cliente.buscar_texto_matricula.assert_called_once_with(32463)
+        cliente.buscar_atos_matricula.assert_called_once_with(32463)
         cliente.buscar_texto_registro_auxiliar.assert_called_once_with(29569)
         textos = conferir_mock.call_args.kwargs["textos_registros"]
         self.assertEqual(textos[("M", 32463)], "TEXTO MATRÍCULA")
         self.assertEqual(textos[("A", 29569)], "TEXTO REGISTRO AUXILIAR")
+        self.assertEqual(
+            conferir_mock.call_args.kwargs["atos_confirmados"][("M", 32463)],
+            {("R", 17)},
+        )
 
     @patch("backend.app.rotas.livro_protocolos.registrar_auditoria")
     def test_rejeita_arquivo_que_nao_comeca_com_assinatura_pdf(self, _auditoria):

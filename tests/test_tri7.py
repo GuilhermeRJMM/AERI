@@ -215,6 +215,27 @@ class TesteClienteTri7(unittest.TestCase):
         self.assertEqual(primeira["numero_matricula"], "10148")
         self.assertEqual(sum(req.full_url.endswith("/api/v1/users/login") for req, _ in requisicoes), 1)
 
+    def test_busca_indice_de_atos_da_matricula(self):
+        resposta = {
+            "numero_matricula": 15914,
+            "atos": [
+                {"codigo": 338045, "status": "Registrado", "ato": "R.7"},
+                {"codigo": 338046, "status": "Registrado", "ato": "Av.6"},
+            ],
+        }
+
+        def abrir(requisicao, timeout):
+            if requisicao.full_url.endswith("/api/v1/users/login"):
+                return RespostaFalsa({"access_token": "token"})
+            self.assertIn("/api/v1/imoveis/matricula-atos", requisicao.full_url)
+            self.assertIn("numero_matricula=15914", requisicao.full_url)
+            return RespostaFalsa(resposta)
+
+        resultado = ClienteTri7(self.configuracao(), abridor=abrir).buscar_atos_matricula("15.914")
+
+        self.assertEqual(resultado["numero_matricula"], "15914")
+        self.assertEqual(resultado["atos"], resposta["atos"])
+
     def test_renova_token_uma_vez_apos_401(self):
         logins = 0
         consultas = 0

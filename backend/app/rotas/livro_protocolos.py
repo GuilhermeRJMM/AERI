@@ -10,6 +10,7 @@ from backend.app.rotas.buscas import _salvar_indice as _salvar_indice_matricula
 from backend.app.rotas.registros_auxiliares import _salvar_indice as _salvar_indice_auxiliar
 from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
 from backend.app.servicos.livro_protocolos import (
+    codigos_atos_confirmados,
     conferir_protocolo,
     extrair_protocolos_pdf,
     inferir_data_esperada,
@@ -48,6 +49,7 @@ def _analisar_itens_livro(
 
     cliente = cliente or cliente_tri7()
     cache_textos: dict[tuple[str, int], tuple[str | None, str | None]] = {}
+    cache_atos: dict[tuple[str, int], set[tuple[str, int]]] = {}
     alterados: set[tuple[str, int]] = set()
     resultados = []
     for item in itens:
@@ -58,6 +60,7 @@ def _analisar_itens_livro(
                 alterados |= registros_alterados_no_protocolo(protocolo_json)
                 textos_registros = {}
                 falhas_textos = {}
+                atos_confirmados = {}
                 for referencia in referencias_textos_protocolo(protocolo_json):
                     if referencia not in cache_textos:
                         try:
@@ -73,10 +76,23 @@ def _analisar_itens_livro(
                         textos_registros[referencia] = texto
                     elif falha:
                         falhas_textos[referencia] = falha
+                    if referencia[0] == "M":
+                        if referencia not in cache_atos:
+                            try:
+                                cache_atos[referencia] = codigos_atos_confirmados(
+                                    cliente.buscar_atos_matricula(referencia[1])
+                                )
+                            except ErroTri7:
+                                # O endpoint complementar não é condição para
+                                # conferir o livro: em falha, preserva-se a
+                                # validação anterior baseada no texto.
+                                cache_atos[referencia] = set()
+                        atos_confirmados[referencia] = cache_atos[referencia]
                 registro["ocorrencias"] = conferir_protocolo(
                     item, protocolo_json, data_esperada, excecoes,
                     textos_registros=textos_registros,
                     falhas_textos=falhas_textos,
+                    atos_confirmados=atos_confirmados,
                 )
                 registro["conferido"] = True
             except ProtocoloTri7NaoEncontrado:

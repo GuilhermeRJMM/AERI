@@ -302,6 +302,31 @@ class ClienteTri7:
             raise RespostaTri7Invalida("A Tri7 retornou uma matrícula diferente da solicitada.")
         return {"numero_matricula": numero, "texto": dados["texto"]}
 
+    def buscar_atos_matricula(self, numero_matricula: object) -> dict:
+        """Consulta o índice objetivo de atos da matrícula na Tri7.
+
+        Esse endpoint é separado do texto corrido e pode refletir um ato já
+        registrado enquanto ``texto-matricula`` ainda está sendo atualizado.
+        O AERI usa o retorno apenas como confirmação de existência/status; a
+        conferência do conteúdo continua dependendo do texto registral.
+        """
+        numero = normalizar_numero_matricula(numero_matricula)
+        status, dados = self._buscar_json_autenticado(
+            "/api/v1/imoveis/matricula-atos", {"numero_matricula": numero}
+        )
+        if status == 404:
+            raise MatriculaTri7NaoEncontrada(
+                f"Matrícula {numero} não encontrada na Tri7.", status=status
+            )
+        if status < 200 or status >= 300:
+            raise ErroTri7("A Tri7 não conseguiu consultar os atos da matrícula.", status=status)
+        if not isinstance(dados, dict) or not isinstance(dados.get("atos"), list):
+            raise RespostaTri7Invalida("A Tri7 retornou uma resposta inválida para os atos da matrícula.")
+        numero_retornado = normalizar_numero_matricula(dados.get("numero_matricula", numero))
+        if numero_retornado != numero:
+            raise RespostaTri7Invalida("A Tri7 retornou atos de uma matrícula diferente da solicitada.")
+        return {"numero_matricula": numero, "atos": dados["atos"]}
+
     def buscar_texto_registro_auxiliar(self, numero_registro: object) -> dict:
         numero = normalizar_numero_matricula(numero_registro)
         status, dados = self._buscar_json_autenticado(
