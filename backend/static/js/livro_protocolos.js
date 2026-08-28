@@ -102,7 +102,16 @@ function renderizarOcorrencias(item) {
                 data-titulo="${escaparHtml(ocorrencia.tituloOriginal)}" data-natureza="${escaparHtml(ocorrencia.naturezaOriginal)}">
                 Cadastrar equivalência exata
             </button>` : '';
-        return `<li class="livroproto-gravidade-${ocorrencia.gravidade.toLowerCase()}">${escaparHtml(ocorrencia.descricao)}${botao}</li>`;
+        const tipo = ocorrencia.regra === 'ATO_NAO_LOCALIZADO' || ocorrencia.regra === 'FALHA_TEXTO'
+            ? 'Possível dessincronização da Tri7'
+            : (ocorrencia.gravidade === 'ERRO' ? 'Erro registral' : 'Atenção');
+        const fonte = ocorrencia.regra?.includes('COTACAO') ? 'Protocolo completo e itens agrupados'
+            : (ocorrencia.regra?.includes('ORDEM') ? 'Ordem operacional do protocolo' : 'Tri7, texto registral e atos confirmados');
+        return `<li class="livroproto-gravidade-${ocorrencia.gravidade.toLowerCase()}">
+            <details><summary>${escaparHtml(ocorrencia.descricao)}</summary>
+                <small><b>${escaparHtml(tipo)}</b> · Regra ${escaparHtml(ocorrencia.regra || 'não informada')} · Fonte: ${escaparHtml(fonte)}</small>
+                ${botao}
+            </details></li>`;
     }).join('')}</ul>`;
 }
 
@@ -115,12 +124,17 @@ async function confirmarExcecaoNatureza(botao) {
         + `Título: ${tituloOriginal}\nNatureza: ${naturezaOriginal}\n\nConfirmar essa equivalência exata?`,
     );
     if (!confirmado) return;
+    const justificativa = prompt('Justificativa registral para esta equivalência:', 'Conferência humana do título e da natureza formal.');
+    if (!justificativa?.trim()) return;
     botao.disabled = true;
     botao.textContent = 'Confirmando...';
     try {
         await requisicaoAeri('/api/livro-protocolos/excecoes', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({tituloOriginal, naturezaOriginal}),
+            body: JSON.stringify({
+                tituloOriginal, naturezaOriginal, justificativa:justificativa.trim(),
+                vigenciaInicio:new Date().toISOString().slice(0, 10),
+            }),
         });
         // Remove só da linha clicada (o item já visível na tela); pares
         // iguais em outras linhas desta mesma análise só somem na próxima
@@ -185,6 +199,12 @@ function renderizarLivroProtocolos(filtro) {
         ['FALHAS', 'Falha na consulta', resumo.falhasConsulta],
     ];
 
+    const comparacao = resultadoLivroProto.comparacaoPrimeira;
+    const avisoComparacao = comparacao ? `<p class="livroproto-atualizacao">
+        Comparação com a primeira conferência: <b>${comparacao.novasOcorrencias} nova(s)</b>,
+        <b>${comparacao.ocorrenciasResolvidas} resolvida(s)</b> e
+        <b>${comparacao.protocolosAlterados.length} protocolo(s) alterado(s)</b>.
+    </p>` : '';
     document.getElementById('livroproto-resultado').innerHTML = `
         <div class="incra-resumo livroproto-resumo">
             <div><strong>${resumo.total}</strong><span>${resultadoLivroProto.fonte === 'PDF' ? 'Protocolos na folha' : 'Protocolos do dia'}</span></div>
@@ -193,10 +213,12 @@ function renderizarLivroProtocolos(filtro) {
             <div><strong>${formatarDataIso(resultadoLivroProto.dataEsperada)}</strong><span>Data analisada</span></div>
         </div>
         ${avisoAtualizacao(resultadoLivroProto.atualizacao)}
+        ${avisoComparacao}
         <div class="incra-toolbar">
             <div class="incra-filtros">
                 ${filtros.map(([chave, rotulo, total]) => `<button class="incra-filtro ${chave === filtro ? 'active' : ''}" data-filtro="${chave}">${rotulo} <b>${total}</b></button>`).join('')}
             </div>
+            ${resumo.falhasConsulta ? '<button type="button" class="rotina-btn-secondary" data-acao-livro="reprocessar-falhas">Reprocessar somente falhas</button>' : ''}
         </div>
         <div class="incra-table-wrap">
             <table class="incra-table">
@@ -206,11 +228,35 @@ function renderizarLivroProtocolos(filtro) {
         </div>`;
 }
 
+async function reprocessarFalhas() {
+    const itens = (resultadoLivroProto?.protocolos || []).filter(item => item.erro);
+    if (!itens.length) return;
+    const botao = document.querySelector('[data-acao-livro="reprocessar-falhas"]');
+    if (botao) { botao.disabled = true; botao.textContent = 'Reprocessando…'; }
+    try {
+        const parcial = await requisicaoAeri('/api/livro-protocolos/reprocessar-falhas', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({data:resultadoLivroProto.dataEsperada, itens}),
+        });
+        const porNumero = new Map(parcial.protocolos.map(item => [item.numero, item]));
+        resultadoLivroProto.protocolos = resultadoLivroProto.protocolos.map(item => porNumero.get(item.numero) || item);
+        resultadoLivroProto.resumo = {
+            ...resultadoLivroProto.resumo,
+            falhasConsulta:resultadoLivroProto.protocolos.filter(item => item.erro).length,
+            conferidos:resultadoLivroProto.protocolos.filter(item => item.conferido).length,
+            comOcorrencias:resultadoLivroProto.protocolos.filter(item => item.ocorrencias?.length).length,
+            totalOcorrencias:resultadoLivroProto.protocolos.reduce((soma, item) => soma + (item.ocorrencias?.length || 0), 0),
+        };
+        renderizarLivroProtocolos('TODOS');
+    } catch (erro) { alert(erro.message); renderizarLivroProtocolos('FALHAS'); }
+}
+
 function tratarAcaoResultado(evento) {
     const botaoFiltro = evento.target.closest('.incra-filtro');
     if (botaoFiltro) return renderizarLivroProtocolos(botaoFiltro.dataset.filtro);
     const botaoConfirmar = evento.target.closest('.livroproto-confirmar-excecao');
     if (botaoConfirmar) confirmarExcecaoNatureza(botaoConfirmar);
+    if (evento.target.closest('[data-acao-livro="reprocessar-falhas"]')) reprocessarFalhas();
 }
 
 export function iniciarLivroProtocolos() {

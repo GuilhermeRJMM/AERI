@@ -7,7 +7,7 @@ from backend.app.autenticacao import exigir_permissao, proteger_csrf
 from backend.app.database import preparar_banco
 from backend.app.seguranca_web import registrar_auditoria
 from backend.app.servicos.analise_matricula import analisar_matricula
-from backend.app.servicos.mapa_onr import construir_contexto_mapa_onr
+from backend.app.servicos.mapa_onr import construir_contexto_mapa_onr, validar_json_mapa_onr
 from backend.app.servicos.tri7 import (
     ConfiguracaoTri7Invalida,
     ErroTri7,
@@ -72,3 +72,17 @@ def consultar_matricula_mapa_onr(
         "texto": texto,
         "contexto_aeri": construir_contexto_mapa_onr(texto, resultado_aeri),
     }
+
+
+@router.post("/validar-json")
+def validar_json_para_exportacao(
+    dados: dict,
+    _usuario: str = Depends(exigir_permissao("acessar_mapa_onr")),
+):
+    try:
+        return validar_json_mapa_onr(
+            str(dados.get("tipo") or ""),
+            dados.get("arquivo"),
+        )
+    except ValueError as erro:
+        raise HTTPException(status_code=422, detail=str(erro)) from erro

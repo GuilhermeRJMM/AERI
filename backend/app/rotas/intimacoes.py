@@ -1,16 +1,19 @@
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
 
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
 from backend.app.database import conectar, preparar_banco
 from backend.app.servicos.intimacoes import (
+    andamento_indica_intimacao_positiva,
     fase_por_andamento,
     intimacao_json,
+    somar_dias_uteis,
     validar_campos_fase_inicial,
     validar_intimacao,
     validar_novo_andamento,
@@ -43,11 +46,33 @@ def _registrar_evento(cursor, identificador: UUID, protocolo: str, tipo: str, us
     )
 
 
+def _select_intimacoes() -> str:
+    return """SELECT i.*,
+        COALESCE((SELECT SUM(CASE WHEN l.tipo IN ('CREDITO','ESTORNO') THEN l.valor ELSE 0 END)
+                  FROM lancamentos_intimacao_aeri l WHERE l.intimacao_id=i.id), i.valor_pago_onr) AS total_creditos,
+        COALESCE((SELECT SUM(CASE WHEN l.tipo='REPASSE' THEN l.valor ELSE 0 END)
+                  FROM lancamentos_intimacao_aeri l WHERE l.intimacao_id=i.id), i.valor_usado) AS total_repasses
+        FROM intimacoes_aeri i"""
+
+
+def _data_certificacao_cursor(cursor, data_intimacao: date | None, andamento: str) -> date | None:
+    if not data_intimacao or not andamento_indica_intimacao_positiva(andamento):
+        return None
+    cursor.execute("SELECT data FROM feriados_aeri WHERE ativo=TRUE")
+    return somar_dias_uteis(data_intimacao, 16, {item["data"] for item in cursor.fetchall()})
+
+
 @router.get("")
-def listar_intimacoes(_usuario: str = Depends(exigir_permissao("ver_intimacoes"))):
+def listar_intimacoes(
+    lixeira: bool = Query(False),
+    _usuario: str = Depends(exigir_permissao("ver_intimacoes")),
+):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            cursor.execute("SELECT * FROM intimacoes_aeri ORDER BY protocolo")
+            cursor.execute(
+                _select_intimacoes() + (" WHERE i.excluida_em IS NOT NULL" if lixeira else " WHERE i.excluida_em IS NULL")
+                + " ORDER BY i.protocolo"
+            )
             return [intimacao_json(item) for item in cursor.fetchall()]
 
 
@@ -59,6 +84,9 @@ def criar_intimacao(dados: dict, request: Request, usuario: str = Depends(exigir
     try:
         with conectar() as conexao:
             with conexao.cursor() as cursor:
+                campos["data_certificacao"] = _data_certificacao_cursor(
+                    cursor, campos["data_intimacao"], nome_andamento,
+                ) or campos["data_certificacao"]
                 cursor.execute(
                     """INSERT INTO intimacoes_aeri
                     (id, protocolo, credor, devedor, nome_andamento, ultimo_andamento, fase,
@@ -95,6 +123,9 @@ def atualizar_intimacao(identificador: UUID, dados: dict, request: Request, usua
                 anterior = cursor.fetchone()
                 if not anterior:
                     raise HTTPException(status_code=404, detail="Intimação não encontrada.")
+                campos["data_certificacao"] = _data_certificacao_cursor(
+                    cursor, campos["data_intimacao"], nome_andamento,
+                ) or campos["data_certificacao"]
                 cursor.execute(
                     """UPDATE intimacoes_aeri SET protocolo=%s, credor=%s, devedor=%s,
                     nome_andamento=%s, ultimo_andamento=%s, fase=%s, protocolo_rtd=%s,
@@ -192,14 +223,17 @@ def conferir_intimacao(
 def excluir_intimacao(identificador: UUID, request: Request, usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            cursor.execute("SELECT protocolo, fase FROM intimacoes_aeri WHERE id=%s", (identificador,))
+            cursor.execute("SELECT protocolo, fase, excluida_em FROM intimacoes_aeri WHERE id=%s", (identificador,))
             anterior = cursor.fetchone()
-            if anterior:
+            if anterior and not anterior["excluida_em"]:
                 _registrar_evento(
                     cursor, identificador, anterior["protocolo"], "EXCLUSAO", usuario,
                     {"fase": anterior["fase"]},
                 )
-            cursor.execute("DELETE FROM intimacoes_aeri WHERE id=%s", (identificador,))
+            cursor.execute(
+                "UPDATE intimacoes_aeri SET excluida_em=NOW(), excluida_por=%s, atualizado_em=NOW() "
+                "WHERE id=%s AND excluida_em IS NULL", (usuario, identificador),
+            )
             removidos = cursor.rowcount
             if removidos:
                 registrar_auditoria_cursor(
@@ -209,6 +243,105 @@ def excluir_intimacao(identificador: UUID, request: Request, usuario: str = Depe
     if not removidos:
         raise HTTPException(status_code=404, detail="Intimação não encontrada.")
     return Response(status_code=204)
+
+
+@router.post("/{identificador}/restaurar", dependencies=[Depends(proteger_csrf)])
+def restaurar_intimacao(
+    identificador: UUID, request: Request,
+    usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                "UPDATE intimacoes_aeri SET excluida_em=NULL, excluida_por=NULL, atualizado_em=NOW() "
+                "WHERE id=%s AND excluida_em IS NOT NULL RETURNING *", (identificador,),
+            )
+            item = cursor.fetchone()
+            if not item:
+                raise HTTPException(status_code=404, detail="Intimação não encontrada na lixeira.")
+            _registrar_evento(cursor, identificador, item["protocolo"], "RESTAURACAO", usuario)
+            registrar_auditoria_cursor(cursor, request, "restaurar_intimacao", "sucesso", usuario, str(identificador))
+        conexao.commit()
+    return intimacao_json(item)
+
+
+@router.get("/{identificador}/financeiro")
+def listar_financeiro(
+    identificador: UUID,
+    _usuario: str = Depends(exigir_permissao("ver_intimacoes")),
+):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM lancamentos_intimacao_aeri WHERE intimacao_id=%s ORDER BY criado_em, id",
+                (identificador,),
+            )
+            itens = cursor.fetchall()
+    saldo = Decimal("0")
+    retorno = []
+    for item in itens:
+        impacto = item["valor"] if item["tipo"] in {"CREDITO", "ESTORNO"} else -item["valor"]
+        saldo += impacto
+        retorno.append({
+            "id": str(item["id"]), "tipo": item["tipo"], "valor": float(item["valor"]),
+            "descricao": item["descricao"], "usuario": item["usuario"],
+            "criadoEm": item["criado_em"].isoformat(), "saldoApos": float(saldo),
+        })
+    return {"itens": retorno, "saldo": float(saldo)}
+
+
+@router.post("/{identificador}/financeiro", status_code=201, dependencies=[Depends(proteger_csrf)])
+def criar_lancamento_financeiro(
+    identificador: UUID, dados: dict, request: Request,
+    usuario: str = Depends(exigir_permissao("alterar_intimacoes")),
+):
+    tipo = str(dados.get("tipo") or "").upper()
+    try:
+        valor = Decimal(str(dados.get("valor"))).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError) as exc:
+        raise HTTPException(status_code=422, detail="Informe um valor válido.") from exc
+    if tipo not in {"CREDITO", "REPASSE", "ESTORNO"} or valor <= 0:
+        raise HTTPException(status_code=422, detail="Tipo ou valor do lançamento inválido.")
+    descricao = str(dados.get("descricao") or "").strip()[:240] or None
+    lancamento_id = uuid4()
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute("SELECT protocolo FROM intimacoes_aeri WHERE id=%s AND excluida_em IS NULL", (identificador,))
+            item = cursor.fetchone()
+            if not item:
+                raise HTTPException(status_code=404, detail="Intimação não encontrada.")
+            cursor.execute(
+                "INSERT INTO lancamentos_intimacao_aeri (id, intimacao_id, tipo, valor, descricao, usuario) "
+                "VALUES (%s,%s,%s,%s,%s,%s)",
+                (lancamento_id, identificador, tipo, valor, descricao, usuario),
+            )
+            _registrar_evento(cursor, identificador, item["protocolo"], "LANCAMENTO_FINANCEIRO", usuario,
+                              {"tipo": tipo, "valor": str(valor)})
+            registrar_auditoria_cursor(cursor, request, "lancamento_financeiro_intimacao", "sucesso", usuario, str(identificador))
+        conexao.commit()
+    return {"id": str(lancamento_id), "ok": True}
+
+
+@router.put("/{identificador}/checklist-desistencia", dependencies=[Depends(proteger_csrf)])
+def atualizar_checklist_desistencia(
+    identificador: UUID, dados: dict, request: Request,
+    usuario: str = Depends(exigir_permissao("alterar_intimacoes")),
+):
+    permitidos = {"pedidoLocalizado", "documentosConferidos", "signatario", "notaGerada", "observacao"}
+    checklist = {chave: dados[chave] for chave in permitidos if chave in dados}
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                "UPDATE intimacoes_aeri SET checklist_desistencia=%s, atualizado_em=NOW() WHERE id=%s RETURNING protocolo",
+                (Jsonb(checklist), identificador),
+            )
+            item = cursor.fetchone()
+            if not item:
+                raise HTTPException(status_code=404, detail="Intimação não encontrada.")
+            _registrar_evento(cursor, identificador, item["protocolo"], "CHECKLIST", usuario, {"campos": sorted(checklist)})
+            registrar_auditoria_cursor(cursor, request, "checklist_desistencia", "sucesso", usuario, str(identificador))
+        conexao.commit()
+    return {"ok": True, "checklist": checklist}
 
 
 @router.get("/{identificador}/historico")

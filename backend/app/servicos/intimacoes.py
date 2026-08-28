@@ -1,6 +1,6 @@
 import re
 import unicodedata
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from fastapi import HTTPException
@@ -39,11 +39,28 @@ def fase_por_andamento(nome_andamento: str, fase_atual: str | None = None) -> st
     return atual
 
 
+def somar_dias_uteis(data_inicial: date, quantidade: int, feriados: set[date] | None = None) -> date:
+    """Soma dias úteis no servidor, com calendário persistido e versionável."""
+    feriados = feriados or set()
+    atual = data_inicial
+    adicionados = 0
+    while adicionados < quantidade:
+        atual += timedelta(days=1)
+        if atual.weekday() < 5 and atual not in feriados:
+            adicionados += 1
+    return atual
+
+
+def andamento_indica_intimacao_positiva(andamento: str) -> bool:
+    """Reconhece a expressão independentemente de acentos e caixa."""
+    return "intimacao positiva" in _texto_normalizado(andamento)
+
+
 def intimacao_json(registro: dict) -> dict:
     valor_pago_registro = registro.get("valor_pago_onr")
     valor_usado_registro = registro.get("valor_usado")
-    valor_pago = Decimal(str(VALOR_INICIAL_ONR if valor_pago_registro is None else valor_pago_registro))
-    valor_usado = Decimal(str(0 if valor_usado_registro is None else valor_usado_registro))
+    valor_pago = Decimal(str(registro.get("total_creditos", VALOR_INICIAL_ONR if valor_pago_registro is None else valor_pago_registro)))
+    valor_usado = Decimal(str(registro.get("total_repasses", 0 if valor_usado_registro is None else valor_usado_registro)))
     return {
         "id": str(registro["id"]),
         "protocolo": registro["protocolo"],
@@ -75,6 +92,8 @@ def intimacao_json(registro: dict) -> dict:
         "valorPagoOnr": float(valor_pago),
         "valorUsado": float(valor_usado),
         "saldoOs": float(valor_pago - valor_usado),
+        "excluidaEm": registro.get("excluida_em").isoformat() if registro.get("excluida_em") else None,
+        "checklistDesistencia": registro.get("checklist_desistencia") or {},
         "atualizadoEm": registro["atualizado_em"].isoformat(),
     }
 

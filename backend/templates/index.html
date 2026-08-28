@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260826-livro-ordem-v2">
+    <link rel="stylesheet" href="/static/styles.css?v=20260827-operacao-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -32,6 +32,7 @@
             <form id="form-login">
                 <label><span>Usuário</span><input id="login-usuario" autocomplete="username" required autofocus></label>
                 <label><span>Senha</span><input id="login-senha" type="password" autocomplete="current-password" required></label>
+                <label id="login-mfa-grupo" hidden><span>Código do autenticador</span><input id="login-mfa" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"></label>
                 <div id="login-erro" class="login-erro" role="alert"></div>
                 <button id="btn-login" class="btn btn-primary" type="submit">Entrar no AERI</button>
             </form>
@@ -64,7 +65,7 @@
                         <a href="https://status.onr.org.br" target="_blank" rel="noopener noreferrer">Abrir status oficial</a>
                     </section>
                 </div>
-                <span id="perfil-logado" class="perfil-logado"></span><span id="usuario-logado"></span><button id="btn-minha-senha" type="button">Alterar senha</button><button id="btn-sair" type="button">Sair</button>
+                <span id="perfil-logado" class="perfil-logado"></span><span id="usuario-logado"></span><button id="btn-meu-mfa" type="button" hidden>Ativar MFA</button><button id="btn-minha-senha" type="button">Alterar senha</button><button id="btn-sair" type="button">Sair</button>
             </div>
         </div>
     </header>
@@ -709,6 +710,12 @@
                                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                                 <input id="custas-busca" type="search" placeholder="Buscar pedido, nome, CPF/CNPJ, produto ou registro">
                             </div>
+                            <div id="custas-acoes-lote" class="custas-acoes-lote" hidden>
+                                <strong id="custas-selecionados">0 selecionados</strong>
+                                <button type="button" id="btn-custas-finalizar-lote">Finalizar</button>
+                                <button type="button" id="btn-custas-reabrir-lote">Reabrir</button>
+                                <button type="button" id="btn-custas-limpar-selecao">Limpar</button>
+                            </div>
                             <span id="custas-total-visivel" class="rotina-total"></span>
                         </div>
                         <div class="custas-table-wrap">
@@ -772,7 +779,7 @@
                     </section>
 
                     <section class="regaux-resultados-card">
-                        <div class="regaux-resultados-topo"><div><span class="eyebrow">RESULTADOS DO TEXTO</span><h2>Registros encontrados</h2></div><strong id="regaux-total-resultados">0 resultados</strong></div>
+                        <div class="regaux-resultados-topo"><div><span class="eyebrow">RESULTADOS DO TEXTO</span><h2>Registros encontrados</h2></div><div class="regaux-resultados-acoes"><button type="button" id="btn-regaux-enviar-custas" hidden>Enviar para Informar Custas</button><strong id="regaux-total-resultados">0 resultados</strong></div></div>
                         <div id="regaux-certidao-resumo" class="regaux-certidao-resumo" hidden>
                             <div><span>Resultado da busca</span><strong id="regaux-certidao-resultado">-</strong></div>
                             <div><span>Registros ativos</span><strong id="regaux-certidao-quantidade">0</strong></div>
@@ -1028,6 +1035,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260826-livro-ordem-v2"></script>
+    <script type="module" src="/static/js/app.js?v=20260827-operacao-v1"></script>
 </body>
 </html>

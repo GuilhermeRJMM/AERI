@@ -25,7 +25,7 @@ function aplicarPermissoesSidebar(dados) {
     definirModuloVisivel('poligonos', admin || Boolean(permissoes.acessar_poligonos));
     definirModuloVisivel('geradornotas', admin || Boolean(permissoes.acessar_gerador_notas));
     definirModuloVisivel('custas', admin || Boolean(permissoes.gerenciar_custas));
-    definirModuloVisivel('regaux', admin || Boolean(permissoes.gerenciar_custas));
+    definirModuloVisivel('regaux', admin || Boolean(permissoes.consultar_registro_auxiliar));
     definirModuloVisivel('rotina', admin || Boolean(permissoes.ver_intimacoes));
     definirModuloVisivel('usuarios', admin);
 
@@ -71,6 +71,8 @@ function abrirAplicacao(dados) {
     document.getElementById('perfil-logado').textContent = dados.perfil;
     atualizarSaudacaoUsuario(dados);
     aplicarPermissoesSidebar(dados);
+    document.getElementById('btn-meu-mfa').hidden = !['ADMIN', 'SUBSTITUTO'].includes(dados.perfil);
+    document.getElementById('btn-meu-mfa').textContent = dados.mfaAtivo ? 'Reconfigurar MFA' : 'Ativar MFA';
     document.getElementById('login-aeri').classList.remove('aberto');
     document.body.classList.remove('auth-pending');
     aoEntrar(dados);
@@ -128,11 +130,21 @@ async function fazerLogin(evento) {
             body: JSON.stringify({
                 usuario: document.getElementById('login-usuario').value.trim(),
                 senha: document.getElementById('login-senha').value,
+                codigoMfa: document.getElementById('login-mfa').value,
             }),
         });
         const dados = await resposta.json();
+        if (resposta.status === 428) {
+            const grupo = document.getElementById('login-mfa-grupo');
+            grupo.hidden = false;
+            document.getElementById('login-mfa').required = true;
+            document.getElementById('login-mfa').focus();
+            throw new Error(dados.detail);
+        }
         if (!resposta.ok) throw new Error(dados.detail || 'Não foi possível entrar.');
         definirCsrfToken(dados.csrfToken);
+        document.getElementById('login-mfa-grupo').hidden = true;
+        document.getElementById('login-mfa').required = false;
         document.getElementById('form-login').reset();
         abrirAplicacao(dados);
     } catch (falha) {
@@ -153,6 +165,21 @@ async function sairAeri() {
     }
 }
 
+async function configurarMeuMfa() {
+    try {
+        if (document.getElementById('btn-meu-mfa').textContent.includes('Reconfigurar')
+            && !confirm('Reconfigurar o MFA invalidará imediatamente a chave atual. Continuar?')) return;
+        const dados = await requisicaoAeri('/api/usuarios/minha-seguranca/mfa/iniciar', {method:'POST'});
+        const codigo = prompt(`Adicione esta chave no Microsoft/Google Authenticator:\n\n${dados.segredo}\n\nDigite o código de 6 dígitos gerado:`);
+        if (!codigo) return;
+        await requisicaoAeri('/api/usuarios/minha-seguranca/mfa/confirmar', {
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({codigo}),
+        });
+        alert('MFA ativado. Os próximos logins exigirão o código do autenticador.');
+        document.getElementById('btn-meu-mfa').textContent = 'MFA ativo';
+    } catch (erro) { alert(erro.message); }
+}
+
 export function estaAutenticado() {
     return autenticado;
 }
@@ -163,6 +190,7 @@ export function iniciarAutenticacao(opcoes = {}) {
     aoAtualizar = opcoes.aoAtualizar || aoAtualizar;
     document.getElementById('form-login').addEventListener('submit', fazerLogin);
     document.getElementById('btn-sair').addEventListener('click', sairAeri);
+    document.getElementById('btn-meu-mfa').addEventListener('click', configurarMeuMfa);
     window.addEventListener('aeri:sessao-expirada', abrirLogin);
     window.addEventListener('focus', sincronizarSessao);
     document.addEventListener('visibilitychange', () => {

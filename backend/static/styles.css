@@ -712,6 +712,14 @@ textarea::-webkit-scrollbar-thumb:hover {
 .imovel-resumo-item strong { display:block; margin-top:4px; color:#1e293b; font-size:.9rem; overflow-wrap:anywhere; }
 .imovel-resumo-item small,
 .imovel-linha small { display:block; margin-top:4px; color:#94a3b8; font-size:.66rem; font-weight:600; }
+.matriculas-sucessoras-links { display:flex !important; flex-wrap:wrap; gap:6px; }
+.matricula-sucessora-link {
+  border:1px solid rgba(99,102,241,.4); border-radius:999px; padding:3px 9px;
+  background:rgba(99,102,241,.12); color:#4f46e5; font:inherit; font-weight:800;
+  cursor:pointer;
+}
+.matricula-sucessora-link:hover,
+.matricula-sucessora-link:focus-visible { background:#4f46e5; color:#fff; outline:none; }
 .imovel-situacao { color:#15803d !important; }
 .imovel-situacao.encerrada { color:#b45309 !important; }
 .imovel-alertas { display:grid; gap:8px; }
@@ -2593,6 +2601,9 @@ body.modo-incorporado .layout { padding-top:28px; }
 .regaux-resultados-topo { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 18px; border-bottom:1px solid rgba(139,152,178,.14); }
 .regaux-resultados-topo h2 { margin-top:3px; color:var(--text-main); font-size:1.08rem; }
 .regaux-resultados-topo > strong { color:#8b98b0; font-size:.72rem; }
+.regaux-resultados-acoes { display:flex; align-items:center; gap:12px; }
+.regaux-resultados-acoes strong { color:#8b98b0; font-size:.72rem; }
+.regaux-resultados-acoes button { border:1px solid rgba(65,216,143,.35); border-radius:9px; background:rgba(65,216,143,.1); color:#5fe4a1; padding:8px 11px; font-size:.68rem; font-weight:800; cursor:pointer; }
 .regaux-certidao-resumo { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; padding:1px; background:rgba(139,152,178,.12); border-bottom:1px solid rgba(139,152,178,.14); }
 .regaux-certidao-resumo[hidden] { display:none; }
 .regaux-certidao-resumo > div { padding:14px 18px; background:rgba(14,22,38,.9); }
@@ -2639,6 +2650,12 @@ body.modo-incorporado .layout { padding-top:28px; }
 .custas-resumo small { font-size:.72rem; }
 .custas-planilha { overflow:hidden; border:1px solid rgba(139,152,178,.18); border-radius:18px; background:var(--surface-bg); box-shadow:var(--glass-shadow); }
 .custas-abas { display:flex; gap:6px; padding:10px 12px 0; border-bottom:1px solid rgba(139,152,178,.16); background:rgba(12,18,32,.48); }
+.custas-acoes-lote { display:flex; align-items:center; gap:7px; margin-left:auto; }
+.custas-acoes-lote[hidden] { display:none; }
+.custas-acoes-lote strong { color:#9aa8c0; font-size:.7rem; }
+.custas-acoes-lote button { border:1px solid rgba(139,152,178,.2); border-radius:8px; background:#151f33; color:#dce5f5; padding:7px 9px; font-family:inherit; font-size:.67rem; font-weight:700; cursor:pointer; }
+.custas-selecao { display:inline-flex; margin-right:8px; vertical-align:middle; }
+.custas-selecao input { accent-color:#6047e8; }
 .custas-aba { display:flex; align-items:center; gap:9px; padding:12px 16px; border:0; border-bottom:3px solid transparent; background:transparent; color:var(--text-muted); font:700 .84rem 'Outfit',sans-serif; cursor:pointer; }
 .custas-aba strong { display:grid; place-items:center; min-width:24px; height:21px; padding:0 6px; border-radius:999px; background:rgba(148,163,184,.12); color:inherit; font-size:.68rem; }
 .custas-aba.ativa { color:#fff; border-bottom-color:var(--accent-green); }

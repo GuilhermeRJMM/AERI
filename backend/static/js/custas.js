@@ -5,6 +5,7 @@ let itens = [];
 let aba = 'andamento';
 let filtroStatus = 'TODOS';
 let arquivoPendente = null;
+const selecionados = new Set();
 const formatadorData = new Intl.DateTimeFormat('pt-BR', {dateStyle:'short'});
 const STATUS_FINAIS = new Set(['DUPLICADO_DEVOLVIDO', 'RESPONDIDO', 'SEM_PAGAMENTO']);
 
@@ -90,7 +91,7 @@ function renderizar() {
         const [rotulo, cor] = STATUS[item.status] || [item.status, '#ffffff'];
         const ausente = precisaAtencao(item) ? '<span class="custas-alerta" title="Há informação ausente ou que precisa de revisão">!</span>' : '';
         return `<tr data-row-status="${escaparHtml(item.status)}" style="--custas-cor:${cor}">
-            <td data-label="Pedido"><strong class="custas-pedido">${escaparHtml(item.pedido)}</strong>${ausente}<small>${formatadorData.format(new Date(item.atualizadoEm))}</small></td>
+            <td data-label="Pedido"><label class="custas-selecao"><input type="checkbox" data-custas-selecionar="${item.id}" ${selecionados.has(item.id) ? 'checked' : ''}><span></span></label><strong class="custas-pedido">${escaparHtml(item.pedido)}</strong>${ausente}<small>${formatadorData.format(new Date(item.atualizadoEm))}</small></td>
             <td data-label="Nome" class="custas-nome">${escaparHtml(item.nome)}</td>
             <td data-label="CPF/CNPJ">${escaparHtml(item.documento)}</td>
             <td data-label="Modalidade"><span class="custas-modalidade">${escaparHtml(rotuloModalidade(item.modalidade))}</span></td>
@@ -98,11 +99,40 @@ function renderizar() {
             <td data-label="Resultado"><span class="custas-resultado ${item.resultado.toLowerCase()}">${escaparHtml(rotuloResultado(item.resultado))}</span></td>
             <td data-label="Nº registro">${escaparHtml(item.numeroRegistro || '—')}</td>
             <td data-label="Situação"><span class="custas-status"><i></i>${escaparHtml(rotulo)}</span></td>
-            <td data-label="Ações"><div class="custas-acoes"><button type="button" data-custas-acao="editar" data-custas-id="${item.id}">Editar</button>${item.finalizado
+            <td data-label="Ações"><div class="custas-acoes"><button type="button" data-custas-acao="pesquisar" data-custas-id="${item.id}">Pesquisar registros</button><button type="button" data-custas-acao="historico" data-custas-id="${item.id}">Histórico</button><button type="button" data-custas-acao="editar" data-custas-id="${item.id}">Editar</button>${item.finalizado
                 ? `<button type="button" data-custas-acao="reabrir" data-custas-id="${item.id}">Reabrir</button>`
                 : `<button type="button" class="concluir" data-custas-acao="finalizar" data-custas-id="${item.id}">Finalizar</button>`}</div></td>
         </tr>`;
     }).join('') || '<tr><td colspan="10" class="rotina-vazio">Nenhum pedido nesta lista.</td></tr>';
+    atualizarAcoesLote();
+}
+
+function atualizarAcoesLote() {
+    const area = document.getElementById('custas-acoes-lote');
+    area.hidden = selecionados.size === 0;
+    document.getElementById('custas-selecionados').textContent = `${selecionados.size} selecionado${selecionados.size === 1 ? '' : 's'}`;
+}
+
+async function executarAcaoLote(acao) {
+    if (!selecionados.size) return;
+    const verbo = acao === 'FINALIZAR' ? 'finalizar' : 'reabrir';
+    if (!confirm(`Deseja ${verbo} ${selecionados.size} pedido(s)?`)) return;
+    const aviso = notificarCustas(`${acao === 'FINALIZAR' ? 'Finalizando' : 'Reabrindo'} pedidos…`, 'info', 0);
+    try {
+        const resposta = await requisicaoAeri('/api/custas/lote', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({acao, ids:[...selecionados]}),
+        });
+        const porId = new Map(resposta.itens.map(item => [item.id, item]));
+        itens = itens.map(item => porId.get(item.id) || item);
+        selecionados.clear();
+        renderizar();
+        notificarCustas(`${resposta.quantidade} pedido(s) atualizado(s).`);
+    } catch (erro) {
+        notificarCustas(erro.message, 'erro', 5000);
+    } finally {
+        removerNotificacao(aviso);
+    }
 }
 
 export async function carregarCustas(opcoes = {}) {
@@ -151,7 +181,8 @@ async function prepararImportacao(evento) {
     botao.classList.add('carregando');
     try {
         const dados = await requisicaoAeri('/api/custas/importar', {method:'POST', headers:{'Content-Type':'application/pdf'}, body:arquivo});
-        document.getElementById('custas-importacao-resumo').textContent = `${dados.total} pedidos de penhor ou alienação foram identificados. Confira antes de adicionar.`;
+        const categorias = dados.categorias || {};
+        document.getElementById('custas-importacao-resumo').textContent = `${dados.total} identificados: ${(categorias.novos || []).length} novos, ${(categorias.existentes || []).length} existentes, ${(categorias.incompletos || []).length} incompletos e ${categorias.ignorados || 0} ignorados.`;
         document.getElementById('custas-preview-tbody').innerHTML = dados.itens.map(item => `<tr><td><strong>${escaparHtml(item.pedido)}</strong></td><td>${escaparHtml(item.nome)}<small>${escaparHtml(item.documento)}</small></td><td>${escaparHtml(rotuloModalidade(item.modalidade))}</td><td>${escaparHtml(item.produto)}<small>${escaparHtml(item.safra)}</small></td></tr>`).join('');
         const alerta = document.getElementById('custas-importacao-alerta');
         alerta.hidden = !dados.alertas.length;
@@ -224,11 +255,14 @@ async function salvarEdicao(evento) {
         status: document.getElementById('custas-edicao-status').value,
         atualizadoEm: edicaoAtualizadoEm,
     };
+    const botao = evento.submitter;
     try {
+        botao.disabled = true; botao.textContent = 'Salvando…';
         const salvo = await requisicaoAeri(`/api/custas/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados)});
         itens = itens.map(item => item.id === salvo.id ? salvo : item);
         fecharEdicao();
         renderizar();
+        notificarCustas('Salvo no banco.');
     } catch (erro) {
         if (erro.message.includes('alterado por outra pessoa') || erro.message.includes('já foi finalizado')) {
             fecharEdicao();
@@ -237,6 +271,8 @@ async function salvarEdicao(evento) {
             return;
         }
         alert(erro.message);
+    } finally {
+        botao.disabled = false; botao.textContent = 'Salvar alterações';
     }
 }
 
@@ -246,6 +282,23 @@ async function acaoTabela(evento) {
     const item = itens.find(atual => atual.id === botao.dataset.custasId);
     if (!item) return;
     if (botao.dataset.custasAcao === 'editar') return abrirEdicao(item);
+    if (botao.dataset.custasAcao === 'pesquisar') {
+        botao.disabled = true; botao.textContent = 'Pesquisando…';
+        try {
+            const resposta = await requisicaoAeri(`/api/custas/${item.id}/pesquisar-registros`, {method:'POST'});
+            itens = itens.map(atual => atual.id === item.id ? resposta.item : atual);
+            renderizar();
+            notificarCustas(`${resposta.resultado}: ${resposta.registros.length} registro(s). Valor: ${new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(resposta.valor)}.`);
+        } catch (erro) { notificarCustas(erro.message, 'erro', 5200); }
+        return;
+    }
+    if (botao.dataset.custasAcao === 'historico') {
+        try {
+            const historico = await requisicaoAeri(`/api/custas/${item.id}/historico`);
+            alert(historico.length ? historico.map(evento => `${new Date(evento.criado_em).toLocaleString('pt-BR')} · ${evento.tipo} · ${evento.usuario || 'sistema'}`).join('\n') : 'Nenhuma movimentação registrada.');
+        } catch (erro) { alert(erro.message); }
+        return;
+    }
     const acao = botao.dataset.custasAcao;
     if (acao === 'finalizar' && item.resultado === 'PENDENTE' && !STATUS_FINAIS.has(item.status)) {
         notificarCustas('Informe o resultado antes de finalizar.', 'erro', 4200);
@@ -302,6 +355,16 @@ export function iniciarCustas() {
     document.getElementById('btn-fechar-custas-edicao').addEventListener('click', fecharEdicao);
     document.getElementById('btn-cancelar-custas-edicao').addEventListener('click', fecharEdicao);
     document.getElementById('custas-tbody').addEventListener('click', acaoTabela);
+    document.getElementById('custas-tbody').addEventListener('change', evento => {
+        const caixa = evento.target.closest('[data-custas-selecionar]');
+        if (!caixa) return;
+        if (caixa.checked) selecionados.add(caixa.dataset.custasSelecionar);
+        else selecionados.delete(caixa.dataset.custasSelecionar);
+        atualizarAcoesLote();
+    });
+    document.getElementById('btn-custas-finalizar-lote').addEventListener('click', () => executarAcaoLote('FINALIZAR'));
+    document.getElementById('btn-custas-reabrir-lote').addEventListener('click', () => executarAcaoLote('REABRIR'));
+    document.getElementById('btn-custas-limpar-selecao').addEventListener('click', () => { selecionados.clear(); renderizar(); });
     document.querySelector('.custas-abas').addEventListener('click', trocarAba);
     document.getElementById('custas-legenda').addEventListener('click', trocarFiltro);
     document.getElementById('custas-busca').addEventListener('input', renderizar);

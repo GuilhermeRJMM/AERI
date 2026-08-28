@@ -1191,7 +1191,18 @@
 
   // ------------------------------------------------------ etapa 4: gerar JSON
 
-  function gerar() {
+  async function validarNoBackend(tipo, arquivo) {
+    const resposta = await fetch('/api/mapa-onr/validar-json', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo, arquivo }),
+    });
+    const dados = await resposta.json().catch(() => ({}));
+    if (!resposta.ok) throw new Error(dados.detail || 'A validação do servidor não respondeu.');
+    return dados;
+  }
+
+  async function gerar() {
     const versao = $('#versao').value;
     const cns = $('#cns').value;
     const imoveis = [];
@@ -1222,7 +1233,15 @@
     const arquivo = B.montaArquivo(cns, imoveis, versao);
     const schema = tipoAtual() === 'urbano' ? global.ONR_SCHEMA_URBANO : global.ONR_SCHEMA_RURAL;
     const v = V.valida(schema, arquivo);
-    estado.resultado = { arquivo, relatorio, validacao: v, versao };
+    estado.resultado = { arquivo, relatorio, validacao: v, validacaoBackend: null, versao };
+    try {
+      estado.resultado.validacaoBackend = await validarNoBackend(tipoAtual(), arquivo);
+    } catch (erro) {
+      estado.resultado.validacaoBackend = {
+        valido: false, errosTotal: 1,
+        erros: [{ caminho: '$', mensagem: erro.message }],
+      };
+    }
     renderResultado();
     $('#resultado').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -1422,6 +1441,7 @@
     if (!r) return;
 
     const erros = r.validacao.erros;
+    const validacaoBackend = r.validacaoBackend || { valido: false, erros: [], errosTotal: 1 };
     // O layout repete os dados do imovel dentro de CADA ato, entao um campo
     // errado na ficha do imovel viraria uma linha por ato (nove atos, nove
     // vezes a mesma coisa). A validacao continua ato a ato; aqui as ocorrencias
@@ -1443,8 +1463,23 @@
       : partes[0];
     status.textContent = partes.length
       ? r.arquivo.imoveis.length + ' ato(s) - ' + lista + ' a resolver.'
-      : 'Pronto para envio: ' + r.arquivo.imoveis.length + ' ato(s), 0 pendencia, 0 erro de schema.';
+      : validacaoBackend.valido
+        ? 'Pronto para envio: ' + r.arquivo.imoveis.length + ' ato(s), validado também no servidor.'
+        : 'O JSON não foi liberado: a validação do servidor encontrou pendência.';
     alvo.appendChild(status);
+
+    if (!validacaoBackend.valido) {
+      const d = el('details', { open: true });
+      d.appendChild(el('summary', { textContent: 'Validação do servidor ('
+        + Number(validacaoBackend.errosTotal || 1) + ' ocorrência(s))' }));
+      const ul = el('ul', { className: 'erros' });
+      for (const erro of (validacaoBackend.erros || []).slice(0, 100)) {
+        ul.appendChild(el('li', { textContent: (erro.caminho || '$') + ' - '
+          + (erro.mensagem || 'inválido') }));
+      }
+      d.appendChild(ul);
+      alvo.appendChild(d);
+    }
 
     if (doImovel.imovel.length) {
       const d = el('details', { open: true });
@@ -1493,6 +1528,10 @@
     }
 
     const json = JSON.stringify(r.arquivo, null, 2);
+    if (partes.length || !validacaoBackend.valido) {
+      alvo.appendChild(el('pre', { className: 'json', textContent: json }));
+      return;
+    }
     alvo.appendChild(el('div', { className: 'acoes' }, [
       el('button', { className: 'ligado', textContent: 'Copiar JSON', onclick: () => {
         navigator.clipboard.writeText(json).then(() => alert('JSON copiado.'),

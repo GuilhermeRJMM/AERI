@@ -243,7 +243,11 @@ export function renderizarImovel(imovel) {
         : (situacao.matricula_sucessora ? [situacao.matricula_sucessora] : []);
     const situacaoStatus = situacao.status || NAO_CONSTA;
     const situacaoOrigem = situacao.origem || NAO_CONSTA;
-    const sucessorasValor = matriculasSucessoras.length ? matriculasSucessoras.join(', ') : NAO_CONSTA;
+    const sucessorasValor = matriculasSucessoras.length
+        ? matriculasSucessoras.map(numero => `<button type="button" class="matricula-sucessora-link"
+            data-acao="abrir-matricula-sucessora" data-matricula="${escaparHtml(numero)}"
+            title="Analisar a matrícula ${escaparHtml(numero)}">${escaparHtml(numero)}</button>`).join('')
+        : escaparHtml(NAO_CONSTA);
     const alertas = (imovel.alertas || []).map(alerta => `
         <div class="imovel-alerta">
             <div><strong>${escaparHtml(alerta.tipo)}</strong><span>${escaparHtml(alerta.mensagem)}</span></div>
@@ -255,7 +259,7 @@ export function renderizarImovel(imovel) {
             <div class="imovel-resumo">
                 <div class="imovel-resumo-item"><span>Situação</span><strong class="imovel-situacao ${situacaoStatus !== 'ATIVA' ? 'encerrada' : ''}">${escaparHtml(situacaoStatus)}</strong><small>${escaparHtml(situacaoOrigem)}</small></div>
                 <div class="imovel-resumo-item"><span>Tipo</span><strong>${escaparHtml(imovel.tipo || NAO_CONSTA)}</strong></div>
-                <div class="imovel-resumo-item"><span>Matrículas sucessoras</span><strong>${escaparHtml(sucessorasValor)}</strong></div>
+                <div class="imovel-resumo-item"><span>Matrículas sucessoras</span><strong class="matriculas-sucessoras-links">${sucessorasValor}</strong></div>
             </div>
             ${alertas ? `<div class="imovel-alertas">${alertas}</div>` : ''}
             ${renderizarGrupoImovel('Identificação', grupos.identificacao)}
@@ -411,6 +415,12 @@ async function tratarAcaoResultado(evento) {
     if (botao.dataset.acao === 'exportar-relatorio') exportarRelatorio();
     if (botao.dataset.acao === 'abrir-feedback') botao.closest('.feedback-analise').querySelector('.feedback-form').hidden = false;
     if (botao.dataset.acao === 'feedback-correto') await enviarFeedback('CORRETO', botao.closest('.feedback-analise'));
+    if (botao.dataset.acao === 'abrir-matricula-sucessora') {
+        const campo = document.getElementById('numero-matricula');
+        campo.value = botao.dataset.matricula || '';
+        fecharModal();
+        await analisar({preventDefault() {}});
+    }
 }
 
 async function tratarFormularioFeedback(evento) {

@@ -1,5 +1,8 @@
 import io
 import re
+from functools import lru_cache
+from hashlib import sha256
+from pathlib import Path
 import unicodedata
 from collections import Counter
 from datetime import date, datetime, timedelta
@@ -127,6 +130,11 @@ def extrair_protocolos_pdf(pdf_bytes: bytes) -> list[dict]:
             indices_por_numero[item["numero"]] = len(linhas)
             linhas.append(item)
     return linhas
+
+
+@lru_cache(maxsize=1)
+def hash_regras_livro_protocolos() -> str:
+    return sha256(Path(__file__).read_bytes()).hexdigest()
 
 
 def inferir_data_esperada(linhas: list[dict]) -> date | None:

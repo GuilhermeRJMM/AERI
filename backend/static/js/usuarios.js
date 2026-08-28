@@ -36,7 +36,8 @@ function renderizarAtribuicoes(item) {
             data-permissao="${permissao.chave}" data-usuario="${item.usuario}"
             ${item.permissoes?.[permissao.chave] ? 'checked' : ''}
             ${permissao.auditorFixa && item.perfil === 'AUDITOR' ? 'disabled' : ''}>
-            ${escaparHtml(permissao.nome)}</label>
+            ${escaparHtml(permissao.nome)}
+            ${item.origensPermissoes?.herdadas?.[permissao.chave] ? '<small>perfil</small>' : '<small>individual</small>'}</label>
     `).join('')}</div>`;
 }
 
@@ -49,7 +50,7 @@ function desenharPermissoesFormulario(marcadas = {}) {
     const alvo = document.getElementById('usuario-permissoes-catalogo');
     alvo.innerHTML = catalogoPermissoes.map(permissao => `<label title="${escaparHtml(permissao.modulo)}">
         <input type="checkbox" data-permissao-form="${permissao.chave}"
-            ${marcadas[permissao.chave] !== false ? 'checked' : ''}>
+            ${marcadas[permissao.chave] === true ? 'checked' : ''}>
         ${escaparHtml(permissao.nome)}
     </label>`).join('');
 }
@@ -133,6 +134,7 @@ function renderizarUsuarios() {
             <td><span class="usuario-status ${item.ativo ? 'ativo' : 'inativo'}">${item.ativo ? 'Ativo' : 'Bloqueado'}</span></td>
             <td>${item.deveTrocarSenha ? '<span class="usuario-status inativo">Troca pendente</span>' : 'Definida'}</td>
             <td><div class="rotina-row-actions">
+                <button data-acao="sessoes" data-usuario="${item.usuario}">Sessões</button>
                 <button data-acao="senha" data-usuario="${item.usuario}">Redefinir senha</button>
                 <button data-acao="ativo" data-usuario="${item.usuario}" class="${item.ativo ? 'perigo' : ''}">${item.ativo ? 'Bloquear' : 'Reativar'}</button>
             </div></td>
@@ -231,6 +233,18 @@ async function acaoTabela(evento) {
             renderizarUsuarios();
         }
         if (alvo.dataset.acao === 'ativo') await atualizar(item, {ativo:!item.ativo});
+        if (alvo.dataset.acao === 'sessoes') {
+            const sessoes = await requisicaoAeri(`/api/usuarios/${item.usuario}/sessoes`);
+            const ativas = sessoes.filter(sessao => !sessao.revogada_em);
+            if (!ativas.length) return alert('Nenhuma sessão ativa neste usuário.');
+            const lista = ativas.map((sessao, indice) => `${indice + 1}. ${sessao.ip || 'IP não identificado'} · ${new Date(sessao.ultimo_acesso).toLocaleString('pt-BR')} · ${sessao.user_agent || 'dispositivo não identificado'}`).join('\n');
+            const escolha = prompt(`Sessões ativas de ${item.usuario}:\n\n${lista}\n\nDigite o número da sessão que deseja revogar, ou deixe vazio para sair.`);
+            if (!escolha) return;
+            const sessao = ativas[Number(escolha) - 1];
+            if (!sessao) return alert('Sessão inválida.');
+            await requisicaoAeri(`/api/usuarios/${item.usuario}/sessoes/${sessao.id}`, {method:'DELETE'});
+            alert('Sessão revogada.');
+        }
         if (alvo.dataset.acao === 'senha') {
             const senha = senhaTemporaria();
             if (!confirm(`Redefinir a senha de ${item.usuario}?`)) return;

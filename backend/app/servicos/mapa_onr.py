@@ -1,5 +1,9 @@
+import json
 import os
+from pathlib import Path
 import re
+
+from jsonschema import Draft7Validator
 
 
 MODO_HIBRIDO = "hibrido"
@@ -170,4 +174,38 @@ def construir_contexto_mapa_onr(texto: str, resultado_aeri: dict) -> dict:
         },
         "confrontantes": confrontantes,
         "total_pendencias": sum(1 for item in confrontantes if item["pendencia"]),
+    }
+
+
+SCHEMAS_MAPA_ONR = {
+    "urbano": Path(__file__).resolve().parents[2]
+    / "static" / "mapa_onr" / "schemas" / "imoveis-urbanos-onr.schema.json",
+    "rural": Path(__file__).resolve().parents[2]
+    / "static" / "mapa_onr" / "schemas" / "imoveis-rurais-onr.schema.json",
+}
+
+
+def validar_json_mapa_onr(tipo: str, arquivo: dict) -> dict:
+    """Valida no servidor o arquivo que o navegador pretende exportar."""
+    tipo = str(tipo or "").strip().lower()
+    if tipo not in SCHEMAS_MAPA_ONR:
+        raise ValueError("Informe se o arquivo MAPA-ONR é urbano ou rural.")
+    if not isinstance(arquivo, dict):
+        raise ValueError("O conteúdo do MAPA-ONR deve ser um objeto JSON.")
+    if len(json.dumps(arquivo, ensure_ascii=False)) > 5_000_000:
+        raise ValueError("O JSON excede o limite de 5 MB.")
+    schema = json.loads(SCHEMAS_MAPA_ONR[tipo].read_text(encoding="utf-8"))
+    erros = sorted(Draft7Validator(schema).iter_errors(arquivo), key=lambda erro: list(erro.path))
+    return {
+        "valido": not erros,
+        "tipo": tipo,
+        "erros": [
+            {
+                "caminho": ".".join(str(parte) for parte in erro.absolute_path) or "$",
+                "regra": erro.validator,
+                "mensagem": erro.message,
+            }
+            for erro in erros[:300]
+        ],
+        "errosTotal": len(erros),
     }

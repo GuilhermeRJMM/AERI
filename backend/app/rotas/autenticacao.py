@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
@@ -25,6 +27,7 @@ from backend.app.seguranca_web import (
     registrar_auditoria_cursor,
     validar_origem,
 )
+from backend.app.seguranca_mfa import decifrar_segredo, validar_totp
 
 
 router = APIRouter(prefix="/api", tags=["autenticação"])
@@ -57,6 +60,33 @@ def login(dados: dict, request: Request):
                 conexao.commit()
                 raise HTTPException(status_code=401, detail="Usuário ou senha inválidos.")
 
+            if (
+                conta.get("deve_trocar_senha")
+                and conta.get("senha_temporaria_expira_em")
+                and conta["senha_temporaria_expira_em"] <= datetime.now(timezone.utc)
+            ):
+                registrar_auditoria_cursor(cursor, request, "login", "senha_temporaria_expirada", conta["usuario"])
+                conexao.commit()
+                raise HTTPException(
+                    status_code=403,
+                    detail="A senha temporária expirou. Solicite uma nova ao administrador.",
+                )
+
+            if conta.get("mfa_ativo"):
+                try:
+                    valido_mfa = validar_totp(
+                        decifrar_segredo(conta["mfa_segredo_criptografado"]), dados.get("codigoMfa"),
+                    )
+                except RuntimeError as erro:
+                    registrar_auditoria_cursor(cursor, request, "login", "falha_mfa_configuracao", conta["usuario"])
+                    conexao.commit()
+                    raise HTTPException(status_code=503, detail=str(erro)) from erro
+                if not valido_mfa:
+                    registrar_tentativa_cursor(cursor, conta["usuario"], ip, False)
+                    registrar_auditoria_cursor(cursor, request, "login", "mfa_pendente", conta["usuario"])
+                    conexao.commit()
+                    raise HTTPException(status_code=428, detail="Informe o código de 6 dígitos do autenticador.")
+
             if not conta["senha_hash"].startswith("$argon2id$"):
                 cursor.execute(
                     "UPDATE usuarios_aeri SET senha_hash=%s WHERE usuario=%s",
@@ -73,6 +103,7 @@ def login(dados: dict, request: Request):
     resposta = JSONResponse({
         "usuario": conta["usuario"], "nome": conta["nome"], "perfil": conta["perfil"], "cargo": conta["perfil"],
         "deveTrocarSenha": conta["deve_trocar_senha"], "csrfToken": csrf,
+        "mfaAtivo": bool(conta.get("mfa_ativo")),
         "permissoes": permissoes_sessao(conta),
     })
     resposta.set_cookie(
@@ -88,6 +119,7 @@ def sessao(request: Request, usuario: str = Depends(usuario_atual)):
     return {
         "usuario": usuario, "nome": conta["nome"], "perfil": conta["perfil"], "cargo": conta["perfil"],
         "deveTrocarSenha": conta["deve_trocar_senha"], "csrfToken": csrf_atual(request),
+        "mfaAtivo": bool(conta.get("mfa_ativo")),
         "permissoes": permissoes_sessao(conta),
     }
 

@@ -4,6 +4,7 @@ import {escaparHtml} from './util.js';
 let sincronizando = false;
 let revisando = false;
 let estadoAtual = null;
+let ultimaPesquisa = null;
 
 function rotuloModalidade(valor) {
     return valor === 'ALIENAÇÃO' ? 'Alienação' : valor.charAt(0) + valor.slice(1).toLowerCase();
@@ -48,6 +49,9 @@ function renderizarResultados(dados) {
     const itens = dados.itens || [];
     const resumo = dados.resumo || {resultado:'NEGATIVA', quantidadeRegistros:0, valorCertidao:'139.93'};
     const corpo = document.getElementById('regaux-resultados');
+    ultimaPesquisa = dados;
+    const podeEnviar = ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil) || window.aeriPermissoes?.gerenciar_custas;
+    document.getElementById('btn-regaux-enviar-custas').hidden = !podeEnviar;
     document.getElementById('regaux-total-resultados').textContent = `${resumo.quantidadeRegistros} ${resumo.quantidadeRegistros === 1 ? 'resultado' : 'resultados'}`;
     document.getElementById('regaux-certidao-resumo').hidden = false;
     const resultado = document.getElementById('regaux-certidao-resultado');
@@ -72,10 +76,42 @@ function renderizarResultados(dados) {
     }).join('') || '<tr><td colspan="6" class="rotina-vazio">Nenhum Registro Auxiliar ativo encontrado com esses filtros.</td></tr>';
 }
 
+async function enviarParaCustas() {
+    if (!ultimaPesquisa) return;
+    const modalidade = document.getElementById('regaux-modalidade').value;
+    if (!['PENHOR', 'ALIENACAO'].includes(modalidade)) {
+        alert('Selecione Penhor ou Alienação antes de enviar.');
+        return;
+    }
+    const pedido = prompt('Informe o número do pedido que será criado no Informar Custas:');
+    if (!pedido) return;
+    const campos = {
+        pedido,
+        nome: document.getElementById('regaux-busca').value.trim(),
+        documento: document.getElementById('regaux-busca').value,
+        produto: document.getElementById('regaux-produto').value,
+        safra: document.getElementById('regaux-safra').value,
+        modalidade,
+    };
+    if (!confirm(`Enviar a pesquisa de ${campos.nome} para o Informar Custas como pedido ${pedido}?`)) return;
+    const botao = document.getElementById('btn-regaux-enviar-custas');
+    botao.disabled = true;
+    try {
+        const item = await requisicaoAeri('/api/custas/registro-auxiliar', {
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(campos),
+        });
+        alert(`Pedido ${item.pedido} incluído no Informar Custas com resultado ${item.resultado}.`);
+    } catch (erro) {
+        alert(erro.message);
+    } finally {
+        botao.disabled = false;
+    }
+}
+
 export async function carregarRegistrosAuxiliares(opcoes = {}) {
     const admin = ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil);
-    if (!admin && !window.aeriPermissoes?.gerenciar_custas) return;
-    document.getElementById('regaux-sincronizacao').hidden = !admin;
+    if (!admin && !window.aeriPermissoes?.consultar_registro_auxiliar) return;
+    document.getElementById('regaux-sincronizacao').hidden = !admin && !window.aeriPermissoes?.sincronizar_registro_auxiliar;
     try {
         atualizarStatus(await requisicaoAeri(
             '/api/registros-auxiliares/status',
@@ -89,6 +125,8 @@ export async function carregarRegistrosAuxiliares(opcoes = {}) {
 export function limparRegistrosAuxiliares() {
     sincronizando = false;
     estadoAtual = null;
+    ultimaPesquisa = null;
+    document.getElementById('btn-regaux-enviar-custas').hidden = true;
     document.getElementById('regaux-resultados').innerHTML = '<tr><td colspan="6" class="rotina-vazio">Entre novamente para pesquisar.</td></tr>';
     document.getElementById('regaux-certidao-resumo').hidden = true;
 }
@@ -321,4 +359,5 @@ export function iniciarRegistrosAuxiliares() {
     document.getElementById('btn-regaux-ver-erros').addEventListener('click', verErrosSincronizacao);
     document.getElementById('btn-regaux-revisar').addEventListener('click', alternarRevisao);
     document.getElementById('btn-regaux-revisar-numero').addEventListener('click', revisarNumero);
+    document.getElementById('btn-regaux-enviar-custas').addEventListener('click', enviarParaCustas);
 }

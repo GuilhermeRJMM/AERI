@@ -1,6 +1,7 @@
 import re
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from psycopg.errors import UniqueViolation
 
 from backend.app.autenticacao import (
@@ -24,6 +25,7 @@ from backend.app.permissoes import (
     substituir_permissoes_usuario_cursor,
 )
 from backend.app.seguranca_web import registrar_auditoria_cursor
+from backend.app.seguranca_mfa import cifrar_segredo, novo_segredo, uri_totp, validar_totp
 
 
 PERFIS = {"ADMIN", "SUBSTITUTO", "AUDITOR", "SUPERVISOR", "CONFERENTE", "PRODUTOR"}
@@ -31,11 +33,18 @@ router = APIRouter(prefix="/api/usuarios", tags=["usuários"], dependencies=[Dep
 
 
 def _usuario_json(item: dict) -> dict:
+    herdadas = item.get("permissoes_perfil") or {}
+    individuais = item.get("permissoes_usuario") or {}
     return {
         "usuario": item["usuario"], "nome": item["nome"], "perfil": item["perfil"], "cargo": item["perfil"],
         "ativo": item["ativo"], "deveTrocarSenha": item["deve_trocar_senha"],
         "criadoEm": item["criado_em"].isoformat(),
         "permissoes": permissoes_sessao(item),
+        "origensPermissoes": {"herdadas": herdadas, "individuais": individuais},
+        "senhaTemporariaExpiraEm": (
+            item.get("senha_temporaria_expira_em").isoformat()
+            if item.get("senha_temporaria_expira_em") else None
+        ),
     }
 
 
@@ -127,6 +136,10 @@ def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_per
                     VALUES (%s, %s, %s, %s, TRUE) RETURNING usuario""",
                     (usuario, nome, perfil, hash_senha(senha)),
                 )
+                cursor.execute(
+                    "UPDATE usuarios_aeri SET senha_temporaria_expira_em=NOW()+INTERVAL '24 hours' WHERE usuario=%s",
+                    (usuario,),
+                )
                 cursor.fetchone()
                 substituir_permissoes_usuario_cursor(cursor, usuario, perfil, permissoes)
                 item = _buscar_usuario_cursor(cursor, usuario)
@@ -150,6 +163,8 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
         raise HTTPException(status_code=422, detail="O administrador não pode remover o próprio acesso total.")
     with conectar() as conexao:
         with conexao.cursor() as cursor:
+            cursor.execute("SELECT perfil, ativo FROM usuarios_aeri WHERE usuario=%s", (usuario_alvo,))
+            anterior_usuario = cursor.fetchone()
             if request.state.sessao["perfil"] != "ADMIN":
                 cursor.execute("SELECT perfil FROM usuarios_aeri WHERE usuario=%s", (usuario_alvo.upper(),))
                 existente = cursor.fetchone()
@@ -167,7 +182,12 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
             if item and not ativo:
                 cursor.execute("UPDATE sessoes_aeri SET revogada_em=NOW() WHERE usuario=%s", (usuario_alvo,))
             if item:
-                registrar_auditoria_cursor(cursor, request, "atualizar_usuario", "sucesso", admin, usuario_alvo, {"perfil": perfil, "ativo": ativo})
+                registrar_auditoria_cursor(
+                    cursor, request, "atualizar_usuario", "sucesso", admin, usuario_alvo,
+                    {"antes": {"perfil": anterior_usuario["perfil"] if anterior_usuario else None,
+                               "ativo": anterior_usuario["ativo"] if anterior_usuario else None},
+                     "depois": {"perfil": perfil, "ativo": ativo, "permissoes": sorted(k for k,v in permissoes.items() if v)}},
+                )
         conexao.commit()
     if not item:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
@@ -201,7 +221,8 @@ def atualizar_permissao_usuario(
             item = _buscar_usuario_cursor(cursor, usuario_alvo)
             registrar_auditoria_cursor(
                 cursor, request, "alterar_permissao", "sucesso", admin,
-                usuario_alvo, {"permissao": permissao, "concedida": concedida},
+                usuario_alvo, {"antes": {"concedida": not concedida},
+                                "depois": {"permissao": permissao, "concedida": concedida}},
             )
         conexao.commit()
     return _usuario_json(item)
@@ -220,7 +241,8 @@ def redefinir_senha(usuario_alvo: str, dados: dict, request: Request, admin: str
                 if existente and existente["perfil"] in PERFIS_ADMINISTRATIVOS:
                     raise HTTPException(status_code=403, detail="Somente ADM pode redefinir senha de cargo administrativo.")
             cursor.execute(
-                """UPDATE usuarios_aeri SET senha_hash=%s, deve_trocar_senha=TRUE, atualizado_em=NOW()
+                """UPDATE usuarios_aeri SET senha_hash=%s, deve_trocar_senha=TRUE,
+                senha_temporaria_expira_em=NOW()+INTERVAL '24 hours', atualizado_em=NOW()
                 WHERE usuario=%s RETURNING usuario""", (hash_senha(senha), usuario_alvo.upper()),
             )
             item = cursor.fetchone()
@@ -255,7 +277,8 @@ def trocar_minha_senha(dados: dict, request: Request):
                 # trocada ("sua sessão expirou").
                 raise HTTPException(status_code=422, detail="Senha atual inválida.")
             cursor.execute(
-                """UPDATE usuarios_aeri SET senha_hash=%s, deve_trocar_senha=FALSE, atualizado_em=NOW()
+                """UPDATE usuarios_aeri SET senha_hash=%s, deve_trocar_senha=FALSE,
+                senha_temporaria_expira_em=NULL, atualizado_em=NOW()
                 WHERE usuario=%s""", (hash_senha(nova), usuario),
             )
             # Derruba as demais sessões (ex.: uma sessão roubada em outro
@@ -269,3 +292,100 @@ def trocar_minha_senha(dados: dict, request: Request):
             registrar_auditoria_cursor(cursor, request, "trocar_senha", "sucesso", usuario)
         conexao.commit()
     return {"ok": True}
+
+
+@router.get("/{usuario_alvo}/sessoes")
+def listar_sessoes_usuario(
+    usuario_alvo: str,
+    _admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """SELECT id, ip, user_agent, criada_em, ultimo_acesso, expira_em, revogada_em
+                FROM sessoes_aeri WHERE usuario=%s ORDER BY criada_em DESC LIMIT 50""",
+                (usuario_alvo.upper(),),
+            )
+            return [{
+                **item, "id": str(item["id"]),
+                **{campo: item[campo].isoformat() if item[campo] else None
+                   for campo in ("criada_em", "ultimo_acesso", "expira_em", "revogada_em")},
+            } for item in cursor.fetchall()]
+
+
+@router.delete("/{usuario_alvo}/sessoes/{sessao_id}", status_code=204, dependencies=[Depends(proteger_csrf)])
+def revogar_sessao_usuario(
+    usuario_alvo: str, sessao_id: UUID, request: Request,
+    admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                "UPDATE sessoes_aeri SET revogada_em=NOW() WHERE usuario=%s AND id=%s AND revogada_em IS NULL",
+                (usuario_alvo.upper(), sessao_id),
+            )
+            removidos = cursor.rowcount
+            if removidos:
+                registrar_auditoria_cursor(cursor, request, "revogar_sessao", "sucesso", admin, usuario_alvo.upper(), {"sessao": str(sessao_id)})
+        conexao.commit()
+    if not removidos:
+        raise HTTPException(status_code=404, detail="Sessão ativa não encontrada.")
+    return Response(status_code=204)
+
+
+@router.post("/minha-seguranca/mfa/iniciar", dependencies=[Depends(usuario_atual), Depends(proteger_csrf)])
+def iniciar_mfa(request: Request):
+    usuario = request.state.sessao["usuario"]
+    if request.state.sessao["perfil"] not in PERFIS_ADMINISTRATIVOS:
+        raise HTTPException(status_code=403, detail="MFA está disponível para cargos administrativos.")
+    try:
+        segredo = novo_segredo()
+        cifrado = cifrar_segredo(segredo)
+    except RuntimeError as erro:
+        raise HTTPException(status_code=503, detail=str(erro)) from erro
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                "UPDATE usuarios_aeri SET mfa_segredo_criptografado=%s, mfa_ativo=FALSE WHERE usuario=%s",
+                (cifrado, usuario),
+            )
+            registrar_auditoria_cursor(cursor, request, "iniciar_mfa", "sucesso", usuario)
+        conexao.commit()
+    return {"segredo": segredo, "uri": uri_totp(usuario, segredo)}
+
+
+@router.post("/minha-seguranca/mfa/confirmar", dependencies=[Depends(usuario_atual), Depends(proteger_csrf)])
+def confirmar_mfa(dados: dict, request: Request):
+    usuario = request.state.sessao["usuario"]
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute("SELECT mfa_segredo_criptografado FROM usuarios_aeri WHERE usuario=%s", (usuario,))
+            item = cursor.fetchone()
+            if not item or not item["mfa_segredo_criptografado"]:
+                raise HTTPException(status_code=409, detail="Inicie a configuração MFA primeiro.")
+            from backend.app.seguranca_mfa import decifrar_segredo
+            if not validar_totp(decifrar_segredo(item["mfa_segredo_criptografado"]), dados.get("codigo")):
+                raise HTTPException(status_code=422, detail="Código MFA inválido.")
+            cursor.execute("UPDATE usuarios_aeri SET mfa_ativo=TRUE WHERE usuario=%s", (usuario,))
+            registrar_auditoria_cursor(cursor, request, "ativar_mfa", "sucesso", usuario)
+        conexao.commit()
+    return {"ok": True}
+
+
+@router.delete("/{usuario_alvo}/mfa", status_code=204, dependencies=[Depends(proteger_csrf)])
+def redefinir_mfa_usuario(
+    usuario_alvo: str, request: Request,
+    admin: str = Depends(exigir_perfis("ADMIN")),
+):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                "UPDATE usuarios_aeri SET mfa_ativo=FALSE, mfa_segredo_criptografado=NULL WHERE usuario=%s",
+                (usuario_alvo.upper(),),
+            )
+            alterados = cursor.rowcount
+            registrar_auditoria_cursor(cursor, request, "redefinir_mfa", "sucesso", admin, usuario_alvo.upper())
+        conexao.commit()
+    if not alterados:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    return Response(status_code=204)

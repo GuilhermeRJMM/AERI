@@ -186,7 +186,7 @@ def pesquisar_registros_auxiliares(
     safra: str = "",
     modalidade: str = "",
     limite: int = Query(100, ge=1, le=200),
-    _usuario: str = Depends(exigir_permissao("gerenciar_custas")),
+    _usuario: str = Depends(exigir_permissao("consultar_registro_auxiliar")),
 ):
     termo = normalizar_busca(busca)[:120]
     documento = "".join(caractere for caractere in busca if caractere.isdigit())[:14]
@@ -244,7 +244,7 @@ def pesquisar_registros_auxiliares(
 
 @router.get("/status")
 def status_sincronizacao(
-    _usuario: str = Depends(exigir_permissao("gerenciar_custas")),
+    _usuario: str = Depends(exigir_permissao("consultar_registro_auxiliar")),
 ):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
@@ -253,7 +253,7 @@ def status_sincronizacao(
 
 @router.get("/erros")
 def listar_erros_sincronizacao(
-    _usuario: str = Depends(exigir_permissao("gerenciar_custas")),
+    _usuario: str = Depends(exigir_permissao("revisar_registro_auxiliar")),
 ):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
@@ -275,11 +275,33 @@ def listar_erros_sincronizacao(
             ]
 
 
+@router.get("/lacunas")
+def listar_lacunas_registros_auxiliares(
+    limite: int = Query(200, ge=1, le=500),
+    _usuario: str = Depends(exigir_permissao("revisar_registro_auxiliar")),
+):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """SELECT numero, situacao, modalidade, pessoas, produtos, safras, consultado_em
+                FROM registros_auxiliares_aeri
+                WHERE pessoas='[]'::jsonb OR produtos='[]'::jsonb OR safras='[]'::jsonb
+                   OR situacao='INDETERMINADO'
+                ORDER BY numero DESC LIMIT %s""", (limite,),
+            )
+            return [{
+                "numero": item["numero"], "situacao": item["situacao"],
+                "semEmitenteDevedor": not bool(item["pessoas"]),
+                "semProduto": not bool(item["produtos"]), "semSafra": not bool(item["safras"]),
+                "consultadoEm": item["consultado_em"].isoformat(),
+            } for item in cursor.fetchall()]
+
+
 @router.post("/{numero}/revisar", dependencies=[Depends(proteger_csrf)])
 def revisar_registro_auxiliar(
     numero: int,
     request: Request,
-    usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+    usuario: str = Depends(exigir_permissao("revisar_registro_auxiliar")),
 ):
     """Reconsulta um único número na Tri7 e regrava o índice na hora, sem
     esperar a fila sequencial de REVISÃO alcançá-lo. Útil quando se sabe que
@@ -460,7 +482,7 @@ def _executar_sincronizacao(
                         """UPDATE sincronizacao_registros_auxiliares_aeri
                         SET ultimo_existente=GREATEST(ultimo_existente,%s),
                             ultima_sincronizacao=NOW(), atualizado_em=NOW() WHERE id=1""",
-                        (max(maior_encontrado, ultimo_processado),),
+                        (maior_encontrado,),
                     )
                 elif modo == "REVISAO" and ultimo_processado is not None:
                     cursor.execute(
@@ -499,7 +521,7 @@ def _executar_sincronizacao(
 def sincronizar_registros_auxiliares(
     dados: dict,
     request: Request,
-    usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+    usuario: str = Depends(exigir_permissao("sincronizar_registro_auxiliar")),
 ):
     modo = str(dados.get("modo", "INICIAL")).strip().upper()
     if modo not in {"INICIAL", "NOVOS", "REVISAO", "ERROS"}:

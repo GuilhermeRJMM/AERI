@@ -8,22 +8,8 @@ const historicosOperacionais = new Map();
 let intimacaoCheckId = null;
 let faseAtiva = 'INTIMACAO';
 const FASES_INTIMACAO = ['INTIMACAO', 'EDITAL', 'CONSOLIDACAO'];
-const PASTA_BASE_INTIMACOES = 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\07 - 2026\\02 - Agua. pagamento (emolu informados)';
-const PASTAS_PROTOCOLOS = {
-    IN01504624C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\01 - Abertos (pagos)\\IN01504624C',
-    IN01503150C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\02 - Agua. pagamento (emolu informados)\\IN01503150C',
-    IN01473689C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\02 - Agua. pagamento (emolu informados)\\IN01473689C',
-    IN01460329C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\02 - Agua. pagamento (emolu informados)\\IN01460329C',
-    IN01430613C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\03 - Intimacao por Edital\\IN01430613C',
-    IN01422847C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\03 - Intimacao por Edital\\IN01422847C',
-    IN01401145C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\02 - Agua. pagamento (emolu informados)\\IN01401145C',
-    IN01394314C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\03 - Intimacao por Edital\\IN01394314C',
-    IN01391476C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\03 - Intimacao por Edital\\IN01391476C',
-    IN01381247C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\02 - Agua. pagamento (emolu informados)\\IN01381247C',
-    IN01369960C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\02 - Agua. pagamento (emolu informados)\\IN01369960C',
-    IN01358054C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\01 - Abertos (pagos)\\IN01358054C',
-    IN01345616C: 'T:\\Setor Apoio\\Setor Certidao\\04. Processos Intimacao\\02 - Processos SAEC\\06 - 2025\\01 - Abertos (pagos)\\IN01345616C',
-};
+let filtroSituacao = 'TODAS';
+let exibindoLixeira = false;
 
 function pode(permissao) {
     return ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil) || Boolean(window.aeriPermissoes?.[permissao]);
@@ -81,11 +67,6 @@ function renderizarCabecalho() {
     document.getElementById('rotina-cabecalho').innerHTML = titulos.map(titulo => `<th>${titulo}</th>`).join('');
 }
 
-function caminhoPastaIntimacao(protocolo) {
-    const protocoloNormalizado = String(protocolo || '').trim().toUpperCase();
-    return PASTAS_PROTOCOLOS[protocoloNormalizado] || `${PASTA_BASE_INTIMACOES}\\${protocoloNormalizado}`;
-}
-
 function botaoPastaIntimacao(item) {
     const titulo = `Abrir pasta de ${item.protocolo}`;
     return `<button class="rotina-folder-btn ativo" data-acao="abrir-pasta" data-protocolo="${escaparHtml(item.protocolo)}" title="${escaparHtml(titulo)}" aria-label="${escaparHtml(titulo)}">
@@ -97,6 +78,9 @@ function botaoPastaIntimacao(item) {
 
 function acoesIntimacao(item, incluirDetalhes = false) {
     const pendente = intimacoesPendentes.has(item.id);
+    if (exibindoLixeira) return cargoAdministrativo()
+        ? `<div class="rotina-row-actions"><button data-acao="restaurar" data-id="${item.id}">Restaurar</button></div>`
+        : '<span class="rotina-total">Somente leitura</span>';
     const disponiveis = [
         incluirDetalhes ? `<button class="rotina-detalhes-btn" data-acao="detalhes" data-id="${item.id}" aria-expanded="${detalhesAbertos.has(item.id)}">${detalhesAbertos.has(item.id) ? 'Fechar detalhes' : 'Detalhes'}</button>` : '',
         pode('conferir_intimacoes') ? `<button class="rotina-check" data-acao="conferir" data-id="${item.id}" title="Registrar conferência de hoje" ${pendente ? 'disabled' : ''}>${pendente ? 'Salvando...' : '✓ Check'}</button>` : '',
@@ -138,6 +122,14 @@ function detalhesFaseInicial(item) {
             ${campoCard('Saldo na OS', formatarMoeda(item.saldoOs), 'rotina-card-saldo')}
         </section>
         ${pode('alterar_intimacoes') ? `<section class="rotina-documentos-acoes">
+            <div><h3>Movimentação financeira</h3><p>Crédito, repasse e estorno são lançados sem sobrescrever o histórico.</p></div>
+            <button type="button" data-acao="financeiro" data-id="${item.id}">Novo lançamento</button>
+        </section>
+        <section class="rotina-documentos-acoes">
+            <div><h3>Checklist da desistência</h3><p>Pedido, documentos, signatário e nota permanecem registrados no protocolo.</p></div>
+            <button type="button" data-acao="checklist" data-id="${item.id}">Atualizar checklist</button>
+        </section>` : ''}
+        ${pode('alterar_intimacoes') ? `<section class="rotina-documentos-acoes">
             <div>
                 <h3>Documentos do processo</h3>
                 <p>Lê os PDFs do processo e o arquivo "Pedido de Desistência" em "Recebido para Intimacao". A nota abre no Word para conferir o signatário no ITI.</p>
@@ -174,6 +166,7 @@ function renderizarIntimacoes() {
         item.credor, item.devedor, item.nomeAndamento, item.certidaoDecursoPrazo,
     ]
         .some(valor => String(valor || '').toLowerCase().includes(termo)))
+        .filter(item => filtroSituacao === 'TODAS' || situacaoIntimacao(item).classe === filtroSituacao)
         .sort((a, b) => situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo));
 
     tbody.innerHTML = filtradas.map(item => {
@@ -215,7 +208,7 @@ function renderizarIntimacoes() {
 export async function carregarIntimacoes(opcoes = {}) {
     try {
         const recebidas = await requisicaoAeri(
-            '/api/intimacoes',
+            `/api/intimacoes${exibindoLixeira ? '?lixeira=true' : ''}`,
             {background:Boolean(opcoes.background)},
         );
         const atuaisPorId = new Map(intimacoes.map(item => [item.id, item]));
@@ -376,6 +369,10 @@ async function conferirIntimacao(id, novoAndamento = null) {
     const indice = intimacoes.findIndex(item => item.id === id);
     if (indice < 0 || intimacoesPendentes.has(id)) return;
     const anterior = {...intimacoes[indice], historico:[...(intimacoes[indice].historico || [])]};
+    const faseNova = novoAndamento ? fasePorAndamento(novoAndamento, anterior.fase) : anterior.fase;
+    if (faseNova !== anterior.fase && !confirm(
+        `O andamento "${novoAndamento}" moverá o protocolo de ${anterior.fase} para ${faseNova}. Confirmar?`,
+    )) return;
     const hoje = hojeLocal();
     intimacoesPendentes.add(id);
     intimacoes[indice] = {
@@ -410,7 +407,7 @@ async function conferirIntimacao(id, novoAndamento = null) {
 }
 
 async function excluirIntimacao(id) {
-    if (!confirm('Deseja excluir esta intimação?')) return;
+    if (!confirm('Mover esta intimação para a lixeira? Ela poderá ser restaurada.')) return;
     try {
         await requisicaoAeri(`/api/intimacoes/${id}`, {method:'DELETE'});
         intimacoes = intimacoes.filter(item => item.id !== id);
@@ -421,13 +418,51 @@ async function excluirIntimacao(id) {
 }
 
 async function abrirPastaIntimacao(protocolo) {
-    const caminho = caminhoPastaIntimacao(protocolo);
-    try {
-        await navigator.clipboard?.writeText(caminho);
-    } catch (falha) {
-        console.warn('Não foi possível copiar o caminho da pasta.', falha);
-    }
+    // O caminho de rede é resolvido pelo aplicativo local. Ele não fica
+    // exposto nem codificado no JavaScript servido aos navegadores.
     window.location.href = `aeri-intimacao://abrir/${encodeURIComponent(protocolo)}`;
+}
+
+async function restaurarIntimacao(id) {
+    try {
+        await requisicaoAeri(`/api/intimacoes/${id}/restaurar`, {method:'POST'});
+        intimacoes = intimacoes.filter(item => item.id !== id);
+        renderizarIntimacoes();
+    } catch (falha) { alert(falha.message); }
+}
+
+async function novoLancamentoFinanceiro(id) {
+    const tipo = prompt('Tipo do lançamento: CREDITO, REPASSE ou ESTORNO', 'REPASSE');
+    if (!tipo) return;
+    const valor = prompt('Valor do lançamento (ex.: 139,93):', '0,00');
+    if (!valor) return;
+    const descricao = prompt('Descrição do lançamento:', '') || '';
+    try {
+        await requisicaoAeri(`/api/intimacoes/${id}/financeiro`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({tipo:tipo.toUpperCase(), valor:valor.replace(',', '.'), descricao}),
+        });
+        await carregarIntimacoes();
+    } catch (erro) { alert(erro.message); }
+}
+
+async function atualizarChecklist(id) {
+    const item = intimacoes.find(atual => atual.id === id);
+    const atual = item?.checklistDesistencia || {};
+    const signatario = prompt('Nome do signatário validado no ITI:', atual.signatario || '');
+    if (signatario === null) return;
+    const dados = {
+        pedidoLocalizado: confirm('O Pedido de Desistência foi localizado?'),
+        documentosConferidos: confirm('Todos os documentos foram conferidos?'),
+        signatario,
+        notaGerada: confirm('A nota em DOCX já foi gerada?'),
+    };
+    try {
+        await requisicaoAeri(`/api/intimacoes/${id}/checklist-desistencia`, {
+            method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados),
+        });
+        await carregarIntimacoes();
+    } catch (erro) { alert(erro.message); }
 }
 
 function gerarNotaDesistencia(protocolo) {
@@ -566,9 +601,28 @@ async function tratarAcaoTabela(evento) {
     if (botao.dataset.acao === 'conferir') abrirCheckIntimacao(botao.dataset.id);
     if (botao.dataset.acao === 'editar') editarIntimacao(botao.dataset.id);
     if (botao.dataset.acao === 'excluir') excluirIntimacao(botao.dataset.id);
+    if (botao.dataset.acao === 'restaurar') restaurarIntimacao(botao.dataset.id);
+    if (botao.dataset.acao === 'financeiro') novoLancamentoFinanceiro(botao.dataset.id);
+    if (botao.dataset.acao === 'checklist') atualizarChecklist(botao.dataset.id);
 }
 
 export function iniciarIntimacoes() {
+    const busca = document.getElementById('busca-intimacao');
+    const seletor = document.createElement('select');
+    seletor.id = 'filtro-situacao-intimacao';
+    seletor.innerHTML = '<option value="TODAS">Todas as situações</option><option value="verde">Conferidas hoje</option><option value="amarelo">Vencem hoje</option><option value="vermelho">Atrasadas</option><option value="cinza">Sem atividade</option>';
+    seletor.addEventListener('change', () => { filtroSituacao = seletor.value; renderizarIntimacoes(); });
+    busca.parentElement.appendChild(seletor);
+    if (cargoAdministrativo()) {
+        const lixeira = document.createElement('button');
+        lixeira.type = 'button'; lixeira.className = 'rotina-btn-secondary'; lixeira.textContent = 'Lixeira';
+        lixeira.addEventListener('click', async () => {
+            exibindoLixeira = !exibindoLixeira;
+            lixeira.textContent = exibindoLixeira ? 'Voltar às intimações' : 'Lixeira';
+            await carregarIntimacoes();
+        });
+        busca.parentElement.appendChild(lixeira);
+    }
     document.getElementById('busca-intimacao').addEventListener('input', renderizarIntimacoes);
     document.getElementById('rotina-fases').addEventListener('click', evento => {
         const botao = evento.target.closest('button[data-fase]');

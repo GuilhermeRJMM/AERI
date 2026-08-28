@@ -20,6 +20,9 @@ CATALOGO_PERMISSOES = (
     {"chave": "acessar_gerador_notas", "nome": "Gerador de Notas", "modulo": "Registro de Imóveis", "ordem": 70},
     {"chave": "processar_incra", "nome": "INCRA", "modulo": "Rotinas", "ordem": 80},
     {"chave": "gerenciar_custas", "nome": "Informar Custas", "modulo": "Certidões", "ordem": 90},
+    {"chave": "consultar_registro_auxiliar", "nome": "Consultar Registro Auxiliar", "modulo": "Registro Auxiliar", "ordem": 91},
+    {"chave": "revisar_registro_auxiliar", "nome": "Revisar Registro Auxiliar", "modulo": "Registro Auxiliar", "ordem": 92},
+    {"chave": "sincronizar_registro_auxiliar", "nome": "Sincronizar Registro Auxiliar", "modulo": "Registro Auxiliar", "ordem": 93},
     {"chave": "ver_intimacoes", "nome": "Ver intimações", "modulo": "Intimações", "ordem": 100},
     {"chave": "criar_intimacoes", "nome": "Criar/importar intimações", "modulo": "Intimações", "ordem": 110},
     {"chave": "alterar_intimacoes", "nome": "Alterar intimações", "modulo": "Intimações", "ordem": 120},
@@ -110,6 +113,12 @@ def selecionar_usuarios_com_permissoes(
 ) -> str:
     """SELECT compartilhado por sessão e gestão, sem enumerar permissões."""
     return f"""SELECT u.*,
+        COALESCE((SELECT jsonb_object_agg(pp.permissao, TRUE)
+                  FROM perfis_permissoes_aeri pp WHERE pp.perfil=u.perfil), '{{}}'::jsonb)
+                  AS permissoes_perfil,
+        COALESCE((SELECT jsonb_object_agg(up.permissao, up.concedida)
+                  FROM usuarios_permissoes_aeri up WHERE up.usuario=u.usuario), '{{}}'::jsonb)
+                  AS permissoes_usuario,
         COALESCE((
             SELECT jsonb_object_agg(chave, TRUE)
             FROM (

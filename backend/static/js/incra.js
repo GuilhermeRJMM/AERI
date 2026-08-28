@@ -94,6 +94,7 @@ function renderizarIncra(filtro) {
                 ${Object.keys(rotulos).map(status => `<button class="incra-filtro ${status === filtro ? 'active' : ''}" data-filtro="${status}">${rotulos[status]} <b>${resultadoIncra.contagens[status]}</b></button>`).join('')}
             </div>
             <div class="incra-acoes">
+                <button data-acao="reconsultar">Reconsultar Tri7</button>
                 <button data-acao="copiar" data-filtro="${filtro}">Copiar lista</button>
                 <button data-acao="csv" data-filtro="${filtro}">Baixar CSV</button>
             </div>
@@ -104,6 +105,26 @@ function renderizarIncra(filtro) {
                 <tbody>${linhas || '<tr><td colspan="6" class="incra-vazio">Nenhum protocolo nesta categoria.</td></tr>'}</tbody>
             </table>
         </div>`;
+}
+
+async function reconsultarTri7(botao) {
+    botao.disabled = true;
+    const rotulo = botao.textContent;
+    botao.textContent = 'Reconsultando…';
+    try {
+        resultadoIncra = await requisicaoAeri('/api/incra/reconsultar', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+                paginas: resultadoIncra.paginas,
+                itens: resultadoIncra.itens,
+            }),
+        });
+        renderizarIncra(document.querySelector('.incra-filtro.active')?.dataset.filtro || 'COMUNICAR');
+    } catch (erro) {
+        alert(erro.message);
+        botao.disabled = false;
+        botao.textContent = rotulo;
+    }
 }
 
 function copiarListaIncra(filtro) {
@@ -137,6 +158,7 @@ function tratarAcaoResultado(evento) {
     const botao = evento.target.closest('button');
     if (!botao) return;
     if (botao.classList.contains('incra-filtro')) return renderizarIncra(botao.dataset.filtro);
+    if (botao.dataset.acao === 'reconsultar') return reconsultarTri7(botao);
     if (botao.dataset.acao === 'copiar') return copiarListaIncra(botao.dataset.filtro);
     if (botao.dataset.acao === 'csv') baixarCsvIncra(botao.dataset.filtro);
 }

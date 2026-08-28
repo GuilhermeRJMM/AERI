@@ -28,6 +28,93 @@ def _resultado_falha_tri7(situacao: str, rotulo: str, erro: str) -> dict:
     }
 
 
+def _enriquecer_resultado_incra(resultado: dict, cliente) -> dict:
+    consultas = {}
+    cache_textos = {}
+    for item in resultado["itens"]:
+        protocolo = item["protocolo"]
+        if protocolo not in consultas:
+            try:
+                protocolo_json = cliente.buscar_protocolo_completo(protocolo)
+                textos_matriculas = {}
+                falhas_textos = set()
+                referencias = (
+                    set()
+                    if protocolo_finalizado_sem_cancelamento(protocolo_json)
+                    else referencias_matriculas_tri7(protocolo_json)
+                )
+                for matricula in referencias:
+                    if matricula not in cache_textos:
+                        try:
+                            resposta = cliente.buscar_texto_matricula(matricula)
+                            cache_textos[matricula] = (resposta["texto"], None)
+                        except ErroTri7 as erro:
+                            cache_textos[matricula] = (None, str(erro))
+                    texto, falha = cache_textos[matricula]
+                    if texto:
+                        textos_matriculas[matricula] = texto
+                    elif falha:
+                        falhas_textos.add(matricula)
+                consultas[protocolo] = resumir_protocolo_tri7(
+                    protocolo_json,
+                    textos_matriculas=textos_matriculas,
+                    falhas_textos=falhas_textos,
+                )
+            except ProtocoloTri7NaoEncontrado:
+                consultas[protocolo] = _resultado_falha_tri7(
+                    "NAO_LOCALIZADO", "Não localizado na Tri7",
+                    "Protocolo não encontrado na Tri7.",
+                )
+            except ErroTri7 as erro:
+                consultas[protocolo] = _resultado_falha_tri7(
+                    "CONSULTA_INDISPONIVEL", "Consulta indisponível", str(erro),
+                )
+        item.update(consultas[protocolo])
+
+    resultado["consultados_tri7"] = len(consultas)
+    resultado["falhas_tri7"] = sum(1 for item in consultas.values() if item["erroTri7"])
+    resultado["contagens_tri7"] = {
+        situacao: sum(1 for item in consultas.values() if item["situacaoTri7"] == situacao)
+        for situacao in (
+            "PRATICADO", "CANCELADO_DECURSO_PRAZO", "SEM_ATO",
+            "NAO_LOCALIZADO", "CONSULTA_INDISPONIVEL",
+        )
+    }
+    return resultado
+
+
+def _validar_itens_reconsulta(dados: dict) -> dict:
+    recebidos = dados.get("itens")
+    if not isinstance(recebidos, list) or not recebidos or len(recebidos) > 5_000:
+        raise HTTPException(status_code=422, detail="Não há protocolos válidos para reconsultar.")
+    itens = []
+    status_validos = {"COMUNICAR", "REVISAR", "FORA_DAS_HIPOTESES"}
+    for recebido in recebidos:
+        if not isinstance(recebido, dict):
+            raise HTTPException(status_code=422, detail="Item de reconsulta inválido.")
+        protocolo = str(recebido.get("protocolo") or "").strip()
+        status = str(recebido.get("status") or "").strip().upper()
+        if not protocolo.isdigit() or len(protocolo) > 20 or status not in status_validos:
+            raise HTTPException(status_code=422, detail="Protocolo ou classificação de reconsulta inválido.")
+        itens.append({
+            "protocolo": protocolo,
+            "ato": str(recebido.get("ato") or "")[:300],
+            "status": status,
+            "motivo": str(recebido.get("motivo") or "")[:300],
+            "ocorrencias": max(1, min(int(recebido.get("ocorrencias") or 1), 10_000)),
+        })
+    return {
+        "paginas": max(0, int(dados.get("paginas") or 0)),
+        "lancamentos": sum(item["ocorrencias"] for item in itens),
+        "protocolos_unicos": len({item["protocolo"] for item in itens}),
+        "itens": itens,
+        "contagens": {
+            status: sum(1 for item in itens if item["status"] == status)
+            for status in status_validos
+        },
+    }
+
+
 @router.post("/analisar-incra", dependencies=[Depends(proteger_csrf)])
 async def analisar_incra(request: Request, usuario: str = Depends(exigir_permissao("processar_incra"))):
     try:
@@ -40,58 +127,7 @@ async def analisar_incra(request: Request, usuario: str = Depends(exigir_permiss
         if not pdf_bytes.startswith(b"%PDF") or b"%%EOF" not in pdf_bytes[-2048:]:
             raise HTTPException(status_code=422, detail="Envie um arquivo PDF válido.")
         resultado = extrair_protocolos(pdf_bytes)
-        cliente = cliente_tri7()
-        consultas = {}
-        cache_textos = {}
-        for item in resultado["itens"]:
-            protocolo = item["protocolo"]
-            if protocolo not in consultas:
-                try:
-                    protocolo_json = cliente.buscar_protocolo_completo(protocolo)
-                    textos_matriculas = {}
-                    falhas_textos = set()
-                    referencias = (
-                        set()
-                        if protocolo_finalizado_sem_cancelamento(protocolo_json)
-                        else referencias_matriculas_tri7(protocolo_json)
-                    )
-                    for matricula in referencias:
-                        if matricula not in cache_textos:
-                            try:
-                                resposta = cliente.buscar_texto_matricula(matricula)
-                                cache_textos[matricula] = (resposta["texto"], None)
-                            except ErroTri7 as erro:
-                                cache_textos[matricula] = (None, str(erro))
-                        texto, falha = cache_textos[matricula]
-                        if texto:
-                            textos_matriculas[matricula] = texto
-                        elif falha:
-                            falhas_textos.add(matricula)
-                    consultas[protocolo] = resumir_protocolo_tri7(
-                        protocolo_json,
-                        textos_matriculas=textos_matriculas,
-                        falhas_textos=falhas_textos,
-                    )
-                except ProtocoloTri7NaoEncontrado:
-                    consultas[protocolo] = _resultado_falha_tri7(
-                        "NAO_LOCALIZADO", "Não localizado na Tri7",
-                        "Protocolo não encontrado na Tri7.",
-                    )
-                except ErroTri7 as erro:
-                    consultas[protocolo] = _resultado_falha_tri7(
-                        "CONSULTA_INDISPONIVEL", "Consulta indisponível", str(erro),
-                    )
-            item.update(consultas[protocolo])
-
-        resultado["consultados_tri7"] = len(consultas)
-        resultado["falhas_tri7"] = sum(1 for item in consultas.values() if item["erroTri7"])
-        resultado["contagens_tri7"] = {
-            situacao: sum(1 for item in consultas.values() if item["situacaoTri7"] == situacao)
-            for situacao in (
-                "PRATICADO", "CANCELADO_DECURSO_PRAZO", "SEM_ATO",
-                "NAO_LOCALIZADO", "CONSULTA_INDISPONIVEL",
-            )
-        }
+        resultado = _enriquecer_resultado_incra(resultado, cliente_tri7())
         registrar_auditoria(
             request, "analisar_incra", "sucesso", usuario,
             detalhes={
@@ -107,3 +143,20 @@ async def analisar_incra(request: Request, usuario: str = Depends(exigir_permiss
     except Exception as exc:
         registrar_auditoria(request, "analisar_incra", "falha", usuario)
         raise HTTPException(status_code=422, detail="Não foi possível processar o PDF.") from exc
+
+
+@router.post("/api/incra/reconsultar", dependencies=[Depends(proteger_csrf)])
+def reconsultar_incra(
+    dados: dict,
+    request: Request,
+    usuario: str = Depends(exigir_permissao("processar_incra")),
+):
+    resultado = _enriquecer_resultado_incra(_validar_itens_reconsulta(dados), cliente_tri7())
+    registrar_auditoria(
+        request, "reconsultar_incra_sem_pdf", "sucesso", usuario,
+        detalhes={
+            "protocolos": resultado["protocolos_unicos"],
+            "falhasTri7": resultado["falhas_tri7"],
+        },
+    )
+    return resultado

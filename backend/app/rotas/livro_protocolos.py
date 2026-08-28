@@ -2,7 +2,8 @@ from datetime import date, datetime, timedelta
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from psycopg.types.json import Jsonb
 
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
 from backend.app.database import conectar, preparar_banco
@@ -13,6 +14,7 @@ from backend.app.servicos.livro_protocolos import (
     codigos_atos_confirmados,
     conferir_protocolo,
     extrair_protocolos_pdf,
+    hash_regras_livro_protocolos,
     inferir_data_esperada,
     janelas_livro_protocolos,
     montar_protocolos_do_dia,
@@ -31,6 +33,66 @@ router = APIRouter(
 )
 
 
+def _assinaturas_ocorrencias(resultado: dict) -> set[tuple[str, str, str]]:
+    return {
+        (str(item.get("numero")), str(ocorrencia.get("regra")), str(ocorrencia.get("descricao")))
+        for item in resultado.get("protocolos") or []
+        for ocorrencia in item.get("ocorrencias") or []
+    }
+
+
+def _salvar_rodada_livro(
+    resultado: dict, data_esperada: date, fonte: str, usuario: str,
+) -> dict:
+    identificador = uuid4()
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """SELECT id, resultado FROM livro_protocolos_rodadas_aeri
+                WHERE data_esperada=%s ORDER BY criado_em ASC LIMIT 1""",
+                (data_esperada,),
+            )
+            primeira = cursor.fetchone()
+            cursor.execute(
+                """INSERT INTO livro_protocolos_rodadas_aeri
+                (id, data_esperada, fonte, regras_hash, resultado, resumo, criado_por)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                (
+                    identificador, data_esperada, fonte, hash_regras_livro_protocolos(),
+                    Jsonb(resultado), Jsonb(resultado.get("resumo") or {}), usuario,
+                ),
+            )
+        conexao.commit()
+    comparacao = None
+    if primeira:
+        anteriores = _assinaturas_ocorrencias(primeira["resultado"])
+        atuais = _assinaturas_ocorrencias(resultado)
+        protocolos_alterados = sorted({
+            numero for numero, _regra, _descricao in anteriores.symmetric_difference(atuais)
+        }, key=lambda numero: (0, int(numero)) if numero.isdigit() else (1, numero))
+        comparacao = {
+            "primeiraRodadaId": str(primeira["id"]),
+            "novasOcorrencias": len(atuais - anteriores),
+            "ocorrenciasResolvidas": len(anteriores - atuais),
+            "protocolosAlterados": protocolos_alterados[:200],
+        }
+    return {"rodadaId": str(identificador), "comparacaoPrimeira": comparacao}
+
+
+def _resumir_resultados_livro(resultados: list[dict]) -> dict:
+    return {
+        "total": len(resultados),
+        "prenotados": sum(1 for r in resultados if r["status"] == "PRENOTADO"),
+        "registrados": sum(1 for r in resultados if r["status"] == "REGISTRADO"),
+        "semEfeito": sum(1 for r in resultados if r["status"] == "SEM_EFEITO"),
+        "indefinidos": sum(1 for r in resultados if r["status"] == "INDEFINIDO"),
+        "conferidos": sum(1 for r in resultados if r["conferido"]),
+        "falhasConsulta": sum(1 for r in resultados if r["erro"]),
+        "comOcorrencias": sum(1 for r in resultados if r["ocorrencias"]),
+        "totalOcorrencias": sum(len(r["ocorrencias"]) for r in resultados),
+    }
+
+
 def _analisar_itens_livro(
     itens: list[dict],
     data_esperada: date,
@@ -41,10 +103,17 @@ def _analisar_itens_livro(
     acao_auditoria: str = "analisar_livro_protocolos",
     fonte: str = "PDF",
     cobertura: dict | None = None,
+    salvar_rodada: bool = True,
 ) -> dict:
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            cursor.execute("SELECT titulo_tema, natureza_tema FROM livro_protocolos_excecoes_natureza_aeri")
+            cursor.execute(
+                """SELECT titulo_tema, natureza_tema
+                FROM livro_protocolos_excecoes_natureza_aeri
+                WHERE ativa=TRUE AND vigencia_inicio<=%s
+                AND (vigencia_fim IS NULL OR vigencia_fim>=%s)""",
+                (data_esperada, data_esperada),
+            )
             excecoes = frozenset((linha["titulo_tema"], linha["natureza_tema"]) for linha in cursor.fetchall())
 
     cliente = cliente or cliente_tri7()
@@ -104,17 +173,7 @@ def _analisar_itens_livro(
     atualizacao = _reindexar_registros_alterados(
         alterados, cache_textos, cliente, request, usuario,
     )
-    resumo = {
-        "total": len(resultados),
-        "prenotados": sum(1 for r in resultados if r["status"] == "PRENOTADO"),
-        "registrados": sum(1 for r in resultados if r["status"] == "REGISTRADO"),
-        "semEfeito": sum(1 for r in resultados if r["status"] == "SEM_EFEITO"),
-        "indefinidos": sum(1 for r in resultados if r["status"] == "INDEFINIDO"),
-        "conferidos": sum(1 for r in resultados if r["conferido"]),
-        "falhasConsulta": sum(1 for r in resultados if r["erro"]),
-        "comOcorrencias": sum(1 for r in resultados if r["ocorrencias"]),
-        "totalOcorrencias": sum(len(r["ocorrencias"]) for r in resultados),
-    }
+    resumo = _resumir_resultados_livro(resultados)
     detalhes_auditoria = {**resumo, "atualizacao": atualizacao, "fonte": fonte}
     if cobertura:
         detalhes_auditoria["cobertura"] = cobertura
@@ -122,7 +181,7 @@ def _analisar_itens_livro(
         request, acao_auditoria, "sucesso", usuario,
         detalhes=detalhes_auditoria,
     )
-    return {
+    retorno = {
         "dataEsperada": data_esperada.isoformat(),
         "protocolos": resultados,
         "resumo": resumo,
@@ -130,6 +189,9 @@ def _analisar_itens_livro(
         "fonte": fonte,
         "cobertura": cobertura,
     }
+    if salvar_rodada:
+        retorno.update(_salvar_rodada_livro(retorno, data_esperada, fonte, usuario))
+    return retorno
 
 def _reindexar_registros_alterados(
     alterados: set[tuple[str, int]],
@@ -271,6 +333,42 @@ def analisar_livro_protocolos_por_data(
         raise HTTPException(status_code=422, detail="Não foi possível consultar o Livro pela data.") from exc
 
 
+@router.post("/reprocessar-falhas", dependencies=[Depends(proteger_csrf)])
+def reprocessar_falhas_livro(
+    dados: dict, request: Request,
+    usuario: str = Depends(exigir_permissao("acessar_livro_protocolos")),
+):
+    try:
+        data_alvo = date.fromisoformat(str(dados.get("data") or ""))
+    except ValueError as erro:
+        raise HTTPException(status_code=422, detail="Data da rodada inválida.") from erro
+    itens = dados.get("itens") or []
+    if not isinstance(itens, list) or not itens or len(itens) > 500:
+        raise HTTPException(status_code=422, detail="Não há falhas válidas para reprocessar.")
+    permitidos = {"numero", "numeroFormatado", "data", "nomeApresentante", "status"}
+    saneados = [{chave: item.get(chave) for chave in permitidos} for item in itens if isinstance(item, dict)]
+    return _analisar_itens_livro(
+        saneados, data_alvo, request, usuario,
+        acao_auditoria="reprocessar_falhas_livro_protocolos",
+        fonte="REPROCESSAMENTO_FALHAS",
+    )
+
+
+@router.get("/rodadas")
+def listar_rodadas_livro(
+    data_alvo: date = Query(alias="data"),
+    _usuario: str = Depends(exigir_permissao("acessar_livro_protocolos")),
+):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """SELECT id, fonte, regras_hash, resumo, criado_por, criado_em
+                FROM livro_protocolos_rodadas_aeri WHERE data_esperada=%s
+                ORDER BY criado_em DESC LIMIT 30""", (data_alvo,),
+            )
+            return [{**item, "id": str(item["id"]), "criado_em": item["criado_em"].isoformat()} for item in cursor.fetchall()]
+
+
 def _excecao_json(item: dict) -> dict:
     return {
         "id": str(item["id"]),
@@ -278,6 +376,10 @@ def _excecao_json(item: dict) -> dict:
         "naturezaOriginal": item["natureza_original"],
         "criadoPor": item.get("criado_por"),
         "criadoEm": item["criado_em"].isoformat(),
+        "ativa": item.get("ativa", True),
+        "justificativa": item.get("justificativa"),
+        "vigenciaInicio": item.get("vigencia_inicio").isoformat() if item.get("vigencia_inicio") else None,
+        "vigenciaFim": item.get("vigencia_fim").isoformat() if item.get("vigencia_fim") else None,
     }
 
 
@@ -301,6 +403,15 @@ def confirmar_excecao_natureza_titulo(
 ):
     titulo_original = str(dados.get("tituloOriginal") or "").strip()
     natureza_original = str(dados.get("naturezaOriginal") or "").strip()
+    justificativa = str(
+        dados.get("justificativa")
+        or "Equivalência confirmada em conferência humana (registro legado)."
+    ).strip()[:500]
+    try:
+        vigencia_inicio = date.fromisoformat(str(dados.get("vigenciaInicio") or date.today()))
+        vigencia_fim = date.fromisoformat(str(dados["vigenciaFim"])) if dados.get("vigenciaFim") else None
+    except ValueError as erro:
+        raise HTTPException(status_code=422, detail="Vigência inválida.") from erro
     if not titulo_original or not natureza_original:
         raise HTTPException(status_code=422, detail="Informe o título e a natureza formal confirmados.")
     titulo_tema = normalizar_tema(titulo_original)
@@ -318,11 +429,16 @@ def confirmar_excecao_natureza_titulo(
         with conexao.cursor() as cursor:
             cursor.execute(
                 """INSERT INTO livro_protocolos_excecoes_natureza_aeri
-                (id, titulo_tema, natureza_tema, titulo_original, natureza_original, criado_por)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (titulo_tema, natureza_tema) DO NOTHING
+                (id, titulo_tema, natureza_tema, titulo_original, natureza_original, criado_por,
+                 ativa, justificativa, vigencia_inicio, vigencia_fim, atualizado_por, atualizado_em)
+                VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s, %s, NOW())
+                ON CONFLICT (titulo_tema, natureza_tema) DO UPDATE SET ativa=TRUE,
+                justificativa=EXCLUDED.justificativa, vigencia_inicio=EXCLUDED.vigencia_inicio,
+                vigencia_fim=EXCLUDED.vigencia_fim, atualizado_por=EXCLUDED.atualizado_por,
+                atualizado_em=NOW()
                 RETURNING *""",
-                (identificador, titulo_tema, natureza_tema, titulo_original, natureza_original, usuario),
+                (identificador, titulo_tema, natureza_tema, titulo_original, natureza_original,
+                 usuario, justificativa, vigencia_inicio, vigencia_fim, usuario),
             )
             item = cursor.fetchone()
             if item is None:
@@ -335,6 +451,11 @@ def confirmar_excecao_natureza_titulo(
                     (titulo_tema, natureza_tema),
                 )
                 item = cursor.fetchone()
+            cursor.execute(
+                "INSERT INTO livro_protocolos_excecoes_eventos_aeri (excecao_id, tipo, usuario, detalhes) VALUES (%s,'CRIACAO',%s,%s)",
+                (item["id"], usuario, Jsonb({"justificativa": justificativa, "vigenciaInicio": vigencia_inicio.isoformat(),
+                                             "vigenciaFim": vigencia_fim.isoformat() if vigencia_fim else None})),
+            )
             registrar_auditoria_cursor(
                 cursor, request, "confirmar_excecao_livro_protocolos", "sucesso",
                 usuario,
@@ -353,11 +474,41 @@ def remover_excecao_natureza_titulo(
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
-                "DELETE FROM livro_protocolos_excecoes_natureza_aeri WHERE id=%s", (identificador,)
+                "UPDATE livro_protocolos_excecoes_natureza_aeri SET ativa=FALSE, atualizado_por=%s, atualizado_em=NOW() WHERE id=%s AND ativa=TRUE",
+                (usuario, identificador),
             )
             removidos = cursor.rowcount
+            if removidos:
+                cursor.execute(
+                    "INSERT INTO livro_protocolos_excecoes_eventos_aeri (excecao_id, tipo, usuario) VALUES (%s,'DESATIVACAO',%s)",
+                    (identificador, usuario),
+                )
         conexao.commit()
     if not removidos:
         raise HTTPException(status_code=404, detail="Exceção não encontrada.")
     registrar_auditoria(request, "remover_excecao_livro_protocolos", "sucesso", usuario, str(identificador))
     return Response(status_code=204)
+
+
+@router.post("/excecoes/{identificador}/reativar", dependencies=[Depends(proteger_csrf)])
+def reativar_excecao_natureza_titulo(
+    identificador: UUID, request: Request,
+    usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                "UPDATE livro_protocolos_excecoes_natureza_aeri SET ativa=TRUE, atualizado_por=%s, atualizado_em=NOW() WHERE id=%s RETURNING *",
+                (usuario, identificador),
+            )
+            item = cursor.fetchone()
+            if item:
+                cursor.execute(
+                    "INSERT INTO livro_protocolos_excecoes_eventos_aeri (excecao_id, tipo, usuario) VALUES (%s,'REATIVACAO',%s)",
+                    (identificador, usuario),
+                )
+        conexao.commit()
+    if not item:
+        raise HTTPException(status_code=404, detail="Exceção não encontrada.")
+    registrar_auditoria(request, "reativar_excecao_livro_protocolos", "sucesso", usuario, str(identificador))
+    return _excecao_json(item)
