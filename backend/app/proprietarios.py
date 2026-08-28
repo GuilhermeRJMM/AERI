@@ -567,7 +567,19 @@ def _bloco_do_adquirente(texto):
         texto,
         re.I | re.DOTALL,
     )
-    if m: return m.group(1).strip().rstrip(';, ')
+    if m:
+        bloco_rotulado = m.group(1).strip().rstrip(';, ')
+        # Contratos do SFH usam expressões financeiras como
+        # ``FGTS dos Compradores: R$ 2.300,00`` depois da qualificação das
+        # partes. Esse ``Compradores:`` não abre uma lista de adquirentes e
+        # não pode prevalecer sobre a redação dispositiva anterior
+        # (``o imóvel ... foi adquirido por Fulano``).
+        if not re.match(
+            r'^(?:R\$|CR\$|NCZ\$|CZ\$|RECURSOS?\b|VALORES?\b)',
+            bloco_rotulado,
+            re.I,
+        ):
+            return bloco_rotulado
 
     m = re.search(r'\bvend(?:eu|eram)\s+.{0,300}?\bpara\s+(.{0,400}?)(?=\bpelo valor\b|\bpelo preço\b|;|\.\s*Dou|\.\s*O referido|\Z)', texto, re.I | re.DOTALL)
     if m: return m.group(1).strip().rstrip(';, ')

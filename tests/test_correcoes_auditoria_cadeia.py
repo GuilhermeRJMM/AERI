@@ -8,6 +8,7 @@ from backend.app.proprietarios import (
     nomes_compativeis,
     parse_percent,
 )
+from backend.app.analise.onus import processar_atos
 
 
 def ato(descricao):
@@ -15,6 +16,32 @@ def ato(descricao):
 
 
 class CorrecoesAuditoriaCadeiaTest(unittest.TestCase):
+    def test_matricula_18315_clausula_financeira_nao_oculta_compradores(self):
+        texto = (
+            "MATRÍCULA 18.315. IMÓVEL: lote. PROPRIETÁRIO: Município de "
+            "Morrinhos, CNPJ 01.789.551/0001-49.\n"
+            "R-1-18.315- DOAÇÃO. O imóvel objeto da presente matrícula foi "
+            "adquirido por EDION ARANTES DO CARMO, CPF 509.327.561-15, por "
+            "doação que lhe fez o Município de Morrinhos.\n"
+            "R-3-18.315- CONTRATO POR INSTRUMENTO PARTICULAR DE COMPRA E VENDA "
+            "DE UNIDADE ISOLADA E MÚTUO. O imóvel constante desta matrícula "
+            "foi adquirido por KENIA CANDIDA DOS SANTOS, CPF 019.045.691-45; "
+            "e LUZIANO NUNES DOS SANTOS, CPF 976.867.941-72; por compra feita "
+            "a EDION ARANTES DO CARMO, CPF 509.327.561-15, pelo preço de "
+            "R$40.000,00, sendo: Recursos da conta vinculada do FGTS dos "
+            "Compradores: R$2.300,00. Financiamento: R$34.700,00."
+        )
+
+        resultado = calcular_cadeia_dominial(processar_atos(texto), texto)
+
+        self.assertEqual(
+            {item["nome"]: item["proporcao"] for item in resultado},
+            {
+                "KENIA CANDIDA DOS SANTOS": "50%",
+                "LUZIANO NUNES DOS SANTOS": "50%",
+            },
+        )
+
     def test_grafia_historica_wilsom_e_wilson_identifica_mesma_pessoa(self):
         self.assertTrue(
             nomes_compativeis('Wilsom Alves da Costa', 'Wilson Alves da Costa')
