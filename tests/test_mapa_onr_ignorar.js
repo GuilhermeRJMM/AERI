@@ -30,7 +30,7 @@ function ambiente() {
   const imovel = {numero_matricula:'7676', dados_pessoa:[{nome_completo:'Pessoa Fictícia', cpf_cnpj:'12345678900'}]};
   const ctx = vm.createContext({
     document:{querySelector:campo, createElement:t=>new Elemento(t), createTextNode:t=>Object.assign(new Elemento('#text'), {textContent:t}), body:new Elemento('body')},
-    confirm:msg=>{confirmacoes.push(msg); return ctx.aceita;}, alert:()=>{},
+    confirm:()=>{throw new Error('confirm() e bloqueado no iframe do SYNC');}, alert:()=>{},
     navigator:{clipboard:{writeText:async s=>copiados.push(s)}},
     Blob:class { constructor(parts) { blobs.push(parts.join('')); } },
     URL:{createObjectURL:()=> 'blob:teste'},
@@ -38,7 +38,6 @@ function ambiente() {
     ONR_VALIDATOR:{valida:()=>({valido:true, erros:[]})},
     fetch:async (...args)=> { chamadas.push(args); return ctx.resposta; },
   });
-  ctx.aceita = true;
   ctx.resposta = {ok:true,json:async()=>({valido:true,erros:[]})};
   vm.runInContext(codigo.replace(boot, 'global.teste = {estado, gerar, renderResultado, assinaturaExportacao};'), ctx);
   const api = ctx.teste;
@@ -54,15 +53,12 @@ function ambiente() {
   return {ctx,api,campo,botoes,caixas,marcar,texto,copiados,baixados,blobs,confirmacoes,chamadas};
 }
 
-test('pendência bloqueia até confirmação explícita, preservando CPF e JSON originais', async()=>{
+test('marcar a caixa ignora a pendência sem modal, preservando CPF e JSON originais', async()=>{
   const a=ambiente(); await a.api.gerar();
   const original=JSON.stringify(a.api.estado.resultado.arquivo);
   assert.equal(a.botoes().length,0);
-  a.ctx.aceita=false; a.marcar();
-  assert.equal(a.caixas()[0].checked,false); assert.equal(a.botoes().length,0);
-  a.ctx.aceita=true; a.marcar();
+  a.marcar();
   assert.match(a.texto(),/liberado com ressalvas/); assert.match(a.texto(),/Ignorada — Abertura · CPF\/CNPJ · Pessoa Fictícia/);
-  assert.match(a.confirmacoes[0],/Pessoa Fictícia/);
   assert.equal(a.botoes().length,2);
   a.botoes()[0].onclick(); await Promise.resolve();
   a.botoes()[1].onclick();

@@ -1546,11 +1546,12 @@
         caixa.appendChild(el('small', { textContent: motivoLegivel(item.pendencia.motivo) }));
         check.onchange = () => {
           if (!resultadoAtual(r)) { renderResultado(); return; }
-          if (check.checked && !confirm('Ignorar esta pendência: ' + item.identificacao + '?\n\n'
-            + motivoLegivel(item.pendencia.motivo) + '\n\nO dado original será mantido no JSON. A ONR poderá rejeitar o arquivo.')) {
-            check.checked = false;
-            return;
-          }
+          // Sem confirm(): o AERI roda em iframe com sandbox sem allow-modals
+          // (e o proprio AERI ja vive sem modais dentro do SYNC, entao um
+          // sandbox aninhado nao recupera a permissao). Ali confirm() devolve
+          // false calado e a pendencia nunca era ignorada. Marcar a caixa ja e
+          // o ato explicito; o aviso do painel e o status "liberado com
+          // ressalvas" seguem informando o risco.
           if (check.checked) r.ignoradas.add(item.chave); else r.ignoradas.delete(item.chave);
           renderResultado();
         };
