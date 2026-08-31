@@ -14,7 +14,7 @@ from cryptography.fernet import Fernet
 
 from backend.app.contratos_nucleo import extrator, ficha as modelos, matricula as leitor, qualificacao, servico
 from backend.app.servicos.analise_matricula import analisar_matricula
-from backend.app.servicos.documentos_contratos import extrair_documento
+from backend.app.servicos.documentos_contratos import extrair_documento, conferir_prazo
 
 
 def cifrador():
@@ -108,8 +108,9 @@ def documento_valido(valor):
     return base==n
 
 
-def extrair_contrato(dados, progresso=None):
-    documento=extrair_documento(dados,progresso)
+def extrair_contrato(dados, progresso=None, *, permitir_ocr=True, prazo=None):
+    documento=extrair_documento(dados,progresso,permitir_ocr=permitir_ocr,prazo=prazo)
+    conferir_prazo(prazo)
     if "caixa economica federal" not in chave_texto(documento["texto"]):
         raise ValueError("Contrato fora da família CAIXA suportada. O sistema não pode presumir a instituição credora.")
     ficha=servico.para_json(extrator.extrai_do_texto(documento["texto"]))
@@ -132,6 +133,7 @@ def extrair_contrato(dados, progresso=None):
         valor=str(campo["valor"]).strip()
         paginas=[p["pagina"] for p in documento["paginas"] if valor and chave_texto(valor) in chave_texto(p["texto"])]
         evidencias[campo["campo"]]={"paginas":paginas,"origem":ficha["origens"].get(campo["campo"],ficha["origens"].get(campo["campo"].split('.')[0],"Parser — conferir documento"))}
+    conferir_prazo(prazo)
     return {"documento":documento,"fichaOriginal":ficha,"ficha":copy.deepcopy(ficha),"alertasExtracao":alertas,"evidencias":evidencias}
 
 

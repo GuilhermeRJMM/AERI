@@ -5,6 +5,8 @@
     <div id="contratos-documentos"></div><div id="contratos-recentes"></div>
   </section>
   <p id="contratos-mensagem" role="status" aria-live="polite"></p>
+  <p class="contratos-aviso">PDFs com texto são extraídos ao clicar, sem executor. Documentos digitalizados precisam de OCR, ainda não ativado.</p>
+  <button type="button" id="contratos-retomar" class="btn" hidden>Retomar extração deste trabalho</button>
   <section id="contratos-extraido" class="contratos-card" hidden><h2>2. Dados extraídos</h2><p class="contratos-aviso">Confira os campos com o documento original. A extração não substitui a conferência registral.</p>
     <div class="contratos-form"><a id="contratos-original" target="_blank" rel="noopener" class="btn">Baixar documento original</a><button type="button" id="contratos-texto-btn" class="btn">Ver texto por página</button></div>
     <div id="contratos-texto"></div><div id="contratos-alertas"></div><div id="contratos-ficha"></div>

@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 LIMITE_PAGINAS = 100
@@ -18,6 +19,15 @@ class DocumentoInvalido(ValueError):
 
 class OcrIndisponivel(RuntimeError):
     pass
+
+
+class TempoExtracaoExcedido(DocumentoInvalido):
+    pass
+
+
+def conferir_prazo(prazo):
+    if prazo is not None and time.monotonic() >= prazo:
+        raise TempoExtracaoExcedido("A extração excedeu o tempo disponível. Tente novamente pelo mesmo trabalho; nenhum dado parcial foi aprovado.")
 
 
 def texto_suficiente(texto):
@@ -67,8 +77,9 @@ def reconhecer_png(png):
         return "\n".join(" ".join(l) for l in linhas.values()), "OCR Tesseract", min(confiancas) if confiancas else None
 
 
-def extrair_documento(dados: bytes, progresso=None):
+def extrair_documento(dados: bytes, progresso=None, *, permitir_ocr=True, prazo=None):
     import pymupdf
+    conferir_prazo(prazo)
     if not dados or len(dados) > 60_000_000:
         raise DocumentoInvalido("Documento vazio ou superior a 60 MB.")
     pdf = None
@@ -78,6 +89,8 @@ def extrair_documento(dados: bytes, progresso=None):
             if pdf.needs_pass:
                 raise DocumentoInvalido("O PDF está protegido por senha.")
         else:
+            if not permitir_ocr:
+                raise OcrIndisponivel("Documento em imagem: precisa de OCR. A extração direta aceita PDF com texto; o executor de OCR não está ativado.")
             from PIL import Image
             Image.MAX_IMAGE_PIXELS = 20_000_000
             imagem = Image.open(io.BytesIO(dados))
@@ -98,17 +111,24 @@ def extrair_documento(dados: bytes, progresso=None):
             raise DocumentoInvalido("Documento precisa ter entre 1 e 100 páginas.")
         paginas = []
         for i, pagina in enumerate(pdf):
+            conferir_prazo(prazo)
             texto = pagina.get_text(sort=True)
             original = texto
             metodo, confianca = "Texto digital", None
             if not texto_suficiente(texto) and (pagina.get_images() or texto.strip() or not dados.startswith(b"%PDF")):
-                escala = min(3, 2400 / max(pagina.rect.width, 1), (12_000_000 / max(pagina.rect.width*pagina.rect.height, 1)) ** .5)
-                png = pagina.get_pixmap(matrix=pymupdf.Matrix(escala, escala), alpha=False).tobytes("png")
-                texto, metodo, confianca = reconhecer_png(png)
+                if not permitir_ocr:
+                    if pagina.get_images():
+                        raise OcrIndisponivel(f"A página {i+1} não tem texto suficiente e contém imagem: precisa de OCR. Nenhuma ficha parcial foi gerada; o executor de OCR não está ativado.")
+                    # Página digital curta (ex.: assinatura) é preservada e sinalizada.
+                else:
+                    escala = min(3, 2400 / max(pagina.rect.width, 1), (12_000_000 / max(pagina.rect.width*pagina.rect.height, 1)) ** .5)
+                    png = pagina.get_pixmap(matrix=pymupdf.Matrix(escala, escala), alpha=False).tobytes("png")
+                    texto, metodo, confianca = reconhecer_png(png)
             paginas.append({"pagina": i+1, "textoOriginal": original, "texto": normalizar_texto(texto),
                             "metodo": metodo, "confianca": confianca, "insuficiente": not texto_suficiente(texto)})
             if progresso:
                 progresso(i+1, len(pdf))
+        conferir_prazo(prazo)
         if not any(texto_suficiente(p["texto"]) for p in paginas):
             raise DocumentoInvalido("Não foi possível extrair texto suficiente. Confira a qualidade do documento.")
         return {"sha256": hashlib.sha256(dados).hexdigest(), "paginas": paginas,

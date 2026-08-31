@@ -1,5 +1,7 @@
 import json
 import hashlib
+import time
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
@@ -11,10 +13,10 @@ from backend.app.database import conectar, preparar_banco
 from backend.app.permissoes import selecionar_usuarios_com_permissoes
 from backend.app.autenticacao import permissoes_sessao
 from backend.app.seguranca_web import registrar_auditoria_cursor
-from backend.app.servicos.tri7 import cliente_tri7, ErroTri7, normalizar_numero_matricula
+from backend.app.servicos.tri7 import cliente_tri7, ClienteTri7, ErroTri7, normalizar_numero_matricula
 from backend.app.servicos.contratos import (cifrador,cifrar,decifrar,documentos_publicos,
     extrair_contrato,confrontar,ficha_de,campos_ficha,servico,aplicar_decisoes)
-from backend.app.servicos.documentos_contratos import DocumentoInvalido, OcrIndisponivel
+from backend.app.servicos.documentos_contratos import DocumentoInvalido, OcrIndisponivel, conferir_prazo
 
 router=APIRouter(prefix="/api/contratos",tags=["contratos e minutas"],dependencies=[Depends(preparar_banco)])
 acesso=exigir_permissao("acessar_contratos")
@@ -82,6 +84,12 @@ def iniciar(dados:dict,request:Request,usuario=Depends(acesso)):
     with conectar() as con:
         with con.cursor() as cur:
             cur.execute("SELECT usuario FROM usuarios_aeri WHERE usuario=%s FOR UPDATE",(usuario,))
+            # Retomar antes de contar: cinco pendentes não podem bloquear sua própria retomada.
+            cur.execute("""SELECT * FROM contratos_trabalhos_aeri WHERE usuario=%s AND protocolo=%s
+                AND documento_id=%s AND estado IN ('AGUARDANDO','PROCESSANDO') FOR UPDATE""",(usuario,protocolo,doc))
+            existente=cur.fetchone()
+            if existente:
+                return _publico(existente)
             cur.execute("SELECT COUNT(*) AS n FROM contratos_trabalhos_aeri WHERE usuario=%s AND estado IN ('AGUARDANDO','PROCESSANDO')",(usuario,))
             if cur.fetchone()["n"]>=5: raise HTTPException(429,"Aguarde os trabalhos em andamento antes de solicitar outro.")
             cur.execute("""INSERT INTO contratos_trabalhos_aeri(id,usuario,protocolo,documento_id)
@@ -92,6 +100,35 @@ def iniciar(dados:dict,request:Request,usuario=Depends(acesso)):
             registrar_auditoria_cursor(cur,request,"contrato_enfileirado","sucesso",usuario,str(trabalho["id"]),{"protocolo":protocolo,"documento":doc})
         con.commit()
     return _publico(trabalho)
+
+
+@router.post("/{id}/extrair",dependencies=[Depends(proteger_csrf)])
+def extrair_agora(id:UUID,request:Request,usuario=Depends(acesso)):
+    """Processa apenas o trabalho escolhido na própria requisição, nunca a fila inteira."""
+    try:
+        cifrador()
+        # Cliente com limites próprios; não muda timeout/token dos outros módulos.
+        config=replace(cliente_tri7().configuracao,timeout=8,tentativas_transitorias=1)
+        cli=ClienteTri7(config)
+    except ErroTri7 as exc: raise HTTPException(502,str(exc)) from exc
+    except RuntimeError as exc: raise HTTPException(503,str(exc)) from exc
+    token=uuid4()
+    with conectar() as con:
+        with con.cursor() as cur:
+            r=_buscar(cur,id,usuario,request.state.sessao['perfil'],True)
+            if r['estado'] in {'EXTRAIDO','CONFERIDO','MINUTA'}:
+                return _publico(r) # Não sobrescrever ficha/decisões já conferidas.
+            if r['trava_ate'] and r['trava_ate']>datetime.now(timezone.utc):
+                return _publico(r) # Requisição concorrente não inicia outra extração.
+            cur.execute("""UPDATE contratos_trabalhos_aeri SET estado='PROCESSANDO',erro=NULL,
+                progresso=0,trava=%s,trava_ate=NOW()+INTERVAL '90 seconds',atualizado_em=NOW()
+                WHERE id=%s""",(token,id))
+            registrar_auditoria_cursor(cur,request,"contrato_extracao_direta","iniciado",usuario,str(id))
+        con.commit()
+    _processar_contrato_reservado(r,token,cli=cli,permitir_ocr=False,prazo=time.monotonic()+45)
+    with conectar() as con:
+        with con.cursor() as cur:
+            return _publico(_buscar(cur,id,usuario,request.state.sessao['perfil']))
 
 
 @router.get("")
@@ -238,23 +275,41 @@ def processar_proximo_contrato():
                 con.commit(); return {"estado":"ACESSO_REVOGADO"}
             cur.execute("UPDATE contratos_trabalhos_aeri SET estado='PROCESSANDO',trava=%s,trava_ate=NOW()+INTERVAL '15 minutes' WHERE id=%s",(token,r["id"]))
         con.commit()
+    return _processar_contrato_reservado(r,token)
+
+
+def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=None):
+    ultima_atualizacao=0.0
     def progresso(feitas,total):
+        nonlocal ultima_atualizacao
+        conferir_prazo(prazo)
+        # PDF digital é rápido: não abrir uma conexão ao banco para cada página.
+        agora=time.monotonic()
+        if feitas != total and agora-ultima_atualizacao<2:
+            return
+        ultima_atualizacao=agora
         with conectar() as con:
             with con.cursor() as cur:
-                cur.execute("UPDATE contratos_trabalhos_aeri SET progresso=%s,trava_ate=NOW()+INTERVAL '15 minutes',atualizado_em=NOW() WHERE id=%s AND trava=%s",
+                cur.execute("UPDATE contratos_trabalhos_aeri SET progresso=%s,atualizado_em=NOW() WHERE id=%s AND trava=%s",
                             (round(feitas/total*100),r["id"],token))
                 if not cur.rowcount: raise RuntimeError("Lease perdido.")
+                if permitir_ocr:
+                    cur.execute("UPDATE contratos_trabalhos_aeri SET trava_ate=NOW()+INTERVAL '15 minutes' WHERE id=%s AND trava=%s",(r["id"],token))
             con.commit()
     erro=None; p=None
     try:
-        cli=cliente_tri7()
+        cli=cli or cliente_tri7()
+        conferir_prazo(prazo)
         docs=cli.listar_documentos_protocolo(r["protocolo"])["documentos"]
         if r["documento_id"] not in {str(d.get("ged_documento_id")) for d in docs}:
             raise ValueError("O documento não pertence mais ao protocolo.")
+        conferir_prazo(prazo)
         arquivo=cli.buscar_documento_ged(r["documento_id"])
-        p=extrair_contrato(arquivo["dados"],progresso)
+        conferir_prazo(prazo)
+        p=extrair_contrato(arquivo["dados"],progresso,permitir_ocr=permitir_ocr,prazo=prazo)
         p["origemGed"]={"protocolo":r["protocolo"],"documentoId":r["documento_id"],"metadados":next(d for d in documentos_publicos(docs) if str(d["ged_documento_id"])==r["documento_id"])}
     except (OcrIndisponivel,DocumentoInvalido,ValueError) as exc: erro=str(exc)[:250]
+    except ErroTri7 as exc: erro=str(exc)[:250]
     except Exception as exc: erro=f"Falha controlada na extração ({type(exc).__name__}). Tente novamente ou contate o suporte."
     with conectar() as con:
         with con.cursor() as cur:

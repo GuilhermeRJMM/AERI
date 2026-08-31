@@ -42,18 +42,41 @@ function desenhar(){
         $('pendencias-minuta').innerHTML=Object.values(dados.minutas).flatMap(m=>m.pendencias).map(p=>`<p class="contratos-aviso">${escaparHtml(p.campo)} — ${escaparHtml(p.motivo)}</p>`).join('');
     }
 }
-async function acompanhar(id){
+async function acompanhar(id,ate=Date.now()+95000){
     clearTimeout(timer);const atual=geracao;
     try{
         const r=await requisicaoAeri(`/api/contratos/${id}`,{background:true});if(atual!==geracao)return;trabalho=r;
-        if(['AGUARDANDO','PROCESSANDO'].includes(r.estado)){
-            mensagem(r.estado==='AGUARDANDO'?'Na fila do servidor. Se não avançar, verifique se o worker operacional está ativo.':`Extraindo o documento: ${r.progresso}%`);
-            timer=setTimeout(()=>acompanhar(id),2500);
+        if(['AGUARDANDO','PROCESSANDO','FALHA'].includes(r.estado)){
+            for(const s of ['extraido','conferencia','minutas'])$(s).hidden=true;
+        }
+        $('retomar').hidden=!['AGUARDANDO','PROCESSANDO','FALHA'].includes(r.estado);
+        if(r.estado==='AGUARDANDO'){
+            mensagem('Este trabalho ainda não foi extraído. Clique em Retomar extração; não é necessário um executor para PDFs com texto.');
+        }else if(r.estado==='PROCESSANDO'){
+            if(Date.now()<ate){mensagem(`Extraindo o documento: ${r.progresso}%. Aguarde a conclusão desta requisição.`);timer=setTimeout(()=>acompanhar(id,ate),2500);}
+            else mensagem('A extração não confirmou a conclusão no prazo. Retome este mesmo trabalho para verificar ou tentar novamente.');
         }else if(r.estado==='FALHA'){mensagem(r.erro || 'Falha na extração.');}
         else {desenhar();mensagem('Trabalho carregado. Confira os campos antes de prosseguir.');}
     }catch(e){mensagem(e.message);}
 }
-export function limparContratos(){geracao++;clearTimeout(timer);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','texto','historico','comparacoes','exigencias','alertas','pendencias-minuta'])$(s).replaceChildren();for(const s of ['minuta-venda','minuta-alienacao','matricula'])$(s).value='';$('original').removeAttribute('href');$('confirmacao').checked=false;mensagem('');}
+async function extrairSelecionado(id){
+    clearTimeout(timer);
+    for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;
+    mensagem('Obtendo o contrato no GED e extraindo o texto… Isso pode levar alguns segundos.');
+    $('mensagem').setAttribute('aria-busy','true');
+    const g=geracao;
+    const controller=new AbortController();
+    const limite=setTimeout(()=>controller.abort(),70000);
+    try{
+        trabalho=await requisicaoAeri(`/api/contratos/${id}/extrair`,{...json('POST',{}),signal:controller.signal});
+        await acompanhar(id);
+    }catch(e){
+        if(g!==geracao)return;
+        $('retomar').hidden=false;
+        mensagem(e.name==='AbortError'?'A requisição excedeu o tempo de espera. Aguarde alguns segundos e retome este mesmo trabalho, sem criar outro.':e.message);
+    }finally{clearTimeout(limite);if(g===geracao)$('mensagem').setAttribute('aria-busy','false');}
+}
+export function limparContratos(){geracao++;clearTimeout(timer);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','texto','historico','comparacoes','exigencias','alertas','pendencias-minuta'])$(s).replaceChildren();for(const s of ['minuta-venda','minuta-alienacao','matricula'])$(s).value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');mensagem('');}
 async function acao(botao,executar){botao.disabled=true;try{await executar();}catch(e){if(e.message!=='Fluxo encerrado.')mensagem(e.message);}finally{botao.disabled=false;}}
 export function iniciarContratos(){
     $('protocolo-form').addEventListener('submit',e=>{e.preventDefault();acao(e.submitter,async()=>{
@@ -61,7 +84,8 @@ export function iniciarContratos(){
         $('documentos').innerHTML=`<h3>${escaparHtml(r.titulo||'Documentos do protocolo')}</h3><p>${escaparHtml(r.mensagem)}</p>`+r.documentos.map(d=>`<div class="confronto-linha"><strong>${escaparHtml(d.tipo_documento||d.categoria||'Documento')} · versão ${escaparHtml(String(d.versao||''))}</strong><p>${escaparHtml(d.descricao||'Sem descrição')}</p><button type="button" class="btn" data-ged="${escaparHtml(String(d.ged_documento_id))}">Selecionar e extrair</button></div>`).join('');
         if(!r.documentos.length) mensagem('Nenhum documento GED vinculado ao protocolo.');
     });});
-    $('documentos').addEventListener('click',e=>{const b=e.target.closest('[data-ged]');if(b)acao(b,async()=>{trabalho=await requisicaoAeri('/api/contratos',json('POST',{protocolo,documentoId:b.dataset.ged}));await acompanhar(trabalho.id);});});
+    $('documentos').addEventListener('click',e=>{const b=e.target.closest('[data-ged]');if(b)acao(b,async()=>{geracao++;clearTimeout(timer);mensagem('Preparando extração do documento escolhido…');trabalho=await requisicaoAeri('/api/contratos',json('POST',{protocolo,documentoId:b.dataset.ged}));await extrairSelecionado(trabalho.id);});});
+    $('retomar').addEventListener('click',e=>acao(e.target,async()=>{if(trabalho)await extrairSelecionado(trabalho.id);}));
     $('recentes-btn').addEventListener('click',e=>acao(e.target,async()=>{const r=await requisicaoAeri('/api/contratos');$('recentes').innerHTML=r.map(t=>`<button class="btn" data-trabalho="${t.id}">Protocolo ${escaparHtml(t.protocolo)} · ${escaparHtml(t.estado)}</button>`).join('')||'<p>Nenhum trabalho anterior.</p>';}));
     $('recentes').addEventListener('click',e=>{const b=e.target.closest('[data-trabalho]');if(b){geracao++;acompanhar(b.dataset.trabalho);}});
     $('matricula-form').addEventListener('submit',e=>{e.preventDefault();acao(e.submitter,async()=>{

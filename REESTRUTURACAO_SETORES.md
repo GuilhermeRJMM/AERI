@@ -39,7 +39,13 @@ Alertas de Intimações usam a regra visual preexistente, agora calculada no ser
 
 ## Contratos e Minutas
 
-Fluxo: protocolo → lista GED → seleção explícita → fila de extração → conferência da ficha → texto atual da matrícula → decisões justificadas → rascunho editável → histórico.
+Fluxo: protocolo → lista GED → seleção explícita → extração digital sob demanda → conferência da ficha → texto atual da matrícula → decisões justificadas → rascunho editável → histórico.
+
+Correção de 31/08/2026: o botão registra/reaproveita o trabalho e chama `POST /api/contratos/{id}/extrair`, que processa somente aquele contrato na própria requisição. PDF com texto não depende de executor. Trabalhos pendentes anteriores podem ser retomados em “Meus trabalhos” → “Retomar extração”, inclusive quando já existem cinco pendências. O limite continua valendo para novos trabalhos.
+
+A extração direta não liga agendas e não chama OCR. Documento em imagem ou página com imagem e texto insuficiente retorna falha explicativa, sem ficha parcial. Página digital curta sem imagem é preservada e sinalizada para revisão. O worker continua disponível para futura ativação, sem ser iniciado por essa rota.
+
+Concorrência: trava de 90 segundos, revalidação do vínculo GED, gravação somente pelo detentor da trava e retorno sem sobrescrever trabalhos já extraídos/conferidos. Após interrupção, a trava expira e o mesmo trabalho pode ser retomado. Orçamento de extração verificado entre etapas: 45 segundos; cliente Tri7 isolado com timeout de 8 segundos e uma tentativa transitória, sem alterar a configuração compartilhada dos demais módulos. A tela limita a espera HTTP a 70 segundos e o acompanhamento a 95 segundos, orientando retomada em vez de polling infinito. Esses limites entre etapas não substituem o timeout de execução imposto pela hospedagem.
 
 1. O cliente Tri7 centralizado consulta os documentos vinculados ao protocolo. Mesmo com um único arquivo, a escolha é explícita; versões ou anexos não são escolhidos por adivinhação.
 2. Na seleção e no processamento, o backend verifica o vínculo do documento ao protocolo. Nome e caminho de rede originais não são expostos na listagem.
@@ -67,7 +73,7 @@ Logs de execução registram estados/identificadores, não os textos ou document
 
 ## Ativação — infraestrutura necessária
 
-Não basta publicar o frontend para ter OCR e execução contínua. O cron gratuito da Vercel não oferece a frequência de 30/60 minutos pretendida. O executor é separado e independe de navegador aberto.
+O processamento direto de PDFs com texto funciona pela requisição do usuário. OCR e execução contínua ainda precisam de executor; o cron gratuito da Vercel não oferece a frequência de 30/60 minutos pretendida. O executor separado independe de navegador aberto.
 
 1. Fazer backup e validar as migrações em banco de homologação antes de produção.
 2. Instalar `requirements.txt` em Python compatível com o projeto (3.12 em produção).
@@ -81,7 +87,8 @@ Existe também `GET /api/sistema/cron`, protegido por `Authorization: Bearer CRO
 
 ## Verificação realizada e pendências de implantação
 
-- Suíte AERI: 873 testes aprovados, 1 ignorado e 220 subtestes. Inclui isolamento por usuário, CSRF, escolhas de origem, GED inválido, fila e permissões.
+- Suíte AERI após a correção de extração: 890 testes aprovados, 1 ignorado e 220 subtestes. Inclui isolamento por usuário, CSRF, escolhas de origem, GED inválido, fila, retomada sem duplicação, lease expirada/concorrente, bloqueio de OCR e permissões.
+- Contrato real do protocolo 185.623, GED 252567: 19 páginas extraídas sem OCR em aproximadamente 4 segundos, usando leitura real da Tri7 e processamento local em memória. Modelo MO30173Av120 identificado. Isso não equivale a uma gravação autenticada da ficha no banco de produção nem a atestado de exatidão jurídica.
 - Núcleo original: 145 testes executados, 10 ignorados pelo upstream, sem falhas.
 - Contrato anexado: 19 páginas extraídas digitalmente; partes, modelo, venda e financiamento reconhecidos. Nenhuma transmissão a provedor de IA.
 - OCR Windows real: leitura da primeira página rasterizada; nenhum índice de confiança fabricado.

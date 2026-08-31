@@ -10,7 +10,7 @@ import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimac
 import {iniciarNavegacao} from './navegacao.js?v=20260831-setores-v1';
 import {carregarPainel, iniciarPainel, limparPainel} from './painel.js?v=20260831-setores-v1';
 import {carregarSistema, iniciarSistema, limparSistema} from './sistema.js?v=20260831-setores-v1';
-import {iniciarContratos, limparContratos} from './contratos.js?v=20260831-setores-v1';
+import {iniciarContratos, limparContratos} from './contratos.js?v=20260831-extracao-direta-v1';
 import {carregarPoligonos, configurarAcessoPoligonos, iniciarPoligonos, limparPoligonos} from './poligonos.js?v=20260819-poligonos-v13';
 import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260827-operacao-v1';
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260820-robustez-v1';
