@@ -15,7 +15,8 @@ from backend.app.autenticacao import permissoes_sessao
 from backend.app.seguranca_web import registrar_auditoria_cursor
 from backend.app.servicos.tri7 import cliente_tri7, ClienteTri7, ErroTri7, normalizar_numero_matricula
 from backend.app.servicos.contratos import (cifrador,cifrar,decifrar,documentos_publicos,
-    extrair_contrato,confrontar,ficha_de,campos_ficha,servico,aplicar_decisoes,VERSAO_CONFRONTO)
+    extrair_contrato,confrontar,ficha_de,campos_ficha,servico,aplicar_decisoes,VERSAO_CONFRONTO,
+    completar_juros_ausentes)
 from backend.app.servicos.documentos_contratos import DocumentoInvalido, OcrIndisponivel, conferir_prazo
 
 router=APIRouter(prefix="/api/contratos",tags=["contratos e minutas"],dependencies=[Depends(preparar_banco)])
@@ -186,6 +187,7 @@ def comparar(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
         # Metadados de extração não são sobrescritos pelo navegador.
         editada["origens"]=p["ficha"]["origens"]; editada["brutos"]=p["ficha"]["brutos"]
         p["ficha"]=editada
+        completar_juros_ausentes(p)
     except (ValueError,TypeError,KeyError) as exc: raise HTTPException(422,"Ficha inválida.") from exc
     n=numero(dados.get("matricula"))
     try:
@@ -226,6 +228,8 @@ def gerar(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
             except (TypeError,ValueError,AttributeError,KeyError) as exc:
                 raise HTTPException(422,"Revise os campos e valores da ficha.") from exc
             anteriores={c["campo"]:c["valor"] for c in campos_ficha(p["fichaOriginal"])}
+            # Complemento automatico do B9 nao e apresentado como edicao humana.
+            anteriores.update({c:d["valor"] for c,d in p.get("complementosExtracao",{}).items()})
             alteracoes=[{"campo":c["campo"],"antes":anteriores.get(c["campo"]),"depois":c["valor"],"origem":"HUMANA"}
                         for c in campos_ficha(nova) if c["valor"]!=anteriores.get(c["campo"])]
             # Contrato, matrícula e decisões permanecem lado a lado, sem sobrescrever a extração original.

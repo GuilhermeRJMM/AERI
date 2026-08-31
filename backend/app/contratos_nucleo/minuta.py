@@ -537,6 +537,11 @@ def alienacao_fiduciaria(ficha: Ficha) -> Ato:
         coletor.anota("representante da CAIXA", "não foi lido (caixa A3).")
 
     j = f.juros
+    def taxa(valor, rotulo):
+        formatada = nz.percentual(valor or "")
+        if not re.fullmatch(r"\d+(?:,\d+)?", formatada):
+            return coletor.falta(rotulo, "não identificada com segurança na coluna B9.4 (Taxa Contratada).", rotulo)
+        return formatada + "%"
     texto = (
         "ALIENAÇÃO FIDUCIÁRIA. "
         f"{rotulo}: {qualificacao}. "
@@ -554,9 +559,9 @@ def alienacao_fiduciaria(ficha: Ficha) -> Ato:
         # Os dois atos do acervo pontuam isto de jeitos diferentes, e um deles se
         # contradiz dentro de si ("a.a;" e depois "a.a.;"). O gerador usa uma
         # forma só — a divergência tipográfica fica documentada no teste.
-        f"Taxa de Juros Contratada: Nominal: {nz.percentual(j.nominal_ao_ano)}% a.a; "
-        f"Efetiva: {nz.percentual(j.efetiva_ao_ano)}% a.a; "
-        f"Efetiva: {nz.percentual(j.efetiva_ao_mes)}% a.m.; "
+        f"Taxa de Juros Contratada: Nominal: {taxa(j.nominal_ao_ano, 'taxa nominal anual')} a.a; "
+        f"Efetiva: {taxa(j.efetiva_ao_ano, 'taxa efetiva anual')} a.a; "
+        f"Efetiva: {taxa(j.efetiva_ao_mes, 'taxa efetiva mensal')} a.m.; "
         f"Encargo mensal inicial total: "
         f"{ex.moeda(f.encargo_mensal_total) if f.encargo_mensal_total else coletor.falta('encargo mensal', 'não lido (caixa B10.1).', 'encargo mensal')}; "
         f"Vencimento do Primeiro Encargo Mensal: "

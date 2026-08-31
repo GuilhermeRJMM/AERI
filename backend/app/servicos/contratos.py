@@ -15,7 +15,7 @@ from cryptography.fernet import Fernet
 from backend.app.contratos_nucleo import extrator, ficha as modelos, matricula as leitor, qualificacao, servico
 from backend.app.contratos_nucleo.comparacao import areas_iguais, designativo
 
-VERSAO_CONFRONTO = '20260831-confronto-v2'
+VERSAO_CONFRONTO = '20260831-confronto-v3-juros'
 from backend.app.servicos.analise_matricula import analisar_matricula
 from backend.app.servicos.documentos_contratos import extrair_documento, conferir_prazo
 
@@ -138,6 +138,38 @@ def extrair_contrato(dados, progresso=None, *, permitir_ocr=True, prazo=None):
         evidencias[campo["campo"]]={"paginas":paginas,"origem":ficha["origens"].get(campo["campo"],ficha["origens"].get(campo["campo"].split('.')[0],"Parser — conferir documento"))}
     conferir_prazo(prazo)
     return {"documento":documento,"fichaOriginal":ficha,"ficha":copy.deepcopy(ficha),"alertasExtracao":alertas,"evidencias":evidencias}
+
+
+def completar_juros_ausentes(payload):
+    """Rele o B9 salvo ao reconfrontar, sem substituir taxa editada pelo usuario.
+
+    A extracao original e imutavel. O complemento fica identificado em separado
+    e so e aplicado quando o trio estava inteiramente vazio, inclusive na ficha
+    original. Nao usa dados da matricula nem consulta novamente o GED.
+    """
+    campos = ("nominal_ao_ano", "efetiva_ao_ano", "efetiva_ao_mes")
+    ficha = payload.get("ficha") or {}
+    juros = ficha.get("financiamento", {}).get("juros", {})
+    originais = payload.get("fichaOriginal", {}).get("financiamento", {}).get("juros", {})
+    if any(juros.get(c) not in (None, "") or originais.get(c) not in (None, "") for c in campos):
+        return False
+    documento = payload.get("documento") or {}
+    taxa, origem = extrator._taxa_contratada(extrator._limpa(documento.get("texto", "")))
+    if not taxa:
+        return False
+    ficha.setdefault("financiamento", {}).setdefault("juros", {}).update(servico.para_json(taxa))
+    ficha.setdefault("origens", {}).pop("financiamento._alerta_juros", None)
+    ficha["origens"]["financiamento.juros"] = origem
+    caminhos = {"financiamento.juros." + c for c in campos}
+    payload["alertasExtracao"] = [a for a in payload.get("alertasExtracao", []) if a.get("campo") not in caminhos]
+    for c in campos:
+        caminho = "financiamento.juros." + c
+        valor = getattr(taxa, c)
+        payload.setdefault("complementosExtracao", {})[caminho] = {"valor": valor, "origem": origem}
+        paginas = [p["pagina"] for p in documento.get("paginas", [])
+                   if "Taxa Contratada" in p.get("texto", "") and valor in p.get("texto", "")]
+        payload.setdefault("evidencias", {})[caminho] = {"paginas": paginas, "origem": origem}
+    return True
 
 
 def valor_imovel(analise, rotulo):

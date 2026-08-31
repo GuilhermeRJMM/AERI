@@ -738,36 +738,73 @@ def _taxa_contratada(linear: str):
     O B9 mostra até quatro colunas — três são simulação, uma é o que foi
     contratado. Escolher a errada põe juros errado num registro, e nada acusa.
 
-    São dois formatos:
+    São três formatos:
 
     - **nato-digital**: os quatro rótulos vêm juntos e depois os quatro grupos
-      de valores, na mesma ordem. O contratado é o último.
+      de valores, na mesma ordem dos cabeçalhos.
+    - **nato-digital ordenado**: rótulos/valores vêm por linha, formando uma
+      matriz. Seleciona-se a coluna explicitamente chamada Taxa Contratada.
     - **digitalizado**: o OCR separa as colunas e pode largar o B9.4 muito
       depois, com o rótulo lido como "89.4". Aí o rótulo vem colado no valor.
 
     A conferência é a contagem: se há tantos grupos quantas colunas anunciadas,
-    a ordem vale e o último é o contratado. Se não bate, procura-se o valor
+    a ordem dos cabeçalhos identifica o contratado. Se não bate, procura-se o valor
     colado ao rótulo "Taxa Contratada". Não achando nenhum dos dois, devolve
     vazio — chutar taxa é pior que não ter.
     """
     regiao = _fatia(linear, "Taxa de Juros", "Encargo Mensal Inicial") or linear
-    colunas = sum(1 for c in COLUNAS_DE_JUROS if c in regiao)
+    cabecalhos = sorted((regiao.casefold().find(c.casefold()), c)
+                        for c in COLUNAS_DE_JUROS if c.casefold() in regiao.casefold())
+    colunas = len(cabecalhos)
     grupos = PADRAO_TAXA.findall(regiao)
 
-    if colunas and len(grupos) == colunas:
-        nominal, ano, mes = grupos[-1]
+    # get_text(sort=True) le a tabela por linhas: N rotulos Nominal, N
+    # valores; depois N Efetiva anual e N mensal. Exige a matriz completa e
+    # usa a coluna explicitamente rotulada, nao a maior/menor taxa.
+    if colunas and any(c == "Taxa Contratada" for _, c in cabecalhos):
+        valor = r"(\d+(?:[.,]\d+)?|N[ãa]o se aplica)"
+        def linha(rotulo):
+            return rf"(?:{rotulo}\s*){{{colunas}}}" + r"\s+".join([valor] * colunas)
+        matriz = re.search(
+            linha(r"Nominal\s*%?\s*\(a\.a\.\)") + r"\s+" +
+            linha(r"Efetiva\s*%?\s*\(a\.a\.\)") + r"\s+" +
+            linha(r"Efetiva\s*%?\s*\(a\.m\.\)") + r"(?=\s*(?:B10\b|$))",
+            regiao, re.I)
+        if matriz:
+            indice = next(i for i, (_, c) in enumerate(cabecalhos) if c == "Taxa Contratada")
+            taxas = [matriz.group(1 + indice + linha * colunas) for linha in range(3)]
+            if all(re.fullmatch(r"\d+(?:[.,]\d+)?", taxa) for taxa in taxas):
+                return (Juros(nominal_ao_ano=taxas[0], efetiva_ao_ano=taxas[1],
+                              efetiva_ao_mes=taxas[2]), "caixa B9.4 (tabela lida por linhas)")
+            return (None, "A coluna Taxa Contratada do B9 não contém três taxas numéricas. Confira o contrato.")
+
+    if colunas and len(grupos) == colunas and any(c == "Taxa Contratada" for _, c in cabecalhos):
+        indice = next(i for i, (_, c) in enumerate(cabecalhos) if c == "Taxa Contratada")
+        nominal, ano, mes = grupos[indice]
+        if not all(re.fullmatch(r"\d+(?:[.,]\d+)?", v) for v in (nominal, ano, mes)):
+            return (None, "A coluna Taxa Contratada do B9 não contém três taxas numéricas. Confira o contrato.")
         return (Juros(nominal_ao_ano=nominal, efetiva_ao_ano=ano,
                       efetiva_ao_mes=mes),
-                f"caixa B9.4 (última de {colunas} colunas)")
+                f"caixa B9.4 (coluna contratada entre {colunas} colunas)")
 
     # O rótulo pode estar fora da região, jogado pelo OCR — procura no texto
     # todo. E aparece mais de uma vez ("Taxa Contratada" rotula também a coluna
     # do B10.1), então vale a que tiver o trio de valores GRUDADO nela: é a
     # única que carrega a taxa, e as outras são só cabeçalho de coluna.
-    for marca in re.finditer(r"Taxa Contratada", linear):
+    primeiro_grupo = PADRAO_TAXA.search(regiao)
+    cabecalho_em_bloco = (colunas > 1 and primeiro_grupo
+                         and all(pos < primeiro_grupo.start() for pos, _ in cabecalhos))
+    inicio_regiao = linear.find(regiao)
+    for marca in re.finditer(r"Taxa Contratada", linear, re.I):
+        if cabecalho_em_bloco and inicio_regiao <= marca.start() < inicio_regiao + primeiro_grupo.start():
+            # Tabela incompleta: o primeiro grupo apos os quatro cabecalhos
+            # pode ser Sem Desconto. Nao o confundir com a taxa contratada.
+            continue
         vizinhanca = linear[marca.end():marca.end() + 160]
-        casou = PADRAO_TAXA.search(vizinhanca)
+        casou = PADRAO_TAXA.match(vizinhanca.lstrip(" :"))
         if casou:
+            if not all(re.fullmatch(r"\d+(?:[.,]\d+)?", casou.group(k)) for k in ("nominal", "ano", "mes")):
+                continue
             return (Juros(nominal_ao_ano=casou.group("nominal"),
                           efetiva_ao_ano=casou.group("ano"),
                           efetiva_ao_mes=casou.group("mes")),
