@@ -87,7 +87,8 @@ Existe também `GET /api/sistema/cron`, protegido por `Authorization: Bearer CRO
 - OCR Windows real: leitura da primeira página rasterizada; nenhum índice de confiança fabricado.
 - Navegador local: dashboard, dois setores, cards e fluxo de contrato com dados fictícios. Nenhum usuário ou documento operacional alterado por esses testes.
 - Migrações 041/042 executadas em PostgreSQL descartável em memória (PGlite), com usuários fictícios: preservação de acessos antigos, setores herdados, defaults de novos Supervisores, negação individual, agendas desativadas e deduplicação da fila aprovadas. O teste não carrega `.env` nem acessa a produção.
-- As migrações, o executor persistente, a renovação real de lease após reinício e o fluxo GED→banco não foram executados contra produção. São verificações de homologação necessárias antes de publicar/ativar.
+- Publicação em produção em 31/08/2026: build Python 3.12 concluído; página e arquivos novos respondendo 200; rotas protegidas respondendo 401 sem autenticação, sem erro 500 na preparação do banco. Tela de login verificada no navegador. Não equivale a homologação autenticada de todos os fluxos.
+- O executor persistente, a renovação real de lease após reinício e o fluxo completo GED→banco ainda dependem da escolha/configuração do servidor. Nenhum serviço Windows foi instalado nesta publicação. Agendas permanecem desativadas; OCR em produção não deve ser anunciado como ativo até essa configuração.
 
 Para repetir o teste SQL local: instalar a dependência de desenvolvimento com `npm install --prefix tmp/teste-postgres @electric-sql/pglite --no-audit --no-fund` e executar `node tests/test_migracoes_setores.mjs`. O banco existe apenas em memória e não usa a conexão do AERI.
 
