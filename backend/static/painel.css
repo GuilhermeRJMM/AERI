@@ -47,6 +47,26 @@
 .confronto-linha.revisar { border-left:3px solid #dfb05a;padding-left:12px; }
 .contratos-comparacao { display:grid;grid-template-columns:1fr 1fr;gap:18px; }
 .contratos-aviso { color:#efd395;line-height:1.6; }
+.contratos-compativeis { background:#142a27;border:1px solid #28554a;border-radius:12px;padding:16px;margin:18px 0;color:#bcf0db; }
+.contratos-compativeis summary { cursor:pointer;font-weight:700; }
+.contratos-situacao { display:inline-block;font-size:11px;font-weight:600;border:1px solid #455267;border-radius:6px;padding:3px 8px;margin-left:8px;color:#b9c7dc; }
+.compativel .contratos-situacao { border-color:#28554a;color:#83deb8; }
+.contratos-decisao { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:12px; }
+.contratos-decisao select,.contratos-decisao input { width:100%;min-width:0;box-sizing:border-box; }
+.contratos-geracao { margin-top:24px;padding-top:20px;border-top:1px solid #344057; }
+.contratos-geracao [role=status] { min-height:24px;color:#bdebd8;white-space:pre-wrap; }
+.contratos-geracao .contratos-erro { color:#ffb4b4; }
+.contratos-card [aria-invalid=true] { outline:2px solid #e98c8c;outline-offset:3px; }
+.contratos-card,.contratos-card details,.contratos-card label,.contratos-campos>* { min-width:0; }
+.contratos-comparacao { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.contratos-card input,.contratos-card select { max-width:100%;box-sizing:border-box; }
+.contratos-orientacao { font-size:13px;color:#9eabc0; }
+.contratos-dados-operacao { margin:12px 0;color:#b5c7e2; }
+.contratos-dados-operacao summary { cursor:pointer;font-size:13px; }
+.contratos-dados-operacao dl { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
+.contratos-dados-operacao dt { font-size:12px;color:#a4b1c5; }
+.contratos-dados-operacao dd { margin:4px 0;overflow-wrap:anywhere; }
+@media(max-width:700px) { .contratos-decisao {grid-template-columns:minmax(0,1fr);} }
 [hidden] { display:none !important; }
 @media(max-width:850px) { .ferramentas-grade {grid-template-columns:repeat(2,minmax(0,1fr));}.setor-card {padding:24px;} }
 @media(max-width:600px) { .setores-grade,.ferramentas-grade,.contratos-campos,.contratos-comparacao {grid-template-columns:1fr;}.painel-pagina {padding:26px 16px;}.sistema-atalho {flex-direction:column;}.aeri-breadcrumb {flex-wrap:wrap;font-size:12px;}.setor-card {min-height:290px;} }

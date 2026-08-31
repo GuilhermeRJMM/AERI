@@ -15,7 +15,7 @@ from backend.app.autenticacao import permissoes_sessao
 from backend.app.seguranca_web import registrar_auditoria_cursor
 from backend.app.servicos.tri7 import cliente_tri7, ClienteTri7, ErroTri7, normalizar_numero_matricula
 from backend.app.servicos.contratos import (cifrador,cifrar,decifrar,documentos_publicos,
-    extrair_contrato,confrontar,ficha_de,campos_ficha,servico,aplicar_decisoes)
+    extrair_contrato,confrontar,ficha_de,campos_ficha,servico,aplicar_decisoes,VERSAO_CONFRONTO)
 from backend.app.servicos.documentos_contratos import DocumentoInvalido, OcrIndisponivel, conferir_prazo
 
 router=APIRouter(prefix="/api/contratos",tags=["contratos e minutas"],dependencies=[Depends(preparar_banco)])
@@ -42,7 +42,8 @@ def _publico(r):
         if payload.get("confronto"):
             payload["confronto"].pop("texto",None)
     return {"id":str(r["id"]),"protocolo":r["protocolo"],"documentoId":r["documento_id"],
-            "estado":r["estado"],"versao":r["versao"],"progresso":r["progresso"],"erro":r["erro"],"dados":payload}
+            "estado":r["estado"],"versao":r["versao"],"progresso":r["progresso"],"erro":r["erro"],"dados":payload,
+            "confrontoAtual":payload.get('confronto',{}).get('versaoRegras')==VERSAO_CONFRONTO}
 
 
 def _versao(r,dados):
@@ -211,6 +212,8 @@ def gerar(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
             r=_buscar(cur,id,usuario,request.state.sessao["perfil"],True); _versao(r,dados)
             p=decifrar(r["payload_cifrado"])
             if not p.get("confronto"): raise HTTPException(409,"Consulte a matrícula e confira os dados antes de gerar.")
+            if p['confronto'].get('versaoRegras') != VERSAO_CONFRONTO:
+                raise HTTPException(409,"A conferência foi feita com regras anteriores. Clique em Confrontar com a matrícula novamente.")
             decisoes=dados.get("decisoes") or {}
             ficha=dados.get("ficha")
             if not isinstance(ficha,dict): raise HTTPException(422,"Ficha inválida.")

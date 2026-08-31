@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from . import normaliza as nz
 from .ficha import Empresa, Ficha
 from .matricula import Matricula
+from .comparacao import area_m2, areas_iguais, designativo
 
 # Graus, do mais duro ao mais brando.
 IMPEDE = "impede"      # não há registro possível enquanto não se resolver
@@ -273,10 +274,11 @@ ONDE_FICA = re.compile(
     r"d[oae]s?\s+(?P<bairro>[^,]+?)\s*,", re.I)
 
 # "uma CASA RESIDENCIAL de n.º 162" / "UMA CASA RESIDENCIAL DE Nº 162"
-NUMERO_DA_CASA = re.compile(r"\bCASA\b.{0,60}?\bn\.?\s*[ºo°]\s*(\d[\d.]*)",
+NUMERO_DA_CASA = re.compile(r"\bCASA\b.{0,80}?\bn\.?\s*[ºo°]?\s*(\d[\d.]*)",
                             re.I | re.S)
 AREA_CONSTRUIDA = re.compile(
-    r"([\d.]*\d,\d+)\s*m\s*[²2]\s*(?:de\s+)?[áa]rea\s+constru[íi]da", re.I)
+    r"([\d.,]+)\s*m\s*[²2]\s*(?:de\s+)?[áa]rea\s+constru[íi]da"
+    r"|[áa]rea\s+constru[íi]da\s+(?:de\s+)?([\d.,]+)\s*m\s*[²2]", re.I)
 
 # "125,00m² (cento e vinte e cinco metros quadrados)"
 AREA_COM_EXTENSO = re.compile(
@@ -354,10 +356,14 @@ def _confere_edificacao(ficha: Ficha, m: Matricula, c: Conferencia) -> None:
         no_folio = padrao.search(ato.texto)
         if not no_contrato or not no_folio:
             continue
-        if _chave(no_contrato.group(1)) != _chave(no_folio.group(1)):
+        valor_contrato = next(g for g in no_contrato.groups() if g)
+        valor_folio = next(g for g in no_folio.groups() if g)
+        iguais = (areas_iguais(valor_contrato+' m²', valor_folio+' m²')
+                  if nome == 'área construída' else designativo(valor_contrato) == designativo(valor_folio))
+        if not iguais:
             diferencas.append(
-                f"{nome}: o contrato diz {no_contrato.group(1)} e o "
-                f"{ato.rotulo} averbou {no_folio.group(1)}")
+                f"{nome}: o contrato diz {valor_contrato} e o "
+                f"{ato.rotulo} averbou {valor_folio}")
 
     if diferencas:
         c.acrescenta(
@@ -398,33 +404,35 @@ def _confere_remissao_ao_ato(ficha: Ficha, m: Matricula, c: Conferencia) -> None
     numero = int(casou.group("numero"))
     citado = f"{casou.group('especie').upper()}.{numero:02d}"
 
-    presentes = {ato.numero: ato for ato in m.atos}
-    if numero not in presentes:
+    presentes = {(ato.especie, ato.numero): ato for ato in m.atos}
+    alvo = presentes.get((casou.group('especie').upper(), numero))
+    contexto = ficha.brutos.get('imovel', '')[:casou.start()]
+    referencia_edificacao = casou.group('especie').upper() == 'AV' and bool(re.search(r'\bCASA\b.*\bEDIFICAD', contexto, re.I | re.S))
+    if alvo is None:
         # A certidão pode ser parcial — o fólio da 28.596 começa na AV.02, sem
         # AV.01. Dizer "esse ato não existe" seria acusar o que não se sabe.
         c.acrescenta(
             "Ato citado não consta da certidão",
-            f"o título descreve o imóvel como havido conforme o {citado} da "
-            f"matrícula {m.numero}, e esse ato não aparece na certidão "
-            f"apresentada. Confira se ela está completa e atualizada.",
+            f"o título faz referência {'à edificação' if referencia_edificacao else 'ao imóvel'} conforme o {citado} da "
+            f"matrícula {m.numero}. Não foi possível localizar esse ato no texto "
+            f"consultado; confira na Tri7 antes de concluir que há omissão.",
             "Lei 6.015/1973, art. 225", ATENCAO)
         return
 
     edificacao = m.averbacao("EDIFICAÇÃO", "CONSTRUÇÃO")
     if not edificacao:
         return
-    if not re.search(r"\bCASA\b", ficha.brutos.get("imovel", ""), re.I):
+    if not referencia_edificacao:
         return
-    if presentes[numero] is edificacao:
+    if any(t in nz.sem_acento(alvo.titulo).upper() for t in ('EDIFICACAO','CONSTRUCAO')):
         return
 
     c.acrescenta(
         "Remissão do título aponta outro ato",
-        f"o título descreve casa edificada e diz o imóvel havido conforme o "
+        f"o título remete à edificação conforme o "
         f"{citado}, mas nesta matrícula o {citado} é "
-        f'"{presentes[numero].titulo.title()}" — a edificação está averbada no '
-        f"{edificacao.rotulo}. O título foi redigido contra outro estado do "
-        f"fólio: confira a certidão que instruiu o contrato.",
+        f'"{alvo.titulo.title()}" — foi localizada edificação no '
+        f"{edificacao.rotulo}. Confira a remissão no título e na Tri7.",
         "Lei 6.015/1973, art. 225", EXIGE)
 
 
@@ -518,14 +526,12 @@ def _confere_descricao(ficha: Ficha, m: Matricula, c: Conferencia) -> None:
             f"descreve a quadra {quadra_m}.",
             "Lei 6.015/1973, art. 225", IMPEDE)
 
-    area_c = re.search(r"([\d.]+,\d+)\s*m2|([\d.]+,\d+)\s*m²", descricao, re.I)
-    if area_c and m.area:
-        lida = (area_c.group(1) or area_c.group(2)).replace(".", "")
-        do_folio = re.sub(r"[^\d,]", "", m.area)
-        if lida != do_folio:
+    area_c = Matricula(preambulo=descricao).area
+    if area_m2(area_c) is not None and area_m2(m.area) is not None:
+        if not areas_iguais(area_c, m.area):
             c.acrescenta(
                 "Área divergente",
-                f"o contrato indica {lida}m² e a matrícula descreve {m.area}. "
+                f"o contrato indica {area_c} e a matrícula descreve {m.area}. "
                 f"Divergência de área impede o registro sem retificação.",
                 "Lei 6.015/1973, art. 176, §1º, II, 3, b; art. 213", IMPEDE)
 
@@ -541,6 +547,9 @@ def _estado_civil_e_regime(ficha: Ficha, m: Matricula, c: Conferencia) -> None:
     for parte in ficha.vendedores:
         if isinstance(parte, Empresa):
             continue
+
+        if hasattr(m, 'qualificacao_titular'):
+            titulares = nz.sem_acento(m.qualificacao_titular(parte)).lower()
 
         nome = nz.nome_proprio(parte.nome)
         civil = (parte.estado_civil or "").lower()
@@ -570,6 +579,16 @@ def _estado_civil_e_regime(ficha: Ficha, m: Matricula, c: Conferencia) -> None:
 
 def _especialidade_subjetiva(ficha: Ficha, m: Matricula, c: Conferencia) -> None:
     """A matrícula precisa qualificar o proprietário por inteiro."""
+    if hasattr(m, 'qualificacoes_proprietarios'):
+        for q in m.qualificacoes_proprietarios:
+            if not q['texto']:
+                c.acrescenta('Qualificação não extraída para conferência',
+                    f"Não foi possível extrair a qualificação de {q['nome']} com segurança. Confira os atos na Tri7; isso não comprova ausência no fólio.",
+                    'Conferência da extração', ATENCAO)
+            else:
+                from types import SimpleNamespace
+                _especialidade_subjetiva(ficha, SimpleNamespace(proprietarios=q['texto']), c)
+        return
     titulares = m.proprietarios
     if not titulares:
         return

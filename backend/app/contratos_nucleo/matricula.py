@@ -15,12 +15,13 @@ import re
 from dataclasses import dataclass, field
 
 from . import normaliza as nz
+from backend.app.parser import separar_atos
 
 # Os atos vêm separados por uma régua de traços, e cada um se abre com a espécie,
 # o número e a matrícula: "R.06-34.163 - Data: 25.03.2026".
 CABECALHO_DO_ATO = re.compile(
-    r"\b(?P<especie>AV|R)\.(?P<numero>\d+)-(?P<matricula>[\d.]+)\s*-?\s*"
-    r"Data:\s*(?P<data>[\d.]+)", re.I)
+    r"\b(?P<especie>AV|R)\s*[.-]\s*(?P<numero>\d+)\s*-\s*(?P<matricula>\d[\d.]*)\s*-?\s*"
+    r"(?:Data:\s*(?P<data>[\d./]+)|[^.;\n]{1,65},\s*(?P<data_ext>\d{1,2}\s+de\s+\w+\s+de\s+\d{4}))", re.I)
 
 # Títulos que transmitem propriedade: depois deles, o dono é outro.
 TRANSMISSOES = ("VENDA E COMPRA", "DOAÇÃO", "PERMUTA", "DAÇÃO EM PAGAMENTO",
@@ -105,7 +106,9 @@ class Matricula:
 
     @property
     def area(self) -> str:
-        casou = re.search(r"área de\s*([\d.,]+\s*m²|[\d.,]+\s*ha)", self.preambulo, re.I)
+        # Só a descrição do terreno: área construída e endereço das partes não entram.
+        terreno = re.split(r"\bCASA\s*:", self.descricao, maxsplit=1, flags=re.I)[0]
+        casou = re.search(r"[áa]rea\s+(?:total\s+)?de\s*([\d.,]+\s*(?:m[²2]|ha))\b", terreno, re.I)
         return casou.group(1).strip() if casou else ""
 
     @property
@@ -125,7 +128,9 @@ class Matricula:
     def averbacao(self, *titulos: str) -> AtoDaMatricula | None:
         """O ato de averbação com um destes títulos, se houver."""
         alvos = [nz.sem_acento(t).upper() for t in titulos]
-        for ato in self.atos:
+        for ato in reversed(self.atos):
+            if ato.especie != 'AV':
+                continue
             titulo = nz.sem_acento(ato.titulo).upper()
             if any(alvo in titulo for alvo in alvos):
                 return ato
@@ -291,16 +296,23 @@ TITULO_DO_ATO = re.compile(r"\b([A-ZÀ-Ý]{2,}[A-ZÀ-Ý\s/\-]{2,60}?)\s*\.")
 
 
 def _titulo_do_ato(corpo: str) -> str:
+    inicio = CABECALHO_DO_ATO.sub('', corpo, count=1).lstrip(' .-')
+    antigo = re.match(r'(Construção(?: de Prédio)?|Edificação|Venda e Compra|Compra e Venda|Doação|Cancelamento|Hipoteca|Penhora)\s*[.:]', inicio, re.I)
+    if antigo:
+        return antigo.group(1).upper()
     casou = TITULO_DO_ATO.search(corpo)
     return _limpa(casou.group(1)) if casou else ""
 
 
 def le(texto: str) -> Matricula:
     """Monta a matrícula a partir do texto do fólio."""
-    linear = _junta_hifenizacao(_limpa(texto))
-
+    # Compartilha a segmentação validada do AERI, mantendo os formatos históricos.
+    # Cabeçalhos completos também funcionam em texto colado sem quebras de linha.
+    preparado = CABECALHO_DO_ATO.sub(lambda m: '\n'+m.group(0), texto)
+    blocos = separar_atos(preparado)
+    linear = _junta_hifenizacao(_limpa(preparado))
     cabecalhos = list(CABECALHO_DO_ATO.finditer(linear))
-    preambulo = linear[:cabecalhos[0].start()] if cabecalhos else linear
+    preambulo = _limpa(preparado.split(blocos[0]['texto'], 1)[0]) if blocos else linear
 
     numero = cabecalhos[0].group("matricula") if cabecalhos else ""
     if not numero:
@@ -308,15 +320,15 @@ def le(texto: str) -> Matricula:
         numero = casou.group(1) if casou else ""
 
     atos = []
-    for indice, cabecalho in enumerate(cabecalhos):
-        fim = (cabecalhos[indice + 1].start() if indice + 1 < len(cabecalhos)
-               else len(linear))
-        corpo = linear[cabecalho.start():fim]
+    for bloco in blocos:
+        corpo = _junta_hifenizacao(_limpa(bloco['texto']))
+        cabecalho = CABECALHO_DO_ATO.match(corpo)
+        especie, ordinal = bloco['codigo'].split('.')
         atos.append(AtoDaMatricula(
-            especie=cabecalho.group("especie").upper(),
-            numero=int(cabecalho.group("numero")),
+            especie=especie,
+            numero=int(ordinal),
             # O ponto final da frase entra no grupo de dígitos: "14.08.2026."
-            data=cabecalho.group("data").rstrip("."),
+            data=((cabecalho.group('data') or cabecalho.group('data_ext') or '') if cabecalho else '').rstrip('.'),
             titulo=_titulo_do_ato(corpo),
             texto=corpo))
 

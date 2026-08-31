@@ -10,7 +10,7 @@ MODULOS = (
     ("mapaonr", "rgi", "MAPA-ONR", "Converta os dados da matrícula para o padrão ONR.", "acessar_mapa_onr", "Produção"),
     ("poligonos", "rgi", "Polígonos", "Visualize e organize geometrias do imóvel.", "acessar_poligonos", "Consultas"),
     ("geradornotas", "rgi", "Gerador de Notas", "Elabore exigências com os modelos da serventia.", "acessar_gerador_notas", "Produção"),
-    ("contratos", "rgi", "Contratos e Minutas", "Do GED à conferência e à minuta editável.", "acessar_contratos", "Produção"),
+    ("contratos", "rgi", "Contratos e Minutas", "Do GED à minuta para conferir e editar na Tri7.", "acessar_contratos", "Produção"),
     ("auditoria", "rgi", "Auditoria registral", "Revise pendências e resultados do analisador.", "revisar_auditoria", "Conferência"),
     ("integracoes", "sistema", "Integrações e agendamentos", "Ofício Eletrônico e verificações automáticas.", "configurar_sistema", "Sistema"),
     ("usuarios", "sistema", "Usuários e Acessos", "Perfis, permissões, senhas e sessões.", "gerenciar_usuarios", "Sistema"),

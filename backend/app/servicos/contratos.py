@@ -13,6 +13,9 @@ from types import SimpleNamespace
 from cryptography.fernet import Fernet
 
 from backend.app.contratos_nucleo import extrator, ficha as modelos, matricula as leitor, qualificacao, servico
+from backend.app.contratos_nucleo.comparacao import areas_iguais, designativo
+
+VERSAO_CONFRONTO = '20260831-confronto-v2'
 from backend.app.servicos.analise_matricula import analisar_matricula
 from backend.app.servicos.documentos_contratos import extrair_documento, conferir_prazo
 
@@ -157,6 +160,51 @@ class FolioAeri:
     def proprietarios(self):
         return "; ".join(f"{p['nome']}, {p.get('cpf_cnpj',p.get('cpf',''))}" for p in self.analise["proprietarios_atuais"])
     @property
+    def qualificacoes_proprietarios(self):
+        # A titularidade continua sendo exclusivamente a do motor principal.
+        # Qualificações não podem introduzir transmitentes/garantes como titulares.
+        titulares = self.analise['proprietarios_atuais']
+        def normalizar(t):
+            return ''.join(c for c in unicodedata.normalize('NFD', t) if not unicodedata.combining(c)).upper()
+        nomes = [normalizar(p['nome']) for p in titulares]
+        fontes = []
+        inicial = re.search(r'PROPRIET[ÁA]RI[AO]S?\s*:(.*)', self.folio.preambulo, re.I | re.S)
+        if inicial:
+            fontes.append(inicial.group(1))
+        for ato in self.folio.atos:
+            adquirentes = re.search(r'\bADQUIRENTES?\s*:(.*?)(?=\b(?:IM[ÓO]VEL|ORIGEM|TRANSMITENTES?|VENDEDORES?)\s*:|$)', ato.texto, re.I | re.S)
+            if adquirentes:
+                fontes.append(adquirentes.group(1))
+            elif ato.especie == 'AV' and re.search(r'QUALIFICA|INSER[ÇC][ÃA]O.*DADOS|CASAMENTO|ESTADO CIVIL', ato.titulo, re.I):
+                fontes.append(ato.texto)
+        saida = []
+        for p, nome in zip(titulares, nomes):
+            encontrada = ''
+            for fonte in fontes:
+                pos = re.search(r'(?<!\w)'+re.escape(nome)+r'(?!\w)', normalizar(fonte))
+                if not pos:
+                    continue
+                trecho = fonte[pos.start():]
+                # Cortar antes de outro titular ou de outra função no ato.
+                limites = [len(trecho)]
+                for outro in nomes:
+                    if outro != nome:
+                        prox = re.search(r'(?<!\w)'+re.escape(outro)+r'(?!\w)', normalizar(trecho))
+                        if prox: limites.append(prox.start())
+                papel = re.search(r'\b(?:INTERVENIENTE|ANUENTE|DEVEDOR|CREDOR|TRANSMITENTE|PROCURADOR|REPRESENTANTE)\w*\s*:', trecho, re.I)
+                if papel: limites.append(papel.start())
+                candidata = trecho[:min(limites)].strip(' ,;')
+                if re.search(r'solteir|casad|divorciad|vi[úu]v|separad', candidata, re.I) or not encontrada:
+                    encontrada = candidata
+            saida.append({'nome':p['nome'], 'documento':p.get('cpf_cnpj',p.get('cpf','')), 'texto':encontrada})
+        return saida
+    def qualificacao_titular(self, parte):
+        doc = re.sub(r'\D', '', parte.cpf or '')
+        for q in self.qualificacoes_proprietarios:
+            if (doc and doc == re.sub(r'\D', '', q['documento'])) or chave_texto(parte.nome) == chave_texto(q['nome']):
+                return q['texto']
+        return ''
+    @property
     def encerrada(self):
         return self.analise["imovel"]["situacao"]["status"]=="ENCERRADA"
     @property
@@ -182,7 +230,9 @@ def confrontar(payload,texto,numero,regras=None):
     comparacoes=[]
     def linha(campo,contrato,matricula):
         normalizar = (lambda v: re.sub(r"\D", "", str(v))) if campo=="matricula.numero" or campo.endswith((".cpf",".cnpj")) else chave_texto
-        status="COMPATIVEL" if contrato and matricula and normalizar(contrato)==normalizar(matricula) else "REVISAR"
+        if campo in {'imovel.lote', 'imovel.quadra'}: normalizar = designativo
+        iguais = areas_iguais(contrato, matricula) if campo == 'imovel.area' else normalizar(contrato)==normalizar(matricula)
+        status="COMPATIVEL" if contrato and matricula and iguais else "REVISAR"
         aplicavel = campo=="matricula.numero" or campo.startswith("vendedores.")
         comparacoes.append({"campo":campo,"contrato":contrato or "NÃO CONSTA","matricula":matricula or "NÃO CONSTA","situacao":status,
                             "permiteMatricula":bool(aplicavel and matricula),"somenteConferencia":not aplicavel})
@@ -190,7 +240,7 @@ def confrontar(payload,texto,numero,regras=None):
     contrato_imovel=payload["ficha"].get("brutos",{}).get("imovel","")
     mcontrato=leitor.le("IMÓVEL: "+contrato_imovel)
     for campo,a,b in [("imovel.area",mcontrato.area,folio.area),("imovel.lote",mcontrato.lote_quadra[0],folio.lote_quadra[0]),
-                       ("imovel.quadra",mcontrato.lote_quadra[1],folio.lote_quadra[1]),("imovel.descricao",contrato_imovel,folio.descricao)]:
+                       ("imovel.quadra",mcontrato.lote_quadra[1],folio.lote_quadra[1])]:
         linha(campo,a,b)
     for i,p in enumerate(payload["ficha"].get("vendedores",[])):
         doc=re.sub(r"\D","",p.get("cnpj") or p.get("cpf", ""))
@@ -200,10 +250,12 @@ def confrontar(payload,texto,numero,regras=None):
     # Outros elementos são de operações distintas: não validar valores/credores
     # do novo título contra um financiamento anterior como se fossem iguais.
     for chave in ("compradores","credora","valores","financiamento"):
-        resumo="\n".join(f"{c['campo'].replace('_',' ')}: {c['valor'] or 'NÃO CONSTA'}" for c in campos_ficha(payload["ficha"][chave]) if not c['campo'].endswith('tipo')) or "NÃO CONSTA"
+        campos = [c for c in campos_ficha(payload['ficha'][chave],chave) if not c['campo'].endswith('tipo')]
+        resumo="\n".join(f"{c['campo'].replace('_',' ')}: {c['valor'] if c['valor'] not in ('',None) else 'NÃO CONSTA'}" for c in campos) or "NÃO CONSTA"
         comparacoes.append({"campo":chave,"contrato":resumo,
+                            "camposConferencia":campos,
                             "matricula":"Operação pretendida: conferir no contrato e nos atos relevantes, sem presumir igualdade com operação anterior.","situacao":"REVISAR","somenteConferencia":True,"permiteMatricula":False})
-    return {"numero":str(numero),"textoHash":hashlib.sha256(texto.encode()).hexdigest(),"texto":texto,
+    return {"numero":str(numero),"versaoRegras":VERSAO_CONFRONTO,"textoHash":hashlib.sha256(texto.encode()).hexdigest(),"texto":texto,
             "analise":analise,"comparacoes":comparacoes,"exigencias":exigencias}
 
 
@@ -219,10 +271,10 @@ def aplicar_decisoes(payload, ficha, decisoes, conferida):
         decisao=decisoes.get(c["campo"])
         if decisao is None and c["situacao"]=="COMPATIVEL": continue
         if not isinstance(decisao,dict) or decisao.get("acao") not in {"CONTRATO","MATRICULA","MANUAL"}:
-            raise ValueError("Registre uma decisão para cada campo pendente.")
+            raise ValueError(f"Registre uma decisão para o campo pendente: {c['campo']}.")
         justificativa=decisao.get("justificativa")
         if not isinstance(justificativa,str) or not justificativa.strip() or len(justificativa)>2000:
-            raise ValueError("Justifique cada decisão registrada.")
+            raise ValueError(f"Informe a justificativa da decisão: {c['campo']}.")
         if decisao["acao"]=="MATRICULA":
             if not c.get("permiteMatricula"):
                 raise ValueError("Este campo exige conferência manual; não há valor substituível na matrícula.")

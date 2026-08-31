@@ -39,7 +39,7 @@ Alertas de Intimações usam a regra visual preexistente, agora calculada no ser
 
 ## Contratos e Minutas
 
-Fluxo: protocolo → lista GED → seleção explícita → extração digital sob demanda → conferência da ficha → texto atual da matrícula → decisões justificadas → rascunho editável → histórico.
+Fluxo: protocolo → lista GED → seleção explícita → extração digital sob demanda → conferência da ficha → texto atual da matrícula → decisões justificadas → geração/cópia dos atos → conferência e edição do texto na Tri7. O AERI não envia nem registra atos automaticamente.
 
 Correção de 31/08/2026: o botão registra/reaproveita o trabalho e chama `POST /api/contratos/{id}/extrair`, que processa somente aquele contrato na própria requisição. PDF com texto não depende de executor. Trabalhos pendentes anteriores podem ser retomados em “Meus trabalhos” → “Retomar extração”, inclusive quando já existem cinco pendências. O limite continua valendo para novos trabalhos.
 
@@ -60,6 +60,17 @@ Concorrência: trava de 90 segundos, revalidação do vínculo GED, gravação s
 11. O resultado é um **rascunho**. Pendências e marcadores devem ser resolvidos antes de utilização. Não envia nem registra atos na Tri7 e não valida assinatura digital.
 
 O modelo inicial suportado é o conjunto de contratos habitacionais CAIXA reconhecido pelo projeto integrado. Não é um extrator genérico de qualquer contrato/banco. Documento sem identificação suficiente de contrato e partes falha com aviso. OCR depende da qualidade da imagem e exige conferência humana.
+
+## Correção do confronto de contratos (31/08/2026)
+
+- Áreas são comparadas por valor decimal e unidade, preservando a grafia original. `200,00m2` e `200 m²`, assim como quadra `04` e `4`, são compatíveis. Áreas realmente diferentes, unidades diferentes sem equivalência e sufixos de lote distintos não são igualados.
+- O leitor auxiliar compartilha a segmentação de atos do AERI e reconhece a construção em cabeçalhos antigos como `AV-02-... - Morrinhos, ...`. A referência “havido conforme AV-02”, no contexto da casa edificada, é tratada como remissão à edificação, não como transmissão de propriedade. Espécie e número do ato são conferidos conjuntamente.
+- Titulares continuam vindo do motor oficial. A qualificação é consultada separadamente nos blocos de proprietário/adquirente e averbações pertinentes, sem promover transmitentes ou garantes a proprietários. Quando não se consegue extraí-la, a mensagem pede conferência, sem afirmar ausência no fólio.
+- Campos compatíveis ficam agrupados, sem escolhas obrigatórias. Campos pendentes mantêm decisão e justificativa. A geração identifica o campo faltante e mostra carregamento, sucesso ou erro junto ao botão, inclusive o identificador de suporte quando fornecido pela API.
+- A tela não mostra o texto integral extraído nem um editor da minuta. Há botões para copiar venda e compra, alienação ou ambos; a conferência textual é feita na Tri7. Documentos originais e versões cifradas do histórico são preservados. O endpoint legado de edição permanece autenticado para compatibilidade, mas não é acionado pela nova interface.
+- Confrontos antigos precisam ser refeitos pela ação **Confrontar com a matrícula**. O backend bloqueia geração com versão antiga; não se apagam dados nem se reprocessam trabalhos automaticamente.
+- Verificação do protocolo 185.771 em memória, com PDF anexado e leitura real do texto da matrícula: removidos os quatro falsos alertas apontados. Restaram os avisos existentes de CEP e ITBI; isso não atesta aptidão integral do título para registro.
+- Regressões: 915 testes Python aprovados, 1 ignorado, 220 subtestes; 9 testes da interface aprovados com `node tests/test_contratos_interface.mjs`. Caso real 185.771: geração dos dois rascunhos executada em memória; marcadores de dados faltantes preservados. Navegador com dados fictícios: comparação, impedimento por decisão/confirmacão ausente, geração e cópia aprovados, sem erros de console na rodada final. Nenhuma migração de banco, ativação de executor ou alteração do motor oficial de ônus/cadeia foi necessária.
 
 ## Proteção dos documentos
 
