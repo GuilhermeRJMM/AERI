@@ -36,9 +36,26 @@ function ambiente() {
     URL:{createObjectURL:()=> 'blob:teste'},
     ONR_BUILDER:{montaImovel:()=>({imovel:structuredClone(imovel), pendencias:[pendencia], avisos:[]}), montaArquivo:(cns, imoveis)=>({cns,imoveis})},
     ONR_VALIDATOR:{valida:()=>({valido:true, erros:[]})},
-    fetch:async (...args)=> { chamadas.push(args); return ctx.resposta; },
   });
-  ctx.resposta = {ok:true,json:async()=>({valido:true,erros:[]})};
+  // O conversor nao da fetch: pede a validacao ao AERI por postMessage. O stub
+  // faz o papel do AERI, inclusive podendo adiar a resposta.
+  const ouvintesMsg = [], adiados = [];
+  ctx.validacao = ()=>({dados:{valido:true,erros:[]}});
+  // Guarda: dentro do iframe a origem e opaca e connect-src 'self' nao casa
+  // com nada. Qualquer fetch daqui derruba a suite.
+  ctx.fetch = ()=>{ throw new Error('fetch e bloqueado no iframe do MAPA-ONR'); };
+  ctx.addEventListener = (tipo,fn)=>{ if(tipo==='message') ouvintesMsg.push(fn); };
+  ctx.removeEventListener = (tipo,fn)=>{ const i=ouvintesMsg.indexOf(fn); if(i>=0) ouvintesMsg.splice(i,1); };
+  ctx.setTimeout = ()=>0;
+  ctx.clearTimeout = ()=>{};
+  ctx.parent = {postMessage:(msg)=>{
+    if(!msg || msg.tipo!=='AERI_MAPA_ONR_VALIDAR') return;
+    chamadas.push(msg);
+    const responder=(r)=>{ for(const fn of ouvintesMsg.slice())
+      fn({data:Object.assign({tipo:'AERI_MAPA_ONR_VALIDADO', id:msg.id}, r)}); };
+    if(ctx.adiar) adiados.push(responder); else responder(ctx.validacao());
+  }};
+  const liberarAdiada = (r)=>adiados.shift()(r);
   vm.runInContext(codigo.replace(boot, 'global.teste = {estado, gerar, renderResultado, assinaturaExportacao};'), ctx);
   const api = ctx.teste;
   api.estado.atos = [{numero:'0',ehAbertura:true}];
@@ -50,7 +67,7 @@ function ambiente() {
   const caixas = () => nodes().filter(n=>n.tag==='input' && n.type==='checkbox');
   function marcar(valor=true, indice=0) { const check=caixas()[indice]; check.checked=valor; check.onchange(); }
   const texto = () => campo('#resultado').textContent;
-  return {ctx,api,campo,botoes,caixas,marcar,texto,copiados,baixados,blobs,confirmacoes,chamadas};
+  return {ctx,api,campo,botoes,caixas,marcar,texto,copiados,baixados,blobs,confirmacoes,chamadas,liberarAdiada};
 }
 
 test('marcar a caixa ignora a pendência sem modal, preservando CPF e JSON originais', async()=>{
@@ -89,10 +106,10 @@ test('erro de schema no cliente continua bloqueando após ignorar a pendência',
 for (const falha of ['schema','autenticação','comunicação','JSON inválido']) {
   test(`falha de ${falha} do servidor não pode ser ignorada`,async()=>{
     const a=ambiente();
-    if(falha==='schema') a.ctx.resposta={ok:true,json:async()=>({valido:false,erros:[{mensagem:'Estrutura inválida'}]})};
-    if(falha==='autenticação') a.ctx.resposta={ok:false,status:401,json:async()=>({erro:'Sessão expirada'})};
-    if(falha==='comunicação') a.ctx.fetch=async()=>{throw new Error('Sem conexão');};
-    if(falha==='JSON inválido') a.ctx.resposta={ok:true,json:async()=>{throw new Error('JSON inválido');}};
+    if(falha==='schema') a.ctx.validacao=()=>({dados:{valido:false,erros:[{mensagem:'Estrutura inválida'}]}});
+    if(falha==='autenticação') a.ctx.validacao=()=>({erro:'Sessão expirada'});
+    if(falha==='comunicação') a.ctx.validacao=()=>({erro:'Sem conexão'});
+    if(falha==='JSON inválido') a.ctx.validacao=()=>({erro:'JSON inválido'});
     await a.api.gerar(); a.marcar();
     assert.equal(a.botoes().length,0); assert.match(a.texto(),/não foi liberado/);
   });
@@ -107,12 +124,13 @@ test('edição da entrada invalida botões antigos, inclusive cópia e download'
 });
 
 test('resposta atrasada não substitui validação da geração mais recente',async()=>{
-  const a=ambiente(); let finalizar;
-  a.ctx.fetch=()=>new Promise(resolve=>{finalizar=resolve;});
+  const a=ambiente();
+  a.ctx.adiar=true;
   const antiga=a.api.gerar();
-  a.ctx.fetch=async()=>({ok:true,json:async()=>({valido:false,erros:[{mensagem:'Falha atual'}]})});
+  a.ctx.adiar=false;
+  a.ctx.validacao=()=>({dados:{valido:false,erros:[{mensagem:'Falha atual'}]}});
   await a.api.gerar(); const atual=a.api.estado.resultado;
-  finalizar({ok:true,json:async()=>({valido:true,erros:[]})}); await antiga;
+  a.liberarAdiada({dados:{valido:true,erros:[]}}); await antiga;
   assert.equal(a.api.estado.resultado,atual); a.marcar();
   assert.equal(a.botoes().length,0); assert.match(a.texto(),/Falha atual/);
 });

@@ -35,6 +35,26 @@ function enviarAoConversor(carga) {
 }
 
 
+// O conversor nao consegue falar com o servidor: o iframe tem sandbox sem
+// allow-same-origin, entao a origem dele e opaca e o CSP (connect-src 'self')
+// bloqueia todo fetch de dentro. O AERI valida no lugar dele -- aqui existe
+// sessao e CSRF -- e devolve a resposta pela mesma ponte. O endpoint e fixo:
+// o iframe escolhe o conteudo, nunca o destino.
+async function validarPeloAeri(pedido) {
+    const resposta = {tipo: 'AERI_MAPA_ONR_VALIDADO', id: pedido.id};
+    try {
+        resposta.dados = await requisicaoAeri('/api/mapa-onr/validar-json', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({tipo: pedido.tipoImovel, arquivo: pedido.arquivo}),
+        });
+    } catch (erro) {
+        resposta.erro = erro.message || 'A validação do servidor não respondeu.';
+    }
+    enviarAoConversor(resposta);
+}
+
+
 async function consultar(evento) {
     evento.preventDefault();
     const {entrada, botao} = elementos();
@@ -69,6 +89,10 @@ function receberMensagem(evento) {
     if (evento.data.tipo === 'AERI_MAPA_ONR_CARREGADO') {
         framePronto = true;
         if (cargaPendente) enviarAoConversor(cargaPendente);
+        return;
+    }
+    if (evento.data.tipo === 'AERI_MAPA_ONR_VALIDAR') {
+        validarPeloAeri(evento.data);
         return;
     }
     if (evento.data.tipo === 'AERI_MAPA_ONR_ALTURA') {

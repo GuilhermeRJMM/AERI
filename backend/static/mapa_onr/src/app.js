@@ -1238,15 +1238,32 @@
     return estado.resultado === r && r.assinatura === assinaturaExportacao();
   }
 
-  async function validarNoBackend(tipo, arquivo) {
-    const resposta = await fetch('/api/mapa-onr/validar-json', {
-      method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo, arquivo }),
+  let sequenciaValidacao = 0;
+
+  function validarNoBackend(tipo, arquivo) {
+    // O conversor roda em iframe com sandbox sem allow-same-origin. Ali a
+    // origem e opaca: connect-src 'self' do CSP nao casa com origem nenhuma e
+    // o fetch morre como "Failed to fetch", sem contar que nao levaria o
+    // cookie de sessao. Quem fala com o servidor e o AERI, pela mesma ponte de
+    // postMessage que ja entrega a matricula.
+    const id = ++sequenciaValidacao;
+    return new Promise((resolve, reject) => {
+      function ouvir(evento) {
+        const dados = (evento && evento.data) || {};
+        if (dados.tipo !== 'AERI_MAPA_ONR_VALIDADO' || dados.id !== id) return;
+        clearTimeout(prazo);
+        global.removeEventListener('message', ouvir);
+        if (dados.erro) reject(new Error(dados.erro));
+        else resolve(dados.dados);
+      }
+      const prazo = setTimeout(() => {
+        global.removeEventListener('message', ouvir);
+        reject(new Error('A validação do servidor não respondeu.'));
+      }, 20000);
+      global.addEventListener('message', ouvir);
+      global.parent.postMessage(
+        { tipo: 'AERI_MAPA_ONR_VALIDAR', id, tipoImovel: tipo, arquivo }, '*');
     });
-    const dados = await resposta.json().catch(() => ({}));
-    if (!resposta.ok) throw new Error(dados.detail || 'A validação do servidor não respondeu.');
-    return dados;
   }
 
   async function gerar() {
