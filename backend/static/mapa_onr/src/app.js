@@ -81,6 +81,25 @@
     return s && s.value === 'urbano' ? 'urbano' : 'rural';
   }
 
+  // Partilhas antigas podem identificar o falecido apenas pelo nome, sem
+  // repetir seu CPF como transmitente. Ex.: R.02 da 7.676. So retiramos esse
+  // antecessor quando o ato atribui expressamente o imovel inteiro em pagamento
+  // da meacao/quinhao. Obito isolado, fracao e simples mencao nao bastam.
+  function antecessorSubstituidoNaPartilha(texto, pessoa) {
+    const normaliza = (s) => String(s || '').normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const t = normaliza(texto);
+    const atribuicao = /\bcoube\b.{0,2500}?\bem pagamento de su[ao] (?:meacao|quinhao(?: hereditario)?)\s*[,;:]?\s*(?:todo )?o imovel (?:constante|objeto) d(?:a presente|esta) matricula\b/.exec(t);
+    if (!atribuicao || /\b(?:parte|fracao|quota|cota|percentual)\b|\d\s*%/.test(atribuicao[0])) return false;
+    const nome = normaliza(pessoa.nome_completo).replace(/^espolio de /, '');
+    if (!nome) return false;
+    const literal = nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Limite depois do nome evita confundir Silva com Silva Junior. A mencao
+    // tem de identificar o autor da heranca, antes da atribuicao do imovel.
+    return new RegExp('\\bbens deixados por (?:falecimento|obito) de ' + literal + '(?=[,;.]|$)')
+      .test(t.slice(0, atribuicao.index));
+  }
+
   function apuraVigente(blocos, municipioServentia) {
     const urbano = tipoAtual() === 'urbano';
     const vigente = { campos: {}, areaEscolhida: null, candidatosArea: [], confrontantes: [],
@@ -202,8 +221,10 @@
           // divisao amigavel o cita sem repetir o CPF ("acima qualificados") e
           // ele nunca entrava na lista de alienantes.
           const exclusivo = /coube\s+exclusivamente/i.test(b.texto);
+          const partilha = (X.classificaAto(b.texto).alteracao_titularidade || {}).valor === 9;
           const lista = (exclusivo ? [] : (vigente.proprietarios || []))
             .filter((p) => !alienantes.has(p.cpf_cnpj))
+            .filter((p) => !(partilha && antecessorSubstituidoNaPartilha(b.texto, p)))
             .concat(adquirentes.map((p) => ({
               nome_completo: p.nome_completo,
               cpf_cnpj: p.cpf_cnpj,

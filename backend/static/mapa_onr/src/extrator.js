@@ -430,10 +430,14 @@
       }
     }
 
-    m = t.match(/CIB\s*:?\s*n?\.?º?\s*([\d.\-]{9,14}|[A-Z0-9]{7}-?[A-Z0-9])/i);
+    // O CIB alfanumerico tambem usa a mascara 1.3.3-1 (M.HRQ.PJR-M).
+    // Antes somente o formato numerico com pontos era reconhecido: o CIB
+    // novo era ignorado e a ficha conservava o NIRF de um ato anterior.
+    // Consome o identificador inteiro, sem aceitar prefixo de codigo maior.
+    m = t.match(/\bCIB\b\s*:?\s*(?:n\.?\s*[ºo°]?\s*)?([A-Z0-9]\s*\.\s*[A-Z0-9]{3}\s*\.\s*[A-Z0-9]{3}\s*[-–]\s*[A-Z0-9]|[A-Z0-9]{7}\s*[-–]?\s*[A-Z0-9])(?![A-Z0-9]|[.\-–][A-Z0-9])/i);
     if (m) {
       const bruto = m[1];
-      const limpo = bruto.replace(/[.\-]/g, '').toUpperCase();
+      const limpo = bruto.replace(/[.\-–\s]/g, '').toUpperCase();
       if (limpo.length === 8) out.cib = achado(limpo, m[0], 'CIB');
     }
 
