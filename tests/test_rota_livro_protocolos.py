@@ -40,7 +40,7 @@ def _rodar(coro):
 class TesteAnalisarLivroProtocolos(unittest.TestCase):
     @patch("backend.app.rotas.livro_protocolos.registrar_auditoria")
     @patch("backend.app.rotas.livro_protocolos._reindexar_registros_alterados", return_value={})
-    @patch("backend.app.rotas.livro_protocolos.conferir_protocolo", return_value=[])
+    @patch("backend.app.servicos.conferencia_livro.conferir_protocolo", return_value=[])
     @patch("backend.app.rotas.livro_protocolos.conectar")
     def test_baixa_matricula_e_registro_auxiliar_para_a_conferencia(
         self, conectar_mock, conferir_mock, _reindexar, _auditoria,

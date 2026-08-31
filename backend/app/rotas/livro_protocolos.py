@@ -7,6 +7,7 @@ from psycopg.types.json import Jsonb
 
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
 from backend.app.database import conectar, preparar_banco
+from backend.app.servicos.conferencia_livro import conferir_itens_tri7
 from backend.app.rotas.buscas import _salvar_indice as _salvar_indice_matricula
 from backend.app.rotas.registros_auxiliares import _salvar_indice as _salvar_indice_auxiliar
 from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
@@ -117,59 +118,7 @@ def _analisar_itens_livro(
             excecoes = frozenset((linha["titulo_tema"], linha["natureza_tema"]) for linha in cursor.fetchall())
 
     cliente = cliente or cliente_tri7()
-    cache_textos: dict[tuple[str, int], tuple[str | None, str | None]] = {}
-    cache_atos: dict[tuple[str, int], set[tuple[str, int]]] = {}
-    alterados: set[tuple[str, int]] = set()
-    resultados = []
-    for item in itens:
-        registro = {**item, "conferido": False, "ocorrencias": [], "erro": None}
-        if item["status"] == "REGISTRADO":
-            try:
-                protocolo_json = cliente.buscar_protocolo_completo(item["numero"])
-                alterados |= registros_alterados_no_protocolo(protocolo_json)
-                textos_registros = {}
-                falhas_textos = {}
-                atos_confirmados = {}
-                for referencia in referencias_textos_protocolo(protocolo_json):
-                    if referencia not in cache_textos:
-                        try:
-                            if referencia[0] == "M":
-                                resposta_texto = cliente.buscar_texto_matricula(referencia[1])
-                            else:
-                                resposta_texto = cliente.buscar_texto_registro_auxiliar(referencia[1])
-                            cache_textos[referencia] = (resposta_texto["texto"], None)
-                        except ErroTri7 as erro:
-                            cache_textos[referencia] = (None, str(erro))
-                    texto, falha = cache_textos[referencia]
-                    if texto:
-                        textos_registros[referencia] = texto
-                    elif falha:
-                        falhas_textos[referencia] = falha
-                    if referencia[0] == "M":
-                        if referencia not in cache_atos:
-                            try:
-                                cache_atos[referencia] = codigos_atos_confirmados(
-                                    cliente.buscar_atos_matricula(referencia[1])
-                                )
-                            except ErroTri7:
-                                # O endpoint complementar não é condição para
-                                # conferir o livro: em falha, preserva-se a
-                                # validação anterior baseada no texto.
-                                cache_atos[referencia] = set()
-                        atos_confirmados[referencia] = cache_atos[referencia]
-                registro["ocorrencias"] = conferir_protocolo(
-                    item, protocolo_json, data_esperada, excecoes,
-                    textos_registros=textos_registros,
-                    falhas_textos=falhas_textos,
-                    atos_confirmados=atos_confirmados,
-                )
-                registro["conferido"] = True
-            except ProtocoloTri7NaoEncontrado:
-                registro["erro"] = "Protocolo não encontrado na Tri7."
-            except ErroTri7 as erro:
-                registro["erro"] = str(erro)
-        resultados.append(registro)
-
+    resultados, alterados, cache_textos = conferir_itens_tri7(itens, data_esperada, excecoes, cliente)
     atualizacao = _reindexar_registros_alterados(
         alterados, cache_textos, cliente, request, usuario,
     )

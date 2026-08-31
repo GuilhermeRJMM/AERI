@@ -1,4 +1,5 @@
 import {definirCsrfToken, requisicaoAeri} from './api.js?v=20260824-csrf-v1';
+import {mostrarPagina} from './navegacao.js?v=20260831-setores-v1';
 
 let autenticado = false;
 let aoEntrar = () => {};
@@ -27,7 +28,18 @@ function aplicarPermissoesSidebar(dados) {
     definirModuloVisivel('custas', admin || Boolean(permissoes.gerenciar_custas));
     definirModuloVisivel('regaux', admin || Boolean(permissoes.consultar_registro_auxiliar));
     definirModuloVisivel('rotina', admin || Boolean(permissoes.ver_intimacoes));
-    definirModuloVisivel('usuarios', admin);
+    definirModuloVisivel('usuarios', admin || Boolean(permissoes.gerenciar_usuarios));
+    definirModuloVisivel('inicio', true);
+    definirModuloVisivel('certidao', admin || Boolean(permissoes.acessar_certidao));
+    definirModuloVisivel('rgi', admin || Boolean(permissoes.acessar_rgi));
+    definirModuloVisivel('sistema', admin || Boolean(permissoes.gerenciar_usuarios || permissoes.configurar_sistema));
+    definirModuloVisivel('integracoes', admin || Boolean(permissoes.configurar_sistema));
+    definirModuloVisivel('contratos', admin || Boolean(permissoes.acessar_contratos));
+    definirModuloVisivel('auditoria', admin || Boolean(permissoes.revisar_auditoria));
+    for (const setor of ['certidao','rgi','sistema']) {
+        document.getElementById(`card-setor-${setor}`).hidden = document.querySelector(`.nav-item[data-page="${setor}"]`).hidden;
+    }
+    document.getElementById('painel-sem-acesso').hidden = admin || Boolean(permissoes.acessar_certidao || permissoes.acessar_rgi || permissoes.gerenciar_usuarios || permissoes.configurar_sistema);
 
     const ativo = document.querySelector('.nav-item.active');
     if (ativo?.hidden) {
@@ -71,6 +83,7 @@ function abrirAplicacao(dados) {
     document.getElementById('perfil-logado').textContent = dados.perfil;
     atualizarSaudacaoUsuario(dados);
     aplicarPermissoesSidebar(dados);
+    mostrarPagina('inicio');
     document.getElementById('btn-meu-mfa').hidden = !['ADMIN', 'SUBSTITUTO'].includes(dados.perfil);
     document.getElementById('btn-meu-mfa').textContent = dados.mfaAtivo ? 'Reconfigurar MFA' : 'Ativar MFA';
     document.getElementById('login-aeri').classList.remove('aberto');

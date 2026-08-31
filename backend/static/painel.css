@@ -1,0 +1,52 @@
+/* Navegação por setores; o registro DOM legado fica só para compatibilidade. */
+.sidebar, #sidebar-backdrop, #btn-sidebar { display:none !important; }
+.app-body { display:block; }
+.page-content { margin-left:0 !important; width:100%; }
+.aeri-breadcrumb { display:flex; gap:8px; align-items:center; padding:18px 4%; border-bottom:1px solid #263149; }
+.aeri-breadcrumb button { border:0; background:none; color:#9eabc3; font:inherit; cursor:pointer; padding:5px; }
+.aeri-breadcrumb button + button::before { content:'›'; margin-right:16px; color:#59657c; }
+.aeri-breadcrumb [aria-current] { color:#e4eaf5; }
+.painel-pagina { max-width:1280px; margin:auto; padding:40px 28px 64px; }
+.painel-cabecalho { margin-bottom:32px; }
+.painel-cabecalho h1 { font-size:clamp(26px,3vw,38px); letter-spacing:-.035em; margin:10px 0; }
+.painel-cabecalho p { color:#a0adc3; line-height:1.6; max-width:750px; }
+.setores-grade { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.setor-card, .ferramenta-card { font:inherit; text-align:left; cursor:pointer; color:#eef2ff; background:#172032; border:1px solid #303a50; border-radius:18px; transition:transform .15s,border-color .15s; }
+.setor-card:hover,.ferramenta-card:hover { transform:translateY(-3px); border-color:#7569ee; }
+.setor-card:focus-visible,.ferramenta-card:focus-visible { outline:3px solid #b0a8ff; outline-offset:3px; }
+.setor-card { display:flex; flex-direction:column; padding:32px; min-height:320px; position:relative; overflow:hidden; }
+.setor-card.certidao { background:linear-gradient(135deg,#142c2b,#172032 75%); }
+.setor-card.rgi { background:linear-gradient(135deg,#262043,#172032 75%); }
+.setor-icone { width:54px;height:54px;display:grid;place-items:center;background:#35be8b1c;color:#4bdfa4;border:1px solid #35be8b44;border-radius:14px;font-size:26px;font-weight:800;margin-bottom:28px; }
+.rgi .setor-icone { color:#b4a8ff;background:#8572ff22;border-color:#8572ff44; }
+.card-grupo { font-size:11px; letter-spacing:.13em; text-transform:uppercase;color:#91a1bd; }
+.setor-card h2 { font-size:36px;margin:8px 0; }
+.setor-card p,.ferramenta-card p { color:#a9b6cc;line-height:1.6; }
+.setor-card > span[id] { color:#8391ab;font-size:13px;margin:18px 0; }
+.setor-card strong { color:#5be4b0;margin-top:auto; }
+.setor-card.rgi strong { color:#b4a8ff; }
+.sistema-atalho { display:flex;justify-content:space-between;gap:20px;width:100%;padding:23px;margin-top:28px;border:1px solid #2b354b;border-radius:13px;background:#131b2b;color:#e1e7f2;font:inherit;text-align:left;cursor:pointer; }
+.sistema-atalho span { color:#94a3b8; }
+.ferramentas-grade { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px; }
+.ferramenta-card { padding:25px;min-height:220px;display:flex;flex-direction:column; }
+.ferramenta-card h3 { font-size:21px;margin:14px 0 6px; }
+.card-abrir { color:#aba1ff;margin-top:auto;padding-top:20px;font-size:13px;display:flex;justify-content:space-between; }
+.painel-alertas { display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:28px; }
+.painel-alerta { display:flex;flex-direction:column;gap:8px;text-align:left;padding:20px;background:#152c29;color:#d9eee8;border:1px solid #275748;border-radius:12px;font:inherit;cursor:pointer; }
+.painel-alerta.com-alerta { background:#34291e;border-color:#77542b;color:#ffdfa8; }
+.painel-alerta small { opacity:.7; }
+.painel-vazio { color:#99a7bd; }
+.sistema-card,.contratos-card { background:#172032;border:1px solid #303a50;border-radius:16px;padding:24px;margin-bottom:20px; }
+.sistema-card form,.contratos-form { display:flex;flex-wrap:wrap;align-items:end;gap:16px; }
+.sistema-card label,.contratos-card label { display:flex;flex-direction:column;gap:7px;color:#a9b6cc;font-size:13px; }
+.sistema-card input,.sistema-card select,.contratos-card input,.contratos-card select,.contratos-card textarea { font:inherit;background:#101828;color:#eef2ff;border:1px solid #3a455b;border-radius:8px;padding:10px; }
+.contratos-card textarea { width:100%;min-height:180px; }
+.contratos-campos { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px; }
+.confronto-linha { border-bottom:1px solid #344057;padding:15px 0; }
+.confronto-linha p { white-space:pre-wrap;overflow-wrap:anywhere; }
+.confronto-linha.revisar { border-left:3px solid #dfb05a;padding-left:12px; }
+.contratos-comparacao { display:grid;grid-template-columns:1fr 1fr;gap:18px; }
+.contratos-aviso { color:#efd395;line-height:1.6; }
+[hidden] { display:none !important; }
+@media(max-width:850px) { .ferramentas-grade {grid-template-columns:repeat(2,minmax(0,1fr));}.setor-card {padding:24px;} }
+@media(max-width:600px) { .setores-grade,.ferramentas-grade,.contratos-campos,.contratos-comparacao {grid-template-columns:1fr;}.painel-pagina {padding:26px 16px;}.sistema-atalho {flex-direction:column;}.aeri-breadcrumb {flex-wrap:wrap;font-size:12px;}.setor-card {min-height:290px;} }

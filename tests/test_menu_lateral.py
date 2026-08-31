@@ -52,7 +52,8 @@ class TesteMenuLateral(unittest.TestCase):
         self.assertFalse(sobrando, f"definirModuloVisivel para aba inexistente: {sorted(sobrando)}")
 
     def test_toda_aba_tem_a_pagina_correspondente(self):
-        html = INDEX.read_text(encoding="utf-8")
+        from jinja2 import Environment, FileSystemLoader
+        html = Environment(loader=FileSystemLoader(INDEX.parent)).get_template(INDEX.name).render()
         paginas = set(re.findall(r'id="page-([^"]+)"', html))
         sem_pagina = _abas_declaradas() - paginas
         self.assertFalse(sem_pagina, f"abas sem <div id=\"page-...\">: {sorted(sem_pagina)}")

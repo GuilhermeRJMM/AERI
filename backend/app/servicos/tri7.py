@@ -176,13 +176,15 @@ class ClienteTri7:
 
     def _ler_json_uma_vez(self, requisicao: UrlRequest) -> tuple[int, object]:
         inicio = time.perf_counter()
+        # Limite ampliado somente no GED, que transporta o arquivo em base64.
+        limite = 85_000_000 if self._rota_segura(requisicao) == "/api/v1/imoveis/ged-documento" else TAMANHO_MAXIMO_RESPOSTA
         try:
             with self._abridor(requisicao, timeout=self.configuracao.timeout) as resposta:
-                conteudo = resposta.read(TAMANHO_MAXIMO_RESPOSTA + 1)
+                conteudo = resposta.read(limite + 1)
                 status = int(getattr(resposta, "status", 200))
         except HTTPError as erro:
             try:
-                conteudo = erro.read(TAMANHO_MAXIMO_RESPOSTA + 1)
+                conteudo = erro.read(limite + 1)
                 status = erro.code
             finally:
                 erro.close()
@@ -193,7 +195,7 @@ class ClienteTri7:
                 type(erro).__name__, round((time.perf_counter() - inicio) * 1000, 1),
             )
             raise ErroTri7("A Tri7 está indisponível no momento.") from erro
-        if len(conteudo) > TAMANHO_MAXIMO_RESPOSTA:
+        if len(conteudo) > limite:
             raise RespostaTri7Invalida("A resposta da Tri7 excedeu o limite permitido.")
         try:
             dados = json.loads(conteudo.decode("utf-8"))
@@ -368,6 +370,31 @@ class ClienteTri7:
         if numero_retornado != numero:
             raise RespostaTri7Invalida("A Tri7 retornou um protocolo diferente do solicitado.")
         return dados
+
+    def listar_documentos_protocolo(self, numero_protocolo: object) -> dict:
+        dados = self.buscar_protocolo_completo(numero_protocolo)
+        documentos = dados.get("ged")
+        if not isinstance(documentos, list) or any(not isinstance(d,dict) for d in documentos):
+            raise RespostaTri7Invalida("A Tri7 não informou uma lista válida de documentos do protocolo.")
+        return {"protocolo": dados["protocolo"], "documentos": documentos}
+
+    def buscar_documento_ged(self, documento_id: object) -> dict:
+        numero = normalizar_numero_matricula(documento_id)
+        status, dados = self._buscar_json_autenticado("/api/v1/imoveis/ged-documento", {"ged_documento_id": numero})
+        if status == 404:
+            raise ErroTri7("O documento não está disponível no GED.", status=status)
+        if status < 200 or status >= 300:
+            raise ErroTri7("Não foi possível obter o arquivo do GED.", status=status)
+        if not isinstance(dados, dict) or not isinstance(dados.get("base64_data"), str):
+            raise RespostaTri7Invalida("O GED retornou um documento em formato inesperado.")
+        try:
+            arquivo = base64.b64decode(dados["base64_data"], validate=True)
+        except (ValueError, binascii.Error) as erro:
+            raise RespostaTri7Invalida("O GED retornou um arquivo corrompido.") from erro
+        if not arquivo or len(arquivo) > 60_000_000:
+            raise RespostaTri7Invalida("O documento está vazio ou excede o limite de 60 MB.")
+        return {"dados": arquivo, "filename": str(dados.get("filename") or "documento"),
+                "content_type": str(dados.get("content_type") or "application/octet-stream")}
 
     def buscar_livro_protocolos(self, data_inicio: date, data_fim: date) -> dict:
         if not isinstance(data_inicio, date) or not isinstance(data_fim, date):

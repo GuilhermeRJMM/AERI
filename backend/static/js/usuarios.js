@@ -5,6 +5,7 @@ let usuarios = [];
 let divergenciasAnalise = [];
 let catalogoPermissoes = [];
 const CARGOS = [
+    ['USUARIO', 'Usuário comum'],
     ['ADMIN', 'ADM'],
     ['SUBSTITUTO', 'Substituto'],
     ['AUDITOR', 'Auditor'],
@@ -18,7 +19,7 @@ function cargoAdministrativo(perfil) {
 }
 
 function usuarioPodeCriarUsuarios() {
-    return document.body.dataset.perfil === 'ADMIN';
+    return cargoAdministrativo(document.body.dataset.perfil) || Boolean(window.aeriPermissoes?.gerenciar_usuarios);
 }
 
 function lerPermissoesFormulario() {
@@ -37,7 +38,7 @@ function renderizarAtribuicoes(item) {
             ${item.permissoes?.[permissao.chave] ? 'checked' : ''}
             ${permissao.auditorFixa && item.perfil === 'AUDITOR' ? 'disabled' : ''}>
             ${escaparHtml(permissao.nome)}
-            ${item.origensPermissoes?.herdadas?.[permissao.chave] ? '<small>perfil</small>' : '<small>individual</small>'}</label>
+            ${Object.hasOwn(item.origensPermissoes?.individuais || {}, permissao.chave) ? '<small>individual</small>' : '<small>perfil</small>'}</label>
     `).join('')}</div>`;
 }
 
@@ -65,6 +66,7 @@ function atualizarAtribuicoesFormulario() {
         const opcional = Boolean(definicao.auditorOpcional);
         campo.disabled = admin || (auditor && !opcional);
         if (admin) campo.checked = true;
+        if (perfil === 'SUPERVISOR') campo.checked = Boolean(definicao.padraoSupervisor);
         // Só mexe no que o auditor não pode escolher. As opcionais ficam
         // como estão, para não desmarcar o que já foi concedido.
         if (auditor && !opcional) campo.checked = Boolean(definicao.auditorFixa);
@@ -159,11 +161,12 @@ function renderizarDivergencias() {
 }
 
 export async function carregarUsuarios() {
-    if (!cargoAdministrativo(document.body.dataset.perfil)) return;
+    if (!usuarioPodeCriarUsuarios()) return;
+    const administrativo=cargoAdministrativo(document.body.dataset.perfil);
     const [lista, auditoria, divergencias, catalogo] = await Promise.all([
         requisicaoAeri('/api/usuarios'),
         requisicaoAeri('/api/usuarios/auditoria'),
-        requisicaoAeri('/analisar/divergencias?status=PENDENTE'),
+        administrativo ? requisicaoAeri('/analisar/divergencias?status=PENDENTE') : Promise.resolve([]),
         requisicaoAeri('/api/usuarios/permissoes/catalogo'),
     ]);
     usuarios = lista;

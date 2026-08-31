@@ -260,6 +260,18 @@ function tratarAcaoResultado(evento) {
 }
 
 export function iniciarLivroProtocolos() {
+    window.addEventListener('aeri:abrir-alerta', async evento => {
+        if (evento.detail.modulo !== 'livroproto') return;
+        try {
+            resultadoLivroProto = await requisicaoAeri('/api/livro-protocolos/automatico');
+            renderizarLivroProtocolos('OCORRENCIAS');
+            if (resultadoLivroProto.estadoExecucao !== 'CONCLUIDO') {
+                const aviso=document.createElement('p'); aviso.className='contratos-aviso';
+                aviso.textContent='Esta verificação ainda não está concluída com sucesso. Confira também as falhas de consulta.';
+                document.getElementById('livroproto-resultado').prepend(aviso);
+            }
+        } catch(erro) {document.getElementById('livroproto-resultado').textContent=erro.message;}
+    });
     const campoData = document.getElementById('livroproto-data');
     const hoje = new Date();
     const ontem = new Date(hoje);

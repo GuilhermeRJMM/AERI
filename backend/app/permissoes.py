@@ -11,6 +11,11 @@ import json
 
 
 CATALOGO_PERMISSOES = (
+    {"chave": "acessar_certidao", "nome": "Setor Certidão", "modulo": "Setores", "ordem": 1},
+    {"chave": "acessar_rgi", "nome": "Setor RGI — Produção e Conferência", "modulo": "Setores", "ordem": 2},
+    {"chave": "gerenciar_usuarios", "nome": "Usuários e Acessos", "modulo": "Administração", "ordem": 3},
+    {"chave": "configurar_sistema", "nome": "Integrações e agendamentos", "modulo": "Administração", "ordem": 4},
+    {"chave": "acessar_contratos", "nome": "Contratos e Minutas", "modulo": "RGI", "ordem": 75},
     {"chave": "processar_matricula", "nome": "Matrículas", "modulo": "Registro de Imóveis", "ordem": 10},
     {"chave": "revisar_auditoria", "nome": "Auditoria registral", "modulo": "Registro de Imóveis", "ordem": 20},
     {"chave": "acessar_mapa_onr", "nome": "MAPA-ONR", "modulo": "Registro de Imóveis", "ordem": 30, "auditor_opcional": True},
@@ -53,10 +58,37 @@ PERMISSOES = {
     item["chave"]: COLUNAS_LEGADAS.get(item["chave"], item["chave"])
     for item in CATALOGO_PERMISSOES
 }
-PERMISSOES_AUDITOR = {"processar_matricula", "revisar_auditoria"}
+PERMISSOES_AUDITOR = {"processar_matricula", "revisar_auditoria", "acessar_certidao", "acessar_rgi"}
 PERMISSOES_OPCIONAIS_AUDITOR = {
     item["chave"] for item in CATALOGO_PERMISSOES if item.get("auditor_opcional")
 }
+
+PERMISSOES_CERTIDAO = {
+    "processar_matricula", "acessar_buscas", "processar_incra", "acessar_livro_protocolos",
+    "gerenciar_custas", "consultar_registro_auxiliar", "revisar_registro_auxiliar",
+    "sincronizar_registro_auxiliar", "ver_intimacoes", "criar_intimacoes",
+    "alterar_intimacoes", "conferir_intimacoes",
+}
+PERMISSOES_RGI = {"revisar_auditoria", "acessar_mapa_onr", "acessar_poligonos", "acessar_gerador_notas", "acessar_contratos"}
+PADRAO_SUPERVISOR = set(PERMISSOES) - {
+    "gerenciar_usuarios", "ver_intimacoes", "criar_intimacoes",
+    "alterar_intimacoes", "conferir_intimacoes",
+}
+
+
+def setor_da_permissao(chave: str) -> str | None:
+    if chave in PERMISSOES_CERTIDAO:
+        return "acessar_certidao"
+    if chave in PERMISSOES_RGI:
+        return "acessar_rgi"
+    return None
+
+
+def projecao_permissoes(alias: str = "u") -> str:
+    """A negação individual prevalece sobre a concessão herdada (JSONB ||)."""
+    perfil = f"COALESCE((SELECT jsonb_object_agg(pp.permissao, TRUE) FROM perfis_permissoes_aeri pp WHERE pp.perfil={alias}.perfil), '{{}}'::jsonb)"
+    usuario = f"COALESCE((SELECT jsonb_object_agg(up.permissao, up.concedida) FROM usuarios_permissoes_aeri up WHERE up.usuario={alias}.usuario), '{{}}'::jsonb)"
+    return f"{perfil} AS permissoes_perfil, {usuario} AS permissoes_usuario, ({perfil} || {usuario}) AS permissoes_relacionais"
 
 
 def catalogo_publico() -> list[dict]:
@@ -68,6 +100,8 @@ def catalogo_publico() -> list[dict]:
             "ordem": item["ordem"],
             "auditorFixa": item["chave"] in PERMISSOES_AUDITOR,
             "auditorOpcional": item["chave"] in PERMISSOES_OPCIONAIS_AUDITOR,
+            "padraoSupervisor": item["chave"] in PADRAO_SUPERVISOR,
+            "setor": setor_da_permissao(item["chave"]),
         }
         for item in CATALOGO_PERMISSOES
     ]
@@ -83,7 +117,7 @@ def sincronizar_catalogo_cursor(cursor) -> None:
             modulo=EXCLUDED.modulo, ordem=EXCLUDED.ordem, ativa=TRUE""",
             (item["chave"], item["nome"], item["modulo"], item["ordem"]),
         )
-    cursor.execute("DELETE FROM perfis_permissoes_aeri WHERE perfil='AUDITOR'")
+    # Concessões são sementes, não resetadas a cada cold start.
     cursor.executemany(
         """INSERT INTO perfis_permissoes_aeri (perfil, permissao)
         VALUES ('AUDITOR', %s) ON CONFLICT DO NOTHING""",
@@ -112,35 +146,18 @@ def selecionar_usuarios_com_permissoes(
     ordem: str = "u.ativo DESC, u.nome, u.usuario",
 ) -> str:
     """SELECT compartilhado por sessão e gestão, sem enumerar permissões."""
-    return f"""SELECT u.*,
-        COALESCE((SELECT jsonb_object_agg(pp.permissao, TRUE)
-                  FROM perfis_permissoes_aeri pp WHERE pp.perfil=u.perfil), '{{}}'::jsonb)
-                  AS permissoes_perfil,
-        COALESCE((SELECT jsonb_object_agg(up.permissao, up.concedida)
-                  FROM usuarios_permissoes_aeri up WHERE up.usuario=u.usuario), '{{}}'::jsonb)
-                  AS permissoes_usuario,
-        COALESCE((
-            SELECT jsonb_object_agg(chave, TRUE)
-            FROM (
-                SELECT pp.permissao AS chave
-                FROM perfis_permissoes_aeri pp
-                WHERE pp.perfil=u.perfil
-                UNION
-                SELECT up.permissao AS chave
-                FROM usuarios_permissoes_aeri up
-                WHERE up.usuario=u.usuario AND up.concedida=TRUE
-            ) permissoes_efetivas
-        ), '{{}}'::jsonb) AS permissoes_relacionais
+    return f"""SELECT u.*, {projecao_permissoes()}
         FROM usuarios_aeri u {filtro}{f' ORDER BY {ordem}' if ordem else ''}"""
 
 
 def permissoes_efetivas_cursor(cursor, usuario: str, perfil: str) -> dict:
     cursor.execute(
         """SELECT permissao FROM perfis_permissoes_aeri WHERE perfil=%s
+        AND permissao NOT IN (SELECT permissao FROM usuarios_permissoes_aeri WHERE usuario=%s AND concedida=FALSE)
         UNION
         SELECT permissao FROM usuarios_permissoes_aeri
         WHERE usuario=%s AND concedida=TRUE""",
-        (perfil, usuario),
+        (perfil, usuario, usuario),
     )
     return {item["permissao"]: True for item in cursor.fetchall()}
 
@@ -155,9 +172,9 @@ def substituir_permissoes_usuario_cursor(cursor, usuario: str, perfil: str, soli
     cursor.execute("DELETE FROM usuarios_permissoes_aeri WHERE usuario=%s", (usuario,))
     cursor.executemany(
         """INSERT INTO usuarios_permissoes_aeri (usuario, permissao, concedida)
-        VALUES (%s, %s, TRUE) ON CONFLICT (usuario, permissao)
-        DO UPDATE SET concedida=TRUE, atualizada_em=NOW()""",
-        [(usuario, chave) for chave in concedidas],
+        VALUES (%s, %s, %s) ON CONFLICT (usuario, permissao)
+        DO UPDATE SET concedida=EXCLUDED.concedida, atualizada_em=NOW()""",
+        [(usuario, chave, chave in concedidas) for chave in sorted(validas)],
     )
     # Escrita dupla durante a transição: permite rollback imediato e mantém
     # instâncias antigas de um deploy serverless coerentes até esfriarem.
@@ -182,7 +199,9 @@ def definir_permissao_usuario_cursor(cursor, usuario: str, permissao: str, conce
         )
     else:
         cursor.execute(
-            "DELETE FROM usuarios_permissoes_aeri WHERE usuario=%s AND permissao=%s",
+            """INSERT INTO usuarios_permissoes_aeri (usuario, permissao, concedida)
+            VALUES (%s, %s, FALSE) ON CONFLICT (usuario, permissao)
+            DO UPDATE SET concedida=FALSE, atualizada_em=NOW()""",
             (usuario, permissao),
         )
     coluna_legada = COLUNAS_LEGADAS.get(permissao)

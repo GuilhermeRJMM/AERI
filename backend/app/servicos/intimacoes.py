@@ -4,6 +4,8 @@ from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from fastapi import HTTPException
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 
 FASE_INICIAL = "INTIMACAO"
@@ -62,6 +64,7 @@ def intimacao_json(registro: dict) -> dict:
     valor_pago = Decimal(str(registro.get("total_creditos", VALOR_INICIAL_ONR if valor_pago_registro is None else valor_pago_registro)))
     valor_usado = Decimal(str(registro.get("total_repasses", 0 if valor_usado_registro is None else valor_usado_registro)))
     return {
+        "situacaoConferencia": situacao_conferencia(registro),
         "id": str(registro["id"]),
         "protocolo": registro["protocolo"],
         "credor": registro["credor"],
@@ -96,6 +99,24 @@ def intimacao_json(registro: dict) -> dict:
         "checklistDesistencia": registro.get("checklist_desistencia") or {},
         "atualizadoEm": registro["atualizado_em"].isoformat(),
     }
+
+
+def situacao_conferencia(registro: dict, hoje: date | None = None) -> dict:
+    """Regra visual preexistente da Rotina, comum à lista e ao painel."""
+    hoje = hoje or datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    ultima = registro.get("ultima_conferencia")
+    if not ultima:
+        return dict(classe="vermelho", rotulo="Pendente", detalhe="Nunca conferida", ordem=0)
+    if isinstance(ultima, str):
+        ultima = date.fromisoformat(ultima[:10])
+    dias = max(0, (hoje - ultima).days)
+    if dias == 0:
+        return dict(classe="verde", rotulo="Conferida", detalhe="Conferida hoje", ordem=3)
+    if dias == 1:
+        return dict(classe="amarelo", rotulo="Vence hoje", detalhe="Último check ontem", ordem=1)
+    if dias <= 4:
+        return dict(classe="vermelho", rotulo="Atrasada", detalhe=f"Sem check há {dias} dias", ordem=0)
+    return dict(classe="cinza", rotulo="Sem atividade", detalhe=f"Sem check há {dias} dias", ordem=2)
 
 
 def validar_intimacao(dados: dict) -> tuple[str, str, str, str, date, str]:

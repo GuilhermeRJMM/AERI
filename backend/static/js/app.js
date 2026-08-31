@@ -7,7 +7,10 @@ import {configurarAcessoGeradorNotas, iniciarGeradorNotas} from './gerador_notas
 import {configurarAcessoMapaOnr, iniciarMapaOnr, limparMapaOnr} from './mapa_onr.js?v=20260815-permissao-v1';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260827-operacao-v1';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20260827-operacao-v1';
-import {iniciarNavegacao} from './navegacao.js?v=20260820-robustez-v1';
+import {iniciarNavegacao} from './navegacao.js?v=20260831-setores-v1';
+import {carregarPainel, iniciarPainel, limparPainel} from './painel.js?v=20260831-setores-v1';
+import {carregarSistema, iniciarSistema, limparSistema} from './sistema.js?v=20260831-setores-v1';
+import {iniciarContratos, limparContratos} from './contratos.js?v=20260831-setores-v1';
 import {carregarPoligonos, configurarAcessoPoligonos, iniciarPoligonos, limparPoligonos} from './poligonos.js?v=20260819-poligonos-v13';
 import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistrosAuxiliares} from './registros_auxiliares.js?v=20260827-operacao-v1';
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260820-robustez-v1';
@@ -42,7 +45,7 @@ async function ativarPaginaAtual() {
     const periodicos = {
         rotina: permitido(dados, 'ver_intimacoes') ? carregarIntimacoes : null,
         custas: permitido(dados, 'gerenciar_custas') ? carregarCustas : null,
-        regaux: permitido(dados, 'gerenciar_custas') ? carregarRegistrosAuxiliares : null,
+        regaux: permitido(dados, 'consultar_registro_auxiliar') ? carregarRegistrosAuxiliares : null,
         buscas: permitido(dados, 'acessar_buscas') ? carregarBuscas : null,
     };
     const carregar = periodicos[pagina];
@@ -54,8 +57,14 @@ async function ativarPaginaAtual() {
         );
     } else if (pagina === 'poligonos' && permitido(dados, 'acessar_poligonos')) {
         await carregarPoligonos();
-    } else if (pagina === 'usuarios' && cargoAdministrativo(dados.perfil)) {
+    } else if (pagina === 'usuarios' && permitido(dados, 'gerenciar_usuarios')) {
         await carregarUsuarios();
+    } else if (['inicio','certidao','rgi','sistema'].includes(pagina)) {
+        await carregarPainel();
+    } else if (pagina === 'integracoes' && permitido(dados,'configurar_sistema')) {
+        await carregarSistema();
+    } else if (pagina === 'auditoria' && permitido(dados,'revisar_auditoria')) {
+        await carregarBuscas();
     }
 }
 
@@ -102,6 +111,9 @@ function fecharSplash() {
             exigirTrocaSenha(dados.deveTrocarSenha);
         },
         aoSair: () => {
+            limparPainel();
+            limparContratos();
+            limparSistema();
             sessaoAtual = null;
             geracaoPagina += 1;
             configurarAcessoAnaliseManual();
@@ -121,6 +133,10 @@ function fecharSplash() {
 }
 
 iniciarNavegacao();
+iniciarPainel();
+iniciarSistema();
+iniciarContratos();
+document.getElementById('auditoria-conteudo').append(document.getElementById('buscas-sincronizacao'));
 iniciarAtalhosGlobais();
 iniciarStatusOnr();
 iniciarAnalisador();

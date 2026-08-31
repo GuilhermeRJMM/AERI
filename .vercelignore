@@ -1,0 +1,13 @@
+# Somente código necessário no pacote publicado; nenhum artefato local.
+.env*
+.git
+.claude
+.tmp
+.tmp_test
+.pytest_cache
+tmp
+output
+tests
+**/__pycache__
+**/*.pyc
+integracoes/Json-ITN

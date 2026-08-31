@@ -27,12 +27,7 @@ function diasDesde(data) {
 }
 
 function situacaoIntimacao(item) {
-    if (!item.ultimaConferencia) return {classe:'vermelho', rotulo:'Pendente', detalhe:'Nunca conferida', ordem:0};
-    const dias = diasDesde(item.ultimaConferencia);
-    if (dias === 0) return {classe:'verde', rotulo:'Conferida', detalhe:'Conferida hoje', ordem:3};
-    if (dias === 1) return {classe:'amarelo', rotulo:'Vence hoje', detalhe:'Último check ontem', ordem:1};
-    if (dias <= 4) return {classe:'vermelho', rotulo:'Atrasada', detalhe:`Sem check há ${dias} dias`, ordem:0};
-    return {classe:'cinza', rotulo:'Sem atividade', detalhe:`Sem check há ${dias} dias`, ordem:2};
+    return item.situacaoConferencia || {classe:'cinza', rotulo:'Aguardando', detalhe:'Atualize a lista para conferir', ordem:2};
 }
 
 function fasePorAndamento(nomeAndamento, faseAtual = 'INTIMACAO') {
@@ -160,13 +155,13 @@ function renderizarIntimacoes() {
     document.querySelector('label[for="importar-intimacoes"]').hidden = !(pode('criar_intimacoes') && pode('alterar_intimacoes'));
     document.getElementById('btn-nova-intimacao').hidden = !pode('criar_intimacoes');
     const termo = document.getElementById('busca-intimacao').value.toLowerCase().trim();
-    const daFase = intimacoes.filter(item => item.fase === faseAtiva);
+    const daFase = intimacoes.filter(item => faseAtiva === 'TODAS' || item.fase === faseAtiva);
     const filtradas = daFase.filter(item => [
         item.protocolo, item.protocoloRtd, item.numeroOsTri7, item.protocoloTri7,
         item.credor, item.devedor, item.nomeAndamento, item.certidaoDecursoPrazo,
     ]
         .some(valor => String(valor || '').toLowerCase().includes(termo)))
-        .filter(item => filtroSituacao === 'TODAS' || situacaoIntimacao(item).classe === filtroSituacao)
+        .filter(item => filtroSituacao === 'TODAS' || (filtroSituacao === 'PENDENTES' ? ['vermelho','cinza'].includes(situacaoIntimacao(item).classe) : situacaoIntimacao(item).classe === filtroSituacao))
         .sort((a, b) => situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo));
 
     tbody.innerHTML = filtradas.map(item => {
@@ -607,10 +602,16 @@ async function tratarAcaoTabela(evento) {
 }
 
 export function iniciarIntimacoes() {
+    window.addEventListener('aeri:abrir-alerta', async evento => {
+        if (evento.detail.modulo !== 'rotina') return;
+        faseAtiva='TODAS'; filtroSituacao='PENDENTES'; exibindoLixeira=false;
+        document.getElementById('filtro-situacao-intimacao').value='PENDENTES';
+        await carregarIntimacoes();
+    });
     const busca = document.getElementById('busca-intimacao');
     const seletor = document.createElement('select');
     seletor.id = 'filtro-situacao-intimacao';
-    seletor.innerHTML = '<option value="TODAS">Todas as situações</option><option value="verde">Conferidas hoje</option><option value="amarelo">Vencem hoje</option><option value="vermelho">Atrasadas</option><option value="cinza">Sem atividade</option>';
+    seletor.innerHTML = '<option value="TODAS">Todas as situações</option><option value="PENDENTES">Pendentes / atrasadas / sem atividade</option><option value="verde">Conferidas hoje</option><option value="amarelo">Vencem hoje</option><option value="vermelho">Atrasadas</option><option value="cinza">Sem atividade</option>';
     seletor.addEventListener('change', () => { filtroSituacao = seletor.value; renderizarIntimacoes(); });
     busca.parentElement.appendChild(seletor);
     if (cargoAdministrativo()) {

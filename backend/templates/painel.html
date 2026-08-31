@@ -1,0 +1,16 @@
+<nav class="aeri-breadcrumb" id="aeri-breadcrumb" aria-label="Caminho de navegação"></nav>
+<section id="page-inicio" class="page active painel-pagina">
+    <div class="painel-cabecalho"><span class="eyebrow">SEU AMBIENTE DE TRABALHO</span><h1>Bem-vindo ao AERI</h1><p>Escolha o setor para começar. Suas ferramentas e pendências estão organizadas aqui.</p></div>
+    <div class="setores-grade">
+        <button type="button" class="setor-card certidao" data-destino="certidao" id="card-setor-certidao" hidden><span class="setor-icone" aria-hidden="true">C</span><span class="card-grupo">CONSULTAS E ROTINAS</span><h2>Certidão</h2><p>Consultas, buscas, certidões, protocolos e rotinas do setor.</p><span id="total-certidao"></span><strong>Entrar no setor ↗</strong></button>
+        <button type="button" class="setor-card rgi" data-destino="rgi" id="card-setor-rgi" hidden><span class="setor-icone" aria-hidden="true">R</span><span class="card-grupo">PRODUÇÃO E CONFERÊNCIA</span><h2>RGI</h2><p>Produção registral, conferência, análise de títulos e ferramentas.</p><span id="total-rgi"></span><strong>Entrar no setor ↗</strong></button>
+    </div>
+    <button type="button" class="sistema-atalho" data-destino="sistema" id="card-setor-sistema" hidden>Administração / Sistema <span>Integrações, agendamentos e usuários →</span></button>
+    <p id="painel-erro" class="form-error" role="alert"></p>
+    <p id="painel-sem-acesso" class="painel-vazio" hidden>Nenhum setor foi liberado para sua conta. Solicite à administração as permissões necessárias.</p>
+</section>
+<section id="page-certidao" class="page painel-pagina"><div class="painel-cabecalho"><span class="eyebrow">SETOR CERTIDÃO</span><h1>Consultas e rotinas, em um só lugar.</h1><p>Escolha a ferramenta ou abra uma pendência para conferir.</p></div><div id="painel-alertas" class="painel-alertas" aria-live="polite"></div><div id="grade-certidao" class="ferramentas-grade"></div></section>
+<section id="page-rgi" class="page painel-pagina"><div class="painel-cabecalho"><span class="eyebrow">REGISTRO DE IMÓVEIS</span><h1>RGI — Produção e Conferência</h1><p>Ferramentas para preparar, conferir e revisar o trabalho registral.</p></div><div id="grade-rgi" class="ferramentas-grade"></div></section>
+<section id="page-sistema" class="page painel-pagina"><div class="painel-cabecalho"><span class="eyebrow">ADMINISTRAÇÃO</span><h1>Sistema e acessos</h1><p>Configuração central, sem misturar administração com a rotina dos setores.</p></div><div id="grade-sistema" class="ferramentas-grade"></div></section>
+<section id="page-integracoes" class="page painel-pagina"><div class="painel-cabecalho"><span class="eyebrow">ADMINISTRAÇÃO / SISTEMA</span><h1>Integrações e agendamentos</h1></div><div id="sistema-conteudo"></div><p id="sistema-mensagem" role="status"></p></section>
+<section id="page-auditoria" class="page painel-pagina"><div class="painel-cabecalho"><span class="eyebrow">RGI / CONFERÊNCIA</span><h1>Auditoria registral</h1><p>As ferramentas de auditoria existentes continuam disponíveis para os usuários autorizados.</p></div><div id="auditoria-conteudo"></div></section>

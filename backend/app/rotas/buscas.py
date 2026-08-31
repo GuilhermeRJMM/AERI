@@ -273,6 +273,13 @@ def status_buscas(_usuario: str = Depends(exigir_permissao("acessar_buscas"))):
             return _estado_json(cursor)
 
 
+@router.get("/auditoria/status")
+def status_auditoria(_usuario: str = Depends(exigir_permissao("revisar_auditoria"))):
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            return _estado_json(cursor)
+
+
 @router.get("/erros")
 def listar_erros(_usuario: str = Depends(exigir_permissao("revisar_auditoria"))):
     with conectar() as conexao:

@@ -95,7 +95,7 @@ class TestePermissoesDaSessao(unittest.TestCase):
     def test_perfil_comum_prefere_relacoes_as_colunas_antigas(self):
         sessao = self._sessao(
             "CONFERENTE",
-            permissoes_relacionais={"acessar_buscas": True},
+            permissoes_relacionais={"acessar_certidao": True, "acessar_buscas": True},
             pode_acessar_buscas=False,
             pode_acessar_poligonos=True,
         )

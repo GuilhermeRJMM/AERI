@@ -10,6 +10,7 @@
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
     <link rel="stylesheet" href="/static/styles.css?v=20260827-operacao-v1">
+    <link rel="stylesheet" href="/static/painel.css?v=20260831-setores-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="splash-active auth-pending">
@@ -81,6 +82,13 @@
         <aside class="sidebar" id="sidebar-aeri">
             <span class="sidebar-label">MÓDULOS</span>
             <nav class="sidebar-nav">
+                <div class="nav-item" data-page="inicio" title="Início"></div>
+                <div class="nav-item" data-page="certidao" title="Certidão" hidden></div>
+                <div class="nav-item" data-page="rgi" title="RGI — Produção e Conferência" hidden></div>
+                <div class="nav-item" data-page="sistema" title="Administração / Sistema" hidden></div>
+                <div class="nav-item" data-page="integracoes" title="Integrações e agendamentos" hidden></div>
+                <div class="nav-item" data-page="contratos" title="Contratos e Minutas" hidden></div>
+                <div class="nav-item" data-page="auditoria" title="Auditoria registral" hidden></div>
 
                 <div class="nav-item active" data-page="onus" title="Ônus & Matrícula" hidden>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -170,6 +178,8 @@
         <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" aria-label="Fechar menu" tabindex="-1"></button>
 
         <div class="page-content">
+            {% include 'painel.html' %}
+            {% include 'contratos.html' %}
 
             <div id="page-onus" class="page active">
                 <main class="layout">
@@ -984,7 +994,7 @@
             <form id="form-usuario" class="rotina-form">
                 <label><span>Nome</span><input id="usuario-nome" required maxlength="160"></label>
                 <label><span>Usuário</span><input id="usuario-login" required maxlength="40" pattern="[A-Za-z0-9._-]{3,40}"></label>
-                <label><span>Cargo</span><select id="usuario-perfil"><option value="CONFERENTE">Conferente</option><option value="PRODUTOR">Produtor</option><option value="SUPERVISOR">Supervisor</option><option value="AUDITOR">Auditor</option><option value="SUBSTITUTO">Substituto</option><option value="ADMIN">ADM</option></select></label>
+                <label><span>Cargo</span><select id="usuario-perfil"><option value="USUARIO">Usuário comum</option><option value="CONFERENTE">Conferente</option><option value="PRODUTOR">Produtor</option><option value="SUPERVISOR">Supervisor</option><option value="AUDITOR">Auditor</option><option value="SUBSTITUTO">Substituto</option><option value="ADMIN">ADM</option></select></label>
                 <fieldset class="usuario-atribuicoes">
                     <legend>Atribuições do cargo operacional</legend>
                     <div id="usuario-permissoes-catalogo" class="usuario-permissoes-catalogo"></div>
@@ -1035,6 +1045,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260827-operacao-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20260831-setores-v1"></script>
 </body>
 </html>

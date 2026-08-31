@@ -119,7 +119,7 @@ function atualizarBotao() {
 
 export async function carregarBuscas(opcoes = {}) {
     const autorizado = ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil)
-        || Boolean(window.aeriPermissoes?.acessar_buscas);
+        || Boolean(window.aeriPermissoes?.acessar_buscas) || Boolean(window.aeriPermissoes?.revisar_auditoria);
     if (!autorizado) return;
     const admin = ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil);
     const podeAuditar = admin || Boolean(window.aeriPermissoes?.revisar_auditoria);
@@ -128,7 +128,7 @@ export async function carregarBuscas(opcoes = {}) {
     document.querySelectorAll('[data-buscas-revisao]').forEach(elemento => { elemento.hidden = !podeAuditar; });
     try {
         atualizarStatus(await requisicaoAeri(
-            '/api/buscas/status',
+            podeAuditar ? '/api/buscas/auditoria/status' : '/api/buscas/status',
             {background:Boolean(opcoes.background)},
         ));
     } catch (erro) {

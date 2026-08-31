@@ -1,0 +1,21 @@
+<section id="page-contratos" class="page painel-pagina">
+  <div class="painel-cabecalho"><span class="eyebrow">RGI / PRODUÇÃO</span><h1>Contratos e Minutas</h1><p>Consulte o protocolo, confira o contrato com a matrícula e prepare uma minuta editável.</p></div>
+  <section class="contratos-card"><h2>1. Protocolo e documento</h2>
+    <form id="contratos-protocolo-form" class="contratos-form"><label>Protocolo Tri7<input id="contratos-protocolo" inputmode="numeric" placeholder="Ex.: 185.575" required></label><button type="submit" class="btn btn-primary">Consultar documentos</button><button type="button" id="contratos-recentes-btn" class="btn">Meus trabalhos</button></form>
+    <div id="contratos-documentos"></div><div id="contratos-recentes"></div>
+  </section>
+  <p id="contratos-mensagem" role="status" aria-live="polite"></p>
+  <section id="contratos-extraido" class="contratos-card" hidden><h2>2. Dados extraídos</h2><p class="contratos-aviso">Confira os campos com o documento original. A extração não substitui a conferência registral.</p>
+    <div class="contratos-form"><a id="contratos-original" target="_blank" rel="noopener" class="btn">Baixar documento original</a><button type="button" id="contratos-texto-btn" class="btn">Ver texto por página</button></div>
+    <div id="contratos-texto"></div><div id="contratos-alertas"></div><div id="contratos-ficha"></div>
+    <form id="contratos-matricula-form" class="contratos-form"><label>Matrícula para confrontar<input id="contratos-matricula" inputmode="numeric" required></label><button type="submit" class="btn btn-primary">Confrontar com a matrícula</button></form>
+  </section>
+  <section id="contratos-conferencia" class="contratos-card" hidden><h2>3. Conferência humana</h2><p>Escolha qual informação prevalece ou registre a decisão manual. A seleção fica identificada no histórico.</p><div id="contratos-exigencias"></div><div id="contratos-comparacoes"></div>
+    <label><span><input id="contratos-confirmacao" type="checkbox"> Conferi os dados extraídos e as pendências com os documentos originais.</span></label>
+    <button type="button" id="contratos-gerar" class="btn btn-primary">Gerar minuta</button>
+  </section>
+  <section id="contratos-minutas" class="contratos-card" hidden><h2>4. Minuta editável</h2><p class="contratos-aviso">Rascunho para conferência. Os marcadores de dados faltantes devem ser resolvidos antes de utilizar o texto.</p>
+    <div id="contratos-pendencias-minuta"></div><label>Venda e compra<textarea id="contratos-minuta-venda"></textarea></label><label>Alienação fiduciária<textarea id="contratos-minuta-alienacao"></textarea></label>
+    <div class="contratos-form"><button type="button" id="contratos-salvar" class="btn btn-primary">Salvar versão editada</button><button type="button" id="contratos-copiar" class="btn">Copiar os dois atos</button><button type="button" id="contratos-historico-btn" class="btn">Histórico</button></div><div id="contratos-historico"></div>
+  </section>
+</section>

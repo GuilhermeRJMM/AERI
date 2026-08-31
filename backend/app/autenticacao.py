@@ -17,6 +17,8 @@ from backend.app.permissoes import (
     PERMISSOES_AUDITOR,
     PERMISSOES_OPCIONAIS_AUDITOR,
     permissoes_relacionais_do_registro,
+    projecao_permissoes,
+    setor_da_permissao,
 )
 from backend.app.seguranca_web import ip_cliente, validar_origem
 
@@ -147,18 +149,7 @@ def _obter_sessao(request: Request) -> dict | None:
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
-                """SELECT s.*, u.*,
-                COALESCE((
-                    SELECT jsonb_object_agg(chave, TRUE)
-                    FROM (
-                        SELECT pp.permissao AS chave
-                        FROM perfis_permissoes_aeri pp WHERE pp.perfil=u.perfil
-                        UNION
-                        SELECT up.permissao AS chave
-                        FROM usuarios_permissoes_aeri up
-                        WHERE up.usuario=u.usuario AND up.concedida=TRUE
-                    ) permissoes_efetivas
-                ), '{}'::jsonb) AS permissoes_relacionais
+                f"""SELECT s.*, u.*, {projecao_permissoes()}
                 FROM sessoes_aeri s JOIN usuarios_aeri u ON u.usuario=s.usuario
                 WHERE s.token_hash=%s AND s.revogada_em IS NULL AND u.ativo=TRUE
                 AND s.expira_em > NOW() AND s.ultimo_acesso > NOW() - (%s * INTERVAL '1 second')""",
@@ -206,7 +197,11 @@ def permissoes_sessao(sessao: dict) -> dict:
     if relacionais is not None:
         if sessao["perfil"] == "AUDITOR":
             relacionais = PERMISSOES_AUDITOR | (relacionais & PERMISSOES_OPCIONAIS_AUDITOR)
-        return {chave: chave in relacionais for chave in PERMISSOES}
+        return {
+            chave: chave in relacionais and (
+                not setor_da_permissao(chave) or setor_da_permissao(chave) in relacionais
+            ) for chave in PERMISSOES
+        }
     if sessao["perfil"] == "AUDITOR":
         return {
             chave: (

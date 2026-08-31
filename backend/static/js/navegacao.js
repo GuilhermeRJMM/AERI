@@ -5,7 +5,24 @@ export function mostrarPagina(pageId) {
     itemAlvo.classList.add('active');
     document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
     document.getElementById(`page-${pageId}`)?.classList.add('active');
+    atualizarBreadcrumb(pageId);
     window.dispatchEvent(new CustomEvent('aeri:pagina-alterada', {detail:{pageId}}));
+}
+
+const paginasCertidao = new Set(['onus','buscas','incra','livroproto','custas','regaux','rotina']);
+const paginasRgi = new Set(['mapaonr','poligonos','geradornotas','contratos','auditoria']);
+function atualizarBreadcrumb(pageId) {
+    const destino = document.getElementById('aeri-breadcrumb');
+    if (!destino) return;
+    const setor = paginasCertidao.has(pageId) ? 'certidao' : paginasRgi.has(pageId) ? 'rgi' : ['usuarios','integracoes'].includes(pageId) ? 'sistema' : null;
+    destino.replaceChildren();
+    for (const id of ['inicio', ...(setor ? [setor] : []), ...(pageId !== 'inicio' ? [pageId] : [])]) {
+        const botao = document.createElement('button');
+        botao.type = 'button'; botao.dataset.destino = id;
+        botao.textContent = id === 'inicio' ? 'AERI' : document.querySelector(`.nav-item[data-page="${id}"]`)?.title || id;
+        if (id === pageId) botao.setAttribute('aria-current','page');
+        destino.append(botao);
+    }
 }
 
 const limiteMobile = window.matchMedia('(max-width: 720px)');
@@ -36,6 +53,10 @@ function alternarSidebar() {
 }
 
 export function iniciarNavegacao() {
+    document.addEventListener('click', evento => {
+        const item = evento.target.closest('[data-destino]');
+        if (item) mostrarPagina(item.dataset.destino);
+    });
     document.querySelector('.sidebar-nav').addEventListener('click', evento => {
         const item = evento.target.closest('[data-page]');
         if (item && !item.hidden) {

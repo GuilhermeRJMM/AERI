@@ -10,6 +10,7 @@ from backend.app.autenticacao import (
     PERMISSOES_OPCIONAIS_AUDITOR,
     PERFIS_ADMINISTRATIVOS,
     exigir_perfis,
+    exigir_permissao,
     hash_senha,
     permissoes_sessao,
     proteger_csrf,
@@ -20,6 +21,7 @@ from backend.app.autenticacao import (
 from backend.app.database import conectar, preparar_banco
 from backend.app.permissoes import (
     catalogo_publico,
+    PADRAO_SUPERVISOR,
     definir_permissao_usuario_cursor,
     selecionar_usuarios_com_permissoes,
     substituir_permissoes_usuario_cursor,
@@ -28,8 +30,28 @@ from backend.app.seguranca_web import registrar_auditoria_cursor
 from backend.app.seguranca_mfa import cifrar_segredo, novo_segredo, uri_totp, validar_totp
 
 
-PERFIS = {"ADMIN", "SUBSTITUTO", "AUDITOR", "SUPERVISOR", "CONFERENTE", "PRODUTOR"}
+PERFIS = {"ADMIN", "SUBSTITUTO", "AUDITOR", "SUPERVISOR", "CONFERENTE", "PRODUTOR", "USUARIO"}
 router = APIRouter(prefix="/api/usuarios", tags=["usuários"], dependencies=[Depends(preparar_banco)])
+
+
+def _proteger_gestao(request, alvo=None, perfil=None, permissoes=None):
+    """Delegação não permite promover administradores nem conceder a si próprio."""
+    sessao = request.state.sessao
+    if sessao["perfil"] in PERFIS_ADMINISTRATIVOS:
+        return
+    if alvo and alvo.upper() == sessao["usuario"].upper():
+        raise HTTPException(403, "A gestão delegada não permite alterar seu próprio acesso.")
+    if perfil in PERFIS_ADMINISTRATIVOS or any(
+        (permissoes or {}).get(k) for k in ("gerenciar_usuarios", "configurar_sistema")
+    ):
+        raise HTTPException(403, "Somente ADM/Substituto pode conceder acesso administrativo.")
+    if alvo:
+        with conectar() as conexao:
+            with conexao.cursor() as cursor:
+                cursor.execute("SELECT perfil FROM usuarios_aeri WHERE usuario=%s", (alvo.upper(),))
+                existente = cursor.fetchone()
+                if existente and existente["perfil"] in PERFIS_ADMINISTRATIVOS:
+                    raise HTTPException(403, "Somente ADM/Substituto pode alterar esta conta.")
 
 
 def _usuario_json(item: dict) -> dict:
@@ -63,6 +85,9 @@ def _validar_usuario(dados: dict, exigir_senha: bool = True) -> tuple[str, str, 
 
 
 def _validar_permissoes(dados: dict, perfil: str) -> dict:
+    recebidas=dados.get("permissoes",{})
+    if not isinstance(recebidas,dict) or any(k not in PERMISSOES or not isinstance(v,bool) for k,v in recebidas.items()):
+        raise HTTPException(422,"Permissões devem ser identificadores válidos com verdadeiro ou falso.")
     if perfil in PERFIS_ADMINISTRATIVOS:
         return {coluna: True for coluna in PERMISSOES.values()}
     permissoes = dados.get("permissoes") or {}
@@ -97,7 +122,7 @@ def _buscar_usuario_cursor(cursor, usuario: str) -> dict | None:
 
 
 @router.get("")
-def listar_usuarios(_admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
+def listar_usuarios(_admin: str = Depends(exigir_permissao("gerenciar_usuarios"))):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(selecionar_usuarios_com_permissoes())
@@ -105,12 +130,12 @@ def listar_usuarios(_admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")))
 
 
 @router.get("/permissoes/catalogo")
-def listar_catalogo_permissoes(_admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
+def listar_catalogo_permissoes(_admin: str = Depends(exigir_permissao("gerenciar_usuarios"))):
     return catalogo_publico()
 
 
 @router.get("/auditoria")
-def listar_auditoria(_admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
+def listar_auditoria(_admin: str = Depends(exigir_permissao("gerenciar_usuarios"))):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
@@ -124,8 +149,12 @@ def listar_auditoria(_admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))
 
 
 @router.post("", status_code=201, dependencies=[Depends(proteger_csrf)])
-def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_perfis("ADMIN"))):
+def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_permissao("gerenciar_usuarios"))):
     usuario, nome, perfil, senha = _validar_usuario(dados)
+    _validar_permissoes(dados,perfil)
+    if perfil == "SUPERVISOR":
+        dados = {**dados, "permissoes": {**{k: True for k in PADRAO_SUPERVISOR}, **(dados.get("permissoes") or {})}}
+    _proteger_gestao(request, perfil=perfil, permissoes=dados.get("permissoes") or {})
     permissoes = _permissoes_por_chave(dados, perfil)
     try:
         with conectar() as conexao:
@@ -140,7 +169,6 @@ def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_per
                     "UPDATE usuarios_aeri SET senha_temporaria_expira_em=NOW()+INTERVAL '24 hours' WHERE usuario=%s",
                     (usuario,),
                 )
-                cursor.fetchone()
                 substituir_permissoes_usuario_cursor(cursor, usuario, perfil, permissoes)
                 item = _buscar_usuario_cursor(cursor, usuario)
                 registrar_auditoria_cursor(cursor, request, "criar_usuario", "sucesso", admin, usuario, {"perfil": perfil})
@@ -151,11 +179,13 @@ def criar_usuario(dados: dict, request: Request, admin: str = Depends(exigir_per
 
 
 @router.put("/{usuario_alvo}", dependencies=[Depends(proteger_csrf)])
-def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
+def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: str = Depends(exigir_permissao("gerenciar_usuarios"))):
     usuario_alvo = usuario_alvo.upper()
     _, nome, perfil, _ = _validar_usuario({**dados, "usuario": usuario_alvo}, exigir_senha=False)
+    _validar_permissoes(dados,perfil)
+    _proteger_gestao(request, usuario_alvo, perfil, dados.get("permissoes") or {})
     perfil_editor = request.state.sessao["perfil"]
-    if perfil_editor != "ADMIN" and perfil in PERFIS_ADMINISTRATIVOS:
+    if perfil_editor not in PERFIS_ADMINISTRATIVOS and perfil in PERFIS_ADMINISTRATIVOS:
         raise HTTPException(status_code=403, detail="Somente ADM pode atribuir cargo administrativo.")
     permissoes = _permissoes_por_chave(dados, perfil)
     ativo = bool(dados.get("ativo", True))
@@ -165,7 +195,7 @@ def atualizar_usuario(usuario_alvo: str, dados: dict, request: Request, admin: s
         with conexao.cursor() as cursor:
             cursor.execute("SELECT perfil, ativo FROM usuarios_aeri WHERE usuario=%s", (usuario_alvo,))
             anterior_usuario = cursor.fetchone()
-            if request.state.sessao["perfil"] != "ADMIN":
+            if request.state.sessao["perfil"] not in PERFIS_ADMINISTRATIVOS:
                 cursor.execute("SELECT perfil FROM usuarios_aeri WHERE usuario=%s", (usuario_alvo.upper(),))
                 existente = cursor.fetchone()
                 if existente and existente["perfil"] in PERFIS_ADMINISTRATIVOS:
@@ -200,11 +230,14 @@ def atualizar_permissao_usuario(
     permissao: str,
     dados: dict,
     request: Request,
-    admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+    admin: str = Depends(exigir_permissao("gerenciar_usuarios")),
 ):
     usuario_alvo = usuario_alvo.upper()
+    _proteger_gestao(request, usuario_alvo, permissoes={permissao: dados.get("concedida")})
     if permissao not in PERMISSOES:
         raise HTTPException(status_code=404, detail="Permissão desconhecida.")
+    if not isinstance(dados.get("concedida"),bool):
+        raise HTTPException(422,"Informe verdadeiro ou falso para a permissão.")
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute("SELECT perfil FROM usuarios_aeri WHERE usuario=%s", (usuario_alvo,))
@@ -217,11 +250,12 @@ def atualizar_permissao_usuario(
             if perfil == "AUDITOR" and permissao not in PERMISSOES_OPCIONAIS_AUDITOR:
                 raise HTTPException(status_code=422, detail="Esta atribuição é fixa ou indisponível para o Auditor.")
             concedida = bool(dados.get("concedida"))
+            anterior = _buscar_usuario_cursor(cursor,usuario_alvo)
             definir_permissao_usuario_cursor(cursor, usuario_alvo, permissao, concedida)
             item = _buscar_usuario_cursor(cursor, usuario_alvo)
             registrar_auditoria_cursor(
                 cursor, request, "alterar_permissao", "sucesso", admin,
-                usuario_alvo, {"antes": {"concedida": not concedida},
+                usuario_alvo, {"antes": {"concedida": permissoes_sessao(anterior).get(permissao,False)},
                                 "depois": {"permissao": permissao, "concedida": concedida}},
             )
         conexao.commit()
@@ -229,13 +263,14 @@ def atualizar_permissao_usuario(
 
 
 @router.post("/{usuario_alvo}/redefinir-senha", dependencies=[Depends(proteger_csrf)])
-def redefinir_senha(usuario_alvo: str, dados: dict, request: Request, admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO"))):
+def redefinir_senha(usuario_alvo: str, dados: dict, request: Request, admin: str = Depends(exigir_permissao("gerenciar_usuarios"))):
+    _proteger_gestao(request,usuario_alvo)
     senha = str(dados.get("senha", ""))
     if not senha_forte(senha):
         raise HTTPException(status_code=422, detail="A senha precisa ter 10 caracteres, maiúscula, número e símbolo.")
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            if request.state.sessao["perfil"] != "ADMIN":
+            if request.state.sessao["perfil"] not in PERFIS_ADMINISTRATIVOS:
                 cursor.execute("SELECT perfil FROM usuarios_aeri WHERE usuario=%s", (usuario_alvo.upper(),))
                 existente = cursor.fetchone()
                 if existente and existente["perfil"] in PERFIS_ADMINISTRATIVOS:
@@ -297,8 +332,10 @@ def trocar_minha_senha(dados: dict, request: Request):
 @router.get("/{usuario_alvo}/sessoes")
 def listar_sessoes_usuario(
     usuario_alvo: str,
-    _admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+    request: Request,
+    _admin: str = Depends(exigir_permissao("gerenciar_usuarios")),
 ):
+    _proteger_gestao(request,usuario_alvo)
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
@@ -316,8 +353,9 @@ def listar_sessoes_usuario(
 @router.delete("/{usuario_alvo}/sessoes/{sessao_id}", status_code=204, dependencies=[Depends(proteger_csrf)])
 def revogar_sessao_usuario(
     usuario_alvo: str, sessao_id: UUID, request: Request,
-    admin: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+    admin: str = Depends(exigir_permissao("gerenciar_usuarios")),
 ):
+    _proteger_gestao(request,usuario_alvo)
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
