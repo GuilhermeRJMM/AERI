@@ -1212,6 +1212,32 @@
 
   // ------------------------------------------------------ etapa 4: gerar JSON
 
+  function assinaturaExportacao() {
+    return JSON.stringify({ texto: $('#texto').value, tipo: tipoAtual(),
+      versao: $('#versao').value, cns: $('#cns').value,
+      imovel: estado.fichaImovel, atos: estado.fichasAto,
+      selecionados: Array.from(estado.selecionados) });
+  }
+
+  function chavePendencia(ato, pendencia) {
+    return JSON.stringify([ato, pendencia.campo, pendencia.motivo]);
+  }
+
+  function pendenciasDeConferencia(r) {
+    return r.relatorio.flatMap((item, indiceAto) => item.pendencias.map((p) => {
+      const pessoa = String(p.campo).match(/^dados_pessoa\[(\d+)\]/);
+      const partes = (r.arquivo.imoveis[indiceAto] || {}).dados_pessoa || [];
+      const nome = pessoa && partes[Number(pessoa[1])];
+      return { ato: item.ato, pendencia: p, chave: chavePendencia(item.ato, p),
+        identificacao: item.ato + ' · ' + nomeLegivel(p.campo)
+          + (nome && nome.nome_completo ? ' · ' + nome.nome_completo : ' · ' + p.campo) };
+    }));
+  }
+
+  function resultadoAtual(r) {
+    return estado.resultado === r && r.assinatura === assinaturaExportacao();
+  }
+
   async function validarNoBackend(tipo, arquivo) {
     const resposta = await fetch('/api/mapa-onr/validar-json', {
       method: 'POST', credentials: 'same-origin',
@@ -1224,6 +1250,7 @@
   }
 
   async function gerar() {
+    const assinatura = assinaturaExportacao();
     const versao = $('#versao').value;
     const cns = $('#cns').value;
     const imoveis = [];
@@ -1254,11 +1281,13 @@
     const arquivo = B.montaArquivo(cns, imoveis, versao);
     const schema = tipoAtual() === 'urbano' ? global.ONR_SCHEMA_URBANO : global.ONR_SCHEMA_RURAL;
     const v = V.valida(schema, arquivo);
-    estado.resultado = { arquivo, relatorio, validacao: v, validacaoBackend: null, versao };
+    const resultado = { arquivo, relatorio, validacao: v, validacaoBackend: null, versao,
+      assinatura, ignoradas: new Set() };
+    estado.resultado = resultado;
     try {
-      estado.resultado.validacaoBackend = await validarNoBackend(tipoAtual(), arquivo);
+      resultado.validacaoBackend = await validarNoBackend(tipoAtual(), arquivo);
     } catch (erro) {
-      estado.resultado.validacaoBackend = {
+      resultado.validacaoBackend = {
         valido: false, errosTotal: 1,
         erros: [{ caminho: '$', mensagem: erro.message }],
       };
@@ -1460,15 +1489,25 @@
     alvo.textContent = '';
     const r = estado.resultado;
     if (!r) return;
+    if (!resultadoAtual(r)) {
+      alvo.appendChild(el('div', { className: 'status bad',
+        textContent: 'Os dados foram alterados. Gere e valide o JSON novamente; as pendências ignoradas não serão reaproveitadas.' }));
+      return;
+    }
 
     const erros = r.validacao.erros;
     const validacaoBackend = r.validacaoBackend || { valido: false, erros: [], errosTotal: 1 };
+    const pendencias = pendenciasDeConferencia(r);
+    const ignoradas = pendencias.filter((p) => r.ignoradas.has(p.chave));
+    const relatorioAtivo = r.relatorio.map((item) => Object.assign({}, item, {
+      pendencias: item.pendencias.filter((p) => !r.ignoradas.has(chavePendencia(item.ato, p))),
+    }));
     // O layout repete os dados do imovel dentro de CADA ato, entao um campo
     // errado na ficha do imovel viraria uma linha por ato (nove atos, nove
     // vezes a mesma coisa). A validacao continua ato a ato; aqui as ocorrencias
     // do mesmo campo do imovel sao reunidas numa linha, dizendo quantos atos
     // ela afeta e onde se corrige. O que e proprio do ato continua no ato.
-    const doImovel = agrupaPorCampoDoImovel(erros, r.relatorio);
+    const doImovel = agrupaPorCampoDoImovel(erros, relatorioAtivo);
 
     const errosAto = doImovel.errosAto.length;
 
@@ -1478,16 +1517,47 @@
     if (pendAto) partes.push(pendAto + ' pendencia(s) em ato(s)');
     if (errosAto) partes.push(errosAto + ' erro(s) de schema em ato(s)');
 
-    const status = el('div', { className: 'status ' + (partes.length ? 'bad' : 'ok') });
+    const status = el('div', { className: 'status ' + (partes.length || ignoradas.length || !validacaoBackend.valido ? 'bad' : 'ok') });
     const lista = partes.length > 1
       ? partes.slice(0, -1).join(', ') + ' e ' + partes[partes.length - 1]
       : partes[0];
     status.textContent = partes.length
       ? r.arquivo.imoveis.length + ' ato(s) - ' + lista + ' a resolver.'
       : validacaoBackend.valido
-        ? 'Pronto para envio: ' + r.arquivo.imoveis.length + ' ato(s), validado também no servidor.'
+        ? ignoradas.length
+          ? 'JSON liberado com ressalvas: ' + ignoradas.length + ' pendência(s) ignorada(s). A aceitação pela ONR não está garantida.'
+          : 'Pronto para envio: ' + r.arquivo.imoveis.length + ' ato(s), validado também no servidor.'
         : 'O JSON não foi liberado: a validação do servidor encontrou pendência.';
     alvo.appendChild(status);
+
+    if (pendencias.length) {
+      const d = el('details', { open: ignoradas.length > 0 });
+      d.appendChild(el('summary', { textContent: 'Ignorar pendências de conferência ('
+        + ignoradas.length + ' de ' + pendencias.length + ' ignoradas)' }));
+      d.appendChild(el('p', { textContent: 'Uso excepcional: marque somente o que deseja ignorar neste JSON. '
+        + 'Os valores originais serão mantidos. Isso não corrige o dado nem elimina a validação da ONR. '
+        + 'Erros de estrutura do JSON e falhas do servidor não podem ser ignorados.' }));
+      for (const item of pendencias) {
+        const ignorada = r.ignoradas.has(item.chave);
+        const check = el('input', { type: 'checkbox', checked: ignorada });
+        const caixa = el('div', { className: 'campo' });
+        caixa.appendChild(el('label', {}, [check,
+          (ignorada ? 'Ignorada — ' : 'Ignorar — ') + item.identificacao]));
+        caixa.appendChild(el('small', { textContent: motivoLegivel(item.pendencia.motivo) }));
+        check.onchange = () => {
+          if (!resultadoAtual(r)) { renderResultado(); return; }
+          if (check.checked && !confirm('Ignorar esta pendência: ' + item.identificacao + '?\n\n'
+            + motivoLegivel(item.pendencia.motivo) + '\n\nO dado original será mantido no JSON. A ONR poderá rejeitar o arquivo.')) {
+            check.checked = false;
+            return;
+          }
+          if (check.checked) r.ignoradas.add(item.chave); else r.ignoradas.delete(item.chave);
+          renderResultado();
+        };
+        d.appendChild(caixa);
+      }
+      alvo.appendChild(d);
+    }
 
     if (!validacaoBackend.valido) {
       const d = el('details', { open: true });
@@ -1555,10 +1625,12 @@
     }
     alvo.appendChild(el('div', { className: 'acoes' }, [
       el('button', { className: 'ligado', textContent: 'Copiar JSON', onclick: () => {
+        if (!resultadoAtual(r)) { renderResultado(); return; }
         navigator.clipboard.writeText(json).then(() => alert('JSON copiado.'),
           () => alert('Nao foi possivel copiar; use o botao de baixar.'));
       } }),
       el('button', { textContent: 'Baixar JSON', onclick: () => {
+        if (!resultadoAtual(r)) { renderResultado(); return; }
         const nome = 'onr_' + (r.arquivo.cns || 'cns') + '_'
           + (estado.fichaImovel.numero_matricula || 'matricula') + '_v' + r.versao + '.json';
         const a = el('a', { href: URL.createObjectURL(new Blob([json], { type: 'application/json' })), download: nome });
