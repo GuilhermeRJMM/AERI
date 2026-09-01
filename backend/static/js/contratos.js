@@ -95,17 +95,37 @@ function textosPrevia(dados){
     const texto=chave=>(typeof previa[chave]==='string'?previa[chave]:previa[chave]?.texto)??'';
     return {venda:texto('venda'),alienacao:texto('alienacao')};
 }
-function desenharPrevias(dados){
-    // O rascunho da extracao aparece enquanto a minuta conferida nao existe. Ele
-    // nunca alimenta os botoes de copiar: textosMinuta segue sendo a unica fonte
-    // do que pode ir para a Tri7.
-    const textos=textosMinuta(dados), previa=textosPrevia(dados);
-    const rascunho=!textos.venda&&!textos.alienacao;
-    preencherPrevia('minuta-venda-preview',textos.venda||previa.venda,rascunho);
-    preencherPrevia('minuta-alienacao-preview',textos.alienacao||previa.alienacao,rascunho);
+function desenharPrevias(dados,forcarRascunho){
+    // O rascunho aparece enquanto a minuta conferida nao existe, e volta a
+    // aparecer assim que a ficha e editada -- ali a conferida ficou velha. Ele
+    // nunca alimenta os botoes de copiar: textosMinuta segue sendo a unica
+    // fonte do que pode ir para a Tri7, e e ele que esta funcao devolve.
+    const oficial=textosMinuta(dados), previa=textosPrevia(dados);
+    const usarPrevia=Boolean(forcarRascunho)||(!oficial.venda&&!oficial.alienacao);
+    const venda=usarPrevia?(previa.venda||oficial.venda):oficial.venda;
+    const alienacao=usarPrevia?(previa.alienacao||oficial.alienacao):oficial.alienacao;
+    preencherPrevia('minuta-venda-preview',venda,usarPrevia);
+    preencherPrevia('minuta-alienacao-preview',alienacao,usarPrevia);
     const selo=$('previa-estado');
-    if(selo)selo.textContent=(textos.venda||textos.alienacao)?'conferida':(previa.venda||previa.alienacao)?'rascunho da extração':'';
-    return textos;
+    if(selo)selo.textContent=(venda||alienacao)?(usarPrevia?'rascunho':'conferida'):'';
+    return oficial;
+}
+let timerPrevia=null;
+async function atualizarPrevia(){
+    if(!trabalho?.id||!trabalho?.dados?.ficha)return;
+    const g=geracao;
+    try{
+        const atual=lerFicha();
+        const r=await requisicaoAeri(`/api/contratos/${trabalho.id}/previa`,
+            {...json('POST',{ficha:atual}),background:true});
+        if(g!==geracao||!trabalho?.dados)return;
+        trabalho.dados.minutasPrevia=r.minutasPrevia;
+        // Ficha diferente da confrontada: a minuta conferida esta velha, entao
+        // o que vale ver e o rascunho recem-montado.
+        desenharPrevias(trabalho.dados,JSON.stringify(atual)!==JSON.stringify(trabalho.dados.ficha));
+    }catch(_erro){
+        // A previa e acessorio: falha nela nao pode atrapalhar a conferencia.
+    }
 }
 function lerFicha(){
     const ficha=structuredClone(trabalho.dados.ficha);
@@ -185,10 +205,11 @@ async function extrairSelecionado(id){
         mensagem(e.name==='AbortError'?'A requisição excedeu o tempo de espera. Aguarde alguns segundos e retome este mesmo trabalho, sem criar outro.':e.message);
     }finally{clearTimeout(limite);if(g===geracao)$('mensagem').setAttribute('aria-busy','false');}
 }
-export function limparContratos(){geracao++;clearTimeout(timer);modoExtracao(false);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta'])$(s).replaceChildren();preencherPrevia('minuta-venda-preview','');preencherPrevia('minuta-alienacao-preview','');$('previa-estado').textContent='';$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
+export function limparContratos(){geracao++;clearTimeout(timer);clearTimeout(timerPrevia);modoExtracao(false);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta'])$(s).replaceChildren();preencherPrevia('minuta-venda-preview','');preencherPrevia('minuta-alienacao-preview','');$('previa-estado').textContent='';$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
 async function acao(botao,executar){botao.disabled=true;try{await executar();}catch(e){if(e.message!=='Fluxo encerrado.')mensagem(e.message);}finally{botao.disabled=false;}}
 export function iniciarContratos(){
-    $('ficha').addEventListener('input',()=>{$('minutas').hidden=true;avisoGeracao('Ficha alterada: confronte novamente com a matrícula antes de gerar.');});
+    $('ficha').addEventListener('input',()=>{$('minutas').hidden=true;avisoGeracao('Ficha alterada: confronte novamente com a matrícula antes de gerar.');
+        clearTimeout(timerPrevia);timerPrevia=setTimeout(atualizarPrevia,600);});
     $('comparacoes').addEventListener('input',()=>{$('minutas').hidden=true;});
     $('protocolo-form').addEventListener('submit',e=>{e.preventDefault();acao(e.submitter,async()=>{
         limparContratos();const r=await requisicaoAeri(`/api/contratos/protocolo/${encodeURIComponent($('protocolo').value)}`);protocolo=r.protocolo;

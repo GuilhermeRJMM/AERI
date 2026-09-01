@@ -196,3 +196,53 @@ test('comparação não tem mais o bloco de conferência da operação',()=>{
     assert.match(html,/CONTRATO[\s\S]*MATRÍCULA/);
     assert.match(html,/data-decisao="imovel\.area"/);
 });
+
+const fichaBase=()=>({contrato:{},vendedores:[],compradores:[],credora:{},valores:{},financiamento:{},matricula:{numero:'1'}});
+const pausa=ms=>new Promise(r=>setTimeout(r,ms));
+
+test('digitar na ficha remonta o rascunho, sem gerar e sem gravar',async()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'teste',versao:1,confrontoAtual:true,dados:{ficha:fichaBase(),alertasExtracao:[],evidencias:{}}};
+    a.rodar('trabalho=entrada;desenhar()');
+    a.chamadas.length=0;
+    a.ctx.resposta={minutasPrevia:{venda:{texto:'RASCUNHO AO VIVO'},alienacao:{texto:'RASCUNHO 2'}}};
+
+    a.elemento('contratos-ficha').handlers.input();
+    assert.equal(a.chamadas.length,0,'nao pode chamar a cada tecla');
+    await pausa(700);await new Promise(r=>setImmediate(r));
+
+    assert.equal(a.chamadas.length,1,'uma chamada depois da pausa');
+    assert.match(a.chamadas[0][0],/\/api\/contratos\/teste\/previa$/);
+    assert.equal(a.chamadas[0][1].method,'POST');
+    assert.equal(a.elemento('contratos-minuta-venda-preview').textContent,'RASCUNHO AO VIVO');
+    assert.equal(a.elemento('contratos-previa-estado').textContent,'rascunho');
+});
+
+test('falha na prévia não atrapalha a conferência',async()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'teste',versao:1,confrontoAtual:true,dados:{ficha:fichaBase(),alertasExtracao:[],evidencias:{},
+        minutasPrevia:{venda:{texto:'ANTERIOR'},alienacao:{texto:'ANTERIOR 2'}}}};
+    a.rodar('trabalho=entrada;desenhar()');
+    a.ctx.erro=new Error('rede caiu');
+    a.elemento('contratos-ficha').handlers.input();
+    await pausa(700);await new Promise(r=>setImmediate(r));
+    assert.equal(a.elemento('contratos-minuta-venda-preview').textContent,'ANTERIOR','mantem o ultimo rascunho');
+    assert.equal(a.elemento('contratos-mensagem').textContent,'','erro de previa nao vira aviso na tela');
+});
+
+test('editar depois de gerar mostra o rascunho, não a minuta velha',async()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'teste',versao:1,confrontoAtual:true,dados:{ficha:fichaBase(),alertasExtracao:[],evidencias:{},
+        minutas:{venda:{texto:'CONFERIDA VELHA',pendencias:[]},alienacao:{texto:'CONFERIDA 2',pendencias:[]}}}};
+    a.rodar('trabalho=entrada;desenhar()');
+    assert.equal(a.elemento('contratos-minuta-venda-preview').textContent,'CONFERIDA VELHA');
+
+    // A ficha lida da tela passa a divergir da confrontada.
+    a.campos.push({type:'text',value:'ALTERADO',dataset:{contratoCampo:'matricula.numero'}});
+    a.ctx.resposta={minutasPrevia:{venda:{texto:'RASCUNHO NOVO'},alienacao:{texto:'RASCUNHO 2'}}};
+    a.elemento('contratos-ficha').handlers.input();
+    await pausa(700);await new Promise(r=>setImmediate(r));
+
+    assert.equal(a.elemento('contratos-minuta-venda-preview').textContent,'RASCUNHO NOVO');
+    assert.equal(a.elemento('contratos-previa-estado').textContent,'rascunho');
+});

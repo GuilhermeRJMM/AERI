@@ -222,6 +222,23 @@ def comparar(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
     return _publico(salvo)
 
 
+@router.post("/{id}/previa",dependencies=[Depends(proteger_csrf)])
+def previa(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
+    """Remonta o rascunho da minuta enquanto o conferente digita.
+
+    Nao grava nada: nao salva payload, nao mexe na versao e nao vira `minutas`.
+    Serve so para a coluna ao lado da ficha acompanhar a edicao. A checagem de
+    acesso continua valendo -- ficha de contrato nao e publica.
+    """
+    if len(json.dumps(dados))>1_000_000: raise HTTPException(413,"Ficha muito grande.")
+    ficha=dados.get("ficha")
+    if not isinstance(ficha,dict): raise HTTPException(422,"Ficha invalida.")
+    with conectar() as con:
+        with con.cursor() as cur:
+            _buscar(cur,id,usuario,request.state.sessao["perfil"])
+    return {"minutasPrevia":_previa_minutas(ficha)}
+
+
 @router.post("/{id}/gerar",dependencies=[Depends(proteger_csrf)])
 def gerar(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
     if len(json.dumps(dados))>1_000_000: raise HTTPException(413,"Ficha muito grande.")

@@ -183,3 +183,34 @@ def test_confronto_nao_pede_decisao_para_dados_da_nova_operacao():
     # Com tudo compativel nao sobra pendencia alguma. Antes, os quatro blocos
     # criavam quatro decisoes obrigatorias mesmo sem divergencia.
     assert all(c['situacao'] == 'COMPATIVEL' for c in confronto['comparacoes'])
+
+
+def test_previa_devolve_a_minuta_sem_gravar_nada():
+    """A prévia acompanha a digitação: recalcula e devolve, sem persistir.
+
+    Se ela gravasse, cada tecla viraria versão nova no histórico e disputaria
+    o controle de versão com a geração conferida.
+    """
+    from backend.app.rotas import contratos as rotas
+    identificador = uuid4()
+    registro = {'id': identificador, 'versao': 3, 'payload_cifrado': 'teste'}
+    req = SimpleNamespace(state=SimpleNamespace(sessao={'perfil': 'ADMIN'}))
+    with patch.object(rotas, 'conectar', MagicMock()), \
+         patch.object(rotas, '_buscar', return_value=registro), \
+         patch.object(rotas, '_salvar') as salvar:
+        r = rotas.previa(identificador, {'ficha': servico.para_json(ficha())}, req, 'conferente')
+    salvar.assert_not_called()
+    assert set(r['minutasPrevia']) == {'venda', 'alienacao'}
+    assert r['minutasPrevia']['venda']['texto']
+
+
+def test_previa_com_ficha_incompleta_nao_derruba_a_extracao():
+    """Ficha pela metade é o caso normal logo após extrair."""
+    from backend.app.rotas import contratos as rotas
+    # Ficha vazia ainda monta o esqueleto dos dois atos, com as pendências.
+    vazia = rotas._previa_minutas({})
+    assert set(vazia) == {'venda', 'alienacao'}
+    assert vazia['venda']['pendencias']
+    # Ficha corrompida devolve None em vez de estourar: a prévia é acessório e
+    # não pode derrubar a extração nem a rota.
+    assert rotas._previa_minutas({'vendedores': 'texto no lugar de lista'}) is None
