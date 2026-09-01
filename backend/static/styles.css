@@ -3011,26 +3011,191 @@ body.modo-incorporado .layout { padding-top:28px; }
 .mapa-onr-status[data-tipo="carregando"] { color: #c4b5fd; }
 .mapa-onr-status[data-tipo="sucesso"] { color: #86efac; }
 .mapa-onr-status[data-tipo="erro"] { color: #fca5a5; }
-.mapa-onr-conversor {
-  min-height: 720px;
-  overflow: hidden;
+.mapa-onr-nativo {
+  --mapa-fundo: #101728;
+  --mapa-texto: #edf2ff;
+  --mapa-borda: #2b3850;
+  --mapa-fraco: #98a5bd;
+  --mapa-painel: #151f33;
+  --mapa-acento: #6757f2;
+  --mapa-ok-fundo: #102d28;
+  --mapa-ok-texto: #86efac;
+  --mapa-erro-fundo: #35191f;
+  --mapa-erro-texto: #fca5a5;
+  --mapa-aviso: #fde68a;
+  --mapa-aviso-fundo: #33270f;
+  overflow: clip;
   border: 1px solid rgba(139,152,178,.18);
   border-radius: 16px;
-  background: #131316;
+  background: var(--mapa-fundo);
+  color: var(--mapa-texto);
   box-shadow: var(--glass-shadow);
 }
-.mapa-onr-conversor iframe {
+.mapa-onr-nativo * { box-sizing: border-box; }
+.mapa-onr-abas {
+  display: flex;
+  gap: 6px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--mapa-borda);
+  background: rgba(8,13,24,.55);
+}
+.mapa-onr-nativo button {
+  padding: 7px 13px;
+  border: 1px solid var(--mapa-borda);
+  border-radius: 7px;
+  background: var(--mapa-painel);
+  color: var(--mapa-texto);
+  font: 700 .75rem Outfit,sans-serif;
+  cursor: pointer;
+}
+.mapa-onr-nativo button:hover { border-color: var(--mapa-acento); }
+.mapa-onr-nativo button.ligado {
+  border-color: var(--mapa-acento);
+  background: var(--mapa-acento);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(103,87,242,.2);
+}
+.mapa-onr-nativo .passo {
+  margin: 0;
+  padding: 20px 22px;
+  border-bottom: 1px solid rgba(139,152,178,.14);
+}
+.mapa-onr-nativo .passo:last-child { border-bottom: 0; }
+.mapa-onr-nativo h2 {
+  margin: 0 0 13px;
+  color: var(--mapa-texto);
+  font-size: .9rem;
+}
+.mapa-onr-nativo h3 { margin: 18px 0 7px; color: var(--mapa-texto); font-size: .82rem; }
+.mapa-onr-nativo h4 {
+  margin: 14px 0 5px;
+  color: var(--mapa-fraco);
+  font-size: .7rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.mapa-onr-nativo .cabecalho-form,
+.mapa-onr-nativo .grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(190px,1fr));
+  gap: 11px 14px;
+  margin: 9px 0;
+}
+.mapa-onr-nativo .campo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mapa-onr-nativo .campo > label {
+  color: var(--mapa-fraco);
+  font: 700 .65rem ui-monospace,Consolas,monospace;
+}
+.mapa-onr-nativo input[type="text"],
+.mapa-onr-nativo select,
+.mapa-onr-nativo textarea {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--mapa-borda);
+  border-radius: 7px;
+  outline: none;
+  background: #111a2c;
+  color: var(--mapa-texto);
+  font: 500 .76rem Outfit,sans-serif;
+}
+.mapa-onr-nativo textarea {
+  min-height: 180px;
+  resize: vertical;
+  font-family: ui-monospace,Consolas,monospace;
+}
+.mapa-onr-nativo input:focus,
+.mapa-onr-nativo select:focus,
+.mapa-onr-nativo textarea:focus {
+  border-color: var(--mapa-acento);
+  box-shadow: 0 0 0 3px rgba(103,87,242,.11);
+}
+.mapa-onr-nativo .linha-botoes,
+.mapa-onr-nativo .barra-atos,
+.mapa-onr-nativo .acoes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.mapa-onr-nativo details.ato {
+  margin: 8px 0;
+  padding: 10px 13px;
+  border: 1px solid var(--mapa-borda);
+  border-radius: 10px;
+  background: var(--mapa-painel);
+}
+.mapa-onr-nativo details > summary { color: var(--mapa-texto); cursor: pointer; font-size: .76rem; }
+.mapa-onr-nativo details.texto-ato pre,
+.mapa-onr-nativo pre.json {
+  max-height: 460px;
+  overflow: auto;
+  padding: 11px;
+  border: 1px solid var(--mapa-borda);
+  border-radius: 8px;
+  background: #0c1423;
+  color: #dbe4f2;
+  font: .7rem/1.5 ui-monospace,Consolas,monospace;
+  white-space: pre-wrap;
+}
+.mapa-onr-nativo .tabela {
   display: block;
   width: 100%;
-  min-height: 720px;
-  border: 0;
-  background: #131316;
+  overflow-x: auto;
+  border-collapse: collapse;
+  color: var(--mapa-texto);
+  font-size: .72rem;
+}
+.mapa-onr-nativo .tabela th,
+.mapa-onr-nativo .tabela td { padding: 6px; border-bottom: 1px solid var(--mapa-borda); text-align: left; }
+.mapa-onr-nativo .tabela th { color: var(--mapa-fraco); white-space: nowrap; }
+.mapa-onr-nativo .status {
+  margin: 11px 0;
+  padding: 10px 13px;
+  border-radius: 8px;
+  font-size: .76rem;
+  font-weight: 700;
+}
+.mapa-onr-nativo .status.ok { background: var(--mapa-ok-fundo); color: var(--mapa-ok-texto); }
+.mapa-onr-nativo .status.bad { background: var(--mapa-erro-fundo); color: var(--mapa-erro-texto); }
+.mapa-onr-nativo .aviso,
+.mapa-onr-nativo .aviso-item { color: var(--mapa-aviso); background: var(--mapa-aviso-fundo); }
+.mapa-onr-nativo ul.erros,
+.mapa-onr-nativo ul.vigente { margin: 7px 0; padding: 0; list-style: none; font-size: .73rem; }
+.mapa-onr-nativo ul.erros li,
+.mapa-onr-nativo ul.vigente li { padding: 4px 0; border-bottom: 1px solid var(--mapa-borda); }
+.mapa-onr-nativo code { color: #a89ef8; font: .7rem ui-monospace,Consolas,monospace; }
+.mapa-onr-nativo .evidencia,
+.mapa-onr-nativo small.nota,
+.mapa-onr-nativo .vazio { color: var(--mapa-fraco); font-size: .68rem; }
+.mapa-onr-nativo .trecho {
+  max-width: 420px;
+  overflow: hidden;
+  color: var(--mapa-fraco);
+  font: .66rem ui-monospace,Consolas,monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mapa-onr-nativo .aeri-revisao,
+.mapa-onr-nativo .aeri-revisao-item,
+.mapa-onr-nativo .aeri-revisao-mestre {
+  border-color: #6b5520;
+  background: var(--mapa-aviso-fundo);
+  color: var(--mapa-texto);
+}
+.mapa-onr-nativo .aeri-revisao.ok { border-color: #2f6b50; background: var(--mapa-ok-fundo); }
+.mapa-onr-nativo .aeri-bloqueio { color: var(--mapa-aviso); }
+@media(max-width:720px) {
+  .mapa-onr-nativo .passo { padding: 16px 12px; }
+  .mapa-onr-abas { overflow-x: auto; padding: 11px 12px; }
+  .mapa-onr-nativo .cabecalho-form,
+  .mapa-onr-nativo .grade { grid-template-columns: 1fr; }
 }
 @media(max-width:720px) {
   .mapa-onr-form > div { grid-template-columns: 1fr; }
   .mapa-onr-form > div > span { display: none; }
   .mapa-onr-form button { width: 100%; }
-  .mapa-onr-conversor iframe { min-height: 720px; }
 }
 
 /* ===================== Módulo Polígonos ===================== */

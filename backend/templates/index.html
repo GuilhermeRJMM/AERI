@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260827-operacao-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260901-mapa-nativo-v1">
     <link rel="stylesheet" href="/static/painel.css?v=20260831-confronto-v2">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -230,39 +230,7 @@
                 </main>
             </div>
 
-            <div id="page-mapaonr" class="page">
-                <main class="layout mapa-onr-layout">
-                    <div class="rotina-header mapa-onr-header">
-                        <div>
-                            <span class="eyebrow">ITN 003/2025 · ONR</span>
-                            <h1>MAPA-ONR</h1>
-                            <p>Consulte uma matrícula diretamente na Tri7, revise os atos reconhecidos e gere o JSON validado no schema oficial.</p>
-                        </div>
-                    </div>
-
-                    <section class="mapa-onr-consulta">
-                        <form id="form-mapa-onr" class="mapa-onr-form">
-                            <label for="mapa-onr-matricula">Número da matrícula</label>
-                            <div>
-                                <span aria-hidden="true"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
-                                <input id="mapa-onr-matricula" type="text" inputmode="numeric" autocomplete="off" maxlength="14" pattern="[0-9. ]{1,14}" placeholder="Ex.: 10.151" required>
-                                <button id="btn-mapa-onr-consultar" type="submit" class="btn btn-primary">Consultar e converter</button>
-                            </div>
-                        </form>
-                        <p id="mapa-onr-status" class="mapa-onr-status" role="status" aria-live="polite">Informe a matrícula para iniciar.</p>
-                    </section>
-
-                    <section class="mapa-onr-conversor" aria-label="Conversor MAPA-ONR">
-                        <iframe
-                            id="mapa-onr-frame"
-                            title="Conversor de matrícula para JSON do ONR"
-                            data-src="/api/mapa-onr/conversor?embedded=1&amp;v=20260815-permissao-v1"
-                            sandbox="allow-scripts allow-downloads allow-forms"
-                            loading="lazy"
-                        ></iframe>
-                    </section>
-                </main>
-            </div>
+            {% include 'mapa_onr.html' %}
 
             <div id="page-geradornotas" class="page">
                 <main class="layout gerador-notas-layout">
@@ -1045,6 +1013,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20260831-confronto-v2"></script>
+    <script type="module" src="/static/js/app.js?v=20260901-mapa-nativo-v1"></script>
 </body>
 </html>

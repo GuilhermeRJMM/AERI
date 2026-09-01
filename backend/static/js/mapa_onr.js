@@ -1,17 +1,13 @@
 import {requisicaoAeri} from './api.js?v=20260824-csrf-v1';
 
 
-let framePronto = false;
-let cargaPendente = null;
-
-
 function elementos() {
     return {
         formulario: document.getElementById('form-mapa-onr'),
         entrada: document.getElementById('mapa-onr-matricula'),
         botao: document.getElementById('btn-mapa-onr-consultar'),
         status: document.getElementById('mapa-onr-status'),
-        frame: document.getElementById('mapa-onr-frame'),
+        conversor: document.getElementById('mapa-onr-nativo'),
     };
 }
 
@@ -24,34 +20,16 @@ function atualizarStatus(texto, tipo = '') {
 }
 
 
-function enviarAoConversor(carga) {
-    const frame = elementos().frame;
-    if (!frame?.contentWindow || !framePronto) {
-        cargaPendente = carga;
-        return;
-    }
-    frame.contentWindow.postMessage(carga, '*');
-    cargaPendente = null;
+function motor() {
+    if (!window.AERI_MAPA_ONR) throw new Error('O conversor MAPA-ONR não foi carregado. Atualize a página.');
+    return window.AERI_MAPA_ONR;
 }
 
 
-// O conversor nao consegue falar com o servidor: o iframe tem sandbox sem
-// allow-same-origin, entao a origem dele e opaca e o CSP (connect-src 'self')
-// bloqueia todo fetch de dentro. O AERI valida no lugar dele -- aqui existe
-// sessao e CSRF -- e devolve a resposta pela mesma ponte. O endpoint e fixo:
-// o iframe escolhe o conteudo, nunca o destino.
-async function validarPeloAeri(pedido) {
-    const resposta = {tipo: 'AERI_MAPA_ONR_VALIDADO', id: pedido.id};
-    try {
-        resposta.dados = await requisicaoAeri('/api/mapa-onr/validar-json', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({tipo: pedido.tipoImovel, arquivo: pedido.arquivo}),
-        });
-    } catch (erro) {
-        resposta.erro = erro.message || 'A validação do servidor não respondeu.';
-    }
-    enviarAoConversor(resposta);
+function notificarAnaliseHibrida(carga) {
+    // O adaptador de confrontantes continua desacoplado do conversor. O evento
+    // local é síncrono para que o contexto esteja pronto antes da extração.
+    window.dispatchEvent(new MessageEvent('message', {data: carga, source: window}));
 }
 
 
@@ -67,14 +45,19 @@ async function consultar(evento) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({numero_matricula: numero}),
         });
-        enviarAoConversor({
+        const carga = {
             tipo: 'AERI_MAPA_ONR_MATRICULA',
             numeroMatricula: resultado.numero_matricula,
             tipoImovel: resultado.tipo_imovel,
             texto: resultado.texto,
             contextoAeri: resultado.contexto_aeri,
-        });
-        atualizarStatus('Matrícula recebida. O MAPA-ONR está reconhecendo os atos…', 'carregando');
+        };
+        notificarAnaliseHibrida(carga);
+        const processado = motor().carregarMatricula(carga);
+        atualizarStatus(
+            `Matrícula ${processado.numeroMatricula} carregada: ${processado.totalAtos} ato(s) reconhecido(s).`,
+            'sucesso',
+        );
     } catch (erro) {
         atualizarStatus(erro.message, 'erro');
     } finally {
@@ -83,71 +66,25 @@ async function consultar(evento) {
 }
 
 
-function receberMensagem(evento) {
-    const frame = elementos().frame;
-    if (!frame || evento.source !== frame.contentWindow || !evento.data) return;
-    if (evento.data.tipo === 'AERI_MAPA_ONR_CARREGADO') {
-        framePronto = true;
-        if (cargaPendente) enviarAoConversor(cargaPendente);
-        return;
-    }
-    if (evento.data.tipo === 'AERI_MAPA_ONR_VALIDAR') {
-        validarPeloAeri(evento.data);
-        return;
-    }
-    if (evento.data.tipo === 'AERI_MAPA_ONR_ALTURA') {
-        const altura = Number(evento.data.altura);
-        if (Number.isFinite(altura)) {
-            frame.style.height = `${Math.max(720, Math.min(15000, altura + 12))}px`;
-        }
-        return;
-    }
-    if (evento.data.tipo === 'AERI_MAPA_ONR_ERRO') {
-        atualizarStatus(evento.data.mensagem || 'Não foi possível converter a matrícula.', 'erro');
-        return;
-    }
-    if (evento.data.tipo === 'AERI_MAPA_ONR_PROCESSADO') {
-        const quantidade = Number(evento.data.totalAtos || 0);
-        atualizarStatus(
-            `Matrícula ${evento.data.numeroMatricula} carregada: ${quantidade} ato(s) reconhecido(s).`,
-            'sucesso',
-        );
-    }
-}
-
-
 export function limparMapaOnr() {
-    cargaPendente = null;
     const entrada = elementos().entrada;
     if (entrada) entrada.value = '';
     atualizarStatus('Informe a matrícula para iniciar.');
-    enviarAoConversor({tipo: 'AERI_MAPA_ONR_LIMPAR'});
+    notificarAnaliseHibrida({tipo: 'AERI_MAPA_ONR_LIMPAR'});
+    window.AERI_MAPA_ONR?.limpar();
 }
 
 
 export function configurarAcessoMapaOnr(permitido) {
-    const frame = elementos().frame;
-    if (!frame) return;
-    const origem = frame.dataset.src;
-    if (permitido && origem && frame.getAttribute('src') !== origem) {
-        frame.setAttribute('src', origem);
-        return;
-    }
-    if (!permitido && frame.hasAttribute('src')) {
-        framePronto = false;
-        cargaPendente = null;
-        frame.removeAttribute('src');
-    }
+    const conversor = elementos().conversor;
+    if (!conversor) return;
+    conversor.hidden = !permitido;
+    conversor.dataset.autorizado = String(Boolean(permitido));
 }
 
 
 export function iniciarMapaOnr() {
-    const {formulario, frame} = elementos();
-    if (!formulario || !frame) return;
+    const {formulario, conversor} = elementos();
+    if (!formulario || !conversor) return;
     formulario.addEventListener('submit', consultar);
-    window.addEventListener('message', receberMensagem);
-    frame.addEventListener('load', () => {
-        framePronto = false;
-        frame.contentWindow?.postMessage({tipo: 'AERI_MAPA_ONR_PING'}, '*');
-    });
 }

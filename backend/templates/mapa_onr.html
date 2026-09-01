@@ -1,0 +1,109 @@
+<div id="page-mapaonr" class="page">
+    <main class="layout mapa-onr-layout">
+        <div class="rotina-header mapa-onr-header">
+            <div>
+                <span class="eyebrow">ITN 003/2025 · ONR</span>
+                <h1>MAPA-ONR</h1>
+                <p>Consulte uma matrícula diretamente na Tri7, revise os atos reconhecidos e gere o JSON validado no schema oficial.</p>
+            </div>
+        </div>
+
+        <section class="mapa-onr-consulta">
+            <form id="form-mapa-onr" class="mapa-onr-form">
+                <label for="mapa-onr-matricula">Número da matrícula</label>
+                <div>
+                    <span aria-hidden="true"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+                    <input id="mapa-onr-matricula" type="text" inputmode="numeric" autocomplete="off" maxlength="14" pattern="[0-9. ]{1,14}" placeholder="Ex.: 10.151" required>
+                    <button id="btn-mapa-onr-consultar" type="submit" class="btn btn-primary">Consultar e converter</button>
+                </div>
+            </form>
+            <p id="mapa-onr-status" class="mapa-onr-status" role="status" aria-live="polite">Informe a matrícula para iniciar.</p>
+        </section>
+
+        <section id="mapa-onr-nativo" class="mapa-onr-nativo" aria-label="Conversor MAPA-ONR" hidden>
+            <div id="alerta-carga" class="status bad" hidden></div>
+
+            <nav class="mapa-onr-abas" aria-label="Áreas do MAPA-ONR">
+                <button type="button" data-aba="converter" class="ligado">Converter matrícula</button>
+                <button type="button" data-aba="validar">Validar JSON existente</button>
+            </nav>
+
+            <section data-painel="converter">
+                <div class="passo mapa-onr-identificacao">
+                    <h2>1. Identificação da matrícula</h2>
+                    <div class="cabecalho-form">
+                        <div class="campo"><label for="cns">CNS (6 dígitos)</label><input type="text" id="cns" value="026187"></div>
+                        <div class="campo"><label for="tipo-imovel">Tipo do imóvel</label>
+                            <select id="tipo-imovel"><option value="rural" selected>2 - Rural</option><option value="urbano">1 - Urbano</option></select>
+                        </div>
+                        <div class="campo"><label for="municipio">Município da serventia</label>
+                            <select id="municipio">
+                                <option value="Morrinhos-GO" selected>Morrinhos-GO (5213806)</option>
+                                <option value="Goiania-GO">Goiânia-GO (5208707)</option>
+                                <option value="Caldas Novas-GO">Caldas Novas-GO (5204706)</option>
+                                <option value="Buriti Alegre-GO">Buriti Alegre-GO (5203807)</option>
+                                <option value="Piracanjuba-GO">Piracanjuba-GO (5217104)</option>
+                                <option value="Goiatuba-GO">Goiatuba-GO (5209101)</option>
+                            </select>
+                        </div>
+                        <div class="campo"><label for="versao">Versão do arquivo</label>
+                            <select id="versao"><option value="1.2.0" selected>1.2.0 - schema publicado</option><option value="1.3.0">1.3.0 - manual atual</option></select>
+                        </div>
+                    </div>
+                    <div id="origem-aeri" class="status ok" hidden>Aguardando uma consulta do AERI.</div>
+                    <div class="mapa-onr-ferramentas-locais" hidden>
+                        <textarea id="texto" aria-label="Texto integral da matrícula"></textarea>
+                        <div class="linha-botoes">
+                            <button type="button" id="btn-ler" class="ligado">Ler matrícula</button>
+                            <button type="button" id="btn-exemplo">Exemplo rural</button>
+                            <button type="button" id="btn-exemplo-urbano">Exemplo urbano</button>
+                        </div>
+                    </div>
+                    <span id="contagem" class="vazio"></span>
+                </div>
+
+                <div class="passo">
+                    <h2>2. Atos reconhecidos — marque o que será exportado</h2>
+                    <div id="lista-atos"></div>
+                    <div id="estado-vigente"></div>
+                </div>
+
+                <div class="passo">
+                    <h2>3. Revisão</h2>
+                    <small class="nota">Revise o que foi extraído do texto. Campos obrigatórios ausentes aparecem como pendência no passo 4 e nunca são inventados.</small>
+                    <div id="correcoes"></div>
+                    <div id="ficha-imovel"></div>
+                    <div id="fichas-atos"></div>
+                </div>
+
+                <div class="passo">
+                    <h2>4. Validar e exportar</h2>
+                    <div class="linha-botoes"><button type="button" id="btn-gerar" class="ligado">Validar e gerar JSON</button></div>
+                    <div id="resultado"></div>
+                </div>
+            </section>
+
+            <section data-painel="validar" hidden>
+                <div class="passo">
+                    <h2>Validar um JSON já gerado</h2>
+                    <small class="nota">Confere o arquivo contra o schema oficial e agrupa os erros por campo.</small>
+                    <div class="linha-botoes"><input type="file" id="arquivo-externo" accept=".json,application/json"></div>
+                    <textarea id="json-externo" placeholder="Cole o conteúdo do JSON aqui"></textarea>
+                    <div class="linha-botoes"><button type="button" id="btn-validar" class="ligado">Validar</button></div>
+                    <div id="saida-validador"></div>
+                </div>
+            </section>
+        </section>
+    </main>
+</div>
+
+<script src="/static/mapa_onr/src/enums.js"></script>
+<script src="/static/mapa_onr/src/documento.js"></script>
+<script src="/static/mapa_onr/src/validator.js"></script>
+<script src="/static/mapa_onr/src/parser.js?v=20260826-upstream-1101b3b"></script>
+<script src="/static/mapa_onr/src/extrator.js?v=20260831-cib-alfanumerico"></script>
+<script src="/static/mapa_onr/src/builder.js?v=20260826-upstream-1101b3b"></script>
+<script src="/static/js/mapa_onr_hibrido.js?v=20260901-nativo-v1"></script>
+<script src="/static/mapa_onr/schemas/rural.schema.js"></script>
+<script src="/static/mapa_onr/schemas/urbano.schema.js"></script>
+<script src="/static/mapa_onr/src/app.js?v=20260901-nativo-v1"></script>

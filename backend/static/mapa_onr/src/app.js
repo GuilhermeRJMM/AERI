@@ -1240,12 +1240,28 @@
 
   let sequenciaValidacao = 0;
 
+  function estaNaInterfaceNativa() {
+    return Boolean(document.getElementById && document.getElementById('mapa-onr-nativo'));
+  }
+
+  async function validarDiretamenteNoBackend(tipo, arquivo) {
+    const resposta = await fetch('/api/mapa-onr/validar-json', {
+      method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo, arquivo }),
+    });
+    const dados = await resposta.json().catch(() => ({}));
+    if (!resposta.ok) throw new Error(dados.detail || 'A validação do servidor não respondeu.');
+    return dados;
+  }
+
   function validarNoBackend(tipo, arquivo) {
-    // O conversor roda em iframe com sandbox sem allow-same-origin. Ali a
-    // origem e opaca: connect-src 'self' do CSP nao casa com origem nenhuma e
-    // o fetch morre como "Failed to fetch", sem contar que nao levaria o
-    // cookie de sessao. Quem fala com o servidor e o AERI, pela mesma ponte de
-    // postMessage que ja entrega a matricula.
+    // Na interface nativa a sessão do próprio AERI acompanha o fetch. A ponte
+    // permanece apenas para o conversor privado legado, ainda disponível para
+    // compatibilidade e executado sob sandbox de origem opaca.
+    if (estaNaInterfaceNativa() || global.parent === global) {
+      return validarDiretamenteNoBackend(tipo, arquivo);
+    }
     const id = ++sequenciaValidacao;
     return new Promise((resolve, reject) => {
       function ouvir(evento) {
@@ -1743,7 +1759,40 @@
     }, '*');
   }
 
+  function limparMatriculaRecebida() {
+    $('#texto').value = '';
+    estado.numeroConsultado = null;
+    estado.textoConsultado = null;
+    const origem = $('#origem-aeri');
+    origem.hidden = false;
+    origem.className = 'status ok';
+    origem.textContent = 'Aguardando uma consulta do AERI.';
+    lerMatricula();
+  }
+
+  function carregarMatriculaRecebida(mensagem) {
+    const origem = $('#origem-aeri');
+    origem.hidden = false;
+    const texto = String(mensagem.texto || '').trim();
+    if (!texto) throw new Error('A Tri7 retornou a matrícula sem texto.');
+    if (mensagem.tipoImovel === 'rural' || mensagem.tipoImovel === 'urbano') {
+      $('#tipo-imovel').value = mensagem.tipoImovel;
+    }
+    $('#texto').value = texto;
+    origem.className = 'status ok';
+    origem.textContent = 'Matrícula ' + mensagem.numeroMatricula
+      + ' recebida diretamente da Tri7. Confira os atos antes de exportar.';
+    estado.numeroConsultado = String(mensagem.numeroMatricula || '').trim() || null;
+    estado.textoConsultado = texto;
+    lerMatricula();
+    return { numeroMatricula: mensagem.numeroMatricula, totalAtos: estado.atos.length };
+  }
+
   function configurarIntegracaoAeri() {
+    // O AERI inteiro pode estar incorporado no SYNC. Isso não transforma o
+    // conversor nativo em um iframe legado: ele continua usando a sessão do
+    // AERI e não conversa com o parent do SYNC.
+    if (estaNaInterfaceNativa()) return;
     const incorporado = global.parent !== global
       && new URLSearchParams(global.location.search).get('embedded') === '1';
     if (!incorporado) return;
@@ -1761,36 +1810,18 @@
         return;
       }
       if (mensagem.tipo === 'AERI_MAPA_ONR_LIMPAR') {
-        $('#texto').value = '';
-        origem.className = 'status ok';
-        origem.textContent = 'Aguardando uma consulta do AERI.';
-        lerMatricula();
+        limparMatriculaRecebida();
         informarAlturaAoAeri();
         return;
       }
       if (mensagem.tipo !== 'AERI_MAPA_ONR_MATRICULA') return;
 
       try {
-        const texto = String(mensagem.texto || '').trim();
-        if (!texto) throw new Error('A Tri7 retornou a matricula sem texto.');
-        if (mensagem.tipoImovel === 'rural' || mensagem.tipoImovel === 'urbano') {
-          $('#tipo-imovel').value = mensagem.tipoImovel;
-        }
-        $('#texto').value = texto;
-        origem.className = 'status ok';
-        origem.textContent = 'Matricula ' + mensagem.numeroMatricula
-          + ' recebida diretamente da Tri7. Confira os atos antes de exportar.';
-        // Guardado antes da leitura: e o numero consultado no AERI, usado
-        // quando o texto nao traz nenhum de onde extrair. Guarda tambem o
-        // texto recebido, para o numero nao vazar caso o operador cole outra
-        // matricula por cima depois.
-        estado.numeroConsultado = String(mensagem.numeroMatricula || '').trim() || null;
-        estado.textoConsultado = texto;
-        lerMatricula();
+        const processado = carregarMatriculaRecebida(mensagem);
         global.parent.postMessage({
           tipo: 'AERI_MAPA_ONR_PROCESSADO',
-          numeroMatricula: mensagem.numeroMatricula,
-          totalAtos: estado.atos.length,
+          numeroMatricula: processado.numeroMatricula,
+          totalAtos: processado.totalAtos,
         }, '*');
       } catch (erro) {
         origem.className = 'status bad';
@@ -1808,6 +1839,13 @@
     }
     global.parent.postMessage({ tipo: 'AERI_MAPA_ONR_CARREGADO' }, '*');
   }
+
+  // API pequena e explícita para a página nativa do AERI. O texto continua
+  // transitório no navegador e não é persistido por esta integração.
+  global.AERI_MAPA_ONR = {
+    carregarMatricula: carregarMatriculaRecebida,
+    limpar: limparMatriculaRecebida,
+  };
 
   function iniciar() {
     configurarIntegracaoAeri();

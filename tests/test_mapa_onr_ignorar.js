@@ -9,7 +9,7 @@ const codigo = fs.readFileSync(path.join(__dirname, '../backend/static/mapa_onr/
 const boot = "document.addEventListener('DOMContentLoaded', iniciar);";
 assert.ok(codigo.includes(boot));
 
-function ambiente() {
+function ambiente(nativo = false) {
   class Elemento {
     constructor(tag) { this.tag = tag; this.children = []; this.value = ''; this._text = ''; }
     set textContent(v) { this._text = v; this.children = []; }
@@ -55,6 +55,15 @@ function ambiente() {
       fn({data:Object.assign({tipo:'AERI_MAPA_ONR_VALIDADO', id:msg.id}, r)}); };
     if(ctx.adiar) adiados.push(responder); else responder(ctx.validacao());
   }};
+  if (nativo) {
+    ctx.document.getElementById = id => id === 'mapa-onr-nativo' ? campo('#mapa-onr-nativo') : null;
+    if (nativo !== 'sync') ctx.parent = ctx;
+    ctx.fetch = async (url, opcoes) => {
+      chamadas.push({url, opcoes});
+      const resposta = ctx.validacao();
+      return {ok: !resposta.erro, json: async()=>resposta.dados || {detail: resposta.erro}};
+    };
+  }
   const liberarAdiada = (r)=>adiados.shift()(r);
   vm.runInContext(codigo.replace(boot, 'global.teste = {estado, gerar, renderResultado, assinaturaExportacao};'), ctx);
   const api = ctx.teste;
@@ -69,6 +78,21 @@ function ambiente() {
   const texto = () => campo('#resultado').textContent;
   return {ctx,api,campo,botoes,caixas,marcar,texto,copiados,baixados,blobs,confirmacoes,chamadas,liberarAdiada};
 }
+
+test('interface nativa valida diretamente com a sessão do AERI, sem postMessage', async()=>{
+  const a=ambiente(true); await a.api.gerar();
+  assert.equal(a.chamadas.length,1);
+  assert.equal(a.chamadas[0].url,'/api/mapa-onr/validar-json');
+  assert.equal(a.chamadas[0].opcoes.credentials,'same-origin');
+  a.marcar();
+  assert.equal(a.botoes().length,2);
+});
+
+test('interface nativa dentro do SYNC também valida diretamente no AERI',async()=>{
+  const a=ambiente('sync'); await a.api.gerar();
+  assert.equal(a.chamadas.length,1);
+  assert.equal(a.chamadas[0].url,'/api/mapa-onr/validar-json');
+});
 
 test('marcar a caixa ignora a pendência sem modal, preservando CPF e JSON originais', async()=>{
   const a=ambiente(); await a.api.gerar();
