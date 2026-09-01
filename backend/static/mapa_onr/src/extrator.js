@@ -45,11 +45,20 @@
     const s = String(t || '');
     let m = s.match(/\b(\d{2})[./](\d{2})[./](\d{4})\b/);
     if (m) return m[1] + '/' + m[2] + '/' + m[3];
+    // Ano de dois digitos no acervo antigo: "Morrinhos, 29/08/93" (AV-10 da
+    // 777). Sem isto o ato ficava sem data e o schema do ONR recusava o imovel.
+    // O seculo sai da unica regra segura aqui: ato de matricula nao pode ser
+    // datado no futuro, entao 2000+AA so vale se ja tiver acontecido.
+    m = s.match(/\b(\d{2})[./](\d{2})[./](\d{2})\b/);
+    if (m) {
+      const ano = 2000 + Number(m[3]);
+      return m[1] + '/' + m[2] + '/' + (ano <= new Date().getFullYear() ? ano : ano - 100);
+    }
     const k = chave(s);
     // O ano aparece com ponto de milhar nos livros antigos: "25 de abril de
     // 1.995". Sem tolerar o ponto, a matricula ficava sem data - e sem data nao
     // ha motivo_envio, nem data do ato, nem abertura reconhecida como ato.
-    const re = new RegExp('(\\d{1,2})\\s+de\\s+(' + MESES.join('|') + ')\\s+de\\s+(\\d{1,2}\\.?\\d{3})');
+    const re = new RegExp('(\\d{1,2})\\s*[º°ª]?\\s+de\\s+(' + MESES.join('|') + ')\\s+de\\s+(\\d{1,2}\\.?\\d{3})');
     m = k.match(re);
     if (m) {
       return String(+m[1]).padStart(2, '0') + '/'
@@ -68,7 +77,7 @@
     if (m) return achado(dataDeTexto(m[1]), m[0], 'Data:');
     // O dia PRECISA ter fronteira a esquerda: sem isso, o numero da matricula no cabecalho
     // faz "11 de Agosto" ser lido como "1 de Agosto" (erro real observado).
-    m = cabecalho.match(/(?:^|[^\d])(\d{1,2})\s+de\s+([A-Za-zçÀ-ÿ]+)\s+de\s+(\d{1,2}\.?\d{3})/i);
+    m = cabecalho.match(/(?:^|[^\d])(\d{1,2})\s*[º°ª]?\s+de\s+([A-Za-zçÀ-ÿ]+)\s+de\s+(\d{1,2}\.?\d{3})/i);
     if (m) return achado(dataDeTexto(m[1] + ' de ' + m[2] + ' de ' + m[3]), m[0], 'cabecalho');
     const d = dataDeTexto(cabecalho);
     if (d) return achado(d, cabecalho.slice(0, 90), 'cabecalho');
@@ -470,10 +479,32 @@
 
     // "Cadastrado no INCRA EM NOME DE <terceiro>, sob o nº 936.120.274.135-0":
     // o acervo antigo intercala o nome do cadastrante entre "INCRA" e "sob o".
-    m = t.match(/(?:c[óo]digo do im[óo]vel rural|INCRA(?:[^;.]{0,90}?)?\s*sob o)\s*:?\s*n?[ºo°]?\.?\s*([\d.]{13,17}-?\d?)/i);
-    if (m) {
-      const limpo = m[1].replace(/\D/g, '');
-      if (limpo.length === 12 || limpo.length === 13) out.cod_sncr = achado(limpo, m[0], 'codigo do imovel rural');
+    // O acervo antigo separa o codigo do INCRA por HIFEN ("22-04-013-50339")
+    // e escreve o rotulo no plural quando ha mais de um cadastro ("sob o nos").
+    // Sem isso a 777 saia sem cadastro rural nenhum, e o schema do ONR exige ao
+    // menos um entre cib, cod_sncr e car: o ato inteiro era recusado.
+    // Quando a matricula traz mais de um codigo, vale o ULTIMO: a averbacao
+    // posterior atualiza o cadastro. Na 748 a abertura diz "22-04-013.50313" e
+    // um ato seguinte diz "o imovel retro matriculado esta cadastrado no Incra
+    // sob o n 936.120.009.709" -- o INCRA renumerou, e o vigente e o segundo.
+    // Ficar com o primeiro devolveria o codigo velho.
+    // Duas formas, e elas nao valem o mesmo. "INCRA ... sob o n" e o oficial
+    // declarando o cadastro DESTE imovel; entre varias, vale a ultima, porque a
+    // averbacao posterior atualiza (748: a abertura diz 22-04-013.50313 e um ato
+    // seguinte diz 936.120.009.709 -- o INCRA renumerou).
+    // Ja "codigo do imovel rural:" aparece dentro de CCIR transcrito, que pode
+    // ser de uma unidade cadastral MAIOR: na 716 esse bloco traz 943,6ha para um
+    // imovel de 377,5ha, e na 2.600 traz 1.685,5ha para um de 154,8ha. Por isso
+    // so serve de reserva, quando nao existe a forma oficial.
+    const guardaSncr = (mm) => {
+      const limpo = mm[1].replace(/\D/g, '');
+      if (limpo.length === 12 || limpo.length === 13) {
+        out.cod_sncr = achado(limpo, mm[0], 'codigo do imovel rural');
+      }
+    };
+    for (const mm of t.matchAll(/INCRA(?:[^;.]{0,90}?)?\s*sob o\s*:?\s*n?\.?[ºo°]?s?\.?\s*([\d.\-]{13,17}-?\d?)/gi)) guardaSncr(mm);
+    if (!out.cod_sncr) {
+      for (const mm of t.matchAll(/c[óo]digo do im[óo]vel rural\s*:?\s*n?\.?[ºo°]?s?\.?\s*([\d.\-]{13,17}-?\d?)/gi)) guardaSncr(mm);
     }
 
     // CIF urbano: "CCI n.º 10.630" (codigo cadastral da Prefeitura). CCI e o
