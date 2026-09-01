@@ -54,6 +54,7 @@
 .contratos-decisao { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:12px; }
 .contratos-decisao select,.contratos-decisao input { width:100%;min-width:0;box-sizing:border-box; }
 .contratos-geracao { margin-top:24px;padding-top:20px;border-top:1px solid #344057; }
+.contratos-geracao label:has(input:checked) { color:#6ee7b7; }
 .contratos-geracao [role=status] { min-height:24px;color:#bdebd8;white-space:pre-wrap; }
 .contratos-geracao .contratos-erro { color:#ffb4b4; }
 .contratos-card [aria-invalid=true] { outline:2px solid #e98c8c;outline-offset:3px; }
@@ -66,7 +67,32 @@
 .contratos-dados-operacao dl { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
 .contratos-dados-operacao dt { font-size:12px;color:#a4b1c5; }
 .contratos-dados-operacao dd { margin:4px 0;overflow-wrap:anywhere; }
+.contratos-sucesso,.contratos-confirmacao-ok { color:#6ee7b7; }
+.contratos-confirmacao-ok { padding:12px 14px;border:1px solid #28554a;border-radius:10px;background:#142a27; }
+.contratos-alertas-extracao { margin:12px 0;padding:14px;border:1px solid #6e552f;border-radius:10px;background:#2d271d;color:#f3dca7; }
+.contratos-alertas-extracao summary { cursor:pointer;font-weight:700; }
+.contratos-campo-confirmado>span { display:flex;align-items:center;justify-content:space-between;gap:8px; }
+.contratos-campo-confirmado>span b { display:grid;place-items:center;width:19px;height:19px;border-radius:50%;background:#153d31;color:#6ee7b7;font-size:12px; }
+.contratos-opcoes { min-width:0;margin:0;padding:0;border:0; }
+.contratos-opcoes legend { display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:7px;color:#a9b6cc;font-size:13px; }
+.contratos-opcoes legend b { display:grid;place-items:center;width:19px;height:19px;border-radius:50%;background:#153d31;color:#6ee7b7;font-size:12px; }
+.contratos-opcoes>div { display:flex;flex-wrap:wrap;gap:7px; }
+.contratos-opcoes label { display:block;cursor:pointer; }
+.contratos-opcoes input { position:absolute;opacity:0;pointer-events:none; }
+.contratos-opcoes label span { display:block;padding:9px 11px;border:1px solid #3a455b;border-radius:8px;background:#101828;color:#c8d3e4; }
+.contratos-opcoes input:checked+span { border-color:#3a9e7d;background:#153d31;color:#8af0c5;box-shadow:0 0 0 1px #3a9e7d55; }
+.contratos-opcoes input:focus-visible+span { outline:2px solid #b0a8ff;outline-offset:2px; }
+.contratos-opcoes small { display:block;margin-top:7px;color:#7f8da7; }
+.contratos-confirmacoes { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0; }
+.contratos-confirmacoes p { margin:0;padding:13px 14px;border:1px solid #6e552f;border-radius:10px;background:#2d271d;color:#f3dca7;line-height:1.45; }
+.contratos-confirmacoes p.ok { border-color:#28554a;background:#142a27;color:#bcf0db; }
+.contratos-confirmacoes strong { display:inline-grid;place-items:center;width:20px;height:20px;margin-right:5px;border-radius:50%;background:#62491f;color:#ffe2a7; }
+.contratos-confirmacoes .ok strong { background:#1f5c48;color:#8af0c5; }
+.contratos-previas { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:18px 0; }
+.contratos-previas article { min-width:0;border:1px solid #344057;border-radius:12px;background:#0f1726;overflow:hidden; }
+.contratos-previas h3 { margin:0;padding:13px 15px;border-bottom:1px solid #344057;font-size:14px;color:#d8e2f2; }
+.contratos-previas pre { margin:0;padding:18px;min-height:220px;max-height:440px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#eef2ff;font:14px/1.7 Georgia,serif; }
 @media(max-width:700px) { .contratos-decisao {grid-template-columns:minmax(0,1fr);} }
 [hidden] { display:none !important; }
 @media(max-width:850px) { .ferramentas-grade {grid-template-columns:repeat(2,minmax(0,1fr));}.setor-card {padding:24px;} }
-@media(max-width:600px) { .setores-grade,.ferramentas-grade,.contratos-campos,.contratos-comparacao {grid-template-columns:1fr;}.painel-pagina {padding:26px 16px;}.sistema-atalho {flex-direction:column;}.aeri-breadcrumb {flex-wrap:wrap;font-size:12px;}.setor-card {min-height:290px;} }
+@media(max-width:600px) { .setores-grade,.ferramentas-grade,.contratos-campos,.contratos-comparacao,.contratos-confirmacoes,.contratos-previas {grid-template-columns:1fr;}.painel-pagina {padding:26px 16px;}.sistema-atalho {flex-direction:column;}.aeri-breadcrumb {flex-wrap:wrap;font-size:12px;}.setor-card {min-height:290px;} }

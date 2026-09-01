@@ -59,7 +59,7 @@ test('erro HTTP é exibido junto ao botão e mantém botão utilizável',async()
     await a.clicar('gerar');assert.match(a.elemento('contratos-geracao-status').textContent,/Falha de teste.*req-teste/);
     assert.equal(a.elemento('contratos-gerar').disabled,false);
 });
-test('geração bem sucedida oferece cópia sem textarea ou texto inline',async()=>{
+test('geração bem sucedida oferece cópia e prévia somente leitura',async()=>{
     const a=ambiente();a.trabalho();a.elemento('contratos-confirmacao').checked=true;
     a.ctx.resposta=structuredClone(a.ctx.entrada);a.ctx.resposta.dados.minutas={venda:{texto:'ATO VENDA',pendencias:[]},alienacao:{texto:'ATO ALIENACAO',pendencias:[]}};
     // O render completo é verificado no navegador; aqui isolamos a ação assíncrona.
@@ -68,7 +68,26 @@ test('geração bem sucedida oferece cópia sem textarea ou texto inline',async(
     assert.equal(a.chamadas.length,1);
     await a.clicar('copiar');assert.equal(a.copiados[0],'ATO VENDA\n\nATO ALIENACAO');
     const template=readFileSync(new URL('../backend/templates/contratos.html',import.meta.url),'utf8');
+    assert.match(template,/contratos-minuta-venda-preview/);
+    assert.match(template,/contratos-minuta-alienacao-preview/);
     assert.doesNotMatch(template,/<textarea|contratos-texto-btn|Salvar versão editada/);
+});
+test('ficha oculta campos técnicos e oferece escolhas controladas',()=>{
+    const a=ambiente();
+    a.ctx.obj={contrato:{numero:'1',modelo:'MO123',modalidade:'NOVO'},vendedores:[{tipo:'fisica',sexo:'F',estado_civil:'casado',documento:{tipo:'RG'}}]};
+    const lista=a.rodar('campos(obj)');
+    assert.deepEqual(Array.from(lista,x=>x.campo),['contrato.numero','vendedores.0.sexo','vendedores.0.estado_civil','vendedores.0.documento.tipo']);
+    assert.match(a.rodar("campoFichaHtml({campo:'vendedores.0.sexo',valor:'F'},{evidencias:{}})"),/type="radio"[^>]*data-contrato-campo="vendedores\.0\.sexo"/);
+    assert.match(a.rodar("campoFichaHtml({campo:'vendedores.0.documento.tipo',valor:'RG'},{evidencias:{}})"),/value="RG"[^>]*checked/);
+});
+test('desenho mostra prévia, representante e cadeia de procurações automáticos',()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'teste',confrontoAtual:true,dados:{ficha:{contrato:{},vendedores:[],compradores:[],credora:{representante:{nome:'ANA TESTE'},procuracoes:[{especie:'Procuração'}]},valores:{},financiamento:{},matricula:{numero:'1'}},alertasExtracao:[],evidencias:{},minutas:{venda:{texto:'MINUTA VENDA',pendencias:[]},alienacao:{texto:'MINUTA ALIENACAO',pendencias:[]}}}};
+    a.rodar('trabalho=entrada;desenhar()');
+    assert.equal(a.elemento('contratos-minuta-venda-preview').textContent,'MINUTA VENDA');
+    assert.equal(a.elemento('contratos-minuta-alienacao-preview').textContent,'MINUTA ALIENACAO');
+    assert.match(a.elemento('contratos-automatizacoes').innerHTML,/ANA TESTE[\s\S]*automaticamente[\s\S]*1 ato/);
+    assert.doesNotMatch(a.elemento('contratos-alertas').innerHTML,/campos para conferência/);
 });
 test('resposta inválida nunca sinaliza sucesso de geração',async()=>{
     const a=ambiente();a.trabalho();a.elemento('contratos-confirmacao').checked=true;a.ctx.resposta=a.ctx.entrada;

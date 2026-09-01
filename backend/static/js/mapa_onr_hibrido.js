@@ -59,6 +59,9 @@
       .aeri-revisao-item small { display: block; margin: 3px 0; overflow-wrap: anywhere; }
       .aeri-revisao-item label { display: flex; gap: 8px; align-items: flex-start;
         margin-top: 8px; font-weight: 600; cursor: pointer; }
+      .aeri-revisao-mestre { display: flex; gap: 8px; align-items: center;
+        margin: 0 0 2px; padding: 9px 10px; border: 1px dashed rgba(36,50,71,.32);
+        border-radius: 8px; background: #fff; font-weight: 700; cursor: pointer; }
       .aeri-bloqueio { margin-top: 10px; color: #9b3a20; font-weight: 700; }
     `;
     document.head.appendChild(estilo);
@@ -85,6 +88,27 @@
       ? 'O texto não identifica com segurança o proprietário destes confrontantes. Confira a fonte antes de gerar o JSON.'
       : 'Os proprietários exportados possuem identificação explícita no texto registral.';
     painel.appendChild(introducao);
+
+    if (itens.length) {
+      const mestre = document.createElement('label');
+      mestre.className = 'aeri-revisao-mestre';
+      const marcarTodas = document.createElement('input');
+      marcarTodas.type = 'checkbox';
+      marcarTodas.addEventListener('change', () => {
+        // Aplica de uma vez a mesma escolha conservadora do item individual:
+        // a matricula continua sendo exportada, o proprietario nao e atribuido.
+        for (const {chave: id} of pendencias()) {
+          if (marcarTodas.checked) confirmados.add(id); else confirmados.delete(id);
+        }
+        for (const caixa of painel.querySelectorAll('.aeri-revisao-item input')) {
+          caixa.checked = marcarTodas.checked;
+        }
+        atualizarBloqueio(painel);
+      });
+      mestre.append(marcarTodas, document.createTextNode(
+        `Marcar todas as ${itens.length} e liberar a exportação (sem atribuir proprietário).`));
+      painel.appendChild(mestre);
+    }
 
     for (const {item, chave: id} of itens) {
       const caixa = document.createElement('div');
@@ -124,6 +148,17 @@
     atualizarBloqueio(painel);
   }
 
+  function sincronizarMestre(painel) {
+    const mestre = painel.querySelector('.aeri-revisao-mestre input');
+    if (!mestre) return;
+    const itens = pendencias();
+    const marcados = itens.filter(({chave: id}) => confirmados.has(id)).length;
+    mestre.checked = itens.length > 0 && marcados === itens.length;
+    // Estado intermediario visivel: conferir parte no item a item nao pode
+    // parecer nem "nenhuma marcada" nem "todas marcadas".
+    mestre.indeterminate = marcados > 0 && marcados < itens.length;
+  }
+
   function atualizarBloqueio(painel) {
     const faltantes = pendencias().filter(({chave: id}) => !confirmados.has(id)).length;
     const aviso = painel.querySelector('.aeri-bloqueio');
@@ -131,6 +166,7 @@
       ? `A exportação está bloqueada até conferir ${faltantes} item(ns).`
       : 'Conferência concluída. O JSON pode ser gerado.';
     painel.classList.toggle('ok', faltantes === 0);
+    sincronizarMestre(painel);
   }
 
   function limparContexto() {

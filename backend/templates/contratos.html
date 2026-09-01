@@ -9,7 +9,7 @@
   <button type="button" id="contratos-retomar" class="btn" hidden>Retomar extração deste trabalho</button>
   <section id="contratos-extraido" class="contratos-card" hidden><h2>2. Dados extraídos</h2><p class="contratos-aviso">Confira os campos com o documento original. A extração não substitui a conferência registral.</p>
     <div class="contratos-form"><a id="contratos-original" target="_blank" rel="noopener" class="btn">Baixar documento original</a></div>
-    <div id="contratos-alertas"></div><div id="contratos-ficha"></div>
+    <div id="contratos-alertas"></div><div id="contratos-automatizacoes"></div><div id="contratos-ficha"></div>
     <form id="contratos-matricula-form" class="contratos-form"><label>Matrícula para confrontar<input id="contratos-matricula" inputmode="numeric" required></label><button type="submit" class="btn btn-primary">Confrontar com a matrícula</button></form>
   </section>
   <section id="contratos-conferencia" class="contratos-card" hidden><h2>3. Comparação dos dados</h2><p>Campos compatíveis não exigem decisão. Revise os demais com o contrato e a matrícula na Tri7. As decisões ficam no histórico.</p><div id="contratos-exigencias"></div><div id="contratos-comparacoes"></div>
@@ -19,6 +19,10 @@
   </section>
   <section id="contratos-minutas" class="contratos-card" hidden><h2>4. Pronto para levar à Tri7</h2><p>Copie e cole no campo apropriado da Tri7. Confira e edite o texto lá; o AERI não registra nem envia os atos automaticamente.</p>
     <p class="contratos-aviso">Rascunho: resolva os marcadores de dados faltantes e confira todo o texto na Tri7 antes de utilizá-lo.</p><div id="contratos-pendencias-minuta"></div>
+    <div class="contratos-previas" aria-label="Prévia das minutas montadas">
+      <article><h3>Venda e compra</h3><pre id="contratos-minuta-venda-preview" tabindex="0"></pre></article>
+      <article><h3>Alienação fiduciária</h3><pre id="contratos-minuta-alienacao-preview" tabindex="0"></pre></article>
+    </div>
     <p id="contratos-copia-status" role="status" aria-live="polite"></p>
     <div class="contratos-form"><button type="button" id="contratos-copiar-venda" class="btn">Copiar venda e compra</button><button type="button" id="contratos-copiar-alienacao" class="btn">Copiar alienação fiduciária</button><button type="button" id="contratos-copiar" class="btn btn-primary">Copiar os dois atos</button><button type="button" id="contratos-historico-btn" class="btn">Histórico</button></div><div id="contratos-historico"></div>
   </section>

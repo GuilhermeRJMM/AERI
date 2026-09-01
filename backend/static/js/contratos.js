@@ -4,7 +4,7 @@ let trabalho=null, protocolo=null, timer=null, geracao=0;
 async function requisicaoAeri(...args){const g=geracao;const r=await requisicaoOriginal(...args);if(g!==geracao)throw new Error('Fluxo encerrado.');return r;}
 const $=id=>document.getElementById(`contratos-${id}`);
 const json=(method,body)=>({method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-function mensagem(texto){$('mensagem').textContent=texto;}
+function mensagem(texto,sucesso=false){const el=$('mensagem');el.textContent=texto;el.classList.toggle('contratos-sucesso',sucesso);}
 function avisoGeracao(texto,erro=false){const el=$('geracao-status');el.textContent=texto;el.classList.toggle('contratos-erro',erro);}
 function decisoesDaTela(){
     const decisoes={};document.querySelectorAll('[data-decisao]').forEach(el=>{
@@ -35,14 +35,54 @@ function rotuloCampo(campo){
     const nomes={contrato:'Contrato',vendedores:'Vendedor',compradores:'Comprador',credora:'Credora',valores:'Valores',financiamento:'Financiamento',matricula:'Matrícula',imovel:'Imóvel',numero:'Número',cpf:'CPF',cnpj:'CNPJ',razao_social:'Razão social',nome:'Nome',profissao:'Profissão',conjuge:'Cônjuge',descricao:'Descrição',orgao:'Órgão emissor',endereco:'Endereço',anuente:'Interveniente anuente',area:'Área',lote:'Lote',quadra:'Quadra',data:'Data',sexo:'Sexo (M/F)',documento:'Documento',estado_civil:'Estado civil',regime_bens:'Regime de bens',proximo_ato:'Próximo ato'};
     return campo.split('.').map(k=>/^\d+$/.test(k)?String(Number(k)+1):nomes[k]||k.replaceAll('_',' ')).join(' · ');
 }
+const CAMPOS_OCULTOS=new Set(['contrato.modelo','contrato.modalidade']);
+function campoVisivel(campo){return !CAMPOS_OCULTOS.has(campo)&&(!campo.endsWith('.tipo')||campo.endsWith('.documento.tipo'));}
 function campos(obj,prefixo='') {
     if(obj===null || obj===undefined) return [];
-    if(typeof obj !== 'object') return [{campo:prefixo,valor:obj}];
+    if(typeof obj !== 'object') return campoVisivel(prefixo)?[{campo:prefixo,valor:obj}]:[];
     return Object.entries(obj).filter(([k])=>!['origens','brutos'].includes(k)).flatMap(([k,v])=>campos(v,prefixo?`${prefixo}.${k}`:k));
+}
+function opcoes(campo){
+    if(campo.endsWith('.documento.tipo'))return [['','Selecione…'],['RG','RG'],['CNH','CNH'],['PROFISSIONAL','Carteira profissional']];
+    if(campo.endsWith('.sexo'))return [['','Selecione…'],['M','Masculino'],['F','Feminino']];
+    if(campo.endsWith('.estado_civil'))return [['','Selecione…'],['solteiro','Solteiro(a)'],['casado','Casado(a)'],['divorciado','Divorciado(a)'],['viúvo','Viúvo(a)'],['separado','Separado(a)']];
+    return null;
+}
+function campoFichaHtml(c,dados){
+    const origem=dados.evidencias?.[c.campo]?.origem||'Conferência manual';
+    const paginas=dados.evidencias?.[c.campo]?.paginas?.length?' · p. '+dados.evidencias[c.campo].paginas.join(', '):'';
+    const preenchido=!(c.valor===''||c.valor===null||c.valor===undefined||c.valor===0);
+    const lista=opcoes(c.campo);
+    if(lista){
+        const nome='contratos-'+c.campo.replaceAll('.','-');
+        return `<fieldset class="contratos-opcoes ${preenchido?'contratos-campo-confirmado':''}"><legend>${escaparHtml(rotuloCampo(c.campo))}${preenchido?'<b aria-label="preenchido">✓</b>':''}</legend><div>${lista.map(([valor,rotulo])=>`<label><input type="radio" name="${escaparHtml(nome)}" data-contrato-campo="${escaparHtml(c.campo)}" value="${escaparHtml(valor)}" ${String(c.valor).toLowerCase()===valor.toLowerCase()?'checked':''}><span>${escaparHtml(rotulo)}</span></label>`).join('')}</div><small>${escaparHtml(origem+paginas)}</small></fieldset>`;
+    }
+    let controle;
+    if(typeof c.valor==='boolean'){
+        controle=`<input data-contrato-campo="${escaparHtml(c.campo)}" type="checkbox" ${c.valor?'checked':''}>`;
+    }else{
+        controle=`<input data-contrato-campo="${escaparHtml(c.campo)}" type="${typeof c.valor==='number'?'number':'text'}" ${typeof c.valor==='number'?'step="any" min="0"':''} value="${escaparHtml(String(c.valor))}">`;
+    }
+    return `<label class="${preenchido?'contratos-campo-confirmado':''}"><span>${escaparHtml(rotuloCampo(c.campo))}${preenchido?'<b aria-label="preenchido">✓</b>':''}</span>${controle}<small>${escaparHtml(origem+paginas)}</small></label>`;
+}
+function desenharAutomatizacoes(dados){
+    const representante=dados.ficha?.credora?.representante;
+    const procuracoes=dados.ficha?.credora?.procuracoes||[];
+    const itens=[
+        {ok:Boolean(representante?.nome),texto:representante?.nome?`Representante ${representante.nome} será inserido automaticamente na minuta.`:'Representante da CAIXA não identificado: confira a caixa A3.'},
+        {ok:procuracoes.length>0,texto:procuracoes.length?`Cadeia de procurações montada automaticamente com ${procuracoes.length} ato(s).`:'Cadeia de procurações não identificada: confira a caixa A3.'},
+    ];
+    $('automatizacoes').innerHTML=`<div class="contratos-confirmacoes">${itens.map(i=>`<p class="${i.ok?'ok':'atencao'}"><strong>${i.ok?'✓':'!'}</strong> ${escaparHtml(i.texto)}</p>`).join('')}</div>`;
+}
+function desenharPrevias(dados){
+    const minutas=dados.minutasFinais||{};
+    $('minuta-venda-preview').textContent=minutas.venda??dados.minutas?.venda?.texto??'';
+    $('minuta-alienacao-preview').textContent=minutas.alienacao??dados.minutas?.alienacao?.texto??'';
 }
 function lerFicha(){
     const ficha=structuredClone(trabalho.dados.ficha);
     document.querySelectorAll('[data-contrato-campo]').forEach(el=>{
+        if(el.type==='radio'&&!el.checked)return;
         const partes=el.dataset.contratoCampo.split('.');const ultimo=partes.pop();let alvo=ficha;
         for(const p of partes) alvo=alvo[p];
         alvo[ultimo]=el.type==='checkbox'?el.checked:el.type==='number'?Number(el.value):el.value;
@@ -53,8 +93,10 @@ function desenhar(){
     if(!dados.ficha) return;
     $('extraido').hidden=false;
     $('original').href=`/api/contratos/${trabalho.id}/documento`;
-    $('ficha').innerHTML=['contrato','vendedores','compradores','credora','valores','financiamento','matricula'].map(grupo=>`<details ${['contrato','vendedores','compradores'].includes(grupo)?'open':''}><summary>${escaparHtml(grupo.replaceAll('_',' '))}</summary><div class="contratos-campos">${campos(dados.ficha[grupo],grupo).map(c=>`<label>${escaparHtml(rotuloCampo(c.campo))}<input data-contrato-campo="${escaparHtml(c.campo)}" type="${typeof c.valor==='number'?'number':typeof c.valor==='boolean'?'checkbox':'text'}" ${typeof c.valor==='number'?'step="any" min="0"':''} ${typeof c.valor==='boolean'?(c.valor?'checked':''):`value="${escaparHtml(String(c.valor))}"`}><small>${escaparHtml(dados.evidencias?.[c.campo]?.origem || 'Conferência manual')} ${dados.evidencias?.[c.campo]?.paginas?.length ? '· p. '+dados.evidencias[c.campo].paginas.join(', ') : ''}</small></label>`).join('')}</div></details>`).join('');
-    $('alertas').innerHTML=`<details><summary>${dados.alertasExtracao?.length || 0} campos para conferência</summary>${(dados.alertasExtracao||[]).map(a=>`<p>${escaparHtml(a.campo)} — ${escaparHtml(a.motivo)}</p>`).join('')}</details>`;
+    $('ficha').innerHTML=['contrato','vendedores','compradores','credora','valores','financiamento','matricula'].map(grupo=>`<details ${['contrato','vendedores','compradores'].includes(grupo)?'open':''}><summary>${escaparHtml(grupo.replaceAll('_',' '))}</summary><div class="contratos-campos">${campos(dados.ficha[grupo],grupo).map(c=>campoFichaHtml(c,dados)).join('')}</div></details>`).join('');
+    const alertas=(dados.alertasExtracao||[]).filter(a=>campoVisivel(a.campo));
+    $('alertas').innerHTML=alertas.length?`<details class="contratos-alertas-extracao"><summary>Pontos que precisam de conferência</summary>${alertas.map(a=>`<p>${escaparHtml(a.campo)} — ${escaparHtml(a.motivo)}</p>`).join('')}</details>`:'<p class="contratos-confirmacao-ok"><strong>✓</strong> Extração concluída sem alertas automáticos.</p>';
+    desenharAutomatizacoes(dados);
     $('matricula').value=dados.confronto?.numero || dados.ficha.matricula.numero || '';
     $('conferencia').hidden=!dados.confronto;
     if(dados.confronto){
@@ -69,10 +111,13 @@ function desenhar(){
         }
         avisoGeracao(trabalho.confrontoAtual?'':'Regras atualizadas: clique em Confrontar com a matrícula novamente.',!trabalho.confrontoAtual);
     }
-    $('confirmacao').checked=false;
+    $('confirmacao').checked=Boolean(dados.minutas&&trabalho.confrontoAtual);
     $('minutas').hidden=!dados.minutas||!trabalho.confrontoAtual;
     if(dados.minutas){
         $('pendencias-minuta').innerHTML=Object.values(dados.minutas).flatMap(m=>m.pendencias).map(p=>`<p class="contratos-aviso">${escaparHtml(p.campo)} — ${escaparHtml(p.motivo)}</p>`).join('');
+        desenharPrevias(dados);
+    }else{
+        desenharPrevias({});
     }
 }
 async function acompanhar(id,ate=Date.now()+95000){
@@ -89,7 +134,7 @@ async function acompanhar(id,ate=Date.now()+95000){
             if(Date.now()<ate){mensagem(`Extraindo o documento: ${r.progresso}%. Aguarde a conclusão desta requisição.`);timer=setTimeout(()=>acompanhar(id,ate),2500);}
             else mensagem('A extração não confirmou a conclusão no prazo. Retome este mesmo trabalho para verificar ou tentar novamente.');
         }else if(r.estado==='FALHA'){mensagem(r.erro || 'Falha na extração.');}
-        else {desenhar();mensagem('Trabalho carregado. Confira os campos antes de prosseguir.');}
+        else {desenhar();mensagem('✓ Trabalho carregado. Confira os campos antes de prosseguir.',true);}
     }catch(e){mensagem(e.message);}
 }
 async function extrairSelecionado(id){
@@ -109,7 +154,7 @@ async function extrairSelecionado(id){
         mensagem(e.name==='AbortError'?'A requisição excedeu o tempo de espera. Aguarde alguns segundos e retome este mesmo trabalho, sem criar outro.':e.message);
     }finally{clearTimeout(limite);if(g===geracao)$('mensagem').setAttribute('aria-busy','false');}
 }
-export function limparContratos(){geracao++;clearTimeout(timer);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','pendencias-minuta'])$(s).replaceChildren();$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
+export function limparContratos(){geracao++;clearTimeout(timer);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta'])$(s).replaceChildren();$('minuta-venda-preview').textContent='';$('minuta-alienacao-preview').textContent='';$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
 async function acao(botao,executar){botao.disabled=true;try{await executar();}catch(e){if(e.message!=='Fluxo encerrado.')mensagem(e.message);}finally{botao.disabled=false;}}
 export function iniciarContratos(){
     $('ficha').addEventListener('input',()=>{$('minutas').hidden=true;avisoGeracao('Ficha alterada: confronte novamente com a matrícula antes de gerar.');});
@@ -125,7 +170,7 @@ export function iniciarContratos(){
     $('recentes').addEventListener('click',e=>{const b=e.target.closest('[data-trabalho]');if(b){geracao++;acompanhar(b.dataset.trabalho);}});
     $('matricula-form').addEventListener('submit',e=>{e.preventDefault();acao(e.submitter,async()=>{
         mensagem('Consultando o texto da matrícula e confrontando…');
-        trabalho=await requisicaoAeri(`/api/contratos/${trabalho.id}/matricula`,json('POST',{versao:trabalho.versao,matricula:$('matricula').value,ficha:lerFicha()}));desenhar();mensagem('Confrontação concluída. Registre suas decisões.');
+        trabalho=await requisicaoAeri(`/api/contratos/${trabalho.id}/matricula`,json('POST',{versao:trabalho.versao,matricula:$('matricula').value,ficha:lerFicha()}));desenhar();mensagem('✓ Confrontação concluída. Registre suas decisões.',true);
     });});
     $('gerar').addEventListener('click',e=>acao(e.target,async()=>{
         const pendencia=pendenciaGeracao();
