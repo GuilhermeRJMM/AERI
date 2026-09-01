@@ -59,3 +59,23 @@ test('CCIR transcrito não sobrepõe o cadastro declarado pelo oficial', () => {
   // Sem a forma oficial, o CCIR entra como reserva.
   assert.equal(sncr('CCIR: código do imóvel rural: 936.120.000.892-3; área total: 943,6415ha.'), '9361200008923');
 });
+
+test('"não se aplica" não pode cair em quem tem CPF', () => {
+  // Na 777 o executado Antonio Jose (CPF) virou "nao se aplica" porque a
+  // exequente "Adubos Araguaia ... LTDA. CNPJ" aparece dois nomes antes, na
+  // MESMA frase. O erro ainda se propagava por CPF para outros atos. Quem
+  // decide e o documento da pessoa, nao a vizinhanca.
+  const t = 'EXECUCAO. Procedo a esta averbacao, sendo EXEQUENTE, ADUBOS EXEMPLO '
+    + 'INDUSTRIA E COMERCIO LTDA. CNPJ Nº 03.306.578/0012-11, estabelecida em '
+    + 'Anapolis-GO e EXECUTADOS, FULANO DE TAL EXEMPLO, inscrito no CPF/MF sob '
+    + 'o n.º 300.169.591-91.';
+  const pessoas = ctx.ONR_EXTRATOR.extraiPessoas(t, {});
+  const fisica = pessoas.find((p) => (p.cpf_cnpj || '').length === 11);
+  const juridica = pessoas.find((p) => (p.cpf_cnpj || '').length === 14);
+  assert.ok(fisica, 'a pessoa fisica precisa ser reconhecida');
+  assert.notEqual(fisica.estado_civil, 7,
+    'pessoa com CPF nunca pode sair como "nao se aplica"');
+  if (juridica) {
+    assert.equal(juridica.estado_civil, 7, 'a pessoa juridica continua com "nao se aplica"');
+  }
+});

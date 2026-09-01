@@ -981,6 +981,18 @@
         || /(?:procurador|bastante procurador|representante legal)\b/i.test(antes);
 
       const ec = estadoCivilDe(janela);
+      // "Nao se aplica" so existe para pessoa juridica. Quem tem CPF de 11
+      // digitos e pessoa fisica, e a janela dela pode ter pegado o "LTDA/CNPJ"
+      // de uma empresa citada na MESMA frase: na 777 o executado Antonio Jose
+      // (CPF) virou "nao se aplica" porque a exequente Adubos Araguaia Ltda
+      // aparece dois nomes antes, e o erro ainda se propagou por CPF para
+      // outros dois atos. Quem decide e o documento da pessoa, nao a vizinhanca.
+      // Sem estado civil declarado, fica em branco para conferencia humana --
+      // em branco e uma pendencia; "nao se aplica" e uma afirmacao falsa.
+      if (digitos.length === 11 && ec.estado_civil === 7) {
+        ec.estado_civil = null;
+        ec.trecho = null;
+      }
       const rb = regimeBensDe(janela, dataDoAto);
       // O casal tem um estado civil e um regime, declarados uma vez, no titular.
       // Quando a qualificacao dele e longa - "casado sob o regime da comunhao
