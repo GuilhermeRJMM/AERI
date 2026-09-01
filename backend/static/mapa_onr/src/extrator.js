@@ -352,6 +352,12 @@
    */
   const RE_AREA_EXTENSO = new RegExp(
     'com\\s+a?\\s*[áa]rea\\s+(?:total\\s+)?de\\s+'
+    // Acervo antigo mede em alqueires e converte na sequencia: "com a area
+    // total de 58,9493 alqueires, correspondentes a 285 hectares, 31 ares e 50
+    // centiares" (777). Sem esta ponte a area do imovel rural saia vazia: a
+    // linha seguinte espera hectares logo apos "area de", e a regra
+    // "totalizando" exige aquela palavra e so le hectares decimais.
+    + '(?:[\\d.,]+\\s*alqueires?\\s*,?\\s*correspondentes?\\s+a\\s+)?'
     + '(\\d{1,4})\\s*(?:\\([^)]{0,80}\\))?\\s*hectares?'
     + '(?:\\s*,?\\s*(?:e\\s+)?(\\d{1,3})\\s*(?:\\([^)]{0,80}\\))?\\s*ares?)?'
     + '(?:\\s*,?\\s*(?:e\\s+)?(\\d{1,3}(?:,\\d+)?)\\s*(?:\\([^)]{0,80}\\))?\\s*centiares?)?', 'i');
