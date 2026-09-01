@@ -180,7 +180,11 @@
     // Precisam existir como REGRA (e nao so no fallback) para que o TITULO possa
     // vencer o corpo: "CLAUSULAS RESTRITIVAS" cita "a liberalidade da doacao
     // registrada no R.12" e era classificada como doacao.
-    { re: /(clausulas? restritivas?|impenhorabilidade|incomunicabilidade|inalienabilidade|obito|casamento|pacto antenupcial|traslado|reserva legal|declaracao de utilidade publica|codigo de enderecamento|designacao cadastral|atualizacao do cadastro|atualizacao do certificado|atualizacao de confrontacao|inscricao no car|qualificacao pessoal|premonitoria|encargos financeiros|substituicao de bens|alteracao de area|cancelamento)/,
+    // Na 1.280, "LIBERACAO PARCIAL DE GARANTIAS" citava no corpo "50%
+    // ADQUIRIDOS ATRAVES DO REGISTRO DA CARTA DE ARREMATACAO OBJETO DO R.25
+    // SUPRA" -- remissao a outro ato -- e saia como TRANSMISSAO. Averbar que
+    // uma garantia foi liberada nao transfere propriedade.
+    { re: /(clausulas? restritivas?|impenhorabilidade|incomunicabilidade|inalienabilidade|obito|casamento|pacto antenupcial|traslado|reserva legal|declaracao de utilidade publica|codigo de enderecamento|designacao cadastral|atualizacao do cadastro|atualizacao do certificado|atualizacao de confrontacao|inscricao no car|qualificacao pessoal|premonitoria|encargos financeiros|substituicao de bens|alteracao de area|cancelamento|liberacao (?:parcial |total )?d[eao]s? garantia)/,
       ato: 6, rotulo: 'ato cadastral/acessorio' },
   ];
 
@@ -277,7 +281,11 @@
       const moeda = m[1].toUpperCase() === 'R' ? 'R$' : m[1] + '$';
       // Rotulos reais do acervo: "VALOR:", "VALOR TOTAL:", "VALOR DECLARADO:",
       // "VALOR DE INDENIZACAO:", "pelo preco de", "no valor de".
-      const rotulado = /(valor(?:\s+(?:total|declarado|de indenizacao|da transacao))?|pelo preco|no valor de|preco de)\s*:?\s*$/
+      // Arrematacao nao diz "preco": diz "pelo maior lance oferecido que foi de
+      // Cz$6.000,00" (R-6 da 1.280). Sem esse rotulo o valor em moeda antiga era
+      // descartado e o ato de transmissao ia sem valor_transacao, que o schema
+      // do ONR exige.
+      const rotulado = /(valor(?:\s+(?:total|declarado|de indenizacao|da transacao))?|pelo preco|no valor de|preco de|lance(?:\s+oferecido)?(?:\s+que\s+foi)?\s+de)\s*:?\s*$/
         .test(chave(t.slice(Math.max(0, m.index - 34), m.index)).trim());
       achados.push({ valor: numeroBR(m[2]), trecho: t.slice(ini, m.index + 30), rotulado, moeda });
     }
@@ -674,6 +682,8 @@
   // nome proprio (tres palavras, iniciais maiusculas) - o proprietario do imovel
   // aparecia chamado "CI RG" no arquivo enviado.
   const PALAVRA_NAO_NOME = /(carteira|identidade|cpf|cnpj|cic|rua|avenida|alameda|pra[çc]a|setor|quadra|lote|condom|apto|apt\.|cart[óo]rio|escritura|livro|tabelionato|serventia|comarca|fazenda|banco|cooperativa|matr[íi]cula|registro|of[íi]cio|notas|estado|munic[íi]pio|cidade|rod\.|km|selo|dou f[ée]|nos termos|forma do|origem|valor|im[óo]vel|prenota|protocolo|data|capital federal|\bci\b|\brg\b|\bcrmv\b|\bcnh\b|\bsic\b|\bcgc\b|\bssp\b|\bdgpc\b|\bdetran\b)/i;
+  // Igual a de cima, sem "banco" e "cooperativa": num CNPJ elas sao o nome.
+const PALAVRA_NAO_NOME_PJ = /(carteira|identidade|cpf|cnpj|cic|rua|avenida|alameda|pra[çc]a|setor|quadra|lote|condom|apto|apt\.|cart[óo]rio|escritura|livro|tabelionato|serventia|comarca|fazenda|matr[íi]cula|registro|of[íi]cio|notas|estado|munic[íi]pio|cidade|rod\.|km|selo|dou f[ée]|nos termos|forma do|origem|valor|im[óo]vel|prenota|protocolo|data|capital federal|\bci\b|\brg\b|\bcrmv\b|\bcnh\b|\bsic\b|\bcgc\b|\bssp\b|\bdgpc\b|\bdetran\b)/i;
 
   /**
    * Razao social logo depois do rotulo da parte: "Banco do Brasil S.A.," ate a
@@ -712,7 +722,7 @@
   }
 
   /** Nome mais proximo ANTES do indice, ignorando rotulos, enderecos e filiacao. */
-  function nomeAntesDe(texto, indice, limiteIni, forcarUltimo) {
+  function nomeAntesDe(texto, indice, limiteIni, forcarUltimo, ehPessoaJuridica) {
     const ini = limiteIni != null ? limiteIni : Math.max(0, indice - 320);
     const janela = texto.slice(ini, indice);
     // O "e" so continua o nome quando emenda em palavra com inicial maiuscula
@@ -724,11 +734,29 @@
     while ((m = re.exec(janela)) !== null) {
       const nome = compacta(m[1]);
       if (nome.split(/\s+/).length < 2) continue;
-      if (PALAVRA_NAO_NOME.test(nome)) continue;
+      // "banco" e "cooperativa" estao na lista porque aparecem em endereco e em
+      // remissao ("registrado no Banco..."). Para um CNPJ, porem, eles SAO o
+      // nome: na 1.280 o credor "Banco do Brasil S/A" era descartado e sobrava
+      // "Agencia de Porangatu" -- ou, sem ela, "Carta de Arrematacao".
+      const proibida = ehPessoaJuridica
+        ? PALAVRA_NAO_NOME_PJ.test(nome)
+        : PALAVRA_NAO_NOME.test(nome);
+      if (proibida) continue;
+      // Municipio, nao pessoa: o que vem DEPOIS decide. "domiciliado a Rua
+      // Julio Prestes, n. 28, em Sao Joaquim da Barra-SP, portador do CPF n..."
+      // fazia o nome do titular virar o da cidade do endereco dele -- na 1.280
+      // o CPF do Ernesto Lopes saiu com o nome "Sao Joaquim da Barra" em 17
+      // atos. Nome de pessoa nao e seguido de hifen e sigla de estado.
+      if (/^\s*[-–]\s*[A-Z]{2}\b/.test(janela.slice(m.index + m[1].length))) continue;
       // "filho de X e Y" e filiacao, nao a parte; "com Z" e o conjuge.
       const antes = janela.slice(Math.max(0, m.index - 14), m.index);
       // "filho de X e Y" e filiacao; "natural de Ribeirao Preto-SP" e a
       // naturalidade do espolio - nenhum dos dois e a parte.
+      // Logradouro, nao nome: "com sede a Av. Marechal Camara, 160, ... Rio de
+      // Janeiro-RJ, inscrita no CNPJ" fazia a outorgada "Expansion Transmissao
+      // de Energia Eletrica Ltda" virar "Marechal Camara". A lista de palavras
+      // proibidas nao pega esse caso: o "Av." fica FORA do nome capturado.
+      if (/\b(?:av|avenida|rua|alameda|pra[çc]a|travessa|rodovia|rod|estrada|quadra|setor)\.?\s*$/i.test(antes)) continue;
       if (/filh[oa]s?\s+de\s*$/i.test(antes)) continue;
       if (/(?:natural|nascid[oa])\s+(?:de|em|aos)\s*$/i.test(antes)) continue;
       // Mencao de conjuge: "casado com Y", "e sua mulher Y", "sua esposa Y".
@@ -752,6 +780,14 @@
       const entre = chave(janela.slice(ultimo.fim));
       // "ele" e o modo antigo de devolver a qualificacao ao marido depois de
       // nomear a mulher: "casado com Y, ELE fazendeiro, portador do CPF N".
+      // Tentei ampliar esta regra com a concordancia masculina no singular
+      // ("portador", "domiciliado") para pegar "X, casado com Y, [...] portador
+      // do CPF N", onde o N e de X. Pegava mesmo -- mas tambem quebrava
+      // "Maria Cristina, [...] e seu marido Jose Lafayette, aposentado, portador
+      // [...] do CPF N", onde o N e do Jose: eram 188 reatribuicoes de CPF numa
+      // amostra de 73 matriculas, com acertos e erros misturados. O que separa
+      // os dois casos e se o conjuge tem documento PROPRIO, e isso esta fora do
+      // alcance desta janela. Fica como esta ate haver como distinguir.
       if (/regime|comunhao|separacao|ambos|portadores|inscritos|casados|\bele\b/.test(entre)) {
         for (let i = candidatos.length - 2; i >= 0; i--) {
           if (!candidatos[i].conjuge) return candidatos[i];
@@ -960,7 +996,7 @@
       const cpfDoCasal = /\b(?:inscritos|portadores|em conjunto)\b[^.;]{0,60}$/i.test(antesDoDoc);
       const iniNome = (primeiroDeDois || segundoDeDois || cpfDoCasal)
         ? Math.min(jp.ini, Math.max(0, m.index - 700)) : jp.ini;
-      const achadoNome = nomeAntesDe(t, m.index, iniNome, segundoDeDois);
+      const achadoNome = nomeAntesDe(t, m.index, iniNome, segundoDeDois, digitos.length === 14);
       let nome = achadoNome ? achadoNome.nome : null;
       // Pessoa juridica: o nome vem LOGO DEPOIS do rotulo ("CREDOR/FIDUCIARIO:
       // Banco do Brasil S.A., sociedade de economia mista, com sede em Brasilia,

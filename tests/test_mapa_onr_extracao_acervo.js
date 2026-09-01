@@ -79,3 +79,58 @@ test('"não se aplica" não pode cair em quem tem CPF', () => {
     assert.equal(juridica.estado_civil, 7, 'a pessoa juridica continua com "nao se aplica"');
   }
 });
+
+test('cidade e logradouro não podem virar nome de parte', () => {
+  // Na 1.280 o CPF do Ernesto Lopes saiu com o nome "Sao Joaquim da Barra" em
+  // 17 atos: o extrator olha para tras a partir do documento e encontrava a
+  // cidade do endereco. Sinais: hifen com sigla de estado depois, e marcador de
+  // logradouro antes.
+  const cidade = 'ERNESTO EXEMPLO, brasileiro, fazendeiro, residente e domiciliado '
+    + 'a Rua Julio Prestes, n. 28, em Sao Joaquim da Barra-SP, portador do CPF n.º 190.594.428-49.';
+  const p1 = ctx.ONR_EXTRATOR.extraiPessoas(cidade, {})[0];
+  assert.ok(p1, 'a parte precisa ser reconhecida');
+  assert.doesNotMatch(p1.nome_completo, /Joaquim da Barra/);
+
+  const rua = 'Empresa Exemplo de Energia Ltda, com sede a Av. Marechal Camara, 160, '
+    + 'Centro, Rio de Janeiro-RJ, inscrita no CNPJ sob o nº 04.100.850/0001-12.';
+  const p2 = ctx.ONR_EXTRATOR.extraiPessoas(rua, {})[0];
+  assert.ok(p2);
+  assert.doesNotMatch(p2.nome_completo, /Marechal Camara|Rio de Janeiro/);
+});
+
+test('num CNPJ, "Banco" faz parte do nome', () => {
+  // "banco" e "cooperativa" ficam na lista de palavras proibidas porque
+  // aparecem em endereco e em remissao. Para um CNPJ elas sao o nome: na 1.280
+  // o credor virava "Agencia de Porangatu" e, sem ela, "Carta de Arrematacao".
+  const t = 'da acao executiva promovida pelo Banco do Brasil S/A, Agencia de '
+    + 'Porangatu-GO, inscrita no CGC/MF nº. 00.000.000/0513-49, contra Fulano.';
+  const pj = ctx.ONR_EXTRATOR.extraiPessoas(t, {}).find((p) => (p.cpf_cnpj || '').length === 14);
+  assert.ok(pj, 'a pessoa juridica precisa ser reconhecida');
+  assert.match(pj.nome_completo, /Banco do Brasil/);
+});
+
+test('liberação de garantias não é transmissão', () => {
+  // O titulo diz "LIBERACAO PARCIAL DE GARANTIAS" e o corpo cita a carta de
+  // arrematacao de OUTRO ato ("objeto do R.25 supra"). Averbar que a garantia
+  // foi liberada nao transfere propriedade.
+  const t = 'AV.28-1.280 - Data: 27.12.2023. LIBERACAO PARCIAL DE GARANTIAS. Nos termos '
+    + 'do Oficio n.º 396/2023, procede-se a presente averbacao para constar que ficam '
+    + 'liberados 50% ADQUIRIDOS ATRAVES DO REGISTRO DA CARTA DE ARREMATACAO OBJETO DO R.25 SUPRA.';
+  const c = ctx.ONR_EXTRATOR.classificaAto(t);
+  assert.equal(c.ato.valor, 6, 'tem de ser averbacao, nao transmissao');
+  assert.match(c.ato.rotulo, /titulo do ato/, 'quem decide e o titulo, nao a remissao no corpo');
+  assert.equal(c.alteracao_titularidade, null);
+});
+
+test('o maior lance da arrematação é o valor do negócio', () => {
+  // Arrematacao nao diz "preco": diz "pelo maior lance oferecido que foi de".
+  // Sem esse rotulo o valor em moeda antiga era descartado e o ato de
+  // transmissao ia sem valor_transacao, exigido pelo schema.
+  const t = 'R-6-1.280. Nos termos da Carta de Arrematacao de 28 de dezembro de 1988, '
+    + 'coube ao arrematante Fulano de Tal o imovel constante da presente matricula, '
+    + 'pelo maior lance oferecido que foi de Cz$6.000,00 (seis mil cruzados).';
+  const c = ctx.ONR_EXTRATOR.classificaAto(t);
+  const v = ctx.ONR_EXTRATOR.extraiValorTransacao(t, c);
+  assert.ok(v, 'o valor precisa ser extraido');
+  assert.equal(v.valor, 6000);
+});
