@@ -91,10 +91,24 @@
 .contratos-previas { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:18px 0; }
 .contratos-previas article { min-width:0;border:1px solid #344057;border-radius:12px;background:#0f1726;overflow:hidden; }
 .contratos-previas h3 { margin:0;padding:13px 15px;border-bottom:1px solid #344057;font-size:14px;color:#d8e2f2; }
-.contratos-previas pre { margin:0;padding:18px;min-height:220px;max-height:440px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#eef2ff;font:14px/1.7 Georgia,serif; }
+.contratos-previas pre { margin:0;padding:18px;min-height:180px;max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#eef2ff;font:14px/1.7 Georgia,serif; }
+.contratos-previas h4 { margin:0;padding:12px 15px;border-bottom:1px solid #344057;font-size:13px;letter-spacing:.02em;text-transform:uppercase;color:#9fb0ca; }
+.contratos-previa-vazia { color:#7f8da7 !important;font:13px/1.6 inherit !important;min-height:0 !important; }
+.contratos-bancada { display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:22px;align-items:start; }
+.contratos-bancada-ficha,.contratos-bancada-minuta { min-width:0; }
+.contratos-bancada-minuta { position:sticky;top:16px; }
+.contratos-bancada-minuta > h3 { margin:0 0 12px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:#8f9fb8; }
+.contratos-bancada-minuta .contratos-previas { grid-template-columns:1fr;margin:0;gap:14px; }
+.contratos-bancada .contratos-campos { grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); }
+.contratos-bancada .contratos-confirmacoes { grid-template-columns:1fr; }
+.contratos-bancada-ficha > div:not(:empty) { margin-bottom:14px; }
+.contratos-bancada-ficha details { margin-bottom:12px;padding:14px 16px;border:1px solid #2b3548;border-radius:12px;background:#131b2b; }
+.contratos-bancada-ficha summary { cursor:pointer;font-weight:600;color:#d8e2f2; }
+.contratos-bancada-ficha details[open] summary { margin-bottom:14px; }
 #page-contratos.contratos-extraindo > :not(#contratos-mensagem):not(#contratos-aviso-extracao) { display:none !important; }
 #page-contratos.contratos-extraindo #contratos-mensagem { margin-top:18vh;font-size:18px;font-weight:700;color:#eef2ff;text-align:center; }
 #page-contratos.contratos-extraindo #contratos-aviso-extracao { max-width:680px;margin:14px auto;text-align:center; }
+@media(max-width:1100px) { .contratos-bancada {grid-template-columns:1fr;} .contratos-bancada-minuta {position:static;} }
 @media(max-width:700px) { .contratos-decisao {grid-template-columns:minmax(0,1fr);} }
 [hidden] { display:none !important; }
 @media(max-width:850px) { .ferramentas-grade {grid-template-columns:repeat(2,minmax(0,1fr));}.setor-card {padding:24px;} }

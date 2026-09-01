@@ -101,7 +101,7 @@ test('pós-confronto mostra somente comparações pendentes, sem campos compatí
     a.ctx.entrada={id:'teste',confrontoAtual:true,dados:{ficha:{contrato:{},vendedores:[],compradores:[],credora:{},valores:{},financiamento:{},matricula:{numero:'1'}},alertasExtracao:[],evidencias:{},confronto:{numero:'1',exigencias:[],comparacoes:[{campo:'imovel.area',contrato:'200,00 m²',matricula:'200 m²',situacao:'COMPATIVEL'},{campo:'compradores',contrato:'ANA',matricula:'Conferir',situacao:'REVISAR'}]}}};
     a.rodar('trabalho=entrada;desenhar()');
     const html=a.elemento('contratos-comparacoes').innerHTML;
-    assert.match(html,/1 item para conferir/);assert.match(html,/Comprador/);
+    assert.doesNotMatch(html,/para conferir antes de gerar/);assert.match(html,/Comprador/);
     assert.doesNotMatch(html,/200,00 m²|campos compatíveis/);
 });
 test('prévia aceita tanto minutas estruturadas quanto textos finais',()=>{
@@ -121,4 +121,42 @@ test('bloqueio do clipboard tem mensagem explícita, sem abrir editor',async()=>
 test('edição posterior da ficha bloqueia copiar minuta desatualizada',async()=>{
     const a=ambiente();a.trabalho();a.campos.push({dataset:{contratoCampo:'matricula.numero'},type:'text',value:'2'});
     await a.clicar('copiar');assert.match(a.elemento('contratos-copia-status').textContent,/Ficha alterada/);assert.equal(a.copiados.length,0);
+});
+
+test('a ficha segue a ordem da minuta: vendedor antes de comprador',()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'teste',confrontoAtual:true,dados:{ficha:{contrato:{},vendedores:[],compradores:[],credora:{},valores:{},financiamento:{},matricula:{numero:'1'}},alertasExtracao:[],evidencias:{}}};
+    a.rodar('trabalho=entrada;desenhar()');
+    const html=a.elemento('contratos-ficha').innerHTML;
+    const ordem=['Vendedores','Compradores','Matrícula e imóvel','Valores','Credora','Financiamento','Dados do contrato']
+        .map(r=>html.indexOf('<summary>'+r+'</summary>'));
+    assert.ok(ordem.every(i=>i>=0),'todos os grupos precisam aparecer com rótulo legível');
+    assert.deepEqual(ordem,[...ordem].sort((x,y)=>x-y),'a ordem precisa seguir a leitura da minuta');
+    assert.doesNotMatch(html,/<summary>vendedores<\/summary>/,'nada de chave crua do JSON');
+});
+
+test('o seletor de documentos some ao extrair e só volta em outro protocolo',()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'teste',confrontoAtual:true,dados:{ficha:{contrato:{},vendedores:[],compradores:[],credora:{},valores:{},financiamento:{},matricula:{numero:'1'}},alertasExtracao:[],evidencias:{}}};
+    a.rodar('trabalho=entrada;desenhar()');
+    assert.equal(a.elemento('contratos-documentos').hidden,true,'extraiu: a lista do GED nao pode voltar');
+});
+
+test('a prévia ao lado da ficha explica o vazio em vez de ficar em branco',()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'teste',confrontoAtual:true,dados:{ficha:{contrato:{},vendedores:[],compradores:[],credora:{},valores:{},financiamento:{},matricula:{numero:'1'}},alertasExtracao:[],evidencias:{}}};
+    a.rodar('trabalho=entrada;desenhar()');
+    const previa=a.elemento('contratos-minuta-venda-preview');
+    assert.match(previa.textContent,/depois de confrontar a matrícula/);
+    assert.equal(previa.classList.contains('contratos-previa-vazia'),true);
+});
+
+test('o gabarito coloca a prévia ao lado da ficha, no passo dos dados extraídos',()=>{
+    const template=readFileSync(new URL('../backend/templates/contratos.html',import.meta.url),'utf8');
+    const bancada=template.indexOf('contratos-bancada');
+    const ficha=template.indexOf('id="contratos-ficha"');
+    const previa=template.indexOf('contratos-minuta-venda-preview');
+    const conferencia=template.indexOf('id="contratos-conferencia"');
+    assert.ok(bancada>=0&&bancada<ficha,'a bancada precisa envolver a ficha');
+    assert.ok(previa>ficha&&previa<conferencia,'a prévia fica junto da ficha, antes das pendências');
 });

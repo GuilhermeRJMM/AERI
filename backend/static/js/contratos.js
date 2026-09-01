@@ -49,6 +49,10 @@ function opcoes(campo){
     if(campo.endsWith('.estado_civil'))return [['','Selecione…'],['solteiro','Solteiro(a)'],['casado','Casado(a)'],['divorciado','Divorciado(a)'],['viúvo','Viúvo(a)'],['separado','Separado(a)']];
     return null;
 }
+// A ordem segue a leitura da minuta, nao a do JSON: quem le confere vendedor,
+// depois comprador, depois imovel, e so entao valores e financiamento.
+const GRUPOS_DA_FICHA=[['vendedores','Vendedores'],['compradores','Compradores'],['matricula','Matrícula e imóvel'],['valores','Valores'],['credora','Credora'],['financiamento','Financiamento'],['contrato','Dados do contrato']];
+const GRUPOS_ABERTOS=new Set(['vendedores','compradores']);
 function campoFichaHtml(c,dados){
     const origem=dados.evidencias?.[c.campo]?.origem||'Conferência manual';
     const paginas=dados.evidencias?.[c.campo]?.paginas?.length?' · p. '+dados.evidencias[c.campo].paginas.join(', '):'';
@@ -80,10 +84,16 @@ function textosMinuta(dados){
     const texto=chave=>finais[chave]??(typeof geradas[chave]==='string'?geradas[chave]:geradas[chave]?.texto)??'';
     return {venda:texto('venda'),alienacao:texto('alienacao')};
 }
+const AVISO_PREVIA_VAZIA='A minuta aparece aqui depois de confrontar a matrícula e clicar em Gerar. A partir daí ela acompanha suas correções na ficha.';
+function preencherPrevia(id,texto){
+    const el=$(id);
+    el.textContent=texto||AVISO_PREVIA_VAZIA;
+    el.classList.toggle('contratos-previa-vazia',!texto);
+}
 function desenharPrevias(dados){
     const textos=textosMinuta(dados);
-    $('minuta-venda-preview').textContent=textos.venda;
-    $('minuta-alienacao-preview').textContent=textos.alienacao;
+    preencherPrevia('minuta-venda-preview',textos.venda);
+    preencherPrevia('minuta-alienacao-preview',textos.alienacao);
     return textos;
 }
 function lerFicha(){
@@ -99,8 +109,11 @@ function desenhar(){
     const dados=trabalho.dados;
     if(!dados.ficha) return;
     $('extraido').hidden=false;
+    // Extraiu: o seletor de documentos do GED cumpriu o papel. Some e so
+    // reaparece quando outro protocolo for consultado.
+    $('documentos').hidden=true;
     $('original').href=`/api/contratos/${trabalho.id}/documento`;
-    $('ficha').innerHTML=['contrato','vendedores','compradores','credora','valores','financiamento','matricula'].map(grupo=>`<details ${['contrato','vendedores','compradores'].includes(grupo)?'open':''}><summary>${escaparHtml(grupo.replaceAll('_',' '))}</summary><div class="contratos-campos">${campos(dados.ficha[grupo],grupo).map(c=>campoFichaHtml(c,dados)).join('')}</div></details>`).join('');
+    $('ficha').innerHTML=GRUPOS_DA_FICHA.map(([grupo,rotulo])=>`<details ${GRUPOS_ABERTOS.has(grupo)?'open':''}><summary>${escaparHtml(rotulo)}</summary><div class="contratos-campos">${campos(dados.ficha[grupo],grupo).map(c=>campoFichaHtml(c,dados)).join('')}</div></details>`).join('');
     const alertas=(dados.alertasExtracao||[]).filter(a=>campoVisivel(a.campo));
     $('alertas').innerHTML=alertas.length?`<details class="contratos-alertas-extracao"><summary>Pontos que precisam de conferência</summary>${alertas.map(a=>`<p>${escaparHtml(a.campo)} — ${escaparHtml(a.motivo)}</p>`).join('')}</details>`:'<p class="contratos-confirmacao-ok"><strong>✓</strong> Extração concluída sem alertas automáticos.</p>';
     desenharAutomatizacoes(dados);
@@ -109,7 +122,7 @@ function desenhar(){
     if(dados.confronto){
         $('exigencias').innerHTML=dados.confronto.exigencias.map(e=>`<details class="confronto-linha revisar"><summary>${escaparHtml(e.titulo)}</summary><p>${escaparHtml(e.detalhe)}</p></details>`).join('');
         const pendentes=dados.confronto.comparacoes.filter(c=>c.situacao!=='COMPATIVEL');
-        $('comparacoes').innerHTML=pendentes.length?`<p><strong>${pendentes.length} ${pendentes.length===1?'item':'itens'} para conferir antes de gerar.</strong></p>`+pendentes.map(quadroComparacao).join(''):'<p class="contratos-confirmacao-ok"><strong>✓</strong> Nenhuma pendência de comparação.</p>';
+        $('comparacoes').innerHTML=pendentes.length?pendentes.map(quadroComparacao).join(''):'<p class="contratos-confirmacao-ok"><strong>✓</strong> Nenhuma pendência de comparação.</p>';
         for(const d of dados.decisoes||[]){
             const el=[...document.querySelectorAll('[data-decisao]')].find(i=>i.dataset.decisao===d.campo);
             const obs=[...document.querySelectorAll('[data-justificativa]')].find(i=>i.dataset.justificativa===d.campo);
@@ -161,14 +174,14 @@ async function extrairSelecionado(id){
         mensagem(e.name==='AbortError'?'A requisição excedeu o tempo de espera. Aguarde alguns segundos e retome este mesmo trabalho, sem criar outro.':e.message);
     }finally{clearTimeout(limite);if(g===geracao)$('mensagem').setAttribute('aria-busy','false');}
 }
-export function limparContratos(){geracao++;clearTimeout(timer);modoExtracao(false);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta'])$(s).replaceChildren();$('minuta-venda-preview').textContent='';$('minuta-alienacao-preview').textContent='';$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
+export function limparContratos(){geracao++;clearTimeout(timer);modoExtracao(false);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta'])$(s).replaceChildren();preencherPrevia('minuta-venda-preview','');preencherPrevia('minuta-alienacao-preview','');$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
 async function acao(botao,executar){botao.disabled=true;try{await executar();}catch(e){if(e.message!=='Fluxo encerrado.')mensagem(e.message);}finally{botao.disabled=false;}}
 export function iniciarContratos(){
     $('ficha').addEventListener('input',()=>{$('minutas').hidden=true;avisoGeracao('Ficha alterada: confronte novamente com a matrícula antes de gerar.');});
     $('comparacoes').addEventListener('input',()=>{$('minutas').hidden=true;});
     $('protocolo-form').addEventListener('submit',e=>{e.preventDefault();acao(e.submitter,async()=>{
         limparContratos();const r=await requisicaoAeri(`/api/contratos/protocolo/${encodeURIComponent($('protocolo').value)}`);protocolo=r.protocolo;
-        $('documentos').innerHTML=`<h3>${escaparHtml(r.titulo||'Documentos do protocolo')}</h3><p>${escaparHtml(r.mensagem)}</p>`+r.documentos.map(d=>`<div class="confronto-linha"><strong>${escaparHtml(d.tipo_documento||d.categoria||'Documento')} · versão ${escaparHtml(String(d.versao||''))}</strong><p>${escaparHtml(d.descricao||'Sem descrição')}</p><button type="button" class="btn" data-ged="${escaparHtml(String(d.ged_documento_id))}">Selecionar e extrair</button></div>`).join('');
+        $('documentos').hidden=false;$('documentos').innerHTML=`<h3>${escaparHtml(r.titulo||'Documentos do protocolo')}</h3><p>${escaparHtml(r.mensagem)}</p>`+r.documentos.map(d=>`<div class="confronto-linha"><strong>${escaparHtml(d.tipo_documento||d.categoria||'Documento')} · versão ${escaparHtml(String(d.versao||''))}</strong><p>${escaparHtml(d.descricao||'Sem descrição')}</p><button type="button" class="btn" data-ged="${escaparHtml(String(d.ged_documento_id))}">Selecionar e extrair</button></div>`).join('');
         if(!r.documentos.length) mensagem('Nenhum documento GED vinculado ao protocolo.');
     });});
     $('documentos').addEventListener('click',e=>{const b=e.target.closest('[data-ged]');if(b)acao(b,async()=>{geracao++;clearTimeout(timer);modoExtracao(true);mensagem('Obtendo o contrato no GED e extraindo o texto… Isso pode levar alguns segundos.');try{trabalho=await requisicaoAeri('/api/contratos',json('POST',{protocolo,documentoId:b.dataset.ged}));await extrairSelecionado(trabalho.id);}catch(erro){modoExtracao(false);throw erro;}});});
