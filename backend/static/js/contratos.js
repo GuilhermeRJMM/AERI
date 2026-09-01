@@ -6,6 +6,7 @@ const $=id=>document.getElementById(`contratos-${id}`);
 const json=(method,body)=>({method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 function mensagem(texto,sucesso=false){const el=$('mensagem');el.textContent=texto;el.classList.toggle('contratos-sucesso',sucesso);}
 function avisoGeracao(texto,erro=false){const el=$('geracao-status');el.textContent=texto;el.classList.toggle('contratos-erro',erro);}
+function modoExtracao(ativo){document.getElementById('page-contratos').classList.toggle('contratos-extraindo',ativo);}
 function decisoesDaTela(){
     const decisoes={};document.querySelectorAll('[data-decisao]').forEach(el=>{
         if(el.value){const c=el.dataset.decisao;const justificativa=[...document.querySelectorAll('[data-justificativa]')].find(i=>i.dataset.justificativa===c)?.value||'';decisoes[c]={acao:el.value,justificativa};}
@@ -74,10 +75,16 @@ function desenharAutomatizacoes(dados){
     ];
     $('automatizacoes').innerHTML=`<div class="contratos-confirmacoes">${itens.map(i=>`<p class="${i.ok?'ok':'atencao'}"><strong>${i.ok?'✓':'!'}</strong> ${escaparHtml(i.texto)}</p>`).join('')}</div>`;
 }
+function textosMinuta(dados){
+    const finais=dados?.minutasFinais||{}, geradas=dados?.minutas||{};
+    const texto=chave=>finais[chave]??(typeof geradas[chave]==='string'?geradas[chave]:geradas[chave]?.texto)??'';
+    return {venda:texto('venda'),alienacao:texto('alienacao')};
+}
 function desenharPrevias(dados){
-    const minutas=dados.minutasFinais||{};
-    $('minuta-venda-preview').textContent=minutas.venda??dados.minutas?.venda?.texto??'';
-    $('minuta-alienacao-preview').textContent=minutas.alienacao??dados.minutas?.alienacao?.texto??'';
+    const textos=textosMinuta(dados);
+    $('minuta-venda-preview').textContent=textos.venda;
+    $('minuta-alienacao-preview').textContent=textos.alienacao;
+    return textos;
 }
 function lerFicha(){
     const ficha=structuredClone(trabalho.dados.ficha);
@@ -101,9 +108,8 @@ function desenhar(){
     $('conferencia').hidden=!dados.confronto;
     if(dados.confronto){
         $('exigencias').innerHTML=dados.confronto.exigencias.map(e=>`<details class="confronto-linha revisar"><summary>${escaparHtml(e.titulo)}</summary><p>${escaparHtml(e.detalhe)}</p></details>`).join('');
-        const certas=dados.confronto.comparacoes.filter(c=>c.situacao==='COMPATIVEL');
         const pendentes=dados.confronto.comparacoes.filter(c=>c.situacao!=='COMPATIVEL');
-        $('comparacoes').innerHTML=`<details class="contratos-compativeis"><summary>${certas.length} campos compatíveis — sem decisão obrigatória</summary>${certas.map(quadroComparacao).join('')}</details><p>${pendentes.length} itens para conferir antes de gerar.</p>`+pendentes.map(quadroComparacao).join('');
+        $('comparacoes').innerHTML=pendentes.length?`<p><strong>${pendentes.length} ${pendentes.length===1?'item':'itens'} para conferir antes de gerar.</strong></p>`+pendentes.map(quadroComparacao).join(''):'<p class="contratos-confirmacao-ok"><strong>✓</strong> Nenhuma pendência de comparação.</p>';
         for(const d of dados.decisoes||[]){
             const el=[...document.querySelectorAll('[data-decisao]')].find(i=>i.dataset.decisao===d.campo);
             const obs=[...document.querySelectorAll('[data-justificativa]')].find(i=>i.dataset.justificativa===d.campo);
@@ -111,14 +117,12 @@ function desenhar(){
         }
         avisoGeracao(trabalho.confrontoAtual?'':'Regras atualizadas: clique em Confrontar com a matrícula novamente.',!trabalho.confrontoAtual);
     }
-    $('confirmacao').checked=Boolean(dados.minutas&&trabalho.confrontoAtual);
-    $('minutas').hidden=!dados.minutas||!trabalho.confrontoAtual;
-    if(dados.minutas){
-        $('pendencias-minuta').innerHTML=Object.values(dados.minutas).flatMap(m=>m.pendencias).map(p=>`<p class="contratos-aviso">${escaparHtml(p.campo)} — ${escaparHtml(p.motivo)}</p>`).join('');
-        desenharPrevias(dados);
-    }else{
-        desenharPrevias({});
-    }
+    const textos=desenharPrevias(dados);
+    const temMinuta=Boolean(textos.venda||textos.alienacao);
+    $('confirmacao').checked=Boolean(temMinuta&&trabalho.confrontoAtual);
+    $('minutas').hidden=!temMinuta||!trabalho.confrontoAtual;
+    const pendencias=Object.values(dados.minutas||{}).flatMap(m=>Array.isArray(m?.pendencias)?m.pendencias:[]);
+    $('pendencias-minuta').innerHTML=pendencias.map(p=>`<p class="contratos-aviso">${escaparHtml(p.campo)} — ${escaparHtml(p.motivo)}</p>`).join('');
 }
 async function acompanhar(id,ate=Date.now()+95000){
     clearTimeout(timer);const atual=geracao;
@@ -131,14 +135,16 @@ async function acompanhar(id,ate=Date.now()+95000){
         if(r.estado==='AGUARDANDO'){
             mensagem('Este trabalho ainda não foi extraído. Clique em Retomar extração; não é necessário um executor para PDFs com texto.');
         }else if(r.estado==='PROCESSANDO'){
-            if(Date.now()<ate){mensagem(`Extraindo o documento: ${r.progresso}%. Aguarde a conclusão desta requisição.`);timer=setTimeout(()=>acompanhar(id,ate),2500);}
-            else mensagem('A extração não confirmou a conclusão no prazo. Retome este mesmo trabalho para verificar ou tentar novamente.');
+            if(Date.now()<ate){timer=setTimeout(()=>acompanhar(id,ate),2500);return;}
+            mensagem('A extração não confirmou a conclusão no prazo. Retome este mesmo trabalho para verificar ou tentar novamente.');
         }else if(r.estado==='FALHA'){mensagem(r.erro || 'Falha na extração.');}
         else {desenhar();mensagem('✓ Trabalho carregado. Confira os campos antes de prosseguir.',true);}
-    }catch(e){mensagem(e.message);}
+        modoExtracao(false);
+    }catch(e){modoExtracao(false);mensagem(e.message);}
 }
 async function extrairSelecionado(id){
     clearTimeout(timer);
+    modoExtracao(true);
     for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;
     mensagem('Obtendo o contrato no GED e extraindo o texto… Isso pode levar alguns segundos.');
     $('mensagem').setAttribute('aria-busy','true');
@@ -150,11 +156,12 @@ async function extrairSelecionado(id){
         await acompanhar(id);
     }catch(e){
         if(g!==geracao)return;
+        modoExtracao(false);
         $('retomar').hidden=false;
         mensagem(e.name==='AbortError'?'A requisição excedeu o tempo de espera. Aguarde alguns segundos e retome este mesmo trabalho, sem criar outro.':e.message);
     }finally{clearTimeout(limite);if(g===geracao)$('mensagem').setAttribute('aria-busy','false');}
 }
-export function limparContratos(){geracao++;clearTimeout(timer);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta'])$(s).replaceChildren();$('minuta-venda-preview').textContent='';$('minuta-alienacao-preview').textContent='';$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
+export function limparContratos(){geracao++;clearTimeout(timer);modoExtracao(false);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta'])$(s).replaceChildren();$('minuta-venda-preview').textContent='';$('minuta-alienacao-preview').textContent='';$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
 async function acao(botao,executar){botao.disabled=true;try{await executar();}catch(e){if(e.message!=='Fluxo encerrado.')mensagem(e.message);}finally{botao.disabled=false;}}
 export function iniciarContratos(){
     $('ficha').addEventListener('input',()=>{$('minutas').hidden=true;avisoGeracao('Ficha alterada: confronte novamente com a matrícula antes de gerar.');});
@@ -164,7 +171,7 @@ export function iniciarContratos(){
         $('documentos').innerHTML=`<h3>${escaparHtml(r.titulo||'Documentos do protocolo')}</h3><p>${escaparHtml(r.mensagem)}</p>`+r.documentos.map(d=>`<div class="confronto-linha"><strong>${escaparHtml(d.tipo_documento||d.categoria||'Documento')} · versão ${escaparHtml(String(d.versao||''))}</strong><p>${escaparHtml(d.descricao||'Sem descrição')}</p><button type="button" class="btn" data-ged="${escaparHtml(String(d.ged_documento_id))}">Selecionar e extrair</button></div>`).join('');
         if(!r.documentos.length) mensagem('Nenhum documento GED vinculado ao protocolo.');
     });});
-    $('documentos').addEventListener('click',e=>{const b=e.target.closest('[data-ged]');if(b)acao(b,async()=>{geracao++;clearTimeout(timer);mensagem('Preparando extração do documento escolhido…');trabalho=await requisicaoAeri('/api/contratos',json('POST',{protocolo,documentoId:b.dataset.ged}));await extrairSelecionado(trabalho.id);});});
+    $('documentos').addEventListener('click',e=>{const b=e.target.closest('[data-ged]');if(b)acao(b,async()=>{geracao++;clearTimeout(timer);modoExtracao(true);mensagem('Obtendo o contrato no GED e extraindo o texto… Isso pode levar alguns segundos.');try{trabalho=await requisicaoAeri('/api/contratos',json('POST',{protocolo,documentoId:b.dataset.ged}));await extrairSelecionado(trabalho.id);}catch(erro){modoExtracao(false);throw erro;}});});
     $('retomar').addEventListener('click',e=>acao(e.target,async()=>{if(trabalho)await extrairSelecionado(trabalho.id);}));
     $('recentes-btn').addEventListener('click',e=>acao(e.target,async()=>{const r=await requisicaoAeri('/api/contratos');$('recentes').innerHTML=r.map(t=>`<button class="btn" data-trabalho="${t.id}">Protocolo ${escaparHtml(t.protocolo)} · ${escaparHtml(t.estado)}</button>`).join('')||'<p>Nenhum trabalho anterior.</p>';}));
     $('recentes').addEventListener('click',e=>{const b=e.target.closest('[data-trabalho]');if(b){geracao++;acompanhar(b.dataset.trabalho);}});
@@ -180,9 +187,10 @@ export function iniciarContratos(){
         const controller=new AbortController();const limite=setTimeout(()=>controller.abort(),60000);
         try{
             const resultado=await requisicaoAeri(`/api/contratos/${trabalho.id}/gerar`,{...json('POST',{versao:trabalho.versao,ficha:lerFicha(),decisoes:decisoesDaTela(),extracaoConferida:$('confirmacao').checked}),signal:controller.signal});
-            if(!resultado?.dados?.minutas?.venda?.texto||!resultado?.dados?.minutas?.alienacao?.texto)throw new Error('O servidor não retornou os textos esperados. Recarregue o trabalho antes de tentar novamente.');
+            const textos=textosMinuta(resultado?.dados);
+            if(!textos.venda||!textos.alienacao)throw new Error('O servidor não retornou os textos esperados. Recarregue o trabalho antes de tentar novamente.');
             trabalho=resultado;
-            desenhar();avisoGeracao('Minuta gerada. Copie os atos abaixo e confira o texto na Tri7.');$('minutas').scrollIntoView({block:'start',behavior:'smooth'});
+            desenhar();$('minutas').hidden=false;avisoGeracao('Minuta gerada. Copie os atos abaixo e confira o texto na Tri7.');$('minutas').scrollIntoView({block:'start',behavior:'smooth'});
         }catch(erro){if(g===geracao)avisoGeracao((erro.name==='AbortError'?'Tempo de espera excedido. Consulte Meus trabalhos antes de tentar novamente.':erro.message)+(erro.identificador?` Código para suporte: ${erro.identificador}`:''),true);}
         finally{clearTimeout(limite);}
     }));
@@ -191,7 +199,7 @@ export function iniciarContratos(){
             try{
                 if(!trabalho?.confrontoAtual)throw new Error('Atualize a comparação e gere a minuta novamente antes de copiar.');
                 if(JSON.stringify(lerFicha())!==JSON.stringify(trabalho.dados.ficha))throw new Error('Ficha alterada: confronte e gere novamente antes de copiar.');
-                const textos=chaves.map(c=>trabalho?.dados?.minutasFinais?.[c]??trabalho?.dados?.minutas?.[c]?.texto);
+                const disponiveis=textosMinuta(trabalho?.dados);const textos=chaves.map(c=>disponiveis[c]);
                 if(textos.some(t=>!t))throw new Error('Gere a minuta antes de copiar.');
                 if(!navigator.clipboard?.writeText)throw new Error('A cópia não está disponível neste navegador. Abra o AERI diretamente em HTTPS.');
                 await navigator.clipboard.writeText(textos.join('\n\n'));

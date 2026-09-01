@@ -5,14 +5,14 @@
     <div id="contratos-documentos"></div><div id="contratos-recentes"></div>
   </section>
   <p id="contratos-mensagem" role="status" aria-live="polite"></p>
-  <p class="contratos-aviso">PDFs com texto são extraídos ao clicar, sem executor. Documentos digitalizados precisam de OCR, ainda não ativado.</p>
+  <p id="contratos-aviso-extracao" class="contratos-aviso">PDFs com texto são extraídos ao clicar, sem executor. Documentos digitalizados precisam de OCR, ainda não ativado.</p>
   <button type="button" id="contratos-retomar" class="btn" hidden>Retomar extração deste trabalho</button>
   <section id="contratos-extraido" class="contratos-card" hidden><h2>2. Dados extraídos</h2><p class="contratos-aviso">Confira os campos com o documento original. A extração não substitui a conferência registral.</p>
     <div class="contratos-form"><a id="contratos-original" target="_blank" rel="noopener" class="btn">Baixar documento original</a></div>
     <div id="contratos-alertas"></div><div id="contratos-automatizacoes"></div><div id="contratos-ficha"></div>
     <form id="contratos-matricula-form" class="contratos-form"><label>Matrícula para confrontar<input id="contratos-matricula" inputmode="numeric" required></label><button type="submit" class="btn btn-primary">Confrontar com a matrícula</button></form>
   </section>
-  <section id="contratos-conferencia" class="contratos-card" hidden><h2>3. Comparação dos dados</h2><p>Campos compatíveis não exigem decisão. Revise os demais com o contrato e a matrícula na Tri7. As decisões ficam no histórico.</p><div id="contratos-exigencias"></div><div id="contratos-comparacoes"></div>
+  <section id="contratos-conferencia" class="contratos-card" hidden><h2>3. Pendências para conferência</h2><div id="contratos-exigencias"></div><div id="contratos-comparacoes"></div>
     <div class="contratos-geracao"><label><span><input id="contratos-confirmacao" type="checkbox"> Conferi os dados e as pendências com o contrato original e a matrícula na Tri7.</span></label>
     <p id="contratos-geracao-status" role="status" aria-live="polite" tabindex="-1"></p>
     <button type="button" id="contratos-gerar" class="btn btn-primary">Gerar minuta para Tri7</button></div>

@@ -9,9 +9,10 @@ const codigo=readFileSync(new URL('../backend/static/js/contratos.js',import.met
 function ambiente(){
     const ids=new Map(), selecoes=[], justificativas=[], campos=[];
     const elemento=id=>{
-        if(!ids.has(id))ids.set(id,{id,value:'',checked:false,hidden:false,textContent:'',innerHTML:'',dataset:{},handlers:{},attrs:{},
-            classList:{toggle(){}},setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];},
+        if(!ids.has(id)){const classes=new Set();ids.set(id,{id,value:'',checked:false,hidden:false,textContent:'',innerHTML:'',dataset:{},handlers:{},attrs:{},classes,
+            classList:{toggle(k,ativo){if(ativo===undefined)ativo=!classes.has(k);ativo?classes.add(k):classes.delete(k);},contains(k){return classes.has(k);}},setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];},
             focus(){this.focado=true;},scrollIntoView(){this.rolado=true;},replaceChildren(){},addEventListener(k,v){this.handlers[k]=v;}});
+        }
         return ids.get(id);
     };
     const chamadas=[],copiados=[];
@@ -36,6 +37,12 @@ test('campos compatíveis não mostram decisão nem o aviso de outra operação'
     const a=ambiente();a.ctx.campo={campo:'imovel.quadra',contrato:'04',matricula:'4',situacao:'COMPATIVEL'};
     const html=a.rodar('quadroComparacao(campo)');
     assert.match(html,/Compatível/);assert.doesNotMatch(html,/data-decisao|operação anterior/);
+});
+test('durante a extração ativa o modo que deixa somente os avisos visíveis',()=>{
+    const a=ambiente();a.rodar('modoExtracao(true)');
+    assert.equal(a.elemento('page-contratos').classList.contains('contratos-extraindo'),true);
+    a.rodar('modoExtracao(false)');
+    assert.equal(a.elemento('page-contratos').classList.contains('contratos-extraindo'),false);
 });
 test('confirmação ausente avisa junto ao botão e não chama API',async()=>{
     const a=ambiente();a.trabalho();await a.clicar('gerar');
@@ -88,6 +95,19 @@ test('desenho mostra prévia, representante e cadeia de procurações automátic
     assert.equal(a.elemento('contratos-minuta-alienacao-preview').textContent,'MINUTA ALIENACAO');
     assert.match(a.elemento('contratos-automatizacoes').innerHTML,/ANA TESTE[\s\S]*automaticamente[\s\S]*1 ato/);
     assert.doesNotMatch(a.elemento('contratos-alertas').innerHTML,/campos para conferência/);
+});
+test('pós-confronto mostra somente comparações pendentes, sem campos compatíveis',()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'teste',confrontoAtual:true,dados:{ficha:{contrato:{},vendedores:[],compradores:[],credora:{},valores:{},financiamento:{},matricula:{numero:'1'}},alertasExtracao:[],evidencias:{},confronto:{numero:'1',exigencias:[],comparacoes:[{campo:'imovel.area',contrato:'200,00 m²',matricula:'200 m²',situacao:'COMPATIVEL'},{campo:'compradores',contrato:'ANA',matricula:'Conferir',situacao:'REVISAR'}]}}};
+    a.rodar('trabalho=entrada;desenhar()');
+    const html=a.elemento('contratos-comparacoes').innerHTML;
+    assert.match(html,/1 item para conferir/);assert.match(html,/Comprador/);
+    assert.doesNotMatch(html,/200,00 m²|campos compatíveis/);
+});
+test('prévia aceita tanto minutas estruturadas quanto textos finais',()=>{
+    const a=ambiente();
+    assert.equal(a.rodar("textosMinuta({minutas:{venda:{texto:'VENDA'},alienacao:{texto:'ALIENACAO'}}}).venda"),'VENDA');
+    assert.equal(a.rodar("textosMinuta({minutasFinais:{venda:'FINAL'},minutas:{alienacao:'ALIENACAO'}}).venda"),'FINAL');
 });
 test('resposta inválida nunca sinaliza sucesso de geração',async()=>{
     const a=ambiente();a.trabalho();a.elemento('contratos-confirmacao').checked=true;a.ctx.resposta=a.ctx.entrada;
