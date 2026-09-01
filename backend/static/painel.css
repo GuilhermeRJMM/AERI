@@ -94,6 +94,9 @@
 .contratos-previas pre { margin:0;padding:18px;min-height:180px;max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#eef2ff;font:14px/1.7 Georgia,serif; }
 .contratos-previas h4 { margin:0;padding:12px 15px;border-bottom:1px solid #344057;font-size:13px;letter-spacing:.02em;text-transform:uppercase;color:#9fb0ca; }
 .contratos-previa-vazia { color:#7f8da7 !important;font:13px/1.6 inherit !important;min-height:0 !important; }
+.contratos-previa-selo:not(:empty) { margin-left:8px;padding:3px 8px;border:1px solid #455267;border-radius:6px;font-size:10px;letter-spacing:.04em;color:#b9c7dc;text-transform:none; }
+.contratos-bancada-minuta:has(.contratos-previa-rascunho) .contratos-previa-selo { border-color:#6e552f;background:#2d271d;color:#f3dca7; }
+.contratos-previa-rascunho { border-left:3px solid #6e552f; }
 .contratos-bancada { display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:22px;align-items:start; }
 .contratos-bancada-ficha,.contratos-bancada-minuta { min-width:0; }
 .contratos-bancada-minuta { position:sticky;top:16px; }

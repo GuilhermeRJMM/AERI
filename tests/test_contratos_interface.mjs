@@ -147,7 +147,7 @@ test('a prévia ao lado da ficha explica o vazio em vez de ficar em branco',()=>
     a.ctx.entrada={id:'teste',confrontoAtual:true,dados:{ficha:{contrato:{},vendedores:[],compradores:[],credora:{},valores:{},financiamento:{},matricula:{numero:'1'}},alertasExtracao:[],evidencias:{}}};
     a.rodar('trabalho=entrada;desenhar()');
     const previa=a.elemento('contratos-minuta-venda-preview');
-    assert.match(previa.textContent,/depois de confrontar a matrícula/);
+    assert.match(previa.textContent,/assim que o contrato for extraído/);
     assert.equal(previa.classList.contains('contratos-previa-vazia'),true);
 });
 
@@ -159,4 +159,40 @@ test('o gabarito coloca a prévia ao lado da ficha, no passo dos dados extraído
     const conferencia=template.indexOf('id="contratos-conferencia"');
     assert.ok(bancada>=0&&bancada<ficha,'a bancada precisa envolver a ficha');
     assert.ok(previa>ficha&&previa<conferencia,'a prévia fica junto da ficha, antes das pendências');
+});
+
+test('a minuta já vem montada da extração, como rascunho, sem liberar cópia',async()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'teste',confrontoAtual:true,dados:{ficha:{contrato:{},vendedores:[],compradores:[],credora:{},valores:{},financiamento:{},matricula:{numero:'1'}},alertasExtracao:[],evidencias:{},
+        minutasPrevia:{venda:{texto:'RASCUNHO VENDA'},alienacao:{texto:'RASCUNHO ALIENACAO'}}}};
+    a.rodar('trabalho=entrada;desenhar()');
+    const previa=a.elemento('contratos-minuta-venda-preview');
+    assert.equal(previa.textContent,'RASCUNHO VENDA','a previa da extracao precisa aparecer sem gerar');
+    assert.equal(previa.classList.contains('contratos-previa-rascunho'),true);
+    assert.match(a.elemento('contratos-previa-estado').textContent,/rascunho/);
+    // O rascunho nao pode virar texto copiavel para a Tri7.
+    assert.equal(a.rodar('textosMinuta(trabalho.dados).venda'),'');
+    await a.clicar('copiar');
+    assert.equal(a.copiados.length,0);
+    assert.match(a.elemento('contratos-copia-status').textContent,/Gere a minuta antes de copiar/);
+});
+
+test('a minuta conferida prevalece sobre o rascunho da extração',()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'teste',confrontoAtual:true,dados:{ficha:{contrato:{},vendedores:[],compradores:[],credora:{},valores:{},financiamento:{},matricula:{numero:'1'}},alertasExtracao:[],evidencias:{},
+        minutasPrevia:{venda:{texto:'RASCUNHO'},alienacao:{texto:'RASCUNHO'}},
+        minutas:{venda:{texto:'CONFERIDA VENDA',pendencias:[]},alienacao:{texto:'CONFERIDA ALIENACAO',pendencias:[]}}}};
+    a.rodar('trabalho=entrada;desenhar()');
+    const previa=a.elemento('contratos-minuta-venda-preview');
+    assert.equal(previa.textContent,'CONFERIDA VENDA');
+    assert.equal(previa.classList.contains('contratos-previa-rascunho'),false);
+    assert.equal(a.elemento('contratos-previa-estado').textContent,'conferida');
+});
+
+test('comparação não tem mais o bloco de conferência da operação',()=>{
+    const a=ambiente();
+    const html=a.rodar("quadroComparacao({campo:'imovel.area',contrato:'200 m²',matricula:'190 m²',situacao:'REVISAR',permiteMatricula:true})");
+    assert.doesNotMatch(html,/Dados da nova operação|Ver dados do contrato|Conferir no contrato/);
+    assert.match(html,/CONTRATO[\s\S]*MATRÍCULA/);
+    assert.match(html,/data-decisao="imovel\.area"/);
 });

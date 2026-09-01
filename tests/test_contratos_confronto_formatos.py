@@ -139,7 +139,13 @@ def test_remissao_edificacao_nao_se_confunde_com_aquisicao(referencia,esperado):
 
 
 def test_minuta_exige_decisoes_e_nao_altera_ficha_original():
-    original=servico.para_json(ficha());p={'ficha':original}
+    original=servico.para_json(ficha())
+    # Divergencia real de area. Antes este teste passava sem ela porque os
+    # blocos de comprador/credora/valores/financiamento ficavam sempre
+    # pendentes -- ou seja, ele testava aqueles blocos, nao a exigencia de
+    # decisao sobre uma divergencia.
+    original['brutos']['imovel']=DESCRICAO.replace('200,00','201,00')
+    p={'ficha':original}
     with patch('backend.app.servicos.contratos.analisar_matricula',return_value=analise()):
         p['confronto']=confrontar(p,TEXTO,'10879')
     with pytest.raises(ValueError,match='campo pendente'):
@@ -163,3 +169,17 @@ def test_rota_bloqueia_reutilizacao_de_comparacao_anterior_sem_gravar():
             rotas.gerar(id,{'versao':3},req,'TESTE')
     assert exc.value.status_code==409 and 'regras anteriores' in exc.value.detail
     salvar.assert_not_called()
+
+
+def test_confronto_nao_pede_decisao_para_dados_da_nova_operacao():
+    """Comprador, credora, valores e financiamento não têm contraparte na
+    matrícula: emiti-los como pendência exigia decisão e justificativa por bloco
+    sem nada a decidir, e afogava as divergências reais no formulário."""
+    p = {'ficha': servico.para_json(ficha())}
+    with patch('backend.app.servicos.contratos.analisar_matricula', return_value=analise()):
+        confronto = confrontar(p, TEXTO, '10879')
+    campos = {c['campo'] for c in confronto['comparacoes']}
+    assert not campos & {'compradores', 'credora', 'valores', 'financiamento'}
+    # Com tudo compativel nao sobra pendencia alguma. Antes, os quatro blocos
+    # criavam quatro decisoes obrigatorias mesmo sem divergencia.
+    assert all(c['situacao'] == 'COMPATIVEL' for c in confronto['comparacoes'])

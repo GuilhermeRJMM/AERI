@@ -47,6 +47,20 @@ def _publico(r):
             "confrontoAtual":payload.get('confronto',{}).get('versaoRegras')==VERSAO_CONFRONTO}
 
 
+def _previa_minutas(ficha):
+    """Monta a minuta logo na extracao, antes de qualquer confronto.
+
+    E rascunho e vive em chave propria: `minutas` e o resultado conferido, que
+    libera a copia e carrega as decisoes do conferente. Misturar os dois
+    deixaria copiar para a Tri7 um texto que ninguem validou.
+    """
+    try:
+        return servico.atos(ficha_de(ficha or {}))
+    except Exception:
+        # A previa e acessorio: ficha incompleta nao pode derrubar a extracao.
+        return None
+
+
 def _versao(r,dados):
     if dados.get("versao")!=r["versao"]:
         raise HTTPException(409,"Este trabalho mudou. Recarregue antes de salvar.")
@@ -188,6 +202,8 @@ def comparar(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
         editada["origens"]=p["ficha"]["origens"]; editada["brutos"]=p["ficha"]["brutos"]
         p["ficha"]=editada
         completar_juros_ausentes(p)
+        # A previa acompanha o que o conferente editou na ficha.
+        p["minutasPrevia"]=_previa_minutas(p["ficha"])
     except (ValueError,TypeError,KeyError) as exc: raise HTTPException(422,"Ficha inválida.") from exc
     n=numero(dados.get("matricula"))
     try:
@@ -314,6 +330,7 @@ def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=Non
         arquivo=cli.buscar_documento_ged(r["documento_id"])
         conferir_prazo(prazo)
         p=extrair_contrato(arquivo["dados"],progresso,permitir_ocr=permitir_ocr,prazo=prazo)
+        p["minutasPrevia"]=_previa_minutas(p.get("ficha"))
         p["origemGed"]={"protocolo":r["protocolo"],"documentoId":r["documento_id"],"metadados":next(d for d in documentos_publicos(docs) if str(d["ged_documento_id"])==r["documento_id"])}
     except (OcrIndisponivel,DocumentoInvalido,ValueError) as exc: erro=str(exc)[:250]
     except ErroTri7 as exc: erro=str(exc)[:250]

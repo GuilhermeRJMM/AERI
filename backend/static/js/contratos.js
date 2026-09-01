@@ -28,9 +28,8 @@ function pendenciaGeracao(){
 }
 function quadroComparacao(c){
     const compativel=c.situacao==='COMPATIVEL';
-    const operacao=['compradores','credora','valores','financiamento'].includes(c.campo);
-    const valores=operacao?`<p class="contratos-orientacao">Dados da nova operação: confira no contrato, sem compará-los com valores de um financiamento anterior.</p><details class="contratos-dados-operacao"><summary>Ver dados do contrato</summary>${c.camposConferencia?`<dl>${c.camposConferencia.map(i=>`<div><dt>${escaparHtml(rotuloCampo(i.campo))}</dt><dd>${escaparHtml(i.valor===''||i.valor==null?'NÃO CONSTA':typeof i.valor==='boolean'?(i.valor?'Sim':'Não'):String(i.valor))}</dd></div>`).join('')}</dl>`:`<p>${escaparHtml(c.contrato)}</p>`}</details>`:`<div class="contratos-comparacao"><div><small>CONTRATO</small><p>${escaparHtml(c.contrato)}</p></div><div><small>MATRÍCULA</small><p>${escaparHtml(c.matricula)}</p></div></div>`;
-    return `<div class="confronto-linha ${compativel?'compativel':'revisar'}"><strong>${escaparHtml(rotuloCampo(c.campo))} <span class="contratos-situacao">${compativel?'Compatível':operacao?'Conferir no contrato':'Revisar'}</span></strong>${valores}${compativel?'':`<div class="contratos-decisao"><label>Decisão<select data-decisao="${escaparHtml(c.campo)}"><option value="">Selecione…</option><option value="CONTRATO">Manter dados do contrato conferidos</option>${c.permiteMatricula?'<option value="MATRICULA">Usar o valor da matrícula na minuta</option>':''}<option value="MANUAL">Conferência manual na ficha</option></select></label><label>Justificativa / observação<input data-justificativa="${escaparHtml(c.campo)}" maxlength="2000" placeholder="Registre o que foi conferido"></label></div>`}</div>`;
+    const valores=`<div class="contratos-comparacao"><div><small>CONTRATO</small><p>${escaparHtml(c.contrato)}</p></div><div><small>MATRÍCULA</small><p>${escaparHtml(c.matricula)}</p></div></div>`;
+    return `<div class="confronto-linha ${compativel?'compativel':'revisar'}"><strong>${escaparHtml(rotuloCampo(c.campo))} <span class="contratos-situacao">${compativel?'Compatível':'Revisar'}</span></strong>${valores}${compativel?'':`<div class="contratos-decisao"><label>Decisão<select data-decisao="${escaparHtml(c.campo)}"><option value="">Selecione…</option><option value="CONTRATO">Manter dados do contrato conferidos</option>${c.permiteMatricula?'<option value="MATRICULA">Usar o valor da matrícula na minuta</option>':''}<option value="MANUAL">Conferência manual na ficha</option></select></label><label>Justificativa / observação<input data-justificativa="${escaparHtml(c.campo)}" maxlength="2000" placeholder="Registre o que foi conferido"></label></div>`}</div>`;
 }
 function rotuloCampo(campo){
     const nomes={contrato:'Contrato',vendedores:'Vendedor',compradores:'Comprador',credora:'Credora',valores:'Valores',financiamento:'Financiamento',matricula:'Matrícula',imovel:'Imóvel',numero:'Número',cpf:'CPF',cnpj:'CNPJ',razao_social:'Razão social',nome:'Nome',profissao:'Profissão',conjuge:'Cônjuge',descricao:'Descrição',orgao:'Órgão emissor',endereco:'Endereço',anuente:'Interveniente anuente',area:'Área',lote:'Lote',quadra:'Quadra',data:'Data',sexo:'Sexo (M/F)',documento:'Documento',estado_civil:'Estado civil',regime_bens:'Regime de bens',proximo_ato:'Próximo ato'};
@@ -84,16 +83,28 @@ function textosMinuta(dados){
     const texto=chave=>finais[chave]??(typeof geradas[chave]==='string'?geradas[chave]:geradas[chave]?.texto)??'';
     return {venda:texto('venda'),alienacao:texto('alienacao')};
 }
-const AVISO_PREVIA_VAZIA='A minuta aparece aqui depois de confrontar a matrícula e clicar em Gerar. A partir daí ela acompanha suas correções na ficha.';
-function preencherPrevia(id,texto){
+const AVISO_PREVIA_VAZIA='A minuta aparece aqui assim que o contrato for extraído.';
+function preencherPrevia(id,texto,rascunho){
     const el=$(id);
     el.textContent=texto||AVISO_PREVIA_VAZIA;
     el.classList.toggle('contratos-previa-vazia',!texto);
+    el.classList.toggle('contratos-previa-rascunho',Boolean(texto&&rascunho));
+}
+function textosPrevia(dados){
+    const previa=dados?.minutasPrevia||{};
+    const texto=chave=>(typeof previa[chave]==='string'?previa[chave]:previa[chave]?.texto)??'';
+    return {venda:texto('venda'),alienacao:texto('alienacao')};
 }
 function desenharPrevias(dados){
-    const textos=textosMinuta(dados);
-    preencherPrevia('minuta-venda-preview',textos.venda);
-    preencherPrevia('minuta-alienacao-preview',textos.alienacao);
+    // O rascunho da extracao aparece enquanto a minuta conferida nao existe. Ele
+    // nunca alimenta os botoes de copiar: textosMinuta segue sendo a unica fonte
+    // do que pode ir para a Tri7.
+    const textos=textosMinuta(dados), previa=textosPrevia(dados);
+    const rascunho=!textos.venda&&!textos.alienacao;
+    preencherPrevia('minuta-venda-preview',textos.venda||previa.venda,rascunho);
+    preencherPrevia('minuta-alienacao-preview',textos.alienacao||previa.alienacao,rascunho);
+    const selo=$('previa-estado');
+    if(selo)selo.textContent=(textos.venda||textos.alienacao)?'conferida':(previa.venda||previa.alienacao)?'rascunho da extração':'';
     return textos;
 }
 function lerFicha(){
@@ -174,7 +185,7 @@ async function extrairSelecionado(id){
         mensagem(e.name==='AbortError'?'A requisição excedeu o tempo de espera. Aguarde alguns segundos e retome este mesmo trabalho, sem criar outro.':e.message);
     }finally{clearTimeout(limite);if(g===geracao)$('mensagem').setAttribute('aria-busy','false');}
 }
-export function limparContratos(){geracao++;clearTimeout(timer);modoExtracao(false);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta'])$(s).replaceChildren();preencherPrevia('minuta-venda-preview','');preencherPrevia('minuta-alienacao-preview','');$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
+export function limparContratos(){geracao++;clearTimeout(timer);modoExtracao(false);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta'])$(s).replaceChildren();preencherPrevia('minuta-venda-preview','');preencherPrevia('minuta-alienacao-preview','');$('previa-estado').textContent='';$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
 async function acao(botao,executar){botao.disabled=true;try{await executar();}catch(e){if(e.message!=='Fluxo encerrado.')mensagem(e.message);}finally{botao.disabled=false;}}
 export function iniciarContratos(){
     $('ficha').addEventListener('input',()=>{$('minutas').hidden=true;avisoGeracao('Ficha alterada: confronte novamente com a matrícula antes de gerar.');});

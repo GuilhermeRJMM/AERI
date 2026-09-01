@@ -15,7 +15,7 @@ from cryptography.fernet import Fernet
 from backend.app.contratos_nucleo import extrator, ficha as modelos, matricula as leitor, qualificacao, servico
 from backend.app.contratos_nucleo.comparacao import areas_iguais, designativo
 
-VERSAO_CONFRONTO = '20260831-confronto-v3-juros'
+VERSAO_CONFRONTO = '20260901-confronto-v4-sem-blocos-de-operacao'
 from backend.app.servicos.analise_matricula import analisar_matricula
 from backend.app.servicos.documentos_contratos import extrair_documento, conferir_prazo
 
@@ -279,14 +279,11 @@ def confrontar(payload,texto,numero,regras=None):
         titulares=[t for t in analise["proprietarios_atuais"] if doc and doc==re.sub(r"\D","",t.get("cpf_cnpj",t.get("cpf","")))]
         linha(f"vendedores.{i}.{'razao_social' if p.get('tipo')=='juridica' else 'nome'}",p.get("nome") or p.get("razao_social"),titulares[0]["nome"] if len(titulares)==1 else "")
         linha(f"vendedores.{i}.{'cnpj' if p.get('tipo')=='juridica' else 'cpf'}",doc,doc if len(titulares)==1 else "")
-    # Outros elementos são de operações distintas: não validar valores/credores
-    # do novo título contra um financiamento anterior como se fossem iguais.
-    for chave in ("compradores","credora","valores","financiamento"):
-        campos = [c for c in campos_ficha(payload['ficha'][chave],chave) if not c['campo'].endswith('tipo')]
-        resumo="\n".join(f"{c['campo'].replace('_',' ')}: {c['valor'] if c['valor'] not in ('',None) else 'NÃO CONSTA'}" for c in campos) or "NÃO CONSTA"
-        comparacoes.append({"campo":chave,"contrato":resumo,
-                            "camposConferencia":campos,
-                            "matricula":"Operação pretendida: conferir no contrato e nos atos relevantes, sem presumir igualdade com operação anterior.","situacao":"REVISAR","somenteConferencia":True,"permiteMatricula":False})
+    # Comprador, credora, valores e financiamento pertencem a nova operacao:
+    # nao existe contraparte na matricula para comparar. Eles ja sao conferidos
+    # campo a campo na ficha, com a confirmacao unica antes de gerar. Emiti-los
+    # como pendencia obrigava a uma decisao e uma justificativa por bloco sem
+    # nada a decidir, e escondia as divergencias reais no meio do formulario.
     return {"numero":str(numero),"versaoRegras":VERSAO_CONFRONTO,"textoHash":hashlib.sha256(texto.encode()).hexdigest(),"texto":texto,
             "analise":analise,"comparacoes":comparacoes,"exigencias":exigencias}
 
