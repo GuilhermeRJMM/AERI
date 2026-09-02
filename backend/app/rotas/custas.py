@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from psycopg.types.json import Jsonb
 
 from backend.app.autenticacao import exigir_permissao, proteger_csrf
@@ -12,6 +12,7 @@ from backend.app.servicos.custas import (
     STATUS_FINAIS,
     custas_json,
     extrair_pedidos_pdf,
+    gerar_relatorio_custas_pdf,
     validar_item_custas,
 )
 from backend.app.servicos.buscas import hash_documento
@@ -52,6 +53,44 @@ def listar_custas(_usuario: str = Depends(exigir_permissao("gerenciar_custas")))
                 ORDER BY finalizado ASC, atualizado_em DESC, pedido"""
             )
             return [custas_json(item) for item in cursor.fetchall()]
+
+
+@router.post("/relatorio", dependencies=[Depends(proteger_csrf)])
+def exportar_relatorio_custas(
+    dados: dict,
+    request: Request,
+    usuario: str = Depends(exigir_permissao("gerenciar_custas")),
+):
+    try:
+        identificadores = list(dict.fromkeys(UUID(str(item)) for item in dados.get("ids", [])))
+    except (TypeError, ValueError, AttributeError) as erro:
+        raise HTTPException(status_code=422, detail="Seleção inválida para o relatório.") from erro
+    if not identificadores or len(identificadores) > 2_000:
+        raise HTTPException(status_code=422, detail="O relatório deve conter entre 1 e 2.000 pedidos.")
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                "SELECT id, pedido, modalidade, resultado FROM custas_livro3_aeri WHERE id=ANY(%s)",
+                (identificadores,),
+            )
+            encontrados = {item["id"]: item for item in cursor.fetchall()}
+            if len(encontrados) != len(identificadores):
+                raise HTTPException(status_code=404, detail="Um dos pedidos do relatório não foi encontrado.")
+            ordenados = [encontrados[identificador] for identificador in identificadores]
+            pdf = gerar_relatorio_custas_pdf(ordenados)
+            registrar_auditoria_cursor(
+                cursor, request, "exportar_relatorio_custas", "sucesso", usuario,
+                detalhes={"quantidade": len(ordenados), "formato": "PDF"},
+            )
+        conexao.commit()
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'attachment; filename="relatorio-informar-custas.pdf"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.post("/lote", dependencies=[Depends(proteger_csrf)])

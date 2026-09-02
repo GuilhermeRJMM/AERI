@@ -1,4 +1,4 @@
-import {requisicaoAeri} from './api.js?v=20260824-csrf-v1';
+import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {escaparHtml} from './util.js';
 
 let itens = [];
@@ -111,6 +111,37 @@ function atualizarAcoesLote() {
     const area = document.getElementById('custas-acoes-lote');
     area.hidden = selecionados.size === 0;
     document.getElementById('custas-selecionados').textContent = `${selecionados.size} selecionado${selecionados.size === 1 ? '' : 's'}`;
+}
+
+async function exportarRelatorio() {
+    const visiveis = itensFiltrados();
+    if (!visiveis.length) {
+        notificarCustas('Não há pedidos visíveis para exportar.', 'erro', 4200);
+        return;
+    }
+    const botao = document.getElementById('btn-custas-exportar-relatorio');
+    botao.disabled = true;
+    const processando = notificarCustas('Gerando o relatório PDF…', 'processando', 0);
+    try {
+        const blob = await requisicaoAeri('/api/custas/relatorio', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ids:visiveis.map(item => item.id)}), resposta:'blob',
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `informar-custas-${aba}-${new Date().toISOString().slice(0, 10)}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+        notificarCustas(`${visiveis.length} pedido(s) exportado(s) em PDF.`);
+    } catch (erro) {
+        notificarCustas(erro.message, 'erro', 5200);
+    } finally {
+        removerNotificacao(processando);
+        botao.disabled = false;
+    }
 }
 
 async function executarAcaoLote(acao) {
@@ -347,6 +378,7 @@ function trocarFiltro(evento) {
 }
 
 export function iniciarCustas() {
+    document.getElementById('btn-custas-exportar-relatorio').addEventListener('click', exportarRelatorio);
     document.getElementById('custas-arquivo').addEventListener('change', prepararImportacao);
     document.getElementById('btn-confirmar-custas-importacao').addEventListener('click', confirmarImportacao);
     document.getElementById('btn-fechar-custas-importacao').addEventListener('click', fecharImportacao);

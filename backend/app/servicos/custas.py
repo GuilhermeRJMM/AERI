@@ -2,6 +2,7 @@ import io
 import re
 import unicodedata
 
+import pymupdf
 from fastapi import HTTPException
 from pypdf import PdfReader
 
@@ -24,6 +25,38 @@ STATUS_CUSTAS = {
     "CUSTAS_ERRADAS",
 }
 STATUS_FINAIS = {"DUPLICADO_DEVOLVIDO", "RESPONDIDO", "SEM_PAGAMENTO"}
+
+
+def _rotulo_importacao(item: dict) -> str:
+    alienacao = item.get("modalidade") == "ALIENACAO_FIDUCIARIA"
+    modalidade = "Alienação" if alienacao else "Penhor"
+    resultados = (
+        {"POSITIVA": "Positiva", "NEGATIVA": "Negativa", "PENDENTE": "Pendente"}
+        if alienacao else
+        {"POSITIVA": "Positivo", "NEGATIVA": "Negativo", "PENDENTE": "Pendente"}
+    )
+    return f"{modalidade} {resultados.get(item.get('resultado'), 'Pendente')}"
+
+
+def gerar_relatorio_custas_pdf(itens: list[dict]) -> bytes:
+    """Gera o relatório mínimo do módulo, sem expor os demais dados pessoais."""
+    if not itens:
+        raise ValueError("Não há pedidos para exportar.")
+    documento = pymupdf.open()
+    try:
+        pagina = documento.new_page(width=595, height=842)
+        y = 58
+        for item in itens:
+            if y + 52 > 790:
+                pagina = documento.new_page(width=595, height=842)
+                y = 58
+            pagina.insert_text((50, y), f"Número do pedido: {item['pedido']}", fontname="helv", fontsize=12, color=(0, 0, 0))
+            pagina.insert_text((50, y + 19), f"Importação: {_rotulo_importacao(item)}", fontname="helv", fontsize=12, color=(0, 0, 0))
+            y += 57
+        documento.set_metadata({"title": "Relatório - Informar Custas", "author": "AERI"})
+        return documento.tobytes(garbage=4, deflate=True)
+    finally:
+        documento.close()
 
 
 def _sem_acentos(valor: str) -> str:

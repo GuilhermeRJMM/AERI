@@ -31,7 +31,7 @@ export async function requisicaoAeri(url, opcoes = {}) {
     if (exigeCsrf && !csrfToken) await atualizarCsrfDaSessao();
     if (exigeCsrf) headers.set('X-CSRF-Token', csrfToken);
     if (opcoes.background) headers.set('X-AERI-Background', '1');
-    const {background: _background, ...opcoesFetch} = opcoes;
+    const {background: _background, resposta: formatoResposta, ...opcoesFetch} = opcoes;
     opcoes = {...opcoesFetch, headers};
     let resposta = await fetch(url, opcoes);
     if (resposta.status === 403 && exigeCsrf) {
@@ -47,6 +47,7 @@ export async function requisicaoAeri(url, opcoes = {}) {
         throw new Error('Sua sessão expirou. Entre novamente.');
     }
     if (resposta.status === 204) return null;
+    if (resposta.ok && formatoResposta === 'blob') return resposta.blob();
     const tipoConteudo = resposta.headers.get('content-type') || '';
     let dados = {};
     if (tipoConteudo.includes('application/json')) {

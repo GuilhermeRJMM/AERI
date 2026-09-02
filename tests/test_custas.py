@@ -1,11 +1,14 @@
 import unittest
+from io import BytesIO
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import HTTPException
 
 from backend.app.rotas.custas import _analisar_versao_esperada
-from backend.app.servicos.custas import extrair_pedidos_texto, validar_item_custas
+from pypdf import PdfReader
+
+from backend.app.servicos.custas import extrair_pedidos_texto, gerar_relatorio_custas_pdf, validar_item_custas
 
 
 def bloco(pedido: str, observacao: str, nome="PESSOA DE TESTE", documento="12345678901") -> str:
@@ -21,6 +24,17 @@ def bloco(pedido: str, observacao: str, nome="PESSOA DE TESTE", documento="12345
 
 
 class TesteInformarCustas(unittest.TestCase):
+    def test_relatorio_pdf_usa_formato_simples_e_ordem_recebida(self):
+        pdf = gerar_relatorio_custas_pdf([
+            {"pedido": "S26081052542D", "modalidade": "PENHOR", "resultado": "NEGATIVA"},
+            {"pedido": "S26081052543D", "modalidade": "ALIENACAO_FIDUCIARIA", "resultado": "POSITIVA"},
+        ])
+        self.assertTrue(pdf.startswith(b"%PDF-"))
+        texto = "\n".join(pagina.extract_text() or "" for pagina in PdfReader(BytesIO(pdf)).pages)
+        self.assertIn("Número do pedido: S26081052542D\nImportação: Penhor Negativo", texto)
+        self.assertIn("Número do pedido: S26081052543D\nImportação: Alienação Positiva", texto)
+        self.assertLess(texto.index("S26081052542D"), texto.index("S26081052543D"))
+
     def test_extrai_penhor_e_formata_cpf(self):
         resultado = extrair_pedidos_texto(bloco(
             "S26080000001D", "CERTIDÃO DE PENHOR - CULTURA: SOJA - SAFRA: 2026/2027"
