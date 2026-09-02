@@ -16,8 +16,12 @@ function ambiente(){
         return ids.get(id);
     };
     const chamadas=[],copiados=[];
-    const ctx=vm.createContext({console,structuredClone,setTimeout,clearTimeout,AbortController,
-        document:{getElementById:elemento,querySelectorAll:s=>s==='[data-decisao]'?selecoes:s==='[data-justificativa]'?justificativas:s==='[data-contrato-campo]'?campos:[]},
+    const janela={isSecureContext:true};janela.self=janela;janela.top=janela;
+    const body={ultimo:null,appendChild(el){this.ultimo=el;}};
+    const ctx=vm.createContext({console,structuredClone,setTimeout,clearTimeout,AbortController,window:janela,
+        document:{getElementById:elemento,querySelectorAll:s=>s==='[data-decisao]'?selecoes:s==='[data-justificativa]'?justificativas:s==='[data-contrato-campo]'?campos:[],body,
+            createElement:()=>({value:'',style:{},setAttribute(){},select(){},remove(){}}),
+            execCommand:comando=>{if(comando!=='copy'||!body.ultimo)return false;copiados.push(body.ultimo.value);return true;}},
         navigator:{clipboard:{writeText:async texto=>copiados.push(texto)}},
         escaparHtml:t=>String(t).replaceAll('<','&lt;').replaceAll('>','&gt;'),
         requisicaoOriginal:async(...args)=>{chamadas.push(args);if(ctx.erro)throw ctx.erro;return ctx.resposta;}
@@ -113,10 +117,18 @@ test('resposta inválida nunca sinaliza sucesso de geração',async()=>{
     const a=ambiente();a.trabalho();a.elemento('contratos-confirmacao').checked=true;a.ctx.resposta=a.ctx.entrada;
     await a.clicar('gerar');assert.match(a.elemento('contratos-geracao-status').textContent,/não retornou os textos esperados/);
 });
-test('bloqueio do clipboard tem mensagem explícita, sem abrir editor',async()=>{
+test('bloqueio do clipboard usa cópia compatível com o iframe do SYNC',async()=>{
     const a=ambiente();a.trabalho();a.rodar("trabalho.dados.minutas={venda:{texto:'TESTE'},alienacao:{texto:'TESTE'}}");
     a.ctx.navigator.clipboard.writeText=async()=>{throw Object.assign(new Error(),{name:'NotAllowedError'});};
-    await a.clicar('copiar');assert.match(a.elemento('contratos-copia-status').textContent,/bloqueou a cópia/);
+    await a.clicar('copiar');assert.equal(a.copiados[0],'TESTE\n\nTESTE');
+    assert.match(a.elemento('contratos-copia-status').textContent,/Copiado/);
+});
+test('iframe inseguro usa a cópia síncrona antes da API moderna',async()=>{
+    const a=ambiente();a.trabalho();a.rodar("trabalho.dados.minutas={venda:{texto:'VENDA'},alienacao:{texto:'ALIENACAO'}}");
+    let tentouApiModerna=false;a.ctx.window.isSecureContext=false;
+    a.ctx.navigator.clipboard.writeText=async()=>{tentouApiModerna=true;};
+    await a.clicar('copiar');
+    assert.equal(tentouApiModerna,false);assert.equal(a.copiados[0],'VENDA\n\nALIENACAO');
 });
 test('edição posterior da ficha bloqueia copiar minuta desatualizada',async()=>{
     const a=ambiente();a.trabalho();a.campos.push({dataset:{contratoCampo:'matricula.numero'},type:'text',value:'2'});

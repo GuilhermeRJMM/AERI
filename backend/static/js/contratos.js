@@ -206,6 +206,33 @@ async function extrairSelecionado(id){
     }finally{clearTimeout(limite);if(g===geracao)$('mensagem').setAttribute('aria-busy','false');}
 }
 export function limparContratos(){geracao++;clearTimeout(timer);clearTimeout(timerPrevia);modoExtracao(false);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta'])$(s).replaceChildren();preencherPrevia('minuta-venda-preview','');preencherPrevia('minuta-alienacao-preview','');$('previa-estado').textContent='';$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
+
+function copiarTextoNoIframe(texto){
+    const campo=document.createElement('textarea');
+    campo.value=texto;
+    campo.setAttribute('readonly','');
+    campo.style.cssText='position:fixed;left:-10000px;top:0;opacity:0';
+    document.body.appendChild(campo);
+    campo.select();
+    try{return Boolean(document.execCommand('copy'));}
+    catch(_erro){return false;}
+    finally{campo.remove();}
+}
+
+async function copiarTextoMinuta(texto){
+    let incorporado=true;
+    try{incorporado=window.self!==window.top;}catch(_erro){incorporado=true;}
+    // Dentro do SYNC, prioriza a cópia síncrona: aguardar a rejeição da API
+    // moderna pode consumir a permissão temporária concedida pelo clique.
+    if(incorporado||!window.isSecureContext){
+        if(copiarTextoNoIframe(texto))return true;
+    }
+    if(navigator.clipboard?.writeText){
+        try{await navigator.clipboard.writeText(texto);return true;}
+        catch(_erro){/* O iframe HTTP do SYNC bloqueia a API moderna. */}
+    }
+    return copiarTextoNoIframe(texto);
+}
 async function acao(botao,executar){botao.disabled=true;try{await executar();}catch(e){if(e.message!=='Fluxo encerrado.')mensagem(e.message);}finally{botao.disabled=false;}}
 export function iniciarContratos(){
     $('ficha').addEventListener('input',()=>{$('minutas').hidden=true;avisoGeracao('Ficha alterada: confronte novamente com a matrícula antes de gerar.');
@@ -246,10 +273,10 @@ export function iniciarContratos(){
                 if(JSON.stringify(lerFicha())!==JSON.stringify(trabalho.dados.ficha))throw new Error('Ficha alterada: confronte e gere novamente antes de copiar.');
                 const disponiveis=textosMinuta(trabalho?.dados);const textos=chaves.map(c=>disponiveis[c]);
                 if(textos.some(t=>!t))throw new Error('Gere a minuta antes de copiar.');
-                if(!navigator.clipboard?.writeText)throw new Error('A cópia não está disponível neste navegador. Abra o AERI diretamente em HTTPS.');
-                await navigator.clipboard.writeText(textos.join('\n\n'));
+                const copiou=await copiarTextoMinuta(textos.join('\n\n'));
+                if(!copiou)throw new Error('Não foi possível copiar automaticamente. Selecione a minuta e use Ctrl+C.');
                 $('copia-status').textContent='Copiado. Cole e confira o texto na Tri7.';
-            }catch(erro){$('copia-status').textContent=erro.name==='NotAllowedError'?'O navegador bloqueou a cópia. Abra o AERI diretamente, fora do iframe, e tente novamente.':erro.message;}
+            }catch(erro){$('copia-status').textContent=erro.message;}
         }));
     }
     $('historico-btn').addEventListener('click',e=>acao(e.target,async()=>{const h=await requisicaoAeri(`/api/contratos/${trabalho.id}/historico`);$('historico').innerHTML=h.map(v=>`<p>Versão ${v.versao} · ${escaparHtml(v.etapa)} · ${escaparHtml(v.usuario||'Executor')} · ${new Date(v.criado_em).toLocaleString('pt-BR')}</p>`).join('');}));
