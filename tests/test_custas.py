@@ -32,7 +32,7 @@ class TesteInformarCustas(unittest.TestCase):
         self.assertTrue(pdf.startswith(b"%PDF-"))
         texto = "\n".join(pagina.extract_text() or "" for pagina in PdfReader(BytesIO(pdf)).pages)
         self.assertIn("Número do pedido: S26081052542D\nImportação: Penhor Negativo", texto)
-        self.assertIn("Número do pedido: S26081052543D\nImportação: Alienação Positiva", texto)
+        self.assertIn("Número do pedido: S26081052543D\nImportação: Alienação Fiduciária Positiva", texto)
         self.assertLess(texto.index("S26081052542D"), texto.index("S26081052543D"))
 
     def test_extrai_penhor_e_formata_cpf(self):

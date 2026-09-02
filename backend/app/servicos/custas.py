@@ -29,7 +29,7 @@ STATUS_FINAIS = {"DUPLICADO_DEVOLVIDO", "RESPONDIDO", "SEM_PAGAMENTO"}
 
 def _rotulo_importacao(item: dict) -> str:
     alienacao = item.get("modalidade") == "ALIENACAO_FIDUCIARIA"
-    modalidade = "Alienação" if alienacao else "Penhor"
+    modalidade = "Alienação Fiduciária" if alienacao else "Penhor"
     resultados = (
         {"POSITIVA": "Positiva", "NEGATIVA": "Negativa", "PENDENTE": "Pendente"}
         if alienacao else
