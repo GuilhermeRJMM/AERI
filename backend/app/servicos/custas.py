@@ -27,7 +27,7 @@ STATUS_CUSTAS = {
 STATUS_FINAIS = {"DUPLICADO_DEVOLVIDO", "RESPONDIDO", "SEM_PAGAMENTO"}
 
 
-def _rotulo_importacao(item: dict) -> str:
+def rotulo_certidao_custas(item: dict) -> str:
     alienacao = item.get("modalidade") == "ALIENACAO_FIDUCIARIA"
     modalidade = "Alienação Fiduciária" if alienacao else "Penhor"
     resultados = (
@@ -51,7 +51,7 @@ def gerar_relatorio_custas_pdf(itens: list[dict]) -> bytes:
                 pagina = documento.new_page(width=595, height=842)
                 y = 58
             pagina.insert_text((50, y), f"Número do pedido: {item['pedido']}", fontname="helv", fontsize=12, color=(0, 0, 0))
-            pagina.insert_text((50, y + 19), f"Importação: {_rotulo_importacao(item)}", fontname="helv", fontsize=12, color=(0, 0, 0))
+            pagina.insert_text((50, y + 19), f"Importação: {rotulo_certidao_custas(item)}", fontname="helv", fontsize=12, color=(0, 0, 0))
             y += 57
         documento.set_metadata({"title": "Relatório - Informar Custas", "author": "AERI"})
         return documento.tobytes(garbage=4, deflate=True)
