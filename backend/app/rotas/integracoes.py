@@ -128,10 +128,10 @@ def confirmar_custas_informadas_integracao(
             if confirmaveis:
                 cursor.execute(
                     """UPDATE custas_livro3_aeri
-                    SET status='CUSTAS_INFORMADAS', atualizado_por=%s, atualizado_em=NOW()
+                    SET status='CUSTAS_INFORMADAS', atualizado_por=NULL, atualizado_em=NOW()
                     WHERE pedido=ANY(%s) AND status='BUSCA_REALIZADA' AND finalizado=FALSE
                     RETURNING id, pedido""",
-                    (usuario, confirmaveis),
+                    (confirmaveis,),
                 )
                 atualizados = cursor.fetchall()
                 for item in atualizados:
@@ -142,8 +142,8 @@ def confirmar_custas_informadas_integracao(
                         (
                             item["id"],
                             item["pedido"],
-                            usuario,
-                            Jsonb({"origem": "API_KEVIN"}),
+                            None,
+                            Jsonb({"origem": "API_KEVIN", "ator": usuario}),
                         ),
                     )
 

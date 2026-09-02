@@ -102,7 +102,18 @@ class TesteIntegracaoCustas(unittest.TestCase):
             chamada for chamada in cursor.execute.call_args_list
             if "SET status='CUSTAS_INFORMADAS'" in chamada.args[0]
         )
-        self.assertEqual(atualizacao.args[1], ("INTEGRACAO_CUSTAS", ["S26081052542D"]))
+        self.assertIn("atualizado_por=NULL", atualizacao.args[0])
+        self.assertEqual(atualizacao.args[1], (["S26081052542D"],))
+
+        evento = next(
+            chamada for chamada in cursor.execute.call_args_list
+            if "CUSTAS_INFORMADAS_PELA_API" in chamada.args[0]
+        )
+        self.assertIsNone(evento.args[1][2])
+        self.assertEqual(
+            evento.args[1][3].obj,
+            {"origem": "API_KEVIN", "ator": "INTEGRACAO_CUSTAS"},
+        )
 
 
 if __name__ == "__main__":
