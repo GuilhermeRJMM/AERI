@@ -78,9 +78,30 @@ def exportar_relatorio_custas(
                 raise HTTPException(status_code=404, detail="Um dos pedidos do relatório não foi encontrado.")
             ordenados = [encontrados[identificador] for identificador in identificadores]
             pdf = gerar_relatorio_custas_pdf(ordenados)
+            cursor.execute(
+                """UPDATE custas_livro3_aeri
+                SET status='CUSTAS_INFORMADAS', atualizado_por=%s, atualizado_em=NOW()
+                WHERE status='BUSCA_REALIZADA' AND finalizado=FALSE
+                RETURNING id, pedido""",
+                (usuario,),
+            )
+            custas_informadas = cursor.fetchall()
+            for item in custas_informadas:
+                _registrar_evento(
+                    cursor,
+                    item["id"],
+                    item["pedido"],
+                    "CUSTAS_INFORMADAS_POR_EXPORTACAO",
+                    usuario,
+                    {"origem": "RELATORIO_PDF"},
+                )
             registrar_auditoria_cursor(
                 cursor, request, "exportar_relatorio_custas", "sucesso", usuario,
-                detalhes={"quantidade": len(ordenados), "formato": "PDF"},
+                detalhes={
+                    "quantidade": len(ordenados),
+                    "formato": "PDF",
+                    "custas_informadas": len(custas_informadas),
+                },
             )
         conexao.commit()
     return Response(
@@ -89,6 +110,7 @@ def exportar_relatorio_custas(
         headers={
             "Content-Disposition": 'attachment; filename="relatorio-informar-custas.pdf"',
             "Cache-Control": "no-store",
+            "X-AERI-Custas-Informadas": str(len(custas_informadas)),
         },
     )
 

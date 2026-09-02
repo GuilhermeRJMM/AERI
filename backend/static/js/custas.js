@@ -135,7 +135,8 @@ async function exportarRelatorio() {
         link.click();
         link.remove();
         window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
-        notificarCustas(`${visiveis.length} pedido(s) exportado(s) em PDF.`);
+        await carregarCustas({background:true});
+        notificarCustas(`${visiveis.length} pedido(s) exportado(s). Todas as buscas realizadas foram movidas para Custas informadas.`);
     } catch (erro) {
         notificarCustas(erro.message, 'erro', 5200);
     } finally {

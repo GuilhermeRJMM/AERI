@@ -2,10 +2,13 @@ import unittest
 from io import BytesIO
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 from fastapi import HTTPException
+from starlette.requests import Request
 
-from backend.app.rotas.custas import _analisar_versao_esperada
+from backend.app.rotas.custas import _analisar_versao_esperada, exportar_relatorio_custas
 from pypdf import PdfReader
 
 from backend.app.servicos.custas import extrair_pedidos_texto, gerar_relatorio_custas_pdf, validar_item_custas
@@ -34,6 +37,48 @@ class TesteInformarCustas(unittest.TestCase):
         self.assertIn("Número do pedido: S26081052542D\nImportação: Penhor Negativo", texto)
         self.assertIn("Número do pedido: S26081052543D\nImportação: Alienação Fiduciária Positiva", texto)
         self.assertLess(texto.index("S26081052542D"), texto.index("S26081052543D"))
+
+    def test_exportar_promove_todas_as_buscas_realizadas_para_custas_informadas(self):
+        relatorio_id = uuid4()
+        outros_ids = [uuid4(), uuid4()]
+        cursor = MagicMock()
+        cursor.fetchall.side_effect = [
+            [{
+                "id": relatorio_id,
+                "pedido": "S26081052542D",
+                "modalidade": "PENHOR",
+                "resultado": "NEGATIVA",
+            }],
+            [
+                {"id": outros_ids[0], "pedido": "S26081052543D"},
+                {"id": outros_ids[1], "pedido": "S26081052544D"},
+            ],
+        ]
+        cursor_contexto = MagicMock()
+        cursor_contexto.__enter__.return_value = cursor
+        conexao = MagicMock()
+        conexao.cursor.return_value = cursor_contexto
+        conexao_contexto = MagicMock()
+        conexao_contexto.__enter__.return_value = conexao
+        request = Request({"type": "http", "method": "POST", "path": "/api/custas/relatorio", "headers": []})
+
+        with patch("backend.app.rotas.custas.conectar", return_value=conexao_contexto), \
+             patch("backend.app.rotas.custas._registrar_evento") as registrar_evento, \
+             patch("backend.app.rotas.custas.registrar_auditoria_cursor") as auditar:
+            resposta = exportar_relatorio_custas(
+                {"ids": [str(relatorio_id)]}, request, usuario="AUDITOR"
+            )
+
+        atualizacao = next(
+            chamada for chamada in cursor.execute.call_args_list
+            if "SET status='CUSTAS_INFORMADAS'" in chamada.args[0]
+        )
+        self.assertIn("WHERE status='BUSCA_REALIZADA' AND finalizado=FALSE", atualizacao.args[0])
+        self.assertEqual(atualizacao.args[1], ("AUDITOR",))
+        self.assertEqual(registrar_evento.call_count, 2)
+        self.assertEqual(resposta.headers["x-aeri-custas-informadas"], "2")
+        self.assertEqual(resposta.media_type, "application/pdf")
+        auditar.assert_called_once()
 
     def test_extrai_penhor_e_formata_cpf(self):
         resultado = extrair_pedidos_texto(bloco(
