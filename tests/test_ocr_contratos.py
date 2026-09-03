@@ -111,5 +111,20 @@ class TesteExecutorOperacional(unittest.TestCase):
             self.assertEqual(worker.main(), 1)
         preparar.assert_not_called()
         aviso = " ".join(registro.output)
-        self.assertIn("DATABASE_URL", aviso)
+        self.assertIn("POSTGRES_URL", aviso)
         self.assertIn("AERI_CONTRATOS_ENCRYPTION_KEY", aviso)
+
+    def test_aceita_os_mesmos_nomes_que_o_codigo_le(self):
+        """database.py aceita POSTGRES_URL ou DATABASE_URL; cifrador() aceita a
+        chave dos contratos ou a das buscas. Exigir um nome so reprovaria
+        maquina bem configurada."""
+        from unittest.mock import patch
+        worker = self._worker()
+        for banco in ("POSTGRES_URL", "DATABASE_URL"):
+            for chave in ("AERI_CONTRATOS_ENCRYPTION_KEY", "AERI_BUSCAS_HMAC_KEY"):
+                with self.subTest(banco=banco, chave=chave):
+                    ambiente = {banco: "postgres://teste", chave: "x" * 40}
+                    with patch.dict("os.environ", ambiente, clear=True),                          patch.object(worker, "carregar_env"),                          patch.object(worker, "preparar_banco") as preparar,                          patch.object(worker, "executar_passo", return_value={"estado": "OK"}),                          patch.object(worker, "processar_proximo_contrato",
+                                      return_value={"estado": "SEM_TRABALHO"}),                          patch("sys.argv", ["worker", "--once"]):
+                        self.assertEqual(worker.main(), 0)
+                    preparar.assert_called_once()

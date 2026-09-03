@@ -45,9 +45,14 @@ def main():
     parser.add_argument("--intervalo",type=int,default=10)
     args=parser.parse_args()
     logging.basicConfig(level=logging.INFO,format="%(asctime)s %(message)s")
-    faltando = [v for v in ("DATABASE_URL",) if not os.getenv(v)]
+    # Os nomes aceitos aqui espelham quem le de verdade: database.py aceita
+    # POSTGRES_URL ou DATABASE_URL, e cifrador() aceita a chave dos contratos ou
+    # a das buscas. Exigir so um nome reprovaria maquina bem configurada.
+    faltando = []
+    if not (os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL")):
+        faltando.append("POSTGRES_URL (ou DATABASE_URL)")
     if not (os.getenv("AERI_CONTRATOS_ENCRYPTION_KEY") or os.getenv("AERI_BUSCAS_HMAC_KEY")):
-        faltando.append("AERI_CONTRATOS_ENCRYPTION_KEY")
+        faltando.append("AERI_CONTRATOS_ENCRYPTION_KEY (ou AERI_BUSCAS_HMAC_KEY)")
     if faltando:
         logging.error("configure no ambiente ou no .env da raiz: %s", ", ".join(faltando))
         return 1
