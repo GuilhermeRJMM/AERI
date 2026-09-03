@@ -1,4 +1,4 @@
-import {requisicaoAeri as requisicaoOriginal} from './api.js?v=20260824-csrf-v1';
+import {requisicaoAeri as requisicaoOriginal} from './api.js?v=20260902-arquivo-v1';
 import {escaparHtml} from './util.js';
 let trabalho=null, protocolo=null, timer=null, geracao=0;
 async function requisicaoAeri(...args){const g=geracao;const r=await requisicaoOriginal(...args);if(g!==geracao)throw new Error('Fluxo encerrado.');return r;}

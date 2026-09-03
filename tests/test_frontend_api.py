@@ -92,7 +92,7 @@ if (chamadas.length !== 3 || chamadas[0][1] !== 'csrf-velho' || chamadas[1][0] !
         versoes = set()
         for arquivo in (RAIZ / "backend/static/js").glob("*.js"):
             versoes.update(re.findall(r"\./api\.js\?v=([^'\"]+)", arquivo.read_text(encoding="utf-8")))
-        self.assertEqual({"20260824-csrf-v1"}, versoes)
+        self.assertEqual({"20260902-arquivo-v1"}, versoes)
 
 
 if __name__ == "__main__":

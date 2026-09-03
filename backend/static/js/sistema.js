@@ -1,4 +1,4 @@
-import {requisicaoAeri} from './api.js?v=20260824-csrf-v1';
+import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {escaparHtml} from './util.js';
 let geracao=0;
 export function limparSistema(){geracao++;document.getElementById('sistema-conteudo').replaceChildren();document.getElementById('sistema-mensagem').textContent='';}

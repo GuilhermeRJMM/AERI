@@ -1,4 +1,4 @@
-import {definirCsrfToken, requisicaoAeri} from './api.js?v=20260824-csrf-v1';
+import {definirCsrfToken, requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {mostrarPagina} from './navegacao.js?v=20260831-setores-v1';
 
 let autenticado = false;
