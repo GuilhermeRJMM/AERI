@@ -111,10 +111,38 @@ def documento_valido(valor):
     return base==n
 
 
+# Documentos que convivem com o contrato no mesmo protocolo do GED e sao
+# selecionados por engano. Dizer o que o arquivo E resolve na hora; dizer que
+# ele "esta fora da familia CAIXA" faz procurar problema no contrato certo.
+# Medido no acervo: dois conferentes diferentes bateram nisso escolhendo a guia
+# de ITBI do protocolo 185.623 e do 185.771.
+OUTROS_DOCUMENTOS = (
+    ("imposto sobre transmissao de bens imoveis", "guia de ITBI da Prefeitura"),
+    ("guia de informacao", "guia de ITBI da Prefeitura"),
+    ("certidao negativa", "certidão negativa"),
+    ("certidao de onus", "certidão de ônus"),
+    ("matricula n", "cópia de matrícula"),
+    ("procuracao", "procuração"),
+)
+
+
+def _documento_reconhecido(texto_chave: str) -> str | None:
+    for marca, nome in OUTROS_DOCUMENTOS:
+        if marca in texto_chave:
+            return nome
+    return None
+
+
 def extrair_contrato(dados, progresso=None, *, permitir_ocr=True, prazo=None):
     documento=extrair_documento(dados,progresso,permitir_ocr=permitir_ocr,prazo=prazo)
     conferir_prazo(prazo)
-    if "caixa economica federal" not in chave_texto(documento["texto"]):
+    chave=chave_texto(documento["texto"])
+    if "caixa economica federal" not in chave:
+        outro=_documento_reconhecido(chave)
+        if outro:
+            raise ValueError(
+                f"O documento selecionado é {outro}, não o contrato. "
+                "Volte ao protocolo e escolha o contrato da CAIXA.")
         raise ValueError("Contrato fora da família CAIXA suportada. O sistema não pode presumir a instituição credora.")
     ficha=servico.para_json(extrator.extrai_do_texto(documento["texto"]))
     if not ficha["contrato"]["numero"] or not ficha["vendedores"] or not ficha["compradores"]:

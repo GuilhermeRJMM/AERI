@@ -192,3 +192,37 @@ def test_processamento_salva_versao_somente_com_lease_atual(ambiente):
     with patch.object(rotas,'extrair_contrato',return_value={}),patch.object(rotas,'_salvar') as salvar:
         assert rotas._processar_contrato_reservado(r,uuid4(),cli=a.cli,permitir_ocr=False)['estado']=='LEASE_PERDIDO'
     salvar.assert_not_called()
+
+
+@pytest.mark.parametrize('texto,esperado',[
+    ('PREFEITURA MUNICIPAL DE MORRINHOS GUIA DE INFORMACAO Guia de Lancamento e '
+     'Pagamento do Imposto Sobre Transmissao de Bens Imoveis ITBI INTER VIVOS',
+     'guia de ITBI da Prefeitura'),
+    ('CERTIDAO NEGATIVA DE DEBITOS expedida em favor de Fulano de Tal.',
+     'certidão negativa'),
+    ('PROCURACAO bastante que faz Fulano de Tal a Beltrano.',
+     'procuração'),
+])
+def test_documento_errado_do_ged_e_nomeado_em_vez_de_culpar_o_banco(texto,esperado):
+    """Dizer "fora da familia CAIXA" para uma guia de ITBI manda procurar
+    problema no contrato certo. Dois conferentes bateram nisso escolhendo a guia
+    no lugar do contrato, no mesmo protocolo do GED."""
+    from backend.app.servicos import contratos as servicos
+    with patch.object(servicos,'extrair_documento',
+                      return_value={'texto':texto,'paginas':[],'ocr':False}):
+        with pytest.raises(ValueError) as falha:
+            servicos.extrair_contrato(b'%PDF teste')
+    assert esperado in str(falha.value)
+    assert 'escolha o contrato da CAIXA' in str(falha.value)
+    assert 'fora da familia' not in str(falha.value)
+
+
+def test_documento_desconhecido_mantem_o_aviso_generico():
+    """Sem reconhecer o que e, o sistema nao inventa: diz que nao e da familia
+    suportada e nao presume a instituicao credora."""
+    from backend.app.servicos import contratos as servicos
+    with patch.object(servicos,'extrair_documento',
+                      return_value={'texto':'CONTRATO DE MUTUO COM O BANCO EXEMPLO S/A.',
+                                    'paginas':[],'ocr':False}):
+        with pytest.raises(ValueError,match='fora da fam'):
+            servicos.extrair_contrato(b'%PDF teste')
