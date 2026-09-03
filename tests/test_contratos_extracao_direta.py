@@ -134,7 +134,7 @@ def test_retomada_nao_bloqueada_pelo_limite_de_cinco(ambiente):
     assert 'COUNT(*)' not in sql and 'INSERT INTO contratos_trabalhos' not in sql
 
 
-@pytest.mark.parametrize('falha',[OcrIndisponivel('Precisa de OCR'),ErroTri7('Falha controlada na Tri7'),TempoExtracaoExcedido('Tempo excedido')])
+@pytest.mark.parametrize('falha',[ErroTri7('Falha controlada na Tri7'),TempoExtracaoExcedido('Tempo excedido')])
 def test_falha_libera_trava_e_nao_grava_extracao_parcial(ambiente,falha):
     a=ambiente;r=registro();a.cur.fetchone.return_value=r
     a.cli.listar_documentos_protocolo.return_value={'documentos':[{'ged_documento_id':7}]}
@@ -144,6 +144,38 @@ def test_falha_libera_trava_e_nao_grava_extracao_parcial(ambiente,falha):
     assert resultado['estado']=='FALHA';salvar.assert_not_called()
     sql=' '.join(c.args[0] for c in a.cur.execute.call_args_list)
     assert "estado='FALHA'" in sql and 'trava=NULL' in sql
+
+
+def test_digitalizado_no_caminho_direto_volta_para_a_fila_do_executor(ambiente):
+    """Nao e falha: e trabalho para o executor, que tem o motor de OCR.
+
+    Em FALHA o trabalho morria ali -- processar_proximo_contrato so olha
+    AGUARDANDO e PROCESSANDO vencido -- e "Retomar extracao" repetia o mesmo
+    caminho sem OCR, falhando para sempre.
+    """
+    a=ambiente;r=registro();a.cur.fetchone.return_value=r
+    a.cli.listar_documentos_protocolo.return_value={'documentos':[{'ged_documento_id':7}]}
+    a.cli.buscar_documento_ged.return_value={'dados':b'%PDF teste'}
+    with patch.object(rotas,'extrair_contrato',side_effect=OcrIndisponivel('Precisa de OCR')),          patch.object(rotas,'_salvar') as salvar:
+        resultado=rotas._processar_contrato_reservado(r,uuid4(),cli=a.cli,permitir_ocr=False)
+    assert resultado['estado']=='AGUARDANDO'
+    salvar.assert_not_called()
+    sql=' '.join(c.args[0] for c in a.cur.execute.call_args_list)
+    assert "estado='AGUARDANDO'" in sql and 'trava=NULL' in sql
+    assert "estado='FALHA'" not in sql
+
+
+def test_executor_sem_motor_de_ocr_falha_em_vez_de_repescar(ambiente):
+    """Quando quem nao tem OCR e o proprio executor, devolver a fila faria ele
+    pegar o mesmo trabalho sem parar."""
+    a=ambiente;r=registro();a.cur.fetchone.return_value=r
+    a.cli.listar_documentos_protocolo.return_value={'documentos':[{'ged_documento_id':7}]}
+    a.cli.buscar_documento_ged.return_value={'dados':b'%PDF teste'}
+    with patch.object(rotas,'extrair_contrato',side_effect=OcrIndisponivel('Sem motor')),          patch.object(rotas,'_salvar'):
+        resultado=rotas._processar_contrato_reservado(r,uuid4(),cli=a.cli,permitir_ocr=True)
+    assert resultado['estado']=='FALHA'
+    sql=' '.join(c.args[0] for c in a.cur.execute.call_args_list)
+    assert "estado='FALHA'" in sql
 
 
 def test_documento_desvinculado_do_protocolo_nao_e_baixado(ambiente):

@@ -175,9 +175,14 @@ async function acompanhar(id,ate=Date.now()+95000){
         if(['AGUARDANDO','PROCESSANDO','FALHA'].includes(r.estado)){
             for(const s of ['extraido','conferencia','minutas'])$(s).hidden=true;
         }
-        $('retomar').hidden=!['AGUARDANDO','PROCESSANDO','FALHA'].includes(r.estado);
+        // Digitalizado devolvido para a fila traz o motivo em `erro`. Ali
+        // retomar pelo caminho direto so falha de novo: quem le e o executor.
+        const naFilaDeOcr = r.estado==='AGUARDANDO' && Boolean(r.erro);
+        $('retomar').hidden=naFilaDeOcr||!['AGUARDANDO','PROCESSANDO','FALHA'].includes(r.estado);
         if(r.estado==='AGUARDANDO'){
-            mensagem('Este trabalho ainda não foi extraído. Clique em Retomar extração; não é necessário um executor para PDFs com texto.');
+            mensagem(naFilaDeOcr
+                ? `${r.erro} O trabalho ficou na fila do executor de OCR e será lido assim que ele rodar.`
+                : 'Este trabalho ainda não foi extraído. Clique em Retomar extração; não é necessário um executor para PDFs com texto.');
         }else if(r.estado==='PROCESSANDO'){
             if(Date.now()<ate){timer=setTimeout(()=>acompanhar(id,ate),2500);return;}
             mensagem('A extração não confirmou a conclusão no prazo. Retome este mesmo trabalho para verificar ou tentar novamente.');

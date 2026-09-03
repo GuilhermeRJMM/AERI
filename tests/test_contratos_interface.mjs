@@ -258,3 +258,22 @@ test('editar depois de gerar mostra o rascunho, não a minuta velha',async()=>{
     assert.equal(a.elemento('contratos-minuta-venda-preview').textContent,'RASCUNHO NOVO');
     assert.equal(a.elemento('contratos-previa-estado').textContent,'rascunho');
 });
+
+test('digitalizado na fila do OCR explica e não oferece retomar', async()=>{
+    const a=ambiente();
+    a.ctx.resposta={id:'teste',estado:'AGUARDANDO',erro:'Documento em imagem: precisa de OCR.',dados:{}};
+    await a.rodar('acompanhar("teste")');
+    await new Promise(r=>setImmediate(r));
+    assert.match(a.elemento('contratos-mensagem').textContent,/precisa de OCR/);
+    assert.match(a.elemento('contratos-mensagem').textContent,/fila do executor/);
+    assert.equal(a.elemento('contratos-retomar').hidden,true,'retomar pelo caminho direto so falharia de novo');
+});
+
+test('aguardando sem motivo continua oferecendo retomar', async()=>{
+    const a=ambiente();
+    a.ctx.resposta={id:'teste',estado:'AGUARDANDO',erro:null,dados:{}};
+    await a.rodar('acompanhar("teste")');
+    await new Promise(r=>setImmediate(r));
+    assert.match(a.elemento('contratos-mensagem').textContent,/Retomar extração/);
+    assert.equal(a.elemento('contratos-retomar').hidden,false);
+});

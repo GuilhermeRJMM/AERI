@@ -336,7 +336,7 @@ def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=Non
                 if permitir_ocr:
                     cur.execute("UPDATE contratos_trabalhos_aeri SET trava_ate=NOW()+INTERVAL '15 minutes' WHERE id=%s AND trava=%s",(r["id"],token))
             con.commit()
-    erro=None; p=None
+    erro=None; p=None; para_fila=False
     try:
         cli=cli or cliente_tri7()
         conferir_prazo(prazo)
@@ -349,7 +349,17 @@ def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=Non
         p=extrair_contrato(arquivo["dados"],progresso,permitir_ocr=permitir_ocr,prazo=prazo)
         p["minutasPrevia"]=_previa_minutas(p.get("ficha"))
         p["origemGed"]={"protocolo":r["protocolo"],"documentoId":r["documento_id"],"metadados":next(d for d in documentos_publicos(docs) if str(d["ged_documento_id"])==r["documento_id"])}
-    except (OcrIndisponivel,DocumentoInvalido,ValueError) as exc: erro=str(exc)[:250]
+    except OcrIndisponivel as exc:
+        # Digitalizado no caminho direto (a Vercel nao tem motor de OCR): isto
+        # nao e falha, e trabalho para o executor. Volta para a fila em vez de
+        # encerrar -- em FALHA ele morria ali, porque processar_proximo_contrato
+        # so olha AGUARDANDO e PROCESSANDO vencido, e "Retomar extracao" repete
+        # o mesmo caminho sem OCR e falha de novo, para sempre.
+        # Quando quem falha e o proprio executor (permitir_ocr=True), ai e falha
+        # de verdade: aquela maquina nao tem motor, e devolver a fila faria ela
+        # repescar o mesmo trabalho sem parar.
+        erro=str(exc)[:250]; para_fila=not permitir_ocr
+    except (DocumentoInvalido,ValueError) as exc: erro=str(exc)[:250]
     except ErroTri7 as exc: erro=str(exc)[:250]
     except Exception as exc: erro=f"Falha controlada na extração ({type(exc).__name__}). Tente novamente ou contate o suporte."
     with conectar() as con:
@@ -357,10 +367,13 @@ def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=Non
             cur.execute("SELECT * FROM contratos_trabalhos_aeri WHERE id=%s AND trava=%s FOR UPDATE",(r["id"],token))
             atual=cur.fetchone()
             if not atual: return {"estado":"LEASE_PERDIDO"}
-            if erro:
+            if para_fila:
+                cur.execute("UPDATE contratos_trabalhos_aeri SET estado='AGUARDANDO',erro=%s,trava=NULL,trava_ate=NULL,atualizado_em=NOW() WHERE id=%s",(erro,r["id"]))
+            elif erro:
                 cur.execute("UPDATE contratos_trabalhos_aeri SET estado='FALHA',erro=%s,trava=NULL,trava_ate=NULL,atualizado_em=NOW() WHERE id=%s",(erro,r["id"]))
             else:
                 _salvar(cur,atual,p,"EXTRACAO",r["usuario"],"EXTRAIDO")
                 cur.execute("UPDATE contratos_trabalhos_aeri SET progresso=100,trava=NULL,trava_ate=NULL WHERE id=%s",(r["id"],))
         con.commit()
-    return {"id":str(r["id"]),"estado":"FALHA" if erro else "EXTRAIDO"}
+    return {"id":str(r["id"]),
+            "estado":"AGUARDANDO" if para_fila else ("FALHA" if erro else "EXTRAIDO")}
