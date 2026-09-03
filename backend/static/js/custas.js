@@ -205,6 +205,8 @@ function fecharImportacao() {
     arquivoPendente = null;
 }
 
+const emReais = valor => new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(valor);
+
 async function prepararImportacao(evento) {
     const arquivo = evento.target.files?.[0];
     if (!arquivo) return;
@@ -234,7 +236,7 @@ async function confirmarImportacao() {
     const arquivo = arquivoPendente;
     botao.disabled = true;
     fecharImportacao();
-    const processando = notificarCustas('Adicionando os pedidos à lista…', 'processando', 0);
+    const processando = notificarCustas('Adicionando os pedidos e pesquisando no Registro Auxiliar…', 'processando', 0);
     try {
         const dados = await requisicaoAeri('/api/custas/importar?confirmar=true', {method:'POST', headers:{'Content-Type':'application/pdf'}, body:arquivo});
         const novos = dados.itensImportados || [];
@@ -242,7 +244,12 @@ async function confirmarImportacao() {
         itens = [...novos, ...itens.filter(item => !idsNovos.has(item.id))];
         renderizar();
         removerNotificacao(processando);
-        notificarCustas(`${dados.importados} pedido(s) adicionado(s).${dados.duplicados ? ` ${dados.duplicados} já existiam e foram preservados.` : ''}`);
+        // A pesquisa no Registro Auxiliar já vem feita do servidor: o resumo diz
+        // o que ela achou, para o conferente não precisar abrir pedido por pedido.
+        const pesquisa = dados.pesquisados
+            ? ` Pesquisa automática: ${dados.positivas} positiva(s) e ${dados.negativas} negativa(s), ${emReais(dados.valorTotal || 0)}.`
+            : '';
+        notificarCustas(`${dados.importados} pedido(s) adicionado(s).${dados.duplicados ? ` ${dados.duplicados} já existiam e foram preservados.` : ''}${pesquisa}`);
     } catch (erro) {
         removerNotificacao(processando);
         notificarCustas(erro.message, 'erro', 5200);
@@ -320,7 +327,7 @@ async function acaoTabela(evento) {
             const resposta = await requisicaoAeri(`/api/custas/${item.id}/pesquisar-registros`, {method:'POST'});
             itens = itens.map(atual => atual.id === item.id ? resposta.item : atual);
             renderizar();
-            notificarCustas(`${resposta.resultado}: ${resposta.registros.length} registro(s). Valor: ${new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(resposta.valor)}.`);
+            notificarCustas(`${resposta.resultado}: ${resposta.registros.length} registro(s). Valor: ${emReais(resposta.valor)}.`);
         } catch (erro) { notificarCustas(erro.message, 'erro', 5200); }
         return;
     }

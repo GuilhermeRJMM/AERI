@@ -281,9 +281,13 @@ async def importar_relatorio(
 
         importados = 0
         duplicados = 0
+        positivas = 0
         itens_importados = []
+        valor_total = 0.0
         with conectar() as conexao:
             with conexao.cursor() as cursor:
+                # Tabela de precos lida uma vez, e nao por pedido do relatorio.
+                preco = _preco_certidao_registro_auxiliar(cursor)
                 for item in resultado["itens"]:
                     identificador = uuid4()
                     cursor.execute(
@@ -299,16 +303,24 @@ async def importar_relatorio(
                     novo_item = cursor.fetchone()
                     if novo_item:
                         importados += 1
-                        itens_importados.append(custas_json(novo_item))
                         _registrar_evento(
                             cursor, identificador, item["pedido"], "IMPORTACAO", usuario,
                             {"campos_ausentes": [a["campos"] for a in resultado["alertas"] if a["pedido"] == item["pedido"]]},
                         )
+                        # A pesquisa no Registro Auxiliar entra na mesma transacao:
+                        # e consulta local, no indice ja sincronizado. Antes o
+                        # conferente importava o relatorio e depois clicava
+                        # "Pesquisar" em cada pedido, um por um.
+                        busca = _pesquisar_registros(cursor, novo_item, usuario, preco)
+                        itens_importados.append(busca["item"])
+                        positivas += 1 if busca["resultado"] == "POSITIVA" else 0
+                        valor_total += busca["valor"]
                     else:
                         duplicados += 1
                 registrar_auditoria_cursor(
                     cursor, request, "importar_custas", "sucesso", usuario,
-                    detalhes={"importados": importados, "duplicados": duplicados, "ignorados": resultado["ignorados"]},
+                    detalhes={"importados": importados, "duplicados": duplicados,
+                              "ignorados": resultado["ignorados"], "positivas": positivas},
                 )
             conexao.commit()
         return {
@@ -316,6 +328,10 @@ async def importar_relatorio(
             "importados": importados,
             "duplicados": duplicados,
             "itensImportados": itens_importados,
+            "pesquisados": importados,
+            "positivas": positivas,
+            "negativas": importados - positivas,
+            "valorTotal": round(valor_total, 2),
         }
     except HTTPException:
         raise
@@ -370,6 +386,56 @@ def atualizar_custas(
     return custas_json(item)
 
 
+def _preco_certidao_registro_auxiliar(cursor) -> Decimal:
+    cursor.execute(
+        """SELECT valor FROM custas_precos_aeri WHERE servico='CERTIDAO_REGISTRO_AUXILIAR'
+        AND vigencia_inicio<=CURRENT_DATE AND (vigencia_fim IS NULL OR vigencia_fim>=CURRENT_DATE)
+        ORDER BY vigencia_inicio DESC LIMIT 1"""
+    )
+    item = cursor.fetchone()
+    return item["valor"] if item else Decimal("139.93")
+
+
+def _pesquisar_registros(cursor, pedido, usuario, preco=None) -> dict:
+    """Procura o pedido no Registro Auxiliar e grava o resultado.
+
+    A consulta e local, no indice ja sincronizado: nao ha chamada externa, entao
+    a importacao pode rodar isto para cada pedido na mesma transacao. `preco`
+    permite ler a tabela de precos uma vez por relatorio, e nao por pedido.
+    """
+    if preco is None:
+        preco = _preco_certidao_registro_auxiliar(cursor)
+    termo = normalizar_busca(pedido["nome"])
+    documento = "".join(c for c in pedido["documento"] if c.isdigit())
+    filtros = ["situacao='ATIVO'", "produtos ? %s", "safras ? %s", "modalidade=%s"]
+    parametros = [normalizar_busca(pedido["produto"]), normalizar_safra(pedido["safra"]),
+                  "ALIENAÇÃO" if pedido["modalidade"] == "ALIENACAO_FIDUCIARIA" else pedido["modalidade"]]
+    if len(documento) in {11, 14}:
+        filtros.append("(nomes_busca LIKE %s OR documentos_hash ? %s)")
+        parametros.extend((f"%{termo}%", hash_documento(documento)))
+    else:
+        filtros.append("nomes_busca LIKE %s")
+        parametros.append(f"%{termo}%")
+    cursor.execute(
+        f"SELECT numero FROM registros_auxiliares_aeri WHERE {' AND '.join(filtros)} ORDER BY numero",
+        tuple(parametros),
+    )
+    numeros = [item["numero"] for item in cursor.fetchall()]
+    resultado = "POSITIVA" if numeros else "NEGATIVA"
+    cursor.execute(
+        """UPDATE custas_livro3_aeri SET resultado=%s, numero_registro=%s,
+        status='BUSCA_REALIZADA', atualizado_por=%s, atualizado_em=NOW()
+        WHERE id=%s RETURNING *""",
+        (resultado, ", ".join(str(numero) for numero in numeros), usuario, pedido["id"]),
+    )
+    atualizado = cursor.fetchone()
+    valor = preco * max(1, len(numeros))
+    _registrar_evento(cursor, pedido["id"], pedido["pedido"], "PESQUISA_REGISTRO_AUXILIAR", usuario,
+                      {"registros": numeros, "valor": str(valor), "resultado": resultado})
+    return {"item": custas_json(atualizado), "registros": numeros,
+            "valor": float(valor), "resultado": resultado}
+
+
 @router.post("/{identificador}/pesquisar-registros", dependencies=[Depends(proteger_csrf)])
 def pesquisar_registros_do_pedido(
     identificador: UUID, request: Request,
@@ -381,45 +447,11 @@ def pesquisar_registros_do_pedido(
             pedido = cursor.fetchone()
             if not pedido:
                 raise HTTPException(status_code=404, detail="Pedido não encontrado.")
-            termo = normalizar_busca(pedido["nome"])
-            documento = "".join(c for c in pedido["documento"] if c.isdigit())
-            filtros = ["situacao='ATIVO'", "produtos ? %s", "safras ? %s", "modalidade=%s"]
-            parametros = [normalizar_busca(pedido["produto"]), normalizar_safra(pedido["safra"]),
-                          "ALIENAÇÃO" if pedido["modalidade"] == "ALIENACAO_FIDUCIARIA" else pedido["modalidade"]]
-            if len(documento) in {11, 14}:
-                filtros.append("(nomes_busca LIKE %s OR documentos_hash ? %s)")
-                parametros.extend((f"%{termo}%", hash_documento(documento)))
-            else:
-                filtros.append("nomes_busca LIKE %s")
-                parametros.append(f"%{termo}%")
-            cursor.execute(
-                f"SELECT numero FROM registros_auxiliares_aeri WHERE {' AND '.join(filtros)} ORDER BY numero",
-                tuple(parametros),
-            )
-            numeros = [item["numero"] for item in cursor.fetchall()]
-            cursor.execute(
-                """SELECT valor FROM custas_precos_aeri WHERE servico='CERTIDAO_REGISTRO_AUXILIAR'
-                AND vigencia_inicio<=CURRENT_DATE AND (vigencia_fim IS NULL OR vigencia_fim>=CURRENT_DATE)
-                ORDER BY vigencia_inicio DESC LIMIT 1"""
-            )
-            preco_item = cursor.fetchone()
-            preco = preco_item["valor"] if preco_item else Decimal("139.93")
-            resultado = "POSITIVA" if numeros else "NEGATIVA"
-            numero_registro = ", ".join(str(numero) for numero in numeros)
-            cursor.execute(
-                """UPDATE custas_livro3_aeri SET resultado=%s, numero_registro=%s,
-                status='BUSCA_REALIZADA', atualizado_por=%s, atualizado_em=NOW()
-                WHERE id=%s RETURNING *""",
-                (resultado, numero_registro, usuario, identificador),
-            )
-            atualizado = cursor.fetchone()
-            valor = preco * max(1, len(numeros))
-            _registrar_evento(cursor, identificador, pedido["pedido"], "PESQUISA_REGISTRO_AUXILIAR", usuario,
-                              {"registros": numeros, "valor": str(valor), "resultado": resultado})
+            saida = _pesquisar_registros(cursor, pedido, usuario)
             registrar_auditoria_cursor(cursor, request, "pesquisar_registros_custas", "sucesso", usuario,
-                                       pedido["pedido"], {"quantidade": len(numeros)})
+                                       pedido["pedido"], {"quantidade": len(saida["registros"])})
         conexao.commit()
-    return {"item": custas_json(atualizado), "registros": numeros, "valor": float(valor), "resultado": resultado}
+    return saida
 
 
 @router.get("/{identificador}/historico")

@@ -204,3 +204,185 @@ class TesteInformarCustas(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TesteImportacaoPesquisaAutomatica(unittest.TestCase):
+    """A pesquisa no Registro Auxiliar entra junto com a importação.
+
+    Antes o conferente importava o relatório e depois clicava "Pesquisar" em
+    cada pedido. A consulta é local, no índice já sincronizado, então roda na
+    mesma transação da importação.
+    """
+
+    def _importar(self, itens, encontrados):
+        import asyncio
+        from decimal import Decimal
+        from backend.app.rotas import custas as rotas
+
+        novos = [{"id": uuid4(), **item} for item in itens]
+        cursor = MagicMock()
+        cursor.fetchall.side_effect = [[], []]          # existentes, todos
+        cursor.fetchone.side_effect = list(novos)       # um INSERT ... RETURNING por item
+        cursor_contexto = MagicMock()
+        cursor_contexto.__enter__.return_value = cursor
+        conexao = MagicMock()
+        conexao.cursor.return_value = cursor_contexto
+        conexao_contexto = MagicMock()
+        conexao_contexto.__enter__.return_value = conexao
+
+        pdf = b"%PDF-1.4\ncorpo de teste\n%%EOF"
+
+        async def receive():
+            return {"type": "http.request", "body": pdf, "more_body": False}
+
+        request = Request(
+            {"type": "http", "method": "POST", "path": "/api/custas/importar",
+             "headers": [(b"content-length", str(len(pdf)).encode())]},
+            receive,
+        )
+        extraido = {"itens": itens, "alertas": [], "ignorados": 0, "total": len(itens)}
+
+        def buscar(_cursor, pedido, _usuario, _preco=None):
+            numeros = encontrados.get(pedido["pedido"], [])
+            return {"item": {"id": str(pedido["id"]), "pedido": pedido["pedido"],
+                             "status": "BUSCA_REALIZADA",
+                             "resultado": "POSITIVA" if numeros else "NEGATIVA"},
+                    "registros": numeros, "valor": 139.93 * max(1, len(numeros)),
+                    "resultado": "POSITIVA" if numeros else "NEGATIVA"}
+
+        with patch.object(rotas, "extrair_pedidos_pdf", return_value=extraido), \
+             patch.object(rotas, "conectar", return_value=conexao_contexto), \
+             patch.object(rotas, "_registrar_evento"), \
+             patch.object(rotas, "registrar_auditoria_cursor"), \
+             patch.object(rotas, "_preco_certidao_registro_auxiliar", return_value=Decimal("139.93")), \
+             patch.object(rotas, "_pesquisar_registros", side_effect=buscar) as pesquisa:
+            resposta = asyncio.run(
+                rotas.importar_relatorio(request, confirmar=True, usuario="AUDITOR")
+            )
+        return resposta, pesquisa, novos
+
+    def _itens(self):
+        return [
+            {"pedido": "S26081052542D", "nome": "PESSOA UM", "documento": "12345678901",
+             "modalidade": "PENHOR", "produto": "SOJA", "safra": "2025/2026"},
+            {"pedido": "S26081052543D", "nome": "PESSOA DOIS", "documento": "12345678902",
+             "modalidade": "ALIENACAO_FIDUCIARIA", "produto": "MILHO", "safra": "2025/2026"},
+        ]
+
+    def test_pesquisa_roda_uma_vez_por_pedido_importado(self):
+        itens = self._itens()
+        resposta, pesquisa, _novos = self._importar(itens, {"S26081052542D": [7, 9]})
+        self.assertEqual(pesquisa.call_count, 2, "cada pedido novo precisa ser pesquisado")
+        pedidos = [chamada.args[1]["pedido"] for chamada in pesquisa.call_args_list]
+        self.assertEqual(pedidos, [item["pedido"] for item in itens])
+        # O preco e lido uma vez e repassado, para nao consultar a tabela por pedido.
+        self.assertTrue(all(chamada.args[3] is not None for chamada in pesquisa.call_args_list))
+
+    def test_resposta_traz_o_resultado_da_pesquisa_e_o_item_ja_atualizado(self):
+        resposta, _pesquisa, _novos = self._importar(self._itens(), {"S26081052542D": [7, 9]})
+        self.assertEqual(resposta["importados"], 2)
+        self.assertEqual(resposta["pesquisados"], 2)
+        self.assertEqual(resposta["positivas"], 1)
+        self.assertEqual(resposta["negativas"], 1)
+        # 139,93 x 2 registros na positiva + 139,93 na negativa
+        self.assertEqual(resposta["valorTotal"], 419.79)
+        # O item devolvido e o de DEPOIS da pesquisa: a tela ja mostra o resultado.
+        self.assertTrue(all(item["status"] == "BUSCA_REALIZADA" for item in resposta["itensImportados"]))
+        self.assertEqual(
+            sorted(item["resultado"] for item in resposta["itensImportados"]),
+            ["NEGATIVA", "POSITIVA"],
+        )
+
+    def test_previa_nao_pesquisa_nada(self):
+        """Sem confirmar, a importação só mostra o que veio no PDF."""
+        import asyncio
+        from backend.app.rotas import custas as rotas
+        itens = self._itens()
+        cursor = MagicMock()
+        cursor.fetchall.side_effect = [[], []]
+        cursor_contexto = MagicMock()
+        cursor_contexto.__enter__.return_value = cursor
+        conexao = MagicMock()
+        conexao.cursor.return_value = cursor_contexto
+        conexao_contexto = MagicMock()
+        conexao_contexto.__enter__.return_value = conexao
+        pdf = b"%PDF-1.4\ncorpo\n%%EOF"
+
+        async def receive():
+            return {"type": "http.request", "body": pdf, "more_body": False}
+
+        request = Request({"type": "http", "method": "POST", "path": "/api/custas/importar",
+                           "headers": [(b"content-length", str(len(pdf)).encode())]}, receive)
+        with patch.object(rotas, "extrair_pedidos_pdf",
+                          return_value={"itens": itens, "alertas": [], "ignorados": 0, "total": 2}), \
+             patch.object(rotas, "conectar", return_value=conexao_contexto), \
+             patch.object(rotas, "_pesquisar_registros") as pesquisa:
+            resposta = asyncio.run(rotas.importar_relatorio(request, confirmar=False, usuario="AUDITOR"))
+        pesquisa.assert_not_called()
+        self.assertEqual(resposta["importados"], 0)
+
+
+class TestePesquisaRegistroAuxiliar(unittest.TestCase):
+    """Fixa o comportamento da pesquisa depois de extraí-la da rota.
+
+    Ela passou a ser compartilhada com a importação, então uma mudança aqui
+    afeta os dois caminhos.
+    """
+
+    def _pesquisar(self, pedido, numeros):
+        from decimal import Decimal
+        from backend.app.rotas import custas as rotas
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [{"numero": n} for n in numeros]
+        cursor.fetchone.return_value = {**pedido, "resultado": "POSITIVA" if numeros else "NEGATIVA"}
+        # hash_documento exige AERI_BUSCAS_HMAC_KEY e falha fechado sem ela --
+        # comportamento correto; aqui interessa a forma da consulta.
+        with patch.object(rotas, "_registrar_evento") as evento, \
+             patch.object(rotas, "hash_documento", return_value="hash-de-teste"), \
+             patch.object(rotas, "custas_json", side_effect=lambda linha: linha):
+            saida = rotas._pesquisar_registros(cursor, pedido, "AUDITOR", Decimal("139.93"))
+        consultas = [c.args[0] for c in cursor.execute.call_args_list]
+        parametros = [c.args[1] if len(c.args) > 1 else () for c in cursor.execute.call_args_list]
+        return saida, consultas, parametros, evento
+
+    def _pedido(self, **extra):
+        base = {"id": uuid4(), "pedido": "S26081052542D", "nome": "PESSOA DE TESTE",
+                "documento": "12345678901", "modalidade": "PENHOR",
+                "produto": "SOJA", "safra": "2025/2026"}
+        base.update(extra)
+        return base
+
+    def test_positiva_grava_os_numeros_e_o_status(self):
+        saida, consultas, parametros, evento = self._pesquisar(self._pedido(), [7, 9])
+        self.assertEqual(saida["resultado"], "POSITIVA")
+        self.assertEqual(saida["registros"], [7, 9])
+        self.assertEqual(saida["valor"], 279.86)   # 139,93 por registro
+        atualizacao = next(c for c in consultas if "SET resultado=" in c)
+        self.assertIn("status='BUSCA_REALIZADA'", atualizacao)
+        gravados = parametros[consultas.index(atualizacao)]
+        self.assertEqual(gravados[1], "7, 9")
+        evento.assert_called_once()
+
+    def test_negativa_cobra_uma_certidao_e_nao_zero(self):
+        saida, _c, _p, _e = self._pesquisar(self._pedido(), [])
+        self.assertEqual(saida["resultado"], "NEGATIVA")
+        self.assertEqual(saida["valor"], 139.93)
+
+    def test_alienacao_fiduciaria_consulta_o_rotulo_do_registro_auxiliar(self):
+        # No Informar Custas a modalidade e ALIENACAO_FIDUCIARIA; no Registro
+        # Auxiliar o rotulo gravado e "ALIENAÇÃO".
+        _s, consultas, parametros, _e = self._pesquisar(
+            self._pedido(modalidade="ALIENACAO_FIDUCIARIA"), [])
+        busca = next(c for c in consultas if "registros_auxiliares_aeri" in c)
+        self.assertIn("ALIENAÇÃO", parametros[consultas.index(busca)])
+
+    def test_documento_valido_amplia_a_busca_para_o_hash(self):
+        _s, consultas, _p, _e = self._pesquisar(self._pedido(documento="123.456.789-01"), [])
+        busca = next(c for c in consultas if "registros_auxiliares_aeri" in c)
+        self.assertIn("documentos_hash ? %s", busca)
+
+    def test_documento_invalido_busca_apenas_por_nome(self):
+        _s, consultas, _p, _e = self._pesquisar(self._pedido(documento="NAO CONSTA"), [])
+        busca = next(c for c in consultas if "registros_auxiliares_aeri" in c)
+        self.assertNotIn("documentos_hash", busca)
+        self.assertIn("nomes_busca LIKE %s", busca)
