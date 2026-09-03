@@ -29,7 +29,15 @@ def carregar_env(caminho: Path) -> None:
         if not linha or linha.startswith("#") or "=" not in linha:
             continue
         chave, valor = linha.split("=", 1)
-        os.environ.setdefault(chave.strip(), valor.strip().strip('"').strip("'"))
+        valor = valor.strip().strip('"').strip("'")
+        # `vercel env pull` escreve "[SENSITIVE]" no lugar do valor quando a
+        # variavel e marcada como secreta la -- ela e de escrita apenas e nao
+        # volta. Aceitar esse texto e pior que nao ter nada: em vez do aviso do
+        # que falta, vira erro de conexao do driver ("missing = after
+        # [SENSITIVE]"), que nao diz o que fazer.
+        if not valor or "[SENSITIVE]" in valor:
+            continue
+        os.environ.setdefault(chave.strip(), valor)
 
 
 carregar_env(RAIZ / ".env")

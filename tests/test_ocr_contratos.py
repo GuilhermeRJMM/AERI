@@ -128,3 +128,27 @@ class TesteExecutorOperacional(unittest.TestCase):
                                       return_value={"estado": "SEM_TRABALHO"}),                          patch("sys.argv", ["worker", "--once"]):
                         self.assertEqual(worker.main(), 0)
                     preparar.assert_called_once()
+
+    def test_placeholder_do_vercel_conta_como_ausente(self):
+        """`vercel env pull` grava "[SENSITIVE]" para variavel secreta.
+
+        Aceitar esse texto trocava o aviso do que falta por um erro de conexao
+        do driver, que nao diz o que fazer.
+        """
+        import os
+        import tempfile
+        worker = self._worker()
+        pasta = Path(tempfile.mkdtemp())
+        (pasta / ".env").write_text(
+            'POSTGRES_URL="[SENSITIVE]"\nAERI_TESTE_VAZIO=\nAERI_TESTE_BOM=valor\n',
+            encoding="utf-8")
+        for chave in ("POSTGRES_URL", "AERI_TESTE_VAZIO", "AERI_TESTE_BOM"):
+            os.environ.pop(chave, None)
+        try:
+            worker.carregar_env(pasta / ".env")
+            self.assertNotIn("POSTGRES_URL", os.environ)
+            self.assertNotIn("AERI_TESTE_VAZIO", os.environ)
+            self.assertEqual(os.environ["AERI_TESTE_BOM"], "valor")
+        finally:
+            for chave in ("POSTGRES_URL", "AERI_TESTE_VAZIO", "AERI_TESTE_BOM"):
+                os.environ.pop(chave, None)
