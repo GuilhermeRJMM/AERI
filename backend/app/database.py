@@ -30,6 +30,22 @@ def conectar():
         yield conexao
 
 
+def fechar_pool() -> None:
+    """Encerra o pool antes do fim do processo.
+
+    Sem isto o __del__ do psycopg_pool tenta juntar as threads durante o
+    encerramento do interpretador e o Python levanta PythonFinalizationError --
+    um traceback de quatro linhas depois de um ciclo bem-sucedido, que parece
+    falha e nao e. A funcao serverless nao precisa disto (o processo nao encerra
+    de forma ordenada), mas o executor da serventia sim.
+    """
+    global _pool
+    with _bloqueio_pool:
+        if _pool is not None:
+            _pool.close()
+            _pool = None
+
+
 def _obter_pool() -> ConnectionPool:
     global _pool
     if _pool is not None:

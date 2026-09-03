@@ -152,3 +152,32 @@ class TesteExecutorOperacional(unittest.TestCase):
         finally:
             for chave in ("POSTGRES_URL", "AERI_TESTE_VAZIO", "AERI_TESTE_BOM"):
                 os.environ.pop(chave, None)
+
+    def test_encerra_o_pool_no_fim_do_ciclo(self):
+        """Sem fechar, o __del__ do psycopg_pool tenta juntar threads durante o
+        encerramento do interpretador e o Python levanta PythonFinalizationError:
+        um traceback de quatro linhas depois de um ciclo bem-sucedido."""
+        from unittest.mock import patch
+        worker = self._worker()
+        ambiente = {"POSTGRES_URL": "postgres://teste", "AERI_BUSCAS_HMAC_KEY": "x" * 40}
+        with patch.dict("os.environ", ambiente, clear=True), \
+             patch.object(worker, "carregar_env"), \
+             patch.object(worker, "preparar_banco"), \
+             patch.object(worker, "executar_passo", return_value={"estado": "OK"}), \
+             patch.object(worker, "processar_proximo_contrato", return_value={"estado": "SEM_TRABALHO"}), \
+             patch.object(worker, "fechar_pool") as fechar, \
+             patch("sys.argv", ["worker", "--once"]):
+            self.assertEqual(worker.main(), 0)
+        fechar.assert_called_once()
+
+
+class TestePoolDoBanco(unittest.TestCase):
+    def test_fechar_pool_libera_e_pode_ser_chamado_duas_vezes(self):
+        from unittest.mock import MagicMock, patch
+        from backend.app import database
+        falso = MagicMock()
+        with patch.object(database, "_pool", falso):
+            database.fechar_pool()
+            falso.close.assert_called_once()
+            self.assertIsNone(database._pool)
+            database.fechar_pool()  # idempotente: servico reinicia sem estourar

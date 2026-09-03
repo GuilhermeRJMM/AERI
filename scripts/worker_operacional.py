@@ -42,7 +42,7 @@ def carregar_env(caminho: Path) -> None:
 
 carregar_env(RAIZ / ".env")
 
-from backend.app.database import preparar_banco
+from backend.app.database import fechar_pool, preparar_banco
 from backend.app.servicos.automacoes_operacionais import executar_passo
 from backend.app.rotas.contratos import processar_proximo_contrato
 
@@ -78,6 +78,7 @@ def main():
             logging.error("ciclo_falhou tipo=%s",type(exc).__name__)
         if args.once: break
         time.sleep(max(5,min(args.intervalo,60)))
+    fechar_pool()
     return 0
 
 
