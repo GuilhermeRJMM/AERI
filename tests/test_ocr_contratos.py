@@ -58,3 +58,58 @@ class TesteMotorDeOcr(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TesteExecutorOperacional(unittest.TestCase):
+    """O executor roda numa máquina da serventia, a partir do repositório.
+
+    Sem carregar o .env ele morria em "DATABASE_URL ausente" com traceback,
+    antes de qualquer diagnóstico -- e nada no projeto carregava esse arquivo,
+    porque o app roda na Vercel, onde as variáveis vêm do painel.
+    """
+
+    def _worker(self):
+        import importlib.util
+        raiz = Path(__file__).resolve().parents[1]
+        spec = importlib.util.spec_from_file_location(
+            "worker_operacional", raiz / "scripts" / "worker_operacional.py")
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+        return modulo
+
+    def test_carrega_env_sem_sobrescrever_o_ambiente(self):
+        import os
+        import tempfile
+        worker = self._worker()
+        pasta = Path(tempfile.mkdtemp())
+        (pasta / ".env").write_text(
+            '# comentario\nAERI_TESTE_NOVA=doArquivo\nAERI_TESTE_EXISTENTE="doArquivo"\n\n',
+            encoding="utf-8")
+        os.environ.pop("AERI_TESTE_NOVA", None)
+        os.environ["AERI_TESTE_EXISTENTE"] = "doSistema"
+        try:
+            worker.carregar_env(pasta / ".env")
+            self.assertEqual(os.environ["AERI_TESTE_NOVA"], "doArquivo")
+            # Quem opera a maquina manda: variavel ja definida vence o arquivo.
+            self.assertEqual(os.environ["AERI_TESTE_EXISTENTE"], "doSistema")
+        finally:
+            os.environ.pop("AERI_TESTE_NOVA", None)
+            os.environ.pop("AERI_TESTE_EXISTENTE", None)
+
+    def test_arquivo_ausente_nao_quebra(self):
+        worker = self._worker()
+        worker.carregar_env(Path("nao-existe-em-lugar-nenhum.env"))
+
+    def test_sem_configuracao_diz_o_que_falta_e_sai_com_erro(self):
+        from unittest.mock import patch
+        worker = self._worker()
+        with patch.dict("os.environ", {}, clear=True), \
+             patch.object(worker, "carregar_env"), \
+             patch.object(worker, "preparar_banco") as preparar, \
+             patch("sys.argv", ["worker", "--once"]), \
+             self.assertLogs(level="ERROR") as registro:
+            self.assertEqual(worker.main(), 1)
+        preparar.assert_not_called()
+        aviso = " ".join(registro.output)
+        self.assertIn("DATABASE_URL", aviso)
+        self.assertIn("AERI_CONTRATOS_ENCRYPTION_KEY", aviso)
