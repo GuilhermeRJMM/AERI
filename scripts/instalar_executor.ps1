@@ -34,9 +34,22 @@ if ($Remover) {
   return
 }
 
+# Quem diz onde o Python esta e o proprio Python: no PATH do usuario, "python"
+# costuma resolver para o stub da Microsoft Store em WindowsApps, que abre a
+# Loja em vez de executar. A tarefa ficaria instalada e nunca rodaria.
+$Python = $null
+foreach ($candidato in @("python", "py")) {
+  try {
+    $saida = & $candidato -c "import sys; print(sys.executable)" 2>$null
+    if ($LASTEXITCODE -eq 0 -and $saida -and (Test-Path $saida) -and
+        $saida -notlike "*\WindowsApps\*") { $Python = $saida; break }
+  } catch { }
+}
+if (-not $Python) {
+  throw 'nao encontrei um Python utilizavel fora do stub da Microsoft Store. Instale o Python de python.org ou ajuste o PATH.'
+}
 # pythonw nao abre janela de console; sem ele a tarefa pisca um terminal preto
 # a cada logon.
-$Python = (Get-Command python -ErrorAction Stop).Source
 $Pythonw = Join-Path (Split-Path -Parent $Python) "pythonw.exe"
 if (-not (Test-Path $Pythonw)) { $Pythonw = $Python }
 
@@ -56,12 +69,12 @@ Write-Host "   log      : $Log"
 $acao = New-ScheduledTaskAction -Execute $Pythonw `
   -Argument "`"$Script`" --intervalo $Intervalo" -WorkingDirectory $Raiz
 $gatilho = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-# Um executor so: StopExisting evita duas copias disputando a mesma fila depois
-# de bloquear e desbloquear a sessao. O lease do banco ja protege contra
-# processamento duplo, mas duas copias so gastam CPU a toa.
+# Um executor so: IgnoreNew descarta um segundo disparo enquanto o primeiro
+# roda -- o que acontece ao bloquear e desbloquear a sessao. O lease do banco ja
+# protege contra processamento duplo, mas duas copias so gastam CPU a toa.
 $config = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries `
   -DontStopIfGoingOnBatteries -StartWhenAvailable `
-  -MultipleInstances StopExisting -RestartInterval (New-TimeSpan -Minutes 1) -RestartCount 3
+  -MultipleInstances IgnoreNew -RestartInterval (New-TimeSpan -Minutes 1) -RestartCount 3
 $config.ExecutionTimeLimit = "PT0S"   # sem limite: e um laco continuo
 
 Register-ScheduledTask -TaskName $Nome -Action $acao -Trigger $gatilho `

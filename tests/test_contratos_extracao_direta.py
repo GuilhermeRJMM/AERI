@@ -269,3 +269,19 @@ def test_ficha_de_documento_digitalizado_diz_que_veio_de_ocr():
          patch.object(servicos,'campos_ficha',return_value=[]):
         p=servicos.extrair_contrato(b'%PDF teste')
     assert p['ficha']['origens']['_natureza']=='digitalizado, lido por OCR (windows)'
+
+
+def test_sucesso_limpa_o_erro_da_tentativa_anterior(ambiente):
+    """Digitalizado passa por AGUARDANDO com o motivo gravado. Sem limpar, o
+    trabalho terminava EXTRAIDO carregando o texto de uma falha superada."""
+    a=ambiente;r=registro();a.cur.fetchone.return_value=r
+    a.cli.listar_documentos_protocolo.return_value={'documentos':[{'ged_documento_id':7}]}
+    a.cli.buscar_documento_ged.return_value={'dados':b'%PDF teste'}
+    with patch.object(rotas,'extrair_contrato',return_value={'ficha':{}}), \
+         patch.object(rotas,'_previa_minutas',return_value=None), \
+         patch.object(rotas,'documentos_publicos',return_value=[{'ged_documento_id':7}]), \
+         patch.object(rotas,'_salvar'):
+        resultado=rotas._processar_contrato_reservado(r,uuid4(),cli=a.cli,permitir_ocr=True)
+    assert resultado['estado']=='EXTRAIDO'
+    conclusao=next(c.args[0] for c in a.cur.execute.call_args_list if 'progresso=100' in c.args[0])
+    assert 'erro=NULL' in conclusao

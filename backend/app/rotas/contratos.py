@@ -373,7 +373,10 @@ def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=Non
                 cur.execute("UPDATE contratos_trabalhos_aeri SET estado='FALHA',erro=%s,trava=NULL,trava_ate=NULL,atualizado_em=NOW() WHERE id=%s",(erro,r["id"]))
             else:
                 _salvar(cur,atual,p,"EXTRACAO",r["usuario"],"EXTRAIDO")
-                cur.execute("UPDATE contratos_trabalhos_aeri SET progresso=100,trava=NULL,trava_ate=NULL WHERE id=%s",(r["id"],))
+                # erro=NULL: o digitalizado passa por AGUARDANDO com o motivo
+                # gravado, e sem limpar aqui o trabalho terminava EXTRAIDO
+                # carregando o texto de uma falha que ja tinha sido superada.
+                cur.execute("UPDATE contratos_trabalhos_aeri SET progresso=100,erro=NULL,trava=NULL,trava_ate=NULL WHERE id=%s",(r["id"],))
         con.commit()
     return {"id":str(r["id"]),
             "estado":"AGUARDANDO" if para_fila else ("FALHA" if erro else "EXTRAIDO")}
