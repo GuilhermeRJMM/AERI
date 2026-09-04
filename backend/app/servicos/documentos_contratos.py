@@ -102,7 +102,7 @@ def extrair_documento(dados: bytes, progresso=None, *, permitir_ocr=True, prazo=
                 raise DocumentoInvalido("O PDF está protegido por senha.")
         else:
             if not permitir_ocr:
-                raise OcrIndisponivel("Documento em imagem: precisa de OCR. A extração direta aceita PDF com texto; o executor de OCR não está ativado.")
+                raise OcrIndisponivel("Documento digitalizado: a leitura direta aceita PDF com texto. Este vai para a fila do executor, que faz o OCR na serventia.")
             from PIL import Image
             Image.MAX_IMAGE_PIXELS = 20_000_000
             imagem = Image.open(io.BytesIO(dados))
@@ -130,7 +130,7 @@ def extrair_documento(dados: bytes, progresso=None, *, permitir_ocr=True, prazo=
             if not texto_suficiente(texto) and (pagina.get_images() or texto.strip() or not dados.startswith(b"%PDF")):
                 if not permitir_ocr:
                     if pagina.get_images():
-                        raise OcrIndisponivel(f"A página {i+1} não tem texto suficiente e contém imagem: precisa de OCR. Nenhuma ficha parcial foi gerada; o executor de OCR não está ativado.")
+                        raise OcrIndisponivel(f"A página {i+1} está em imagem e precisa de OCR. Nenhuma ficha parcial foi gerada: o trabalho vai inteiro para a fila do executor.")
                     # Página digital curta (ex.: assinatura) é preservada e sinalizada.
                 else:
                     escala = min(3, 2400 / max(pagina.rect.width, 1), (12_000_000 / max(pagina.rect.width*pagina.rect.height, 1)) ** .5)

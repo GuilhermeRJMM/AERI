@@ -259,14 +259,29 @@ test('editar depois de gerar mostra o rascunho, não a minuta velha',async()=>{
     assert.equal(a.elemento('contratos-previa-estado').textContent,'rascunho');
 });
 
-test('digitalizado na fila do OCR explica e não oferece retomar', async()=>{
+test('digitalizado na fila do OCR espera o executor sem exigir recarregar', async()=>{
     const a=ambiente();
-    a.ctx.resposta={id:'teste',estado:'AGUARDANDO',erro:'Documento em imagem: precisa de OCR.',dados:{}};
+    a.ctx.resposta={id:'teste',estado:'AGUARDANDO',erro:'Documento digitalizado: precisa de OCR.',dados:{}};
     await a.rodar('acompanhar("teste")');
     await new Promise(r=>setImmediate(r));
-    assert.match(a.elemento('contratos-mensagem').textContent,/precisa de OCR/);
     assert.match(a.elemento('contratos-mensagem').textContent,/fila do executor/);
+    assert.match(a.elemento('contratos-mensagem').textContent,/atualiza sozinha/);
     assert.equal(a.elemento('contratos-retomar').hidden,true,'retomar pelo caminho direto so falharia de novo');
+    // Agendou nova consulta em vez de parar: sem isso o conferente tinha de
+    // recarregar para descobrir se o executor ja tinha lido.
+    assert.equal(a.rodar('timer!==null'),true);
+    a.rodar('limparContratos()');   // encerra o timer, senao o teste nao sai
+});
+
+test('o executor mudo nao deixa a tela esperando para sempre', async()=>{
+    const a=ambiente();
+    a.ctx.resposta={id:'teste',estado:'AGUARDANDO',erro:'Documento digitalizado: precisa de OCR.',dados:{}};
+    a.rodar('esperaOcrAte=Date.now()-1');   // prazo ja vencido
+    await a.rodar('acompanhar("teste")');
+    await new Promise(r=>setImmediate(r));
+    assert.match(a.elemento('contratos-mensagem').textContent,/não respondeu em 10 minutos/);
+    assert.match(a.elemento('contratos-mensagem').textContent,/continua na fila/);
+    a.rodar('limparContratos()');
 });
 
 test('aguardando sem motivo continua oferecendo retomar', async()=>{

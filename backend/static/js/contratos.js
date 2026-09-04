@@ -1,6 +1,6 @@
 import {requisicaoAeri as requisicaoOriginal} from './api.js?v=20260902-arquivo-v1';
 import {escaparHtml} from './util.js';
-let trabalho=null, protocolo=null, timer=null, geracao=0;
+let trabalho=null, protocolo=null, timer=null, geracao=0, esperaOcrAte=0;
 async function requisicaoAeri(...args){const g=geracao;const r=await requisicaoOriginal(...args);if(g!==geracao)throw new Error('Fluxo encerrado.');return r;}
 const $=id=>document.getElementById(`contratos-${id}`);
 const json=(method,body)=>({method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -180,14 +180,30 @@ async function acompanhar(id,ate=Date.now()+95000){
         const naFilaDeOcr = r.estado==='AGUARDANDO' && Boolean(r.erro);
         $('retomar').hidden=naFilaDeOcr||!['AGUARDANDO','PROCESSANDO','FALHA'].includes(r.estado);
         if(r.estado==='AGUARDANDO'){
-            mensagem(naFilaDeOcr
-                ? `${r.erro} O trabalho ficou na fila do executor de OCR e será lido assim que ele rodar.`
-                : 'Este trabalho ainda não foi extraído. Clique em Retomar extração; não é necessário um executor para PDFs com texto.');
+            if(naFilaDeOcr){
+                // O executor pode demorar: alem da espera na fila, o OCR de um
+                // contrato de 24 paginas leva dezenas de segundos. Antes a tela
+                // dava a mensagem e parava, e o conferente tinha de recarregar
+                // para descobrir se tinha terminado. Agora ela espera sozinha.
+                if(!esperaOcrAte) esperaOcrAte=Date.now()+600_000;
+                if(Date.now()<esperaOcrAte){
+                    mensagem('Documento digitalizado: está na fila do executor, que faz o OCR aqui na serventia. Pode levar até um minuto por contrato. Esta tela atualiza sozinha — não precisa recarregar.');
+                    timer=setTimeout(()=>acompanhar(id,ate),5000);
+                    modoExtracao(false);
+                    return;
+                }
+                esperaOcrAte=0;
+                mensagem('O executor não respondeu em 10 minutos. Confira se ele está rodando na máquina da serventia; o trabalho continua na fila e será lido quando ele voltar.');
+            }else{
+                mensagem('Este trabalho ainda não foi extraído. Clique em Retomar extração; não é necessário um executor para PDFs com texto.');
+            }
         }else if(r.estado==='PROCESSANDO'){
             if(Date.now()<ate){timer=setTimeout(()=>acompanhar(id,ate),2500);return;}
             mensagem('A extração não confirmou a conclusão no prazo. Retome este mesmo trabalho para verificar ou tentar novamente.');
         }else if(r.estado==='FALHA'){mensagem(r.erro || 'Falha na extração.');}
-        else {desenhar();mensagem('✓ Trabalho carregado. Confira os campos antes de prosseguir.',true);}
+        else {esperaOcrAte=0;desenhar();mensagem(trabalho?.dados?.ficha?.origens?._natureza?.includes('OCR')
+            ? '✓ Lido por OCR pelo executor. Todo campo vindo de OCR está sinalizado: confira contra o original.'
+            : '✓ Trabalho carregado. Confira os campos antes de prosseguir.',true);}
         modoExtracao(false);
     }catch(e){modoExtracao(false);mensagem(e.message);}
 }
@@ -210,7 +226,7 @@ async function extrairSelecionado(id){
         mensagem(e.name==='AbortError'?'A requisição excedeu o tempo de espera. Aguarde alguns segundos e retome este mesmo trabalho, sem criar outro.':e.message);
     }finally{clearTimeout(limite);if(g===geracao)$('mensagem').setAttribute('aria-busy','false');}
 }
-export function limparContratos(){geracao++;clearTimeout(timer);clearTimeout(timerPrevia);modoExtracao(false);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta'])$(s).replaceChildren();preencherPrevia('minuta-venda-preview','');preencherPrevia('minuta-alienacao-preview','');$('previa-estado').textContent='';$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
+export function limparContratos(){geracao++;esperaOcrAte=0;clearTimeout(timer);clearTimeout(timerPrevia);modoExtracao(false);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta'])$(s).replaceChildren();preencherPrevia('minuta-venda-preview','');preencherPrevia('minuta-alienacao-preview','');$('previa-estado').textContent='';$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
 
 function copiarTextoNoIframe(texto){
     const campo=document.createElement('textarea');
