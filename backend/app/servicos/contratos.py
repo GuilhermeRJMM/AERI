@@ -145,6 +145,18 @@ def extrair_contrato(dados, progresso=None, *, permitir_ocr=True, prazo=None):
                 "Volte ao protocolo e escolha o contrato da CAIXA.")
         raise ValueError("Contrato fora da família CAIXA suportada. O sistema não pode presumir a instituição credora.")
     ficha=servico.para_json(extrator.extrai_do_texto(documento["texto"]))
+    # extrai_do_texto so recebe texto e marca "nato-digital" por padrao; quem
+    # sabe a origem e o documento. A marca nao e cosmetica: a minuta so pede
+    # confirmacao dos campos que o OCR nao defende quando ela diz OCR
+    # (minuta._confere_o_que_o_ocr_nao_defende), e a tela mostra qual motor leu,
+    # porque Tesseract e Windows erram coisas diferentes. Sem isto, contrato
+    # digitalizado seguia para a minuta como se fosse nato-digital.
+    if documento["ocr"]:
+        motores = sorted({
+            pagina["metodo"].replace("OCR ", "").lower()
+            for pagina in documento["paginas"] if pagina["metodo"].startswith("OCR")
+        })
+        ficha.setdefault("origens", {})["_natureza"] =             "digitalizado, lido por OCR (" + ", ".join(motores) + ")"
     if not ficha["contrato"]["numero"] or not ficha["vendedores"] or not ficha["compradores"]:
         raise ValueError("O modelo do contrato não foi reconhecido suficientemente. A base atual atende contratos habitacionais CAIXA; confira o documento selecionado.")
     alertas=[]

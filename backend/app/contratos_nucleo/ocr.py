@@ -194,6 +194,21 @@ def _com_windows(pasta: Path) -> str:
     return re.sub(r"^@@PAGINA \S+\s*$", "", bruto, flags=re.M)
 
 
+def texto_de_pasta(pasta, forcar: str | None = None) -> str:
+    """Reconhece uma pasta de PNGs ja rasterizados, com as correcoes aplicadas.
+
+    Existe porque o pipeline de contratos rasteriza pagina a pagina, para poder
+    reportar progresso, e precisava do mesmo motor sem repetir a escolha nem a
+    tabela de correcoes -- a copia que havia em servicos/documentos_contratos.py
+    trazia o caminho do script escrito a mao e parou de achar o arquivo.
+    """
+    escolhido = forcar or motor()
+    if escolhido is None:
+        raise RuntimeError("nenhum motor de OCR disponível nesta máquina.")
+    bruto = _com_tesseract(Path(pasta)) if escolhido == "tesseract" else _com_windows(Path(pasta))
+    return corrige(bruto)
+
+
 def texto_de(caminho, forcar: str | None = None) -> str:
     """Rasteriza o PDF e devolve o texto reconhecido.
 

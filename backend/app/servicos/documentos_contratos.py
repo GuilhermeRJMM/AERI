@@ -17,6 +17,9 @@ class DocumentoInvalido(ValueError):
     pass
 
 
+from backend.app.contratos_nucleo import ocr as motor_ocr
+
+
 class OcrIndisponivel(RuntimeError):
     pass
 
@@ -45,15 +48,24 @@ def reconhecer_png(png):
         caminho = Path(pasta) / "p001.png"
         caminho.write_bytes(png)
         tesseract = os.getenv("TESSERACT_EXE") or shutil.which("tesseract")
-        windows = Path(__file__).resolve().parents[3] / "scripts" / "ocr_windows_contratos.ps1"
-        if os.name == "nt" and windows.exists() and shutil.which("powershell"):
-            proc = subprocess.run(["powershell", "-NoProfile", "-File", str(windows), "-Pasta", pasta,
-                                   "-Idioma", "pt-BR"], capture_output=True, timeout=90,
-                                   creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-            if proc.returncode == 0:
-                texto = re.sub(r"^@@PAGINA.*$", "", proc.stdout.decode("utf-8", "replace"), flags=re.M).strip()
-                if texto:
-                    return texto, "OCR Windows", None
+        # O motor do Windows e a tabela de correcao de rotulos vivem em
+        # contratos_nucleo/ocr.py. Aqui havia uma copia da deteccao, com o
+        # caminho do script escrito a mao: quando o script foi para junto do
+        # codigo que o executa, esta copia parou de achar o arquivo e o OCR
+        # passou a exigir Tesseract sem dizer por que. Delegando, as correcoes
+        # de rotulo ("A1" lido como "Al", que ancora a extracao inteira) passam
+        # a valer tambem aqui.
+        if motor_ocr.motor() == "windows":
+            try:
+                texto = motor_ocr.texto_de_pasta(pasta).strip()
+            except (RuntimeError, OSError, subprocess.SubprocessError):
+                texto = None
+            # Vazio e resposta, nao ausencia de motor: verso em branco de folha
+            # digitalizada devolve nada. Tratar isso como "sem OCR" derrubava o
+            # documento inteiro na primeira folha em branco -- num contrato de
+            # 24 paginas, 22 lidas e o trabalho perdido na 23.
+            if texto is not None:
+                return texto, "OCR Windows", None
         if not tesseract:
             raise OcrIndisponivel("Documento digitalizado: configure OCR Windows pt-BR ou Tesseract com idioma português no worker.")
         proc = subprocess.run([tesseract, str(caminho), "stdout", "-l", "por", "tsv"],

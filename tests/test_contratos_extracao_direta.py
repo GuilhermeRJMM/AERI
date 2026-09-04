@@ -226,3 +226,40 @@ def test_documento_desconhecido_mantem_o_aviso_generico():
                                     'paginas':[],'ocr':False}):
         with pytest.raises(ValueError,match='fora da fam'):
             servicos.extrair_contrato(b'%PDF teste')
+
+
+def test_pagina_em_branco_nao_derruba_o_documento_digitalizado():
+    """Verso em branco de folha digitalizada devolve texto vazio.
+
+    Tratar vazio como "sem motor de OCR" abortava o documento inteiro: num
+    contrato real de 24 paginas, 22 foram lidas e o trabalho morreu na 23.
+    """
+    from backend.app.servicos import documentos_contratos as docs
+    with patch.object(docs.motor_ocr,'motor',return_value='windows'), \
+         patch.object(docs.motor_ocr,'texto_de_pasta',return_value='   '):
+        texto,metodo,_conf=docs.reconhecer_png(b'PNG falso')
+    assert texto=='' and metodo=='OCR Windows'
+
+
+def test_sem_motor_de_ocr_continua_avisando():
+    from backend.app.servicos import documentos_contratos as docs
+    with patch.object(docs.motor_ocr,'motor',return_value=None), \
+         patch.object(docs.shutil,'which',return_value=None), \
+         patch.dict('os.environ',{},clear=True):
+        with pytest.raises(docs.OcrIndisponivel):
+            docs.reconhecer_png(b'PNG falso')
+
+
+def test_ficha_de_documento_digitalizado_diz_que_veio_de_ocr():
+    """A marca liga as confirmacoes de seguranca da minuta: ela so pede
+    conferencia dos campos que o OCR nao defende quando a natureza diz OCR."""
+    from backend.app.servicos import contratos as servicos
+    documento={'texto':'CAIXA ECONOMICA FEDERAL contrato de teste',
+               'paginas':[{'metodo':'OCR Windows','texto':'x','insuficiente':False}],
+               'ocr':True}
+    ficha={'contrato':{'numero':'1'},'vendedores':[{}],'compradores':[{}],'origens':{'_natureza':'nato-digital'}}
+    with patch.object(servicos,'extrair_documento',return_value=documento), \
+         patch.object(servicos.servico,'para_json',return_value=ficha), \
+         patch.object(servicos,'campos_ficha',return_value=[]):
+        p=servicos.extrair_contrato(b'%PDF teste')
+    assert p['ficha']['origens']['_natureza']=='digitalizado, lido por OCR (windows)'
