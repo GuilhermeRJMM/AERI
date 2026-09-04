@@ -469,7 +469,10 @@ def extrai_do_texto(texto: str) -> Ficha:
         ficha.contrato.numero = numero.strip(" .")
         ficha.origens["contrato.numero"] = f"rodapé (repetido em toda página)"
 
-    modelo = _mais_repetido(re.findall(r"\b(MO\d+Av\d+)\b", linear))
+    # A letra da familia varia: MO30173Av120 e MO30173Cv120 sao o mesmo
+    # formulario em versoes diferentes, e o MO30809v016 nao tem letra nenhuma.
+    # Fixar o "A" deixava os outros dois sem modelo e com pendencia a toa.
+    modelo = _mais_repetido(re.findall(r"\b(MO\d+[A-Z]?v\d+)\b", linear))
     if modelo:
         ficha.contrato.modelo = modelo
         ficha.origens["contrato.modelo"] = "rodapé"
@@ -810,6 +813,35 @@ def _taxa_contratada(linear: str):
                           efetiva_ao_mes=casou.group("mes")),
                     "caixa B9.4 (valor colado ao rótulo)")
 
+    # Modelo MO30173Cv120: as colunas nao se chamam "Taxa Contratada" -- sao
+    # "B9.1 - Balcao:" e "B9.2 - Reduzida:" --, e a que nao foi contratada vem
+    # escrita "Nao se aplica" pelo proprio formulario. Isso identifica sem
+    # chutar e sem contar posicao: taxa que nao se aplica nao e taxa
+    # contratada. Sobrando mais de uma coluna com numero, nao ha o que
+    # escolher, e fica pendencia como no resto daqui.
+    nomeadas = re.findall(r"B9\.\d\s*-\s*([^:]{2,30}?)\s*:", regiao)
+    if nomeadas:
+        celula = r"(\d+(?:[.,]\d+)?|N[ãa]o\s+se\s+aplica)"
+        matriz = []
+        for rotulo in (r"Nominal\s*%?\s*\(a\.a\.\)", r"Efetiva\s*%?\s*\(a\.a\.\)",
+                       r"Efetiva\s*%?\s*\(a\.m\.\)"):
+            casou = re.search(rotulo + r"\s*" + r"\s+".join([celula] * len(nomeadas)),
+                              regiao, re.I)
+            if not casou:
+                break
+            matriz.append(casou.groups())
+        if len(matriz) == 3:
+            numericas = [i for i in range(len(nomeadas))
+                         if all(re.fullmatch(r"\d+(?:[.,]\d+)?", linha[i]) for linha in matriz)]
+            if len(numericas) == 1:
+                c = numericas[0]
+                return (Juros(nominal_ao_ano=matriz[0][c], efetiva_ao_ano=matriz[1][c],
+                              efetiva_ao_mes=matriz[2][c]),
+                        f"caixa B9.{c+1} ({nomeadas[c].strip()}; as outras não se aplicam)")
+            if len(numericas) > 1:
+                return (None, "o B9 traz taxa em mais de uma coluna e nenhuma se chama "
+                              "Taxa Contratada; preencha a taxa contratada à mão.")
+
     # Zero coluna anunciada e zero grupo não é divergência: é caixa B9 ausente —
     # PDF que não é contrato da CAIXA, ou digitalizado que o OCR não alcançou.
     # Dizer "0 colunas e 0 completas" era ruído com cara de diagnóstico, e ficou
@@ -874,10 +906,36 @@ def _financiamento(linear: str, ficha: Ficha) -> None:
                 # o terceiro é a construção, que o ato registra em separado
                 f.prazo_construcao = f"{int(casou.group(3)):02d}"
                 ficha.origens["financiamento.prazo_construcao"] = "caixa B8.2"
-        else:
-            ficha.origens["financiamento._alerta"] = (
-                f"a caixa B8 tem {rotulos} rótulo(s), mas os prazos não foram "
-                f"achados junto deles; confira à mão")
+    # Modelo MO30173Cv120: cada valor vem colado ao seu rotulo -- "B8 - Prazo
+    # Total (meses): 420 B8.1 - Amortizacao: 420" --, e nao em bloco depois
+    # deles. A busca pela sequencia de inteiros soltos, que resolve os outros
+    # modelos, nao acha nada ai, e o prazo saia vazio na minuta. Isto so roda
+    # quando aquela nao achou, e exigir digito logo apos os dois pontos e o
+    # que separa os dois desenhos: no modelo em bloco, ali vem outro rotulo.
+    if not f.prazo_meses:
+        def _colado(rotulo):
+            casou = re.search(rotulo + r"\s*:?\s*(\d{1,4})(?![\d.,])", linear, re.I)
+            return casou.group(1) if casou else ""
+        # O "(meses)" repetido em cada rotulo -- "B8.1 - Amortizacao (meses):
+        # 420" -- e opcional: uma familia escreve, outra nao. Sem prever isso, a
+        # amortizacao nao era achada e o prazo caia no Total, que inclui a
+        # construcao: 429 no lugar de 420 em 4 dos 35 contratos medidos, sem
+        # nada acusando.
+        meses = r"(?:\s*\(meses\))?"
+        total = _colado(r"B8\s*-\s*Prazo\s+Total" + meses)
+        amortizacao = _colado(r"B8\.\d\s*-\s*Amortiza[çc][ãa]o" + meses)
+        construcao = _colado(r"B8\.\d\s*-\s*Constru[çc][ãa]o" + meses)
+        if total or amortizacao:
+            f.prazo_meses = amortizacao or total
+            ficha.origens["financiamento.prazo_meses"] = (
+                "caixa B8.1" if amortizacao else "caixa B8")
+            if construcao:
+                f.prazo_construcao = f"{int(construcao):02d}"
+                ficha.origens["financiamento.prazo_construcao"] = "caixa B8.2"
+    if bloco_b8 and not f.prazo_meses:
+        ficha.origens["financiamento._alerta"] = (
+            f"a caixa B8 tem {rotulos} rótulo(s), mas os prazos não foram "
+            f"achados junto deles; confira à mão")
 
     # A taxa que o ato registra é a CONTRATADA, e ela precisa ser identificada
     # pelo nome — nunca por posição.

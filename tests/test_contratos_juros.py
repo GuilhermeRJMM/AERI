@@ -1,4 +1,4 @@
-"""B9.4: linhas/colunas, minuta e complemento de extracoes antigas, sem acervo."""
+"""Caixas B8 e B9: prazos, taxa contratada, minuta e complemento, sem acervo."""
 import copy
 import unittest
 from dataclasses import asdict
@@ -78,6 +78,35 @@ class JurosContratadosTests(unittest.TestCase):
 
     def test_cabecalho_contratada_ausente_nao_autoriza_ultima_simulacao(self):
         self.assertIsNone(extrator._taxa_contratada(tabela().replace('Taxa Contratada:', 'Simulação:'))[0])
+
+    def test_colunas_nomeadas_sem_taxa_contratada_usam_a_que_se_aplica(self):
+        """Modelo MO30173Cv120: as colunas sao Balcao e Reduzida.
+
+        Nenhuma se chama "Taxa Contratada", e o formulario escreve "Nao se
+        aplica" na que nao foi contratada. Sem ler isso, o protocolo 185.863
+        saia com a taxa em branco na minuta -- num contrato que traz 10,0000%
+        escrito por extenso na caixa B9.1.
+        """
+        texto = ('B9 - Taxa de Juros: B9.1 - Balcão: B9.2 - Reduzida: '
+                 'Nominal % (a.a.) 10.0000 Não se aplica '
+                 'Efetiva %(a.a.) 10.4713 Não se aplica '
+                 'Efetiva % (a.m.) 0.8333 Não se aplica '
+                 'B10 - Encargo Mensal Inicial')
+        juros, origem = extrator._taxa_contratada(texto)
+        self.assertEqual(juros, Juros('10.0000', '10.4713', '0.8333'))
+        self.assertIn('Balcão', origem)
+
+    def test_duas_colunas_com_numero_e_sem_rotulo_contratada_nao_escolhem(self):
+        """Duas colunas aplicáveis e nenhuma nomeada: não há o que escolher."""
+        texto = ('B9 - Taxa de Juros: B9.1 - Balcão: B9.2 - Reduzida: '
+                 'Nominal % (a.a.) 10.0000 9.0000 '
+                 'Efetiva %(a.a.) 10.4713 9.3807 '
+                 'Efetiva % (a.m.) 0.8333 0.7500 '
+                 'B10 - Encargo Mensal Inicial')
+        juros, motivo = extrator._taxa_contratada(texto)
+        self.assertIsNone(juros)
+        self.assertIn('mais de uma coluna', motivo)
+
 
     def test_ocr_com_coluna_contratada_depois_do_b13(self):
         parcial = tabela(False).rsplit('Nominal % (a.a.)', 1)[0]
@@ -164,3 +193,50 @@ class JurosContratadosTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class PrazosDoB8Tests(unittest.TestCase):
+    """A caixa B8 tem dois desenhos, e ler o errado troca o prazo do registro."""
+
+    def prazos(self, texto):
+        ficha = Ficha()
+        extrator._financiamento(texto, ficha)
+        return ficha.financiamento, ficha.origens
+
+    def test_valor_colado_ao_rotulo_usa_a_amortizacao_e_nao_o_total(self):
+        """O Total inclui a construcao; o que o ato registra e a amortizacao.
+
+        "B8 - Prazo Total (meses): 429 B8.1 - Amortizacao (meses): 420 B8.2 -
+        Construcao (meses): 9". Ler o Total poria 429 no lugar de 420 -- em 4
+        dos 35 contratos medidos --, e nada acusaria.
+        """
+        texto = ('B8 - Prazo Total (meses): 429 B8.1 - Amortização (meses): 420 '
+                 'B8.2 - Construção (meses): 9 B9 - Taxa de Juros: '
+                 'B10 - Encargo Mensal Inicial')
+        f, origens = self.prazos(texto)
+        self.assertEqual(f.prazo_meses, '420')
+        self.assertEqual(f.prazo_construcao, '09')
+        self.assertEqual(origens['financiamento.prazo_meses'], 'caixa B8.1')
+
+    def test_rotulo_sem_meses_entre_parenteses_tambem_e_lido(self):
+        """Modelo MO30173Cv120 escreve "B8.1 - Amortização:", sem "(meses)"."""
+        texto = ('B8 - Prazo Total (meses): 420 B8.1 - Amortização: 420 '
+                 'B9 - Taxa de Juros: B10 - Encargo Mensal Inicial')
+        f, _ = self.prazos(texto)
+        self.assertEqual(f.prazo_meses, '420')
+
+    def test_valores_em_bloco_depois_dos_rotulos_continuam_valendo(self):
+        """O outro desenho: rotulos juntos, valores depois, na mesma ordem."""
+        texto = ('B8 - Prazo Total (meses): B8.1 - Amortização (meses): '
+                 'B8.2 - Construção (meses): 429 420 9 '
+                 'B9 - Taxa de Juros: B10 - Encargo Mensal Inicial')
+        f, origens = self.prazos(texto)
+        self.assertEqual(f.prazo_meses, '420')
+        self.assertEqual(f.prazo_construcao, '09')
+
+    def test_modelo_sem_letra_ou_com_outra_letra_e_reconhecido(self):
+        for rodape in ('MO30173Av120', 'MO30173Cv120', 'MO30809v016'):
+            with self.subTest(rodape=rodape):
+                ficha = extrator.extrai_do_texto(
+                    f'{rodape} CONTRATO Nº 1.4444.2759316-9 {rodape}')
+                self.assertEqual(ficha.contrato.modelo, rodape)
