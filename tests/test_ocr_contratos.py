@@ -181,3 +181,34 @@ class TestePoolDoBanco(unittest.TestCase):
             falso.close.assert_called_once()
             self.assertIsNone(database._pool)
             database.fechar_pool()  # idempotente: servico reinicia sem estourar
+
+
+class TesteInstaladorDoExecutor(unittest.TestCase):
+    """O executor precisa rodar sozinho: ninguém vai abrir terminal a cada
+    contrato digitalizado."""
+
+    def _script(self):
+        return Path(__file__).resolve().parents[1] / "scripts" / "instalar_executor.ps1"
+
+    def test_instalador_existe_e_aponta_para_o_worker(self):
+        fonte = self._script().read_text(encoding="utf-8", errors="replace")
+        self.assertIn("worker_operacional.py", fonte)
+        self.assertIn("Register-ScheduledTask", fonte)
+        self.assertIn("-Remover", fonte, "precisa ter como desinstalar")
+
+    def test_usa_pythonw_para_nao_piscar_console(self):
+        fonte = self._script().read_text(encoding="utf-8", errors="replace")
+        self.assertIn("pythonw.exe", fonte)
+
+    def test_recusa_instalar_sem_env_configurado(self):
+        # Instalar uma tarefa que so vai falhar em silencio e pior que nao
+        # instalar: o conferente acha que esta funcionando.
+        fonte = self._script().read_text(encoding="utf-8", errors="replace")
+        self.assertIn('Test-Path (Join-Path $Raiz ".env")', fonte)
+
+    def test_worker_registra_em_arquivo(self):
+        """Por pythonw nao ha console: sem arquivo, o processo fica invisivel."""
+        fonte = (Path(__file__).resolve().parents[1] / "scripts" / "worker_operacional.py") \
+            .read_text(encoding="utf-8", errors="replace")
+        self.assertIn("RotatingFileHandler", fonte)
+        self.assertIn("executor.log", fonte)

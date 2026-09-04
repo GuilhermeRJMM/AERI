@@ -8,6 +8,7 @@ import logging
 import os
 import time
 import sys
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -42,6 +43,9 @@ def carregar_env(caminho: Path) -> None:
 
 carregar_env(RAIZ / ".env")
 
+ARQUIVO_LOG = RAIZ / ".tmp" / "executor.log"
+ARQUIVO_LOG.parent.mkdir(parents=True, exist_ok=True)
+
 from backend.app.database import fechar_pool, preparar_banco
 from backend.app.servicos.automacoes_operacionais import executar_passo
 from backend.app.rotas.contratos import processar_proximo_contrato
@@ -52,7 +56,17 @@ def main():
     parser.add_argument("--once",action="store_true")
     parser.add_argument("--intervalo",type=int,default=10)
     args=parser.parse_args()
-    logging.basicConfig(level=logging.INFO,format="%(asctime)s %(message)s")
+    # Instalado como Tarefa Agendada o executor roda por pythonw, sem console:
+    # o que fosse so para stderr se perderia, e um processo de fundo invisivel e
+    # impossivel de diagnosticar. O arquivo rotaciona para nao crescer sem fim.
+    formato = logging.Formatter("%(asctime)s %(message)s")
+    raiz_log = logging.getLogger()
+    raiz_log.setLevel(logging.INFO)
+    for destino in (logging.StreamHandler(),
+                    RotatingFileHandler(ARQUIVO_LOG, maxBytes=2_000_000,
+                                        backupCount=3, encoding="utf-8")):
+        destino.setFormatter(formato)
+        raiz_log.addHandler(destino)
     # Os nomes aceitos aqui espelham quem le de verdade: database.py aceita
     # POSTGRES_URL ou DATABASE_URL, e cifrador() aceita a chave dos contratos ou
     # a das buscas. Exigir so um nome reprovaria maquina bem configurada.
