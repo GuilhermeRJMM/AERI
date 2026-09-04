@@ -46,8 +46,14 @@ def test_pdf_misto_nao_gera_ficha_parcial_nem_dispara_ocr():
 
 
 def test_imagem_orienta_ocr_sem_executa_lo():
+    """O caminho direto nao tenta OCR: manda o trabalho para a fila do executor.
+
+    A mensagem dizia "o executor de OCR nao esta ativado", o que deixou de ser
+    verdade quando ele foi ativado -- e mandava o conferente procurar
+    configuracao em vez de esperar a fila.
+    """
     with patch('backend.app.servicos.documentos_contratos.reconhecer_png') as ocr:
-        with pytest.raises(OcrIndisponivel,match='precisa de OCR'):
+        with pytest.raises(OcrIndisponivel,match='fila do executor'):
             extrair_documento(b'\x89PNG\r\n',permitir_ocr=False)
     ocr.assert_not_called()
 
