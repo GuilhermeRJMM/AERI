@@ -173,7 +173,10 @@ def _com_tesseract(pasta: Path) -> str:
 
     processo = subprocess.run(
         [executavel, str(lista), "stdout", "-l", IDIOMA["tesseract"]],
-        capture_output=True, timeout=TEMPO_LIMITE)
+        capture_output=True, timeout=TEMPO_LIMITE,
+        # Sem isto cada pagina abre um console preto: rodando pelo executor,
+        # um contrato de 24 paginas piscava 24 janelas na cara do conferente.
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if processo.returncode != 0:
         erro = processo.stderr.decode("utf-8", "replace").strip()
         raise RuntimeError(f"o Tesseract falhou: {erro[:300]}")
@@ -185,7 +188,10 @@ def _com_windows(pasta: Path) -> str:
         [_powershell(), "-NoProfile", "-ExecutionPolicy", "Bypass",
          "-File", str(SCRIPT_WINDOWS), "-Pasta", str(pasta),
          "-Idioma", IDIOMA["windows"]],
-        capture_output=True, timeout=TEMPO_LIMITE)
+        capture_output=True, timeout=TEMPO_LIMITE,
+        # Sem isto cada pagina abre um console preto: rodando pelo executor,
+        # um contrato de 24 paginas piscava 24 janelas na cara do conferente.
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if processo.returncode != 0:
         erro = processo.stderr.decode("utf-8", "replace").strip()
         raise RuntimeError(f"o OCR do Windows falhou: {erro[:300]}")

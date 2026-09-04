@@ -108,24 +108,40 @@
 .contratos-bancada-ficha details { margin-bottom:12px;padding:14px 16px;border:1px solid #2b3548;border-radius:12px;background:#131b2b; }
 .contratos-bancada-ficha summary { cursor:pointer;font-weight:600;color:#d8e2f2; }
 .contratos-bancada-ficha details[open] summary { margin-bottom:14px; }
-#page-contratos.contratos-extraindo > :not(#contratos-mensagem):not(#contratos-aviso-extracao):not(#contratos-cobrinha) { display:none !important; }
-/* Tres segmentos em fila, com atraso escalonado: lidos juntos viram uma
-   cobrinha correndo. Um segmento so pareceria barra de progresso e sugeriria
-   que da para prever quanto falta -- e nao da: depende da fila e do OCR. */
-.contratos-cobrinha { display:none;position:relative;width:min(420px,72vw);height:8px;
-  margin:26px auto 0;border-radius:999px;background:#161f30;overflow:hidden; }
-#page-contratos.contratos-extraindo .contratos-cobrinha { display:block; }
-.contratos-cobrinha i { position:absolute;top:0;bottom:0;width:26%;border-radius:999px;
-  background:linear-gradient(90deg,transparent,#3a9e7d 40%,#6ee7b7 70%,#8af0c5);
-  animation:contratos-cobrinha 1.6s cubic-bezier(.62,.02,.38,1) infinite; }
-.contratos-cobrinha i:nth-child(2) { animation-delay:.13s;opacity:.55; }
-.contratos-cobrinha i:nth-child(3) { animation-delay:.26s;opacity:.28; }
-@keyframes contratos-cobrinha { from { left:-30%; } to { left:104%; } }
-/* Quem pediu menos movimento continua vendo que ha algo em curso. */
+#page-contratos.contratos-extraindo > :not(#contratos-mensagem):not(#contratos-aviso-extracao):not(#contratos-carregando) { display:none !important; }
+/* Barra determinada porque existe numero real: o executor grava o progresso a
+   cada pagina do OCR. Enquanto ele nao respondeu, a barra varre sozinha -- e a
+   varredura nao mostra porcentagem, para nao inventar um numero. */
+.contratos-carregando { display:none;width:min(760px,84vw);margin:12vh auto 0; --pct:0; }
+#page-contratos.contratos-extraindo .contratos-carregando { display:block; }
+.contratos-carregando-rotulo { margin:0 0 14px;font-size:26px;font-weight:800;
+  letter-spacing:.32em;color:#8fa0bb;text-align:center; }
+.contratos-carregando-rotulo b { animation:contratos-pontinho 1.2s infinite; }
+.contratos-carregando-rotulo b:nth-child(2) { animation-delay:.2s; }
+.contratos-carregando-rotulo b:nth-child(3) { animation-delay:.4s; }
+@keyframes contratos-pontinho { 0%,60%,100% { opacity:.25; } 30% { opacity:1; } }
+.contratos-carregando-trilha { position:relative;height:52px;border:3px solid #eef2ff;
+  background:#eef2ff;overflow:hidden; }
+.contratos-carregando-trilha i { position:absolute;inset:0;width:var(--pct);
+  background:#3ddc84;transition:width .45s cubic-bezier(.4,0,.2,1); }
+.contratos-carregando-pct { position:relative;height:34px;margin:10px 0 0; }
+.contratos-carregando-pct span,.contratos-carregando-pct::after {
+  font:800 30px/1 "Segoe UI",system-ui,sans-serif;color:#eef2ff; }
+.contratos-carregando-pct::after { content:"%"; }
+.contratos-carregando-pct { display:flex;justify-content:flex-start;align-items:center;gap:2px;
+  padding-left:var(--pct);transform:translateX(-1.6ch);transition:padding-left .45s cubic-bezier(.4,0,.2,1); }
+/* Sem numero: a barra varre para dizer "em curso" sem afirmar quanto falta. */
+.contratos-carregando.indeterminada .contratos-carregando-trilha i { width:32%;
+  animation:contratos-varre 1.5s cubic-bezier(.62,.02,.38,1) infinite;transition:none; }
+.contratos-carregando.indeterminada .contratos-carregando-pct { display:none; }
+@keyframes contratos-varre { from { left:-34%; } to { left:102%; } }
 @media (prefers-reduced-motion: reduce) {
-  .contratos-cobrinha i { animation:contratos-cobrinha-pulso 1.8s ease-in-out infinite;left:37%; }
-  .contratos-cobrinha i:nth-child(2),.contratos-cobrinha i:nth-child(3) { display:none; }
-  @keyframes contratos-cobrinha-pulso { 0%,100% { opacity:.35; } 50% { opacity:1; } }
+  .contratos-carregando-trilha i,.contratos-carregando-pct { transition:none; }
+  .contratos-carregando.indeterminada .contratos-carregando-trilha i {
+    animation:contratos-pulso 1.8s ease-in-out infinite;left:34%; }
+  @keyframes contratos-pulso { 0%,100% { opacity:.4; } 50% { opacity:1; } }
+  .contratos-carregando-rotulo b { animation:none;opacity:1; }
+}
 }
 #page-contratos.contratos-extraindo #contratos-mensagem { margin-top:18vh;font-size:18px;font-weight:700;color:#eef2ff;text-align:center; }
 #page-contratos.contratos-extraindo #contratos-aviso-extracao { max-width:680px;margin:14px auto;text-align:center; }

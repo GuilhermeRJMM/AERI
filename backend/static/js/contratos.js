@@ -7,6 +7,19 @@ const json=(method,body)=>({method,headers:{'Content-Type':'application/json'},b
 function mensagem(texto,sucesso=false){const el=$('mensagem');el.textContent=texto;el.classList.toggle('contratos-sucesso',sucesso);}
 function avisoGeracao(texto,erro=false){const el=$('geracao-status');el.textContent=texto;el.classList.toggle('contratos-erro',erro);}
 function modoExtracao(ativo){document.getElementById('page-contratos').classList.toggle('contratos-extraindo',ativo);}
+// `null` deixa a barra varrendo: enquanto o executor nao respondeu nao existe
+// numero, e inventar um seria pior que nao mostrar. Com numero real -- o
+// executor grava o progresso a cada pagina do OCR -- ela preenche de verdade.
+function definirProgresso(pct){
+    const bloco=$('carregando');
+    if(!bloco) return;
+    const indeterminada=pct===null||pct===undefined||Number.isNaN(Number(pct));
+    bloco.classList.toggle('indeterminada',indeterminada);
+    if(indeterminada) return;
+    const valor=Math.max(0,Math.min(100,Math.round(Number(pct))));
+    bloco.style.setProperty('--pct',`${valor}%`);
+    $('carregando-numero').textContent=String(valor);
+}
 function decisoesDaTela(){
     const decisoes={};document.querySelectorAll('[data-decisao]').forEach(el=>{
         if(el.value){const c=el.dataset.decisao;const justificativa=[...document.querySelectorAll('[data-justificativa]')].find(i=>i.dataset.justificativa===c)?.value||'';decisoes[c]={acao:el.value,justificativa};}
@@ -192,6 +205,7 @@ async function acompanhar(id,ate=Date.now()+95000){
                     // Segue em modo de carregamento: e justamente aqui que o
                     // conferente precisa ver que algo esta acontecendo. Antes a
                     // tela voltava para a lista e parecia que nada tinha sido feito.
+                    definirProgresso(r.progresso>0?r.progresso:null);
                     modoExtracao(true);
                     return;
                 }
@@ -201,6 +215,8 @@ async function acompanhar(id,ate=Date.now()+95000){
                 mensagem('Este trabalho ainda não foi extraído. Clique em Retomar extração; não é necessário um executor para PDFs com texto.');
             }
         }else if(r.estado==='PROCESSANDO'){
+            definirProgresso(r.progresso>0?r.progresso:null);
+            modoExtracao(true);
             if(Date.now()<ate){timer=setTimeout(()=>acompanhar(id,ate),2500);return;}
             mensagem('A extração não confirmou a conclusão no prazo. Retome este mesmo trabalho para verificar ou tentar novamente.');
         }else if(r.estado==='FALHA'){mensagem(r.erro || 'Falha na extração.');}
@@ -212,7 +228,7 @@ async function acompanhar(id,ate=Date.now()+95000){
 }
 async function extrairSelecionado(id){
     clearTimeout(timer);
-    modoExtracao(true);
+    modoExtracao(true);definirProgresso(null);
     for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;
     mensagem('Obtendo o contrato no GED e extraindo o texto… Isso pode levar alguns segundos.');
     $('mensagem').setAttribute('aria-busy','true');

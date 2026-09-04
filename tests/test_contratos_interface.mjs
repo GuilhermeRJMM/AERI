@@ -11,7 +11,8 @@ function ambiente(){
     const elemento=id=>{
         if(!ids.has(id)){const classes=new Set();ids.set(id,{id,value:'',checked:false,hidden:false,textContent:'',innerHTML:'',dataset:{},handlers:{},attrs:{},classes,
             classList:{toggle(k,ativo){if(ativo===undefined)ativo=!classes.has(k);ativo?classes.add(k):classes.delete(k);},contains(k){return classes.has(k);}},setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];},
-            focus(){this.focado=true;},scrollIntoView(){this.rolado=true;},replaceChildren(){},addEventListener(k,v){this.handlers[k]=v;}});
+            focus(){this.focado=true;},scrollIntoView(){this.rolado=true;},replaceChildren(){},addEventListener(k,v){this.handlers[k]=v;},
+            estilo:{},style:{setProperty(k,v){ids.get(id).estilo[k]=v;}}});
         }
         return ids.get(id);
     };
@@ -303,13 +304,32 @@ test('a espera pelo executor mantém a tela de carregamento', async()=>{
     a.rodar('limparContratos()');
 });
 
-test('o gabarito tem a cobrinha e ela sobrevive ao modo de extração', ()=>{
+test('a barra de carregamento sobrevive ao modo de extração', ()=>{
     const template=readFileSync(new URL('../backend/templates/contratos.html',import.meta.url),'utf8');
-    assert.match(template,/id="contratos-cobrinha"/);
-    // Ela precisa estar fora da lista que o modo de extracao esconde.
+    assert.match(template,/id="contratos-carregando"/);
+    assert.match(template,/id="contratos-carregando-numero"/);
+    // Precisa estar fora da lista que o modo de extracao esconde.
     const css=readFileSync(new URL('../backend/static/painel.css',import.meta.url),'utf8');
     const regra=css.split('\n').find(l=>l.includes('contratos-extraindo >'));
-    assert.match(regra,/:not\(#contratos-cobrinha\)/);
-    assert.match(css,/@keyframes contratos-cobrinha/);
+    assert.match(regra,/:not\(#contratos-carregando\)/);
     assert.match(css,/prefers-reduced-motion/);
+});
+
+test('sem número a barra varre; com número ela preenche', ()=>{
+    const a=ambiente();
+    a.rodar('definirProgresso(null)');
+    assert.equal(a.elemento('contratos-carregando').classList.contains('indeterminada'),true,
+        'sem progresso a barra nao pode fingir uma porcentagem');
+    a.rodar('definirProgresso(37)');
+    assert.equal(a.elemento('contratos-carregando').classList.contains('indeterminada'),false);
+    assert.equal(a.elemento('contratos-carregando-numero').textContent,'37');
+    assert.equal(a.elemento('contratos-carregando').estilo['--pct'],'37%');
+});
+
+test('progresso fora da faixa é contido', ()=>{
+    const a=ambiente();
+    a.rodar('definirProgresso(140)');
+    assert.equal(a.elemento('contratos-carregando-numero').textContent,'100');
+    a.rodar('definirProgresso(-5)');
+    assert.equal(a.elemento('contratos-carregando-numero').textContent,'0');
 });

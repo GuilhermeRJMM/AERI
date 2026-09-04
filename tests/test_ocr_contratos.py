@@ -212,3 +212,17 @@ class TesteInstaladorDoExecutor(unittest.TestCase):
             .read_text(encoding="utf-8", errors="replace")
         self.assertIn("RotatingFileHandler", fonte)
         self.assertIn("executor.log", fonte)
+
+    def test_nenhum_subprocesso_abre_console(self):
+        """Rodando pelo executor, cada janela aparece na cara do conferente.
+
+        Um contrato de 24 paginas chegou a piscar 24 consoles de PowerShell.
+        """
+        import re
+        for arquivo in ("backend/app/contratos_nucleo/ocr.py",
+                        "backend/app/servicos/documentos_contratos.py"):
+            fonte = (Path(__file__).resolve().parents[1] / arquivo).read_text(encoding="utf-8")
+            chamadas = len(re.findall(r"subprocess\.run\(", fonte))
+            protegidas = len(re.findall(r"CREATE_NO_WINDOW", fonte))
+            self.assertEqual(protegidas, chamadas,
+                             f"{arquivo}: {chamadas} subprocess.run e {protegidas} protegidos")

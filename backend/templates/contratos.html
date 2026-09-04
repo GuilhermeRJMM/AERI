@@ -5,7 +5,11 @@
     <div id="contratos-documentos"></div><div id="contratos-recentes"></div>
   </section>
   <p id="contratos-mensagem" role="status" aria-live="polite"></p>
-  <div id="contratos-cobrinha" class="contratos-cobrinha" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div id="contratos-carregando" class="contratos-carregando" aria-hidden="true">
+    <p class="contratos-carregando-rotulo">CARREGANDO<b>.</b><b>.</b><b>.</b></p>
+    <div class="contratos-carregando-trilha"><i id="contratos-carregando-barra"></i></div>
+    <p class="contratos-carregando-pct"><span id="contratos-carregando-numero">0</span>%</p>
+  </div>
   <p id="contratos-aviso-extracao" class="contratos-aviso">PDF com texto é extraído na hora. Documento digitalizado vai para a fila do executor, que faz o OCR aqui na serventia — a tela espera e atualiza sozinha.</p>
   <button type="button" id="contratos-retomar" class="btn" hidden>Retomar extração deste trabalho</button>
   <section id="contratos-extraido" class="contratos-card" hidden><h2>2. Dados extraídos</h2><p class="contratos-aviso">Confira os campos com o documento original. A extração não substitui a conferência registral.</p>
