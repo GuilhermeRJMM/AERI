@@ -219,9 +219,14 @@ def _matricula_viva(m: Matricula, c: Conferencia) -> None:
 
 def _onus(m: Matricula, c: Conferencia) -> None:
     for ato in m.onus_vigentes:
+        # A data pode faltar: nem todo ato traz cabecalho legivel, e a exigencia
+        # vale do mesmo jeito. Ler o atributo direto derrubava o confronto
+        # inteiro por causa de um onus sem data.
+        data = getattr(ato, "data", "") or ""
+        quando = f", de {data}," if data else ""
         c.acrescenta(
             f"Ônus vigente — {ato.titulo.title()}",
-            f"consta o {ato.rotulo}, de {ato.data}, sem cancelamento averbado. "
+            f"consta o {ato.rotulo}{quando} sem cancelamento averbado. "
             f"A transmissão depende da baixa ou da anuência do credor.",
             "Lei 6.015/1973, art. 252; Lei 9.514/1997, art. 25 "
             "(cancelamento pela quitação da dívida)", IMPEDE)

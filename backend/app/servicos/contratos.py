@@ -281,7 +281,20 @@ class FolioAeri:
         return self.analise["imovel"]["situacao"]["status"]=="ENCERRADA"
     @property
     def onus_vigentes(self):
-        return [SimpleNamespace(rotulo=a["codigo"],titulo=a.get("tipo_onus") or a["categoria"],texto=a.get("descricao",""))
+        # `data` faz parte do contrato deste adaptador: qualificacao._onus a usa
+        # para dizer de quando e o onus. A estrutura de analise nao tem campo de
+        # data, entao ela sai do cabecalho do proprio ato -- o mesmo padrao que
+        # contratos_nucleo/matricula.py usa. Sem isto o confronto estourava em
+        # AttributeError toda vez que a matricula tinha um onus vivo.
+        # O padrao compartilhado (CABECALHO_DO_ATO) so le "Data:" e a forma por
+        # extenso; este acervo tambem escreve "Em:" -- "R-03-25.434- Em:
+        # 06.11.2014". Trato aqui, e nao la, porque aquele padrao tambem governa
+        # a leitura de atos em outro caminho e mexer nele pede medicao propria.
+        def data_do(descricao):
+            achado = DATA_DO_CABECALHO.search(descricao or "")
+            return (achado.group(1).rstrip(".") if achado else "")
+        return [SimpleNamespace(rotulo=a["codigo"],titulo=a.get("tipo_onus") or a["categoria"],
+                                texto=a.get("descricao",""),data=data_do(a.get("descricao","")))
                 for a in self.analise["atos"] if a["status"]=="ATIVO" and a["categoria"] in {"ÔNUS","RESTRIÇÃO","PUBLICIDADE"}]
     @property
     def area(self): return valor_imovel(self.analise,"Área")
@@ -291,6 +304,11 @@ class FolioAeri:
     def designacao_cadastral(self): return valor_imovel(self.analise,"CCI") or valor_imovel(self.analise,"Cadastro Municipal")
     @property
     def lote_quadra(self): return valor_imovel(self.analise,"Lote"),valor_imovel(self.analise,"Quadra")
+
+
+# Data no cabeçalho do ato, nas duas formas do acervo: "Data: 25.03.2026" e
+# "Em: 06.11.2014".
+DATA_DO_CABECALHO = re.compile(r"(?:Data|Em)\s*:\s*(\d{1,2}[./]\d{1,2}[./]\d{2,4})", re.I)
 
 
 def confrontar(payload,texto,numero,regras=None):

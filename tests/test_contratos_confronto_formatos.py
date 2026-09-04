@@ -214,3 +214,48 @@ def test_previa_com_ficha_incompleta_nao_derruba_a_extracao():
     # Ficha corrompida devolve None em vez de estourar: a prévia é acessório e
     # não pode derrubar a extração nem a rota.
     assert rotas._previa_minutas({'vendedores': 'texto no lugar de lista'}) is None
+
+
+def test_onus_vigente_carrega_a_data_do_cabecalho_do_ato():
+    """FolioAeri montava o ônus sem `data`, e qualificacao._onus lê esse campo.
+
+    O confronto estourava em AttributeError toda vez que a matrícula tinha um
+    ônus vivo -- caso comum. Passou despercebido porque as matrículas testadas
+    até então não tinham nenhum.
+    """
+    from backend.app.servicos.contratos import FolioAeri
+    analise = {'atos': [
+        {'codigo': 'R.03', 'categoria': 'ÔNUS', 'tipo_onus': 'ALIENAÇÃO FIDUCIÁRIA',
+         'status': 'ATIVO', 'descricao': 'R-03-25.434- Em: 06.11.2014. ALIENAÇÃO FIDUCIÁRIA.'},
+        {'codigo': 'R.04', 'categoria': 'ÔNUS', 'tipo_onus': 'HIPOTECA',
+         'status': 'ATIVO', 'descricao': 'R.04-25.434 - Data: 25.03.2026. HIPOTECA.'},
+        {'codigo': 'R.05', 'categoria': 'ÔNUS', 'tipo_onus': 'PENHORA',
+         'status': 'ATIVO', 'descricao': 'texto sem cabeçalho legível'},
+        {'codigo': 'R.06', 'categoria': 'ÔNUS', 'status': 'CANCELADO', 'descricao': 'Data: 01.01.2020.'},
+    ]}
+    onus = FolioAeri('texto', analise, '25434').onus_vigentes
+    assert [o.rotulo for o in onus] == ['R.03', 'R.04', 'R.05'], 'cancelado nao entra'
+    datas = {o.rotulo: o.data for o in onus}
+    # Duas formas convivem no acervo: "Em:" e "Data:".
+    assert datas['R.03'] == '06.11.2014'
+    assert datas['R.04'] == '25.03.2026'
+    assert datas['R.05'] == '', 'sem cabeçalho legível a data fica vazia, não quebra'
+
+
+def test_exigencia_de_onus_funciona_com_e_sem_data():
+    """A exigência vale mesmo sem data; ler o atributo direto derrubava o
+    confronto inteiro por causa de um único ônus sem cabeçalho."""
+    from types import SimpleNamespace
+    from backend.app.contratos_nucleo import qualificacao
+    registradas = []
+    coletor = SimpleNamespace(acrescenta=lambda t, d, f, g: registradas.append((t, d)))
+    folio = SimpleNamespace(onus_vigentes=[
+        SimpleNamespace(rotulo='R.03', titulo='ALIENAÇÃO FIDUCIÁRIA', data='06.11.2014'),
+        SimpleNamespace(rotulo='R.05', titulo='PENHORA', data=''),
+        SimpleNamespace(rotulo='R.07', titulo='HIPOTECA'),   # sem o atributo
+    ])
+    qualificacao._onus(folio, coletor)
+    assert len(registradas) == 3
+    assert 'de 06.11.2014,' in registradas[0][1]
+    assert 'consta o R.05 sem cancelamento' in registradas[1][1]
+    assert 'consta o R.07 sem cancelamento' in registradas[2][1]
