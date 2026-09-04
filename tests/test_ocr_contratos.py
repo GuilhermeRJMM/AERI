@@ -14,6 +14,21 @@ from pathlib import Path
 from backend.app.contratos_nucleo import ocr
 
 
+def carregar_worker():
+    """Carrega scripts/worker_operacional.py como módulo.
+
+    Ele não é importável por caminho de pacote (mora em scripts/), e as duas
+    classes de teste precisam dele.
+    """
+    import importlib.util
+    raiz = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location(
+        "worker_operacional", raiz / "scripts" / "worker_operacional.py")
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
 class TesteMotorDeOcr(unittest.TestCase):
     def test_script_do_windows_esta_onde_o_codigo_procura(self):
         self.assertTrue(
@@ -56,10 +71,6 @@ class TesteMotorDeOcr(unittest.TestCase):
         self.assertIn("B10.1 - VALOR", corrigido)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TesteExecutorOperacional(unittest.TestCase):
     """O executor roda numa máquina da serventia, a partir do repositório.
 
@@ -68,14 +79,7 @@ class TesteExecutorOperacional(unittest.TestCase):
     porque o app roda na Vercel, onde as variáveis vêm do painel.
     """
 
-    def _worker(self):
-        import importlib.util
-        raiz = Path(__file__).resolve().parents[1]
-        spec = importlib.util.spec_from_file_location(
-            "worker_operacional", raiz / "scripts" / "worker_operacional.py")
-        modulo = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(modulo)
-        return modulo
+    _worker = staticmethod(lambda: carregar_worker())
 
     def test_carrega_env_sem_sobrescrever_o_ambiente(self):
         import os
@@ -187,6 +191,8 @@ class TesteInstaladorDoExecutor(unittest.TestCase):
     """O executor precisa rodar sozinho: ninguém vai abrir terminal a cada
     contrato digitalizado."""
 
+    _worker = staticmethod(lambda: carregar_worker())
+
     def _script(self):
         return Path(__file__).resolve().parents[1] / "scripts" / "instalar_executor.ps1"
 
@@ -240,3 +246,42 @@ class TesteInstaladorDoExecutor(unittest.TestCase):
             .read_text(encoding="utf-8", errors="replace")
         self.assertIn("codigo_de", fonte,
                       "sem isso nao da para saber, pelo log, se o executor pegou a correcao")
+
+    def test_detecta_codigo_novo_no_disco(self):
+        """Python importa uma vez: sem isto, o executor segue com a versao velha
+        ate alguem reiniciar a mao -- e pedir isso a cada commit nao e operacao.
+        """
+        import os
+        import time
+        worker = self._worker()
+        antes = worker.versao_do_codigo()
+        self.assertGreater(antes, 0)
+        alvo = Path(worker.RAIZ) / "backend" / "app" / "contratos_nucleo" / "ocr.py"
+        original = alvo.stat().st_mtime
+        try:
+            os.utime(alvo, (original, time.time() + 60))
+            self.assertGreater(worker.versao_do_codigo(), antes)
+        finally:
+            os.utime(alvo, (original, original))
+
+    def test_ignora_pycache(self):
+        # __pycache__ e reescrito a cada execucao: contar isso faria o executor
+        # reiniciar em laco.
+        worker = self._worker()
+        fonte = (Path(__file__).resolve().parents[1] / "scripts" / "worker_operacional.py") \
+            .read_text(encoding="utf-8", errors="replace")
+        self.assertIn("__pycache__", fonte)
+        self.assertIn("os.execv", fonte)
+
+    def test_espera_o_arquivo_assentar_antes_de_reiniciar(self):
+        """git pull escreve varios arquivos: reiniciar no meio pegaria a arvore
+        pela metade e o import falharia."""
+        worker = self._worker()
+        self.assertGreaterEqual(worker.ASSENTAMENTO, 5)
+        fonte = (Path(__file__).resolve().parents[1] / "scripts" / "worker_operacional.py") \
+            .read_text(encoding="utf-8", errors="replace")
+        self.assertIn("ASSENTAMENTO", fonte)
+
+
+if __name__ == "__main__":
+    unittest.main()
