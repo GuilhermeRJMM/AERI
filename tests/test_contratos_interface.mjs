@@ -292,3 +292,24 @@ test('aguardando sem motivo continua oferecendo retomar', async()=>{
     assert.match(a.elemento('contratos-mensagem').textContent,/Retomar extração/);
     assert.equal(a.elemento('contratos-retomar').hidden,false);
 });
+
+test('a espera pelo executor mantém a tela de carregamento', async()=>{
+    const a=ambiente();
+    a.ctx.resposta={id:'teste',estado:'AGUARDANDO',erro:'Documento digitalizado: precisa de OCR.',dados:{}};
+    await a.rodar('acompanhar("teste")');
+    await new Promise(r=>setImmediate(r));
+    // Sem isso a tela voltava para a lista e parecia que nada tinha acontecido.
+    assert.equal(a.elemento('page-contratos').classList.contains('contratos-extraindo'),true);
+    a.rodar('limparContratos()');
+});
+
+test('o gabarito tem a cobrinha e ela sobrevive ao modo de extração', ()=>{
+    const template=readFileSync(new URL('../backend/templates/contratos.html',import.meta.url),'utf8');
+    assert.match(template,/id="contratos-cobrinha"/);
+    // Ela precisa estar fora da lista que o modo de extracao esconde.
+    const css=readFileSync(new URL('../backend/static/painel.css',import.meta.url),'utf8');
+    const regra=css.split('\n').find(l=>l.includes('contratos-extraindo >'));
+    assert.match(regra,/:not\(#contratos-cobrinha\)/);
+    assert.match(css,/@keyframes contratos-cobrinha/);
+    assert.match(css,/prefers-reduced-motion/);
+});

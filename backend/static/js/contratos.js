@@ -189,7 +189,10 @@ async function acompanhar(id,ate=Date.now()+95000){
                 if(Date.now()<esperaOcrAte){
                     mensagem('Documento digitalizado: está na fila do executor, que faz o OCR aqui na serventia. Pode levar até um minuto por contrato. Esta tela atualiza sozinha — não precisa recarregar.');
                     timer=setTimeout(()=>acompanhar(id,ate),5000);
-                    modoExtracao(false);
+                    // Segue em modo de carregamento: e justamente aqui que o
+                    // conferente precisa ver que algo esta acontecendo. Antes a
+                    // tela voltava para a lista e parecia que nada tinha sido feito.
+                    modoExtracao(true);
                     return;
                 }
                 esperaOcrAte=0;
