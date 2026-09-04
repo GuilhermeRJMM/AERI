@@ -226,3 +226,17 @@ class TesteInstaladorDoExecutor(unittest.TestCase):
             protegidas = len(re.findall(r"CREATE_NO_WINDOW", fonte))
             self.assertEqual(protegidas, chamadas,
                              f"{arquivo}: {chamadas} subprocess.run e {protegidas} protegidos")
+
+    def test_instalador_tem_como_reiniciar(self):
+        """Python importa os modulos uma vez: um executor ja rodando segue com o
+        codigo velho depois de um git pull. Foi assim que uma correcao ficou 24
+        minutos sem efeito enquanto o processo antigo abria consoles."""
+        fonte = self._script().read_text(encoding="utf-8", errors="replace")
+        self.assertIn("-Reiniciar", fonte)
+        self.assertIn("Stop-ScheduledTask", fonte)
+
+    def test_log_diz_de_quando_e_o_codigo_carregado(self):
+        fonte = (Path(__file__).resolve().parents[1] / "scripts" / "worker_operacional.py") \
+            .read_text(encoding="utf-8", errors="replace")
+        self.assertIn("codigo_de", fonte,
+                      "sem isso nao da para saber, pelo log, se o executor pegou a correcao")

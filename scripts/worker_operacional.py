@@ -79,7 +79,14 @@ def main():
         logging.error("configure no ambiente ou no .env da raiz: %s", ", ".join(faltando))
         return 1
     from backend.app.contratos_nucleo import ocr
-    logging.info("ocr motor=%s", ocr.motor() or "NENHUM (contrato digitalizado nao sera lido)")
+    # A data do codigo carregado: Python importa uma vez, entao um executor
+    # antigo segue rodando a versao velha depois de um git pull. Sem esta linha
+    # nao ha como saber, olhando o log, se ele ja pegou a correcao.
+    from datetime import datetime
+    carregado = datetime.fromtimestamp(Path(ocr.__file__).stat().st_mtime)
+    logging.info("ocr motor=%s codigo_de=%s",
+                 ocr.motor() or "NENHUM (contrato digitalizado nao sera lido)",
+                 carregado.strftime("%d/%m %H:%M"))
     preparar_banco()
     while True:
         try:

@@ -6,6 +6,11 @@
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\instalar_executor.ps1
 #
+# Depois de atualizar o codigo (git pull), reinicie -- Python importa os modulos
+# uma vez, e um executor ja rodando segue com a versao velha:
+#
+#   powershell -ExecutionPolicy Bypass -File scripts\instalar_executor.ps1 -Reiniciar
+#
 # Para desinstalar:
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\instalar_executor.ps1 -Remover
@@ -15,6 +20,7 @@
 # servico do sistema exigiria guardar a senha da conta, e nao vale a troca.
 param(
   [switch]$Remover,
+  [switch]$Reiniciar,
   [int]$Intervalo = 15
 )
 
@@ -23,6 +29,19 @@ $Nome = "AERI Executor"
 $Raiz = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $Script = Join-Path $Raiz "scripts\worker_operacional.py"
 $Log = Join-Path $Raiz ".tmp\executor.log"
+
+# Python carrega os modulos uma vez, no inicio: um executor ja rodando segue
+# com o codigo velho depois de um git pull. Foi assim que uma correcao para nao
+# abrir console ficou 24 minutos sem efeito, com o processo antigo abrindo
+# janelas o tempo todo. Reinicie sempre que atualizar o codigo.
+if ($Reiniciar) {
+  Stop-ScheduledTask -TaskName $Nome -ErrorAction SilentlyContinue
+  Start-Sleep -Seconds 2
+  Start-ScheduledTask -TaskName $Nome
+  Start-Sleep -Seconds 3
+  Write-Host "Reiniciado. Estado: $((Get-ScheduledTask -TaskName $Nome).State)"
+  return
+}
 
 if ($Remover) {
   if (Get-ScheduledTask -TaskName $Nome -ErrorAction SilentlyContinue) {
