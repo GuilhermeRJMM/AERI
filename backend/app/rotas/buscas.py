@@ -11,6 +11,7 @@ from psycopg.types.json import Jsonb
 
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
 from backend.app.database import conectar, executar_manutencao_banco, preparar_banco
+from backend.app.servicos.executor_presenca import executor_ativo
 from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
 from backend.app.analise.onus import processar_atos
 from backend.app.proprietarios import calcular_cadeia_dominial
@@ -614,17 +615,33 @@ def revisar_matricula_busca(
 
 
 
+def passo_automatico(request=None, usuario: str = "cron") -> dict:
+    """Um lote de indexação de matrículas, escolhendo o modo sozinho.
+
+    Mora aqui, e não no corpo do cron, porque agora tem dois chamadores: o cron
+    diário da Vercel e o executor da serventia. Duas cópias derivariam.
+    """
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            modo = _proximo_modo_automatico(cursor)
+    resultado = _executar_sincronizacao(modo, 30, 0, request, usuario)
+    if modo == "NOVOS":
+        resultado["revisao"] = _executar_sincronizacao("REVISAO", 30, 0, request, usuario)
+    resultado["modo"] = modo
+    return resultado
+
+
 @router.get("/cron")
 def cron_buscas(request: Request):
     segredo = os.getenv("CRON_SECRET", "")
     autorizacao = request.headers.get("authorization", "")
     if not segredo or not hmac.compare_digest(autorizacao, f"Bearer {segredo}"):
         raise HTTPException(status_code=401, detail="Não autorizado.")
+    # A manutenção do banco fica fora do desvio: é diária, é barata e o executor
+    # não a faz. Só a indexação é que sai daqui quando ele está vivo.
     executar_manutencao_banco()
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            modo = _proximo_modo_automatico(cursor)
-    resultado = _executar_sincronizacao(modo, 30, 0, request, "cron")
-    if modo == "NOVOS":
-        resultado["revisao"] = _executar_sincronizacao("REVISAO", 30, 0, request, "cron")
-    return resultado
+            if executor_ativo(cursor):
+                return {"estado": "EXECUTOR_ATIVO", "detalhe": "indexação em curso na serventia"}
+    return passo_automatico(request, "cron")

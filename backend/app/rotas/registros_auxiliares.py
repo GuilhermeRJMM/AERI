@@ -9,6 +9,7 @@ from psycopg.types.json import Jsonb
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
 from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
+from backend.app.servicos.executor_presenca import executor_ativo
 from backend.app.servicos.registros_auxiliares import (
     extrair_indice_registro_auxiliar,
     normalizar_busca,
@@ -545,18 +546,19 @@ def _proximo_modo_automatico(cursor) -> str | None:
     return "NOVOS"
 
 
-@router.get("/cron")
-def cron_sincronizar_registros_auxiliares(request: Request):
-    segredo = os.getenv("CRON_SECRET", "")
-    autorizacao = request.headers.get("authorization", "")
-    if not segredo or not hmac.compare_digest(autorizacao, f"Bearer {segredo}"):
-        raise HTTPException(status_code=401, detail="Não autorizado.")
+def passo_automatico(request=None, usuario: str = "cron") -> dict:
+    """Um lote de indexação, escolhendo o modo sozinho.
 
+    Mora aqui, e não no corpo do cron, porque agora tem dois chamadores: o cron
+    diário da Vercel e o executor da serventia. Duas cópias derivariam, e a
+    diferença apareceria como registro indexado de um jeito de madrugada e de
+    outro durante o dia.
+    """
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             modo = _proximo_modo_automatico(cursor)
 
-    resultado = _executar_sincronizacao(modo, tamanho=20, limite_informado=0, request=request, usuario="cron")
+    resultado = _executar_sincronizacao(modo, tamanho=20, limite_informado=0, request=request, usuario=usuario)
     if modo == "NOVOS":
         with conectar() as conexao:
             with conexao.cursor() as cursor:
@@ -564,6 +566,24 @@ def cron_sincronizar_registros_auxiliares(request: Request):
                 sem_erros = cursor.fetchone()["total"] == 0
         if sem_erros:
             resultado["revisao"] = _executar_sincronizacao(
-                "REVISAO", tamanho=20, limite_informado=0, request=request, usuario="cron"
+                "REVISAO", tamanho=20, limite_informado=0, request=request, usuario=usuario
             )
+    resultado["modo"] = modo
     return resultado
+
+
+@router.get("/cron")
+def cron_sincronizar_registros_auxiliares(request: Request):
+    segredo = os.getenv("CRON_SECRET", "")
+    autorizacao = request.headers.get("authorization", "")
+    if not segredo or not hmac.compare_digest(autorizacao, f"Bearer {segredo}"):
+        raise HTTPException(status_code=401, detail="Não autorizado.")
+
+    # O executor da serventia roda o mesmo lote a cada ciclo. Quando ele esta
+    # vivo, repetir aqui so gasta CPU cobrada e disputa o lease. Sem batida
+    # recente dele, o cron trabalha como sempre trabalhou.
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            if executor_ativo(cursor):
+                return {"estado": "EXECUTOR_ATIVO", "detalhe": "indexação em curso na serventia"}
+    return passo_automatico(request, "cron")

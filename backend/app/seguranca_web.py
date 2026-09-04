@@ -128,7 +128,7 @@ def registrar_auditoria(
 
 def registrar_auditoria_cursor(
     cursor,
-    request: Request,
+    request: Request | None,
     acao: str,
     resultado: str,
     usuario: str | None = None,
@@ -139,7 +139,12 @@ def registrar_auditoria_cursor(
         """INSERT INTO auditoria_aeri
         (usuario, acao, recurso, resultado, ip, detalhes)
         VALUES (%s, %s, %s, %s, %s, %s)""",
-        (usuario, acao, recurso, resultado, ip_cliente(request), Jsonb(detalhes or {})),
+        # O executor da serventia faz o mesmo trabalho do cron, mas fora de
+        # qualquer requisicao: nao ha IP para registrar, e inventar um seria
+        # pior que dizer de onde veio. A trilha precisa distinguir os dois.
+        (usuario, acao, recurso, resultado,
+         ip_cliente(request) if request is not None else "executor",
+         Jsonb(detalhes or {})),
     )
 
 

@@ -6,10 +6,16 @@ Instale como serviço/tarefa sem janela no servidor da serventia.
 import argparse
 import logging
 import os
+import socket
 import time
 import sys
+from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+
+from fastapi import HTTPException
+
+MAQUINA = socket.gethostname() or "executor"
 
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
@@ -41,8 +47,8 @@ def carregar_env(caminho: Path) -> None:
         os.environ.setdefault(chave.strip(), valor)
 
 
-carregar_env(RAIZ / ".env")
-
+# Lido em main(), nao ao importar: o modulo precisa poder ser importado por um
+# teste sem despejar a configuracao de producao no ambiente do processo.
 ARQUIVO_LOG = RAIZ / ".tmp" / "executor.log"
 ARQUIVO_LOG.parent.mkdir(parents=True, exist_ok=True)
 
@@ -73,12 +79,78 @@ def versao_do_codigo() -> float:
                 pass
     return recente
 
-from backend.app.database import fechar_pool, preparar_banco
+from backend.app.database import conectar, fechar_pool, preparar_banco
 from backend.app.servicos.automacoes_operacionais import executar_passo
+from backend.app.servicos.executor_presenca import registrar_presenca
 from backend.app.rotas.contratos import processar_proximo_contrato
+from backend.app.rotas.buscas import passo_automatico as passo_buscas
+from backend.app.rotas.registros_auxiliares import passo_automatico as passo_registros_auxiliares
+
+
+# A indexacao avancava por uma aba de navegador em laco: 4.605 lotes de
+# matriculas e 2.559 de registros auxiliares em 30 dias, com picos as 23h, 00h
+# e 01h -- alguem deixando a tela aberta de madrugada, cada lote gastando CPU
+# cobrada na Vercel. O cron diario nao substituia isso: sozinho, a revisao
+# pendente levaria anos. Aqui o trabalho e o mesmo, na maquina da serventia.
+FONTES_INDEXACAO = (
+    ("matriculas", "sincronizacao_matriculas_busca_aeri", passo_buscas),
+    ("registros_auxiliares", "sincronizacao_registros_auxiliares_aeri", passo_registros_auxiliares),
+)
+
+# Falta de configuracao nao e evento novo a cada 15 segundos: sem isto, uma
+# chave ausente escreveria 5.760 linhas iguais por dia e afogaria o log onde se
+# procura o que de fato aconteceu. Avisa na primeira vez e quando voltar.
+_indexacao_avisada = set()
+
+
+def passo_indexacao():
+    """Um lote de cada fonte, quando ninguem estiver esperando por nada.
+
+    Fica atras do contrato de proposito: extracao tem gente parada na tela, e
+    um lote de 30 matriculas na Tri7 seguraria a fila por dezenas de segundos.
+
+    Devolve se esta maquina esta dando conta da indexacao -- e disso que o cron
+    da Vercel depende para se abster. Pausa deliberada e lote de outra pessoa
+    contam como "dando conta"; falta de configuracao, nao.
+    """
+    capaz = False
+    for nome, tabela, passo in FONTES_INDEXACAO:
+        with conectar() as con:
+            with con.cursor() as cur:
+                # Nome de tabela vem da constante acima, nunca de entrada.
+                cur.execute(f"SELECT indexacao_pausada FROM {tabela} WHERE id=1")
+                linha = cur.fetchone()
+        if not linha or linha["indexacao_pausada"]:
+            capaz = True   # parada por decisao de quem opera, nao por defeito
+            continue
+        try:
+            r = passo(None, "executor")
+            if nome in _indexacao_avisada:
+                _indexacao_avisada.discard(nome)
+                logging.info("indexacao=%s voltou a funcionar", nome)
+            logging.info("indexacao=%s modo=%s processados=%s", nome,
+                         r.get("modo"), r.get("processados"))
+            capaz = True
+        except HTTPException as exc:
+            capaz = capaz or exc.status_code == 409
+            # 409: alguem sincronizando pela tela, e o lease e dele. 503:
+            # configuracao ausente nesta maquina. Nenhum dos dois e falha do
+            # ciclo -- na proxima volta tenta de novo, de graca, porque as duas
+            # barram antes de qualquer consulta a Tri7.
+            if nome not in _indexacao_avisada:
+                _indexacao_avisada.add(nome)
+                logging.info("indexacao=%s parada: %s (so avisa de novo quando mudar)",
+                             nome, str(exc.detail)[:90])
+        except Exception as exc:
+            # Tri7 fora do ar ou rede caida nao e incapacidade desta maquina: o
+            # cron da Vercel bateria na mesma parede. Segue capaz.
+            capaz = True
+            logging.error("indexacao=%s falhou tipo=%s", nome, type(exc).__name__)
+    return capaz
 
 
 def main():
+    carregar_env(RAIZ / ".env")
     parser=argparse.ArgumentParser()
     parser.add_argument("--once",action="store_true")
     parser.add_argument("--intervalo",type=int,default=10)
@@ -109,7 +181,6 @@ def main():
     # A data do codigo carregado: Python importa uma vez, entao um executor
     # antigo segue rodando a versao velha depois de um git pull. Sem esta linha
     # nao ha como saber, olhando o log, se ele ja pegou a correcao.
-    from datetime import datetime
     carregado = datetime.fromtimestamp(Path(ocr.__file__).stat().st_mtime)
     logging.info("ocr motor=%s codigo_de=%s",
                  ocr.motor() or "NENHUM (contrato digitalizado nao sera lido)",
@@ -123,6 +194,11 @@ def main():
                 logging.info("automacao=%s estado=%s",chave,r["estado"])
             r=processar_proximo_contrato()
             logging.info("contratos estado=%s",r["estado"])
+            indexa = passo_indexacao() if r["estado"] == "SEM_TRABALHO" else None
+            # A batida diz a Vercel que esta maquina esta viva e dando conta, e
+            # o cron de madrugada se abstem. Vai depois do trabalho: uma volta
+            # que falhou inteira nao deve valer como presenca.
+            registrar_presenca(MAQUINA, datetime.fromtimestamp(versao_do_codigo()), indexa)
         except Exception as exc:
             logging.error("ciclo_falhou tipo=%s",type(exc).__name__)
         if args.once: break
