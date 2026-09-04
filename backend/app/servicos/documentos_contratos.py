@@ -38,6 +38,49 @@ def texto_suficiente(texto):
     return letras >= 160 and texto.count("�") <= max(2, len(texto) // 100)
 
 
+def texto_ilegivel(texto):
+    # Fonte sem mapa de caracteres: a pagina aparece certa na tela e sai como
+    # lixo na extracao. Ai o OCR do que foi renderizado e o resgate -- ao
+    # contrario da pagina apenas curta, onde o pouco texto que tem esta certo.
+    return texto.count("�") > max(2, len(texto) // 100)
+
+
+def cobertura_de_imagem(pagina):
+    """Quanto da pagina esta coberto por imagem, de 0 a 1."""
+    import pymupdf
+    area = abs(pagina.rect.width * pagina.rect.height)
+    if not area:
+        return 0.0
+    coberto = 0.0
+    for info in pagina.get_image_info():
+        r = pymupdf.Rect(info["bbox"]) & pagina.rect
+        if not r.is_empty:
+            coberto += abs(r.width * r.height)
+    return min(coberto / area, 1.0)
+
+
+def pagina_digitalizada(pagina, texto):
+    """Distingue folha digitalizada de folha digital que so tem pouco texto.
+
+    Ter imagem nao e sinal de scan: o contrato da CAIXA traz o timbre em toda
+    pagina, ocupando 0,8% dela. Foi essa confusao que fez a pagina 15 do
+    protocolo 185.863 -- a folha de ressalvas, em branco, com 67 caracteres
+    digitais perfeitamente legiveis -- ser recusada como "esta em imagem e
+    precisa de OCR", jogando um contrato inteiramente digital na fila do
+    executor. Uma folha digitalizada *e* a imagem da folha, e cobre tudo: a
+    medida separa os dois casos por 0,8% contra 100%.
+    """
+    if not pagina.get_images():
+        return False
+    if cobertura_de_imagem(pagina) >= 0.5:
+        return True
+    # get_image_info() nao enxerga imagem dentro de XObject aninhado em alguns
+    # PDFs, e ali a medida sai zero. Folha com imagem e sem texto nenhum segue
+    # valendo por digitalizada: errar para o OCR custa uma rasterizacao, errar
+    # para o outro lado entrega pagina vazia como se fosse boa.
+    return sum(c.isalnum() for c in texto) < 20
+
+
 def normalizar_texto(texto):
     # Não troca O/0, I/1, valores, documentos ou datas silenciosamente.
     return "\n".join(re.sub(r"[ \t]+", " ", linha).strip() for linha in texto.replace("\r", "").splitlines()).strip()
@@ -127,9 +170,10 @@ def extrair_documento(dados: bytes, progresso=None, *, permitir_ocr=True, prazo=
             texto = pagina.get_text(sort=True)
             original = texto
             metodo, confianca = "Texto digital", None
-            if not texto_suficiente(texto) and (pagina.get_images() or texto.strip() or not dados.startswith(b"%PDF")):
+            digitalizada = not dados.startswith(b"%PDF") or pagina_digitalizada(pagina, texto)
+            if not texto_suficiente(texto) and (digitalizada or texto_ilegivel(texto)):
                 if not permitir_ocr:
-                    if pagina.get_images():
+                    if digitalizada:
                         raise OcrIndisponivel(f"A página {i+1} está em imagem e precisa de OCR. Nenhuma ficha parcial foi gerada: o trabalho vai inteiro para a fila do executor.")
                     # Página digital curta (ex.: assinatura) é preservada e sinalizada.
                 else:

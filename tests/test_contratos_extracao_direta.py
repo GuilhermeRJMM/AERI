@@ -38,6 +38,58 @@ def test_pdf_textual_nao_precisa_executor_ou_ocr():
     ocr.assert_not_called()
 
 
+def png_teste(lado=100):
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new('RGB', (lado, lado), 'white').save(buf, format='PNG')
+    return buf.getvalue()
+
+
+def test_timbre_em_pagina_curta_nao_e_folha_digitalizada():
+    """Ter imagem nao faz da folha um documento digitalizado.
+
+    O contrato da CAIXA traz o timbre em todas as paginas, ocupando 0,8% de
+    cada uma. A pagina 15 do protocolo 185.863 -- a folha de ressalvas, em
+    branco, com 67 caracteres digitais perfeitamente legiveis -- era recusada
+    como "esta em imagem e precisa de OCR", e um contrato inteiramente digital
+    de 17 paginas ia parar na fila do executor.
+    """
+    import pymupdf
+    with pymupdf.open() as pdf:
+        p = pdf.new_page()
+        p.insert_textbox(p.rect+(30,30,-30,-30),'Contrato digital de teste. '*40,fontsize=10)
+        p = pdf.new_page()
+        p.insert_image(pymupdf.Rect(40,30,90,60), stream=png_teste())
+        p.insert_text((40,90),'INFORMACOES ADICIONAIS/RESSALVAS')
+        dados = pdf.tobytes()
+    with patch('backend.app.servicos.documentos_contratos.reconhecer_png') as ocr:
+        r=extrair_documento(dados,permitir_ocr=False,prazo=time.monotonic()+10)
+    assert 'RESSALVAS' in r['paginas'][1]['texto']
+    assert r['paginas'][1]['metodo']=='Texto digital' and not r['ocr']
+    ocr.assert_not_called()
+
+
+def test_timbre_em_pagina_curta_nao_desperdica_ocr_no_executor():
+    """E no executor a folha curta tambem nao vai para o OCR.
+
+    Reconhecer uma pagina digital troca texto certo por leitura de imagem e,
+    pior, marca o documento inteiro como "digitalizado, lido por OCR" -- uma
+    procedencia falsa num contrato nato-digital.
+    """
+    import pymupdf
+    with pymupdf.open() as pdf:
+        p = pdf.new_page()
+        p.insert_textbox(p.rect+(30,30,-30,-30),'Contrato digital de teste. '*40,fontsize=10)
+        p = pdf.new_page()
+        p.insert_image(pymupdf.Rect(40,30,90,60), stream=png_teste())
+        p.insert_text((40,90),'INFORMACOES ADICIONAIS/RESSALVAS')
+        dados = pdf.tobytes()
+    with patch('backend.app.servicos.documentos_contratos.reconhecer_png') as ocr:
+        r=extrair_documento(dados,permitir_ocr=True,prazo=time.monotonic()+10)
+    ocr.assert_not_called()
+    assert not r['ocr']
+
+
 def test_pdf_misto_nao_gera_ficha_parcial_nem_dispara_ocr():
     with patch('backend.app.servicos.documentos_contratos.reconhecer_png') as ocr:
         with pytest.raises(OcrIndisponivel,match='página 2'):
