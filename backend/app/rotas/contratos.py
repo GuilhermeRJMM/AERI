@@ -180,7 +180,8 @@ def documento(id:UUID,request:Request,usuario=Depends(acesso)):
         with con.cursor() as cur: r=_buscar(cur,id,usuario,request.state.sessao["perfil"])
     try:
         cli=cliente_tri7()
-        docs=cli.listar_documentos_protocolo(r["protocolo"])["documentos"]
+        consulta_protocolo=cli.listar_documentos_protocolo(r["protocolo"])
+        docs=consulta_protocolo["documentos"]
         if r["documento_id"] not in {str(d.get("ged_documento_id")) for d in docs}:
             raise HTTPException(404,"Documento não está mais vinculado ao protocolo.")
         arquivo=cli.buscar_documento_ged(r["documento_id"])
@@ -430,6 +431,13 @@ def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=Non
         arquivo=cli.buscar_documento_ged(r["documento_id"])
         conferir_prazo(prazo)
         p=extrair_contrato(arquivo["dados"],progresso,permitir_ocr=permitir_ocr,prazo=prazo)
+        metadados_protocolo=consulta_protocolo.get("protocolo") or {}
+        p["protocoloMetadados"]={
+            "numero":str(r["protocolo"]),
+            "data":next((str(metadados_protocolo.get(campo)) for campo in (
+                "data_protocolo","protocolo_data","data_apresentacao","data_cadastro","data"
+            ) if metadados_protocolo.get(campo)),""),
+        }
         if eh_escritura(p):
             try:
                 escrituras.enriquecer_modelo_tri7(p,cli)

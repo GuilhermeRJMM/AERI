@@ -262,7 +262,7 @@ def _valor_operacao(texto: str) -> str:
 
 def _itbi(texto: str) -> dict:
     trecho = _primeiro(
-        r"IMPOSTO\s+SOBRE\s+A\s+TRANSMISS[ÃA]O\s+DE\s+BENS\s+IM[ÓO]VEIS\s*-?\s*ITBI\s*[:•.]\s*(.*?)(?=\b8\s*[)\-]|\bADVERT[ÊE]NCIAS|\bDECLARA[ÇC][ÕO]ES)",
+        r"IMPOSTO\s+SOBRE\s+A\s+TRANSMISS[ÃA]O\s+DE\s+BENS\s+IM[ÓO]VEIS\s*-?\s*ITBI\s*[:•.]\s*(.*?)(?=\b8\s*[)\-]|\bADVERT[ÊE]NCIAS|\bDECLARA[ÇC][ÕO]ES|$)",
         texto,
     )
     return {
@@ -665,13 +665,80 @@ def _forma_titulo(ficha: dict) -> str:
     )
 
 
+def _sem_email(texto: object) -> str:
+    """Remove contato eletrônico da qualificação que vai para o registro."""
+    valor = re.sub(r"\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b", "", str(texto or ""))
+    valor = re.sub(
+        r"(?:,|;|\be\b)?\s*(?:endere[çc]o\s+eletr[oô]nico|e-?mail)\s*[:\-]?\s*(?=[,;.\s]|$)",
+        " ", valor, flags=re.I,
+    )
+    return re.sub(r"\s+([,;.])", r"\1", re.sub(r"\s+", " ", valor)).strip(" ,;")
+
+
+def _data_brasileira(valor: object) -> str:
+    bruto = str(valor or "").strip()
+    if not bruto:
+        return ""
+    achado = re.search(r"(\d{4})-(\d{2})-(\d{2})", bruto)
+    if achado:
+        return f"{achado.group(3)}.{achado.group(2)}.{achado.group(1)}"
+    achado = re.search(r"(\d{2})[/.](\d{2})[/.](\d{4})", bruto)
+    return ".".join(achado.groups()) if achado else ""
+
+
+def _protocolo_da_minuta(payload: dict) -> tuple[str, str]:
+    metadados = payload.get("protocoloMetadados") or {}
+    numero = metadados.get("numero") or (payload.get("origemGed") or {}).get("protocolo")
+    data = _data_brasileira(metadados.get("data"))
+    hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d.%m.%Y")
+    return (_numero_formatado(numero) if numero else "[CONFERIR PROTOCOLO]", data or hoje)
+
+
+def _proximo_numero_ato(confronto: dict) -> int | None:
+    numeros = []
+    for ato in ((confronto.get("analise") or {}).get("atos") or []):
+        if not isinstance(ato, dict):
+            continue
+        achado = re.fullmatch(r"(?:R|AV)\.?\s*0*(\d+)", str(ato.get("codigo") or "").strip(), re.I)
+        if achado:
+            numeros.append(int(achado.group(1)))
+    return max(numeros) + 1 if numeros else None
+
+
+def _cabecalho_minuta(payload: dict, ficha: dict, confronto: dict, tipo: str,
+                      deslocamento: int = 0) -> str:
+    base = _proximo_numero_ato(confronto)
+    ato = f"{tipo}.{base + deslocamento:02d}" if base is not None else f"{tipo}.xx"
+    matricula = _numero_formatado(confronto.get("numero") or (ficha.get("matriculas") or [""])[0])
+    protocolo, data_protocolo = _protocolo_da_minuta(payload)
+    data_ato = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d.%m.%Y")
+    return f"{ato}-{matricula} - Data: {data_ato}. Protocolo n.º {protocolo}, de {data_protocolo}."
+
+
+def _descricao_imovel_minuta(payload: dict, ficha: dict) -> str:
+    selecionado = ((payload.get("documentosComplementares") or {}).get("itbiSelecionado") or {})
+    conferencia = selecionado.get("conferencia") or {}
+    objeto = str((ficha.get("imovel") or {}).get("descricao") or "")
+    parte = str(conferencia.get("parte_ideal") or _primeiro(
+        r"(?:parte\s+ideal|equivalente)\s+(?:a\s+)?([\d.,]+\s*%)", objeto,
+    ) or "").replace(" ", "")
+    area = str(conferencia.get("area") or _primeiro(
+        r"\b([\d.,]+\s*(?:ha|m[²2]))\b", objeto,
+    ) or "").replace(" ", "")
+    integral = not parte or re.sub(r"\D", "", parte).lstrip("0") in {"100", "10000"}
+    descricao = "O imóvel descrito na matrícula" if integral else f"{parte} do imóvel descrito na matrícula"
+    if area and re.search(r"ha$", area, re.I):
+        descricao += f", equivalente a {area}"
+    return descricao
+
+
 def _nota_itbi(ficha: dict, *, anexo_ged: bool = False) -> str:
     itbi = ficha.get("valores", {}).get("itbi", {})
-    data = itbi.get("data_quitacao") or "de  de"
-    base = itbi.get("base_calculo") or "Valor•avaliacao•imovel•itbi«a»"
-    duam = itbi.get("duam") or "Numero•duam•itbi«a»"
-    guia = itbi.get("guia") or "Numero•protocolo•itbi«a»"
-    valor = itbi.get("valor_recolhido") or "Valor•recolhido•itbi«a»"
+    data = itbi.get("data_quitacao") or "[CONFERIR DATA DO RECOLHIMENTO]"
+    base = itbi.get("base_calculo") or "[CONFERIR BASE DE CÁLCULO]"
+    duam = itbi.get("duam") or "[CONFERIR DUAM]"
+    guia = itbi.get("guia") or "[CONFERIR GUIA]"
+    valor = itbi.get("valor_recolhido") or "[CONFERIR VALOR RECOLHIDO]"
     completos = all(itbi.get(c) for c in (
         "data_quitacao", "base_calculo", "duam", "guia", "valor_recolhido"
     ))
@@ -689,8 +756,8 @@ def _nota_itbi(ficha: dict, *, anexo_ged: bool = False) -> str:
     )
 
 
-def _minuta_principal(ficha: dict, confronto: dict, modelo: dict | None,
-                      *, itbi_ged: bool = False) -> dict:
+def _minuta_principal(payload: dict, ficha: dict, confronto: dict, modelo: dict | None,
+                      *, itbi_ged: bool = False, deslocamento: int = 0) -> dict:
     especie = ficha.get("titulo", {}).get("especie", "Escritura pública")
     if _chave(especie) not in {"VENDA E COMPRA", "COMPRA E VENDA"}:
         texto_modelo = str((modelo or {}).get("texto") or "").strip()
@@ -700,38 +767,28 @@ def _minuta_principal(ficha: dict, confronto: dict, modelo: dict | None,
         )
         return {"texto": texto, "pendencias": [{"campo": "modelo", "motivo": "Confira e complete os campos variáveis do modelo da Tri7.", "grau": "CONFIRIR", "sugestao": ""}]}
 
-    numero = _numero_formatado(confronto.get("numero") or (ficha.get("matriculas") or [""])[0])
-    data_ato = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d.%m.%Y")
+    transmitentes = _sem_email((ficha.get("transmitentes") or {}).get("qualificacao")) or "[CONFERIR QUALIFICAÇÃO DOS TRANSMITENTES]"
+    adquirentes = _sem_email((ficha.get("adquirentes") or {}).get("qualificacao")) or "[CONFERIR QUALIFICAÇÃO DOS ADQUIRENTES]"
+    imovel = _descricao_imovel_minuta(payload, ficha)
+    origem = (confronto.get("contexto") or {}).get("origem") or "[CONFERIR ORIGEM]"
+    valor = (ficha.get("valores") or {}).get("operacao") or "[CONFERIR VALOR]"
     forma = _forma_titulo(ficha)
     texto = (
-        f"Tipo•ato•ficha«a».Numero•ato•f«a»-{numero} - Data: {data_ato}. "
-        "Protocolo n.º Numero•ordem•prot«a», de ... VENDA E COMPRA. "
-        "TRANSMITENTE(S): Qualificacao•vendedor•i«a»; SE PJ (preencher os campos "
-        "referentes à representação) no ato representada por REPRESENTANTES_CTRL_Q«m», "
-        "nos termos do (Contrato Social ou xx Alteração do Contrato Social) datado de "
-        "xx.xx.xxxx«m», devidamente registrado na JUCEG em xx.xx.xxxx«m», sob o n.º "
-        "xxxxxxxxxx«m», Nire xxxxxxxxx«m»; (Se houver procurador: nos termos da "
-        "Procuração lavrada em xx.xx.xxxx«m», às fls.xxx«m», Livro xxx«m», pelo "
-        "Cartório xxxxxxxxxxxxxxx«m»). ADQUIRENTE(S): Qualificacao•proprietario•i«a»; "
-        "SE PJ (preencher os campos referentes à representação) no ato representada por "
-        "REPRESENTANTES_CTRL_Q«m», nos termos do (Contrato Social ou xx Alteração do "
-        "Contrato Social) datado de xx.xx.xxxx«m», devidamente registrado na JUCEG em "
-        "xx.xx.xxxx«m», sob o n.º xxxxxxxxxx«m», Nire xxxxxxxxx«m»; (Se houver "
-        "procurador: nos termos da Procuração lavrada em xx.xx.xxxx«m», às fls.xxx«m», "
-        "Livro xxx«m», pelo Cartório xxxxxxxxxxxxxxx«m»). IMÓVEL: xx«m»% do imóvel "
-        "descrito na matrícula, (SE RURAL ACRESCENTAR: equivalente a xx,xxxx«m»ha). "
-        "ORIGEM: (SELECIONAR: Origem - Ctrl+T)«m». "
+        f"{_cabecalho_minuta(payload, ficha, confronto, 'R', deslocamento)} VENDA E COMPRA. "
+        f"TRANSMITENTE(S): {transmitentes}. ADQUIRENTE(S): {adquirentes}. "
+        f"IMÓVEL: {imovel}. ORIGEM: {origem}. "
         f"FORMA DO TÍTULO: {forma}. "
-        "VALOR: (SELECIONAR: Forma de Pagamento - Ctrl+T)«m». "
+        f"VALOR: R${valor}. "
         f"*NOTAS: I)- {_nota_itbi(ficha, anexo_ged=itbi_ged)}; "
-        "II)- (SE RURAL ACRESCENTAR: (SELECIONAR: Notas-Livro 02 - ITR - Ctrl+T)«m»); "
-        "e, III)- (SELECIONAR: Notas-Livro 02 - Abono Recolhimento - Ctrl+T)«m». "
+        "II)- [CONFERIR NOTA DE ITR, QUANDO IMÓVEL RURAL]; e, III)- a demonstração "
+        "ou declaração do recolhimento das parcelas previstas no art. 15, §1º, da "
+        "Lei Estadual n.º 19.191/2015. "
         "DOU FÉ. Selo: . Cotação do ato: emolumentos: R$; ISSQN: R$; taxa judiciária: "
         "R$; ; Total: R$. Morrinhos-GO, de  de. Oficial: /xxxxx/xxxxx/"
     )
     pendencias = []
-    if any(marcador in texto for marcador in ("xx«,", "xx«", "Numero•", "Valor•", "SELECIONAR:")):
-        pendencias.append({"campo": "minuta principal", "motivo": "Há seleções e campos variáveis que precisam ser completados na Tri7.", "grau": "CONFERIR", "sugestao": ""})
+    if "[CONFERIR" in texto:
+        pendencias.append({"campo": "minuta principal", "motivo": "Há dados não comprovados que precisam ser conferidos na Tri7.", "grau": "CONFERIR", "sugestao": ""})
     return {"texto": texto, "pendencias": pendencias}
 
 
@@ -775,8 +832,14 @@ def gerar_minutas(payload: dict, ficha: dict | None = None) -> dict:
     confronto = payload.get("confronto") or {}
     modelo = payload.get("modeloTri7")
     itbi_ged = bool((payload.get("documentosComplementares") or {}).get("itbiSelecionado"))
-    saida = {"principal": _minuta_principal(ficha, confronto, modelo, itbi_ged=itbi_ged)}
     auxiliares = confronto.get("auxiliares", {})
+    anteriores = sum(bool(auxiliares.get(chave)) for chave in (
+        "cep", "cci", "cancelamento_alienacao",
+    ))
+    saida = {"principal": _minuta_principal(
+        payload, ficha, confronto, modelo,
+        itbi_ged=itbi_ged, deslocamento=anteriores,
+    )}
     if auxiliares.get("cep"):
         saida["cep"] = _minuta_cep(ficha, confronto.get("numero"))
     if auxiliares.get("cci"):

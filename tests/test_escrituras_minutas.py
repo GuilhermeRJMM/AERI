@@ -91,6 +91,8 @@ class TesteEscriturasMinutas(unittest.TestCase):
         self.assertEqual(payload["ficha"]["adquirentes"]["documentos"], ["655.979.151-34"])
         self.assertEqual(payload["ficha"]["imovel"]["cep"], "75.652-408")
         self.assertEqual(payload["ficha"]["titulo"]["livro"], "501")
+        self.assertEqual(payload["ficha"]["valores"]["itbi"]["guia"], "826/2026")
+        self.assertEqual(payload["ficha"]["valores"]["itbi"]["valor_recolhido"], "4.800,00")
 
     def test_modelo_tri7_e_enriquecimento_sao_separados_do_traslado(self):
         payload = escrituras.extrair({"texto": ESCRITURA, "ocr": False, "paginas": []})
@@ -110,13 +112,58 @@ class TesteEscriturasMinutas(unittest.TestCase):
         payload = escrituras.extrair({
             "texto": ESCRITURA + " E-mail: pessoa@example.com", "ocr": False, "paginas": [],
         })
-        payload["confronto"] = {"numero": "9790", "contexto": {}, "auxiliares": {}}
+        payload["origemGed"] = {"protocolo": "185925"}
+        payload["protocoloMetadados"] = {"numero": "185925", "data": "2026-09-09"}
+        payload["confronto"] = {
+            "numero": "9790", "contexto": {"origem": "O R.05 desta matrícula"},
+            "auxiliares": {}, "analise": {"atos": [{"codigo": "R.05"}]},
+        }
         texto = escrituras.gerar_minutas(payload)["principal"]["texto"]
-        self.assertIn("Qualificacao•vendedor•i«a»", texto)
-        self.assertIn("Qualificacao•proprietario•i«a»", texto)
-        self.assertIn("Numero•ordem•prot«a»", texto)
+        self.assertIn("R.06-9.790", texto)
+        self.assertIn("Protocolo n.º 185.925, de 09.09.2026", texto)
+        self.assertIn("TRANSMITENTE(S): JOÃO DA SILVA", texto)
+        self.assertIn("ADQUIRENTE(S): MARIA DE SOUZA", texto)
+        self.assertIn("ORIGEM: O R.05 desta matrícula", texto)
+        self.assertIn("VALOR: R$160.000,00", texto)
+        self.assertNotIn("Qualificacao•", texto)
+        self.assertNotIn("SE PJ", texto)
+        self.assertNotIn("Ctrl+T", texto)
+        self.assertNotIn("«m»", texto)
         self.assertNotIn("@", texto)
         self.assertNotIn("E-mail", texto)
+
+    def test_limpa_email_da_qualificacao_sem_apagar_os_demais_dados(self):
+        texto = escrituras._sem_email(
+            "ANA, brasileira, CPF 000.000.000-00, e-mail: ana@example.com, residente em Morrinhos-GO"
+        )
+        self.assertNotIn("@", texto)
+        self.assertNotIn("mail", texto.lower())
+        self.assertIn("residente em Morrinhos-GO", texto)
+
+    def test_caso_185925_fica_legivel_e_mantem_so_pendencias_reais(self):
+        payload = {
+            "tipoDocumento": "ESCRITURA_PUBLICA", "especie": "VENDA_COMPRA",
+            "origemGed": {"protocolo": "185925"},
+            "protocoloMetadados": {"numero": "185925", "data": "09/09/2026"},
+            "ficha": {
+                "titulo": {"especie": "Venda e Compra", "descricao": "Escritura Pública de Venda e Compra", "data": "27.08.2026", "folhas": "75F/77V", "livro": "502 E", "serventia": "Cartório do 1º Ofício de Notas e Registro de Imóveis de Morrinhos-GO"},
+                "matriculas": ["39547"],
+                "transmitentes": {"qualificacao": "MARCILIA ALVES DE OLIVEIRA, brasileira, inscrita no CPF/MF sob o n.º 011.230.801-51, e-mail: marcilia@example.com"},
+                "adquirentes": {"qualificacao": "CESAR ALTOMARI, brasileiro, inscrito no CPF/MF sob o n.º 412.393.341-68"},
+                "imovel": {"descricao": "Fazenda Córrego das Galinhas, com 7,8183ha"},
+                "valores": {"operacao": "400.000,00", "itbi": {}},
+            },
+            "documentosComplementares": {"itbiSelecionado": {"conferencia": {"matricula": "39.547", "area": "7,8183ha", "parte_ideal": "100%"}}},
+            "confronto": {"numero": "39547", "contexto": {"origem": "O R.05 desta matrícula"}, "auxiliares": {}, "analise": {"atos": [{"codigo": "R.05"}]}},
+        }
+        texto = escrituras.gerar_minutas(payload)["principal"]["texto"]
+        self.assertIn("R.06-39.547", texto)
+        self.assertIn("MARCILIA ALVES DE OLIVEIRA", texto)
+        self.assertIn("CESAR ALTOMARI", texto)
+        self.assertIn("equivalente a 7,8183ha", texto)
+        self.assertIn("VALOR: R$400.000,00", texto)
+        self.assertIn("[CONFERIR BASE DE CÁLCULO]", texto)
+        self.assertNotRegex(texto, r"(?:•|«|Ctrl\+T|SE PJ|REPRESENTANTES_CTRL_Q|example\.com)")
 
     def test_requerimento_combinado_e_docx_editavel(self):
         payload = escrituras.extrair({"texto": ESCRITURA, "ocr": False, "paginas": []})
