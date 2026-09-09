@@ -15,7 +15,7 @@ CATALOGO_PERMISSOES = (
     {"chave": "acessar_rgi", "nome": "Setor RGI — Produção e Conferência", "modulo": "Setores", "ordem": 2},
     {"chave": "gerenciar_usuarios", "nome": "Usuários e Acessos", "modulo": "Administração", "ordem": 3},
     {"chave": "configurar_sistema", "nome": "Integrações e agendamentos", "modulo": "Administração", "ordem": 4},
-    {"chave": "acessar_contratos", "nome": "Contratos e Minutas", "modulo": "RGI", "ordem": 75},
+    {"chave": "acessar_contratos", "nome": "Minutas", "modulo": "RGI", "ordem": 75},
     {"chave": "processar_matricula", "nome": "Matrículas", "modulo": "Registro de Imóveis", "ordem": 10},
     {"chave": "revisar_auditoria", "nome": "Auditoria registral", "modulo": "Registro de Imóveis", "ordem": 20},
     {"chave": "acessar_mapa_onr", "nome": "MAPA-ONR", "modulo": "Registro de Imóveis", "ordem": 30, "auditor_opcional": True},

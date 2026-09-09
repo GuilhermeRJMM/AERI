@@ -118,6 +118,27 @@ class TesteClienteTri7(unittest.TestCase):
         self.assertEqual(resultado["numero_matricula"], "1")
         self.assertEqual(len(requisicoes), 1)
 
+    def test_consulta_catalogo_e_texto_da_minuta(self):
+        requisicoes = []
+
+        def abrir(requisicao, timeout):
+            requisicoes.append(requisicao.full_url)
+            if "/minutas?" in requisicao.full_url:
+                return RespostaFalsa({"minutas": [{"minuta_id": 505, "descricao": "VENDA E COMPRA"}]})
+            return RespostaFalsa({"minuta_id": 505, "texto": "TEXTO DO MODELO"})
+
+        cliente = ClienteTri7(
+            ConfiguracaoTri7("https://tri7.example", "", "", timeout=5, access_token="token"),
+            abridor=abrir,
+        )
+        minutas = cliente.buscar_minutas(descricao="VENDA E COMPRA")
+        texto = cliente.buscar_texto_minuta(505)
+
+        self.assertEqual(minutas[0]["minuta_id"], 505)
+        self.assertEqual(texto["texto"], "TEXTO DO MODELO")
+        self.assertIn("descricao=VENDA+E+COMPRA", requisicoes[0])
+        self.assertIn("minuta_id=505", requisicoes[1])
+
     def test_log_nao_expoe_token_nem_parametro_consultado(self):
         def abrir(_requisicao, timeout):
             return RespostaFalsa({"numero_matricula": 39767, "texto": "MATRÍCULA 39.767."})

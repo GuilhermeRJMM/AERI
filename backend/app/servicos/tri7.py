@@ -304,6 +304,54 @@ class ClienteTri7:
             raise RespostaTri7Invalida("A Tri7 retornou uma matrícula diferente da solicitada.")
         return {"numero_matricula": numero, "texto": dados["texto"]}
 
+    def buscar_minutas(self, *, minuta_id: object | None = None,
+                       descricao: str | None = None) -> list[dict]:
+        """Lista modelos de minuta sem confiar em campos cadastrais da Tri7."""
+        parametros: dict[str, str] = {}
+        if minuta_id not in (None, ""):
+            parametros["minuta_id"] = normalizar_numero_matricula(minuta_id)
+        if descricao is not None:
+            descricao = str(descricao).strip()
+            if len(descricao) > 200:
+                raise ValueError("A descrição da minuta excede o limite permitido.")
+            if descricao:
+                parametros["descricao"] = descricao
+        status, dados = self._buscar_json_autenticado(
+            "/api/v1/imoveis/minutas", parametros
+        )
+        if status < 200 or status >= 300:
+            raise ErroTri7("A Tri7 não conseguiu consultar os modelos de minuta.", status=status)
+        itens = dados.get("minutas") if isinstance(dados, dict) else dados
+        if not isinstance(itens, list) or any(not isinstance(item, dict) for item in itens):
+            raise RespostaTri7Invalida("A Tri7 retornou uma lista de minutas inválida.")
+        saida = []
+        for item in itens:
+            try:
+                identificador = int(item.get("minuta_id"))
+            except (TypeError, ValueError):
+                raise RespostaTri7Invalida("A Tri7 retornou uma minuta sem identificador válido.")
+            saida.append({
+                "minuta_id": identificador,
+                "descricao": str(item.get("descricao") or "").strip(),
+            })
+        return saida
+
+    def buscar_texto_minuta(self, minuta_id: object) -> dict:
+        identificador = normalizar_numero_matricula(minuta_id)
+        status, dados = self._buscar_json_autenticado(
+            "/api/v1/imoveis/texto-minuta", {"minuta_id": identificador}
+        )
+        if status == 404:
+            raise ErroTri7(f"Modelo de minuta {identificador} não encontrado na Tri7.", status=status)
+        if status < 200 or status >= 300:
+            raise ErroTri7("A Tri7 não conseguiu consultar o texto da minuta.", status=status)
+        if not isinstance(dados, dict) or not isinstance(dados.get("texto"), str):
+            raise RespostaTri7Invalida("A Tri7 retornou um texto de minuta inválido.")
+        texto = dados["texto"].strip()
+        if not texto:
+            raise RespostaTri7Invalida("O modelo de minuta selecionado está vazio na Tri7.")
+        return {"minuta_id": int(identificador), "texto": texto}
+
     def buscar_atos_matricula(self, numero_matricula: object) -> dict:
         """Consulta o índice objetivo de atos da matrícula na Tri7.
 

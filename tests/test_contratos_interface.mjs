@@ -202,6 +202,23 @@ test('a minuta conferida prevalece sobre o rascunho da extração',()=>{
     assert.equal(a.elemento('contratos-previa-estado').textContent,'conferida');
 });
 
+test('a mesma tela apresenta escritura, atos auxiliares e requerimento',()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'escritura',confrontoAtual:true,dados:{tipoDocumento:'ESCRITURA_PUBLICA',
+        gruposFicha:[['titulo','Título público'],['matriculas','Matrículas']],
+        ficha:{titulo:{especie:'Venda e compra'},matriculas:['9790']},alertasExtracao:[],evidencias:{},
+        modeloTri7:{descricao:'VENDA E COMPRA - ESCRITURA 1º OFÍCIO'},
+        confronto:{numero:'9790',exigencias:[],comparacoes:[]},
+        requerimentos:[{tipo:'cep','rotulo':'Baixar requerimento de CEP'}],
+        minutas:{principal:{texto:'ATO PRINCIPAL',pendencias:[]},cep:{texto:'ATO CEP',pendencias:[]}}}};
+    a.rodar('trabalho=entrada;desenhar()');
+    assert.match(a.elemento('contratos-ficha').innerHTML,/Título público[\s\S]*Matrículas/);
+    assert.match(a.elemento('contratos-minutas-extras').innerHTML,/Ato principal[\s\S]*ATO PRINCIPAL[\s\S]*CEP[\s\S]*ATO CEP/);
+    assert.match(a.elemento('contratos-requerimentos').innerHTML,/requerimento\/cep[\s\S]*Baixar requerimento de CEP/);
+    assert.match(a.elemento('contratos-automatizacoes').innerHTML,/Modelo Tri7 localizado/);
+    assert.equal(a.elemento('contratos-previa-venda').hidden,true);
+});
+
 test('comparação não tem mais o bloco de conferência da operação',()=>{
     const a=ambiente();
     const html=a.rodar("quadroComparacao({campo:'imovel.area',contrato:'200 m²',matricula:'190 m²',situacao:'REVISAR',permiteMatricula:true})");

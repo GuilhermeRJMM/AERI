@@ -89,6 +89,7 @@
 .contratos-confirmacoes strong { display:inline-grid;place-items:center;width:20px;height:20px;margin-right:5px;border-radius:50%;background:#62491f;color:#ffe2a7; }
 .contratos-confirmacoes .ok strong { background:#1f5c48;color:#8af0c5; }
 .contratos-previas { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:18px 0; }
+#contratos-minutas-extras,#contratos-acoes-extras { display:contents; }
 .contratos-previas article { min-width:0;border:1px solid #344057;border-radius:12px;background:#0f1726;overflow:hidden; }
 .contratos-previas h3 { margin:0;padding:13px 15px;border-bottom:1px solid #344057;font-size:14px;color:#d8e2f2; }
 .contratos-previas pre { margin:0;padding:18px;min-height:180px;max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#eef2ff;font:14px/1.7 Georgia,serif; }

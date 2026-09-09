@@ -1,5 +1,5 @@
 <section id="page-contratos" class="page painel-pagina">
-  <div class="painel-cabecalho"><span class="eyebrow">RGI / PRODUÇÃO</span><h1>Contratos e Minutas</h1><p>Extraia os dados e prepare os atos para copiar. A conferência e a edição do texto são feitas na Tri7.</p></div>
+  <div class="painel-cabecalho"><span class="eyebrow">RGI / PRODUÇÃO</span><h1>Minutas</h1><p>Extraia contratos e escrituras públicas, confronte com a matrícula e prepare os atos para conferir na Tri7.</p></div>
   <section class="contratos-card"><h2>1. Protocolo e documento</h2>
     <form id="contratos-protocolo-form" class="contratos-form"><label>Protocolo Tri7<input id="contratos-protocolo" inputmode="numeric" placeholder="Ex.: 185.575" required></label><button type="submit" class="btn btn-primary">Consultar documentos</button><button type="button" id="contratos-recentes-btn" class="btn">Meus trabalhos</button></form>
     <div id="contratos-documentos"></div><div id="contratos-recentes"></div>
@@ -10,7 +10,7 @@
     <div class="contratos-carregando-trilha"><i id="contratos-carregando-barra"></i></div>
     <p class="contratos-carregando-pct"><span id="contratos-carregando-numero">0</span>%</p>
   </div>
-  <p id="contratos-aviso-extracao" class="contratos-aviso">PDF com texto é extraído na hora. Documento digitalizado vai para a fila do executor, que faz o OCR aqui na serventia — a tela espera e atualiza sozinha.</p>
+  <p id="contratos-aviso-extracao" class="contratos-aviso">PDF com texto é extraído na hora. Contrato ou escritura digitalizada vai para a fila do executor, que faz o OCR aqui na serventia — a tela espera e atualiza sozinha.</p>
   <button type="button" id="contratos-retomar" class="btn" hidden>Retomar extração deste trabalho</button>
   <section id="contratos-extraido" class="contratos-card" hidden><h2>2. Dados extraídos</h2><p class="contratos-aviso">Confira os campos com o documento original. A extração não substitui a conferência registral.</p>
     <div class="contratos-form"><a id="contratos-original" target="_blank" rel="noopener" class="btn">Baixar documento original</a></div>
@@ -21,15 +21,17 @@
       <aside class="contratos-bancada-minuta" aria-label="Minuta em montagem">
         <h3>Minuta em montagem <span id="contratos-previa-estado" class="contratos-previa-selo"></span></h3>
         <div class="contratos-previas">
-          <article><h4>Venda e compra</h4><pre id="contratos-minuta-venda-preview" tabindex="0"></pre></article>
-          <article><h4>Alienação fiduciária</h4><pre id="contratos-minuta-alienacao-preview" tabindex="0"></pre></article>
+          <article id="contratos-previa-venda"><h4>Venda e compra</h4><pre id="contratos-minuta-venda-preview" tabindex="0"></pre></article>
+          <article id="contratos-previa-alienacao"><h4>Alienação fiduciária</h4><pre id="contratos-minuta-alienacao-preview" tabindex="0"></pre></article>
+          <div id="contratos-minutas-extras"></div>
         </div>
       </aside>
     </div>
     <form id="contratos-matricula-form" class="contratos-form"><label>Matrícula para confrontar<input id="contratos-matricula" inputmode="numeric" required></label><button type="submit" class="btn btn-primary">Confrontar com a matrícula</button></form>
   </section>
   <section id="contratos-conferencia" class="contratos-card" hidden><h2>3. Pendências para conferência</h2><div id="contratos-exigencias"></div><div id="contratos-comparacoes"></div>
-    <div class="contratos-geracao"><label><span><input id="contratos-confirmacao" type="checkbox"> Conferi os dados e as pendências com o contrato original e a matrícula na Tri7.</span></label>
+    <div id="contratos-requerimentos" class="contratos-form"></div>
+    <div class="contratos-geracao"><label><span><input id="contratos-confirmacao" type="checkbox"> Conferi os dados e as pendências com o documento original e a matrícula na Tri7.</span></label>
     <p id="contratos-geracao-status" role="status" aria-live="polite" tabindex="-1"></p>
     <button type="button" id="contratos-gerar" class="btn btn-primary">Gerar minuta para Tri7</button></div>
   </section>
@@ -37,6 +39,6 @@
     <p class="contratos-aviso">Rascunho: resolva os marcadores de dados faltantes e confira todo o texto na Tri7 antes de utilizá-lo.</p><div id="contratos-pendencias-minuta"></div>
     <p class="contratos-orientacao">O texto montado fica ao lado da ficha, no passo 2.</p>
     <p id="contratos-copia-status" role="status" aria-live="polite"></p>
-    <div class="contratos-form"><button type="button" id="contratos-copiar-venda" class="btn">Copiar venda e compra</button><button type="button" id="contratos-copiar-alienacao" class="btn">Copiar alienação fiduciária</button><button type="button" id="contratos-copiar" class="btn btn-primary">Copiar os dois atos</button><button type="button" id="contratos-historico-btn" class="btn">Histórico</button></div><div id="contratos-historico"></div>
+    <div id="contratos-acoes-minutas" class="contratos-form"><button type="button" id="contratos-copiar-venda" class="btn">Copiar venda e compra</button><button type="button" id="contratos-copiar-alienacao" class="btn">Copiar alienação fiduciária</button><button type="button" id="contratos-copiar" class="btn btn-primary">Copiar todos os atos</button><span id="contratos-acoes-extras"></span><button type="button" id="contratos-historico-btn" class="btn">Histórico</button></div><div id="contratos-historico"></div>
   </section>
 </section>

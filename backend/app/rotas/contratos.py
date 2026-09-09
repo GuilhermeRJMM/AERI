@@ -16,7 +16,9 @@ from backend.app.seguranca_web import registrar_auditoria_cursor
 from backend.app.servicos.tri7 import cliente_tri7, ClienteTri7, ErroTri7, normalizar_numero_matricula
 from backend.app.servicos.contratos import (cifrador,cifrar,decifrar,documentos_publicos,
     extrair_contrato,confrontar,ficha_de,campos_ficha,servico,aplicar_decisoes,VERSAO_CONFRONTO,
-    completar_juros_ausentes)
+    completar_juros_ausentes,eh_escritura,versao_confronto,previa_minutas,
+    normalizar_ficha,gerar_minutas)
+from backend.app.servicos import escrituras
 from backend.app.servicos.documentos_contratos import DocumentoInvalido, OcrIndisponivel, conferir_prazo
 
 router=APIRouter(prefix="/api/contratos",tags=["contratos e minutas"],dependencies=[Depends(preparar_banco)])
@@ -42,22 +44,25 @@ def _publico(r):
         payload.pop("documento",None) # Texto integral só no endpoint autenticado específico.
         if payload.get("confronto"):
             payload["confronto"].pop("texto",None)
+    atual = not payload or payload.get('confronto',{}).get('versaoRegras')==versao_confronto(payload)
     return {"id":str(r["id"]),"protocolo":r["protocolo"],"documentoId":r["documento_id"],
             "estado":r["estado"],"versao":r["versao"],"progresso":r["progresso"],"erro":r["erro"],"dados":payload,
-            "confrontoAtual":payload.get('confronto',{}).get('versaoRegras')==VERSAO_CONFRONTO}
+            "confrontoAtual":atual}
 
 
-def _previa_minutas(ficha):
+def _previa_minutas(ficha, payload=None):
     """Monta a minuta logo na extracao, antes de qualquer confronto.
 
     E rascunho e vive em chave propria: `minutas` e o resultado conferido, que
     libera a copia e carrega as decisoes do conferente. Misturar os dois
     deixaria copiar para a Tri7 um texto que ninguem validou.
     """
+    if payload is not None:
+        return previa_minutas(payload, ficha)
     try:
         return servico.atos(ficha_de(ficha or {}))
     except Exception:
-        # A previa e acessorio: ficha incompleta nao pode derrubar a extracao.
+        # Compatibilidade com os trabalhos antigos e com a suíte histórica.
         return None
 
 
@@ -83,7 +88,7 @@ def consultar_protocolo(protocolo:str,_usuario=Depends(acesso)):
         r=cliente_tri7().listar_documentos_protocolo(numero(protocolo))
         return {"protocolo":numero(protocolo),"titulo":r["protocolo"].get("descricao_titulo"),
                 "documentos":documentos_publicos(r["documentos"]),
-                "mensagem":"Selecione o contrato. A seleção explícita evita confundir versões, validações ou anexos."}
+                "mensagem":"Selecione o contrato ou a escritura. A seleção explícita evita confundir versões, validações ou anexos."}
     except ErroTri7 as exc: raise HTTPException(502,str(exc)) from exc
 
 
@@ -194,23 +199,27 @@ def comparar(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
     with conectar() as con:
         with con.cursor() as cur: r=_buscar(cur,id,usuario,request.state.sessao["perfil"])
     _versao(r,dados)
-    if r["estado"] not in {"EXTRAIDO","CONFERIDO","MINUTA"}: raise HTTPException(409,"Aguarde a extração do contrato.")
+    if r["estado"] not in {"EXTRAIDO","CONFERIDO","MINUTA"}: raise HTTPException(409,"Aguarde a extração do documento.")
     p=decifrar(r["payload_cifrado"])
     try:
-        editada=servico.para_json(ficha_de(dados.get("ficha",p["ficha"])))
-        # Metadados de extração não são sobrescritos pelo navegador.
-        editada["origens"]=p["ficha"]["origens"]; editada["brutos"]=p["ficha"]["brutos"]
+        editada=normalizar_ficha(p,dados.get("ficha",p["ficha"]))
         p["ficha"]=editada
-        completar_juros_ausentes(p)
+        if not eh_escritura(p):
+            completar_juros_ausentes(p)
         # A previa acompanha o que o conferente editou na ficha.
-        p["minutasPrevia"]=_previa_minutas(p["ficha"])
+        p["minutasPrevia"]=_previa_minutas(p["ficha"],p)
     except (ValueError,TypeError,KeyError) as exc: raise HTTPException(422,"Ficha inválida.") from exc
     n=numero(dados.get("matricula"))
     try:
         texto=cliente_tri7().buscar_texto_matricula(n)["texto"]
         # Mesmas regras aprovadas que a consulta oficial, sem dados cadastrais.
         from backend.app.rotas.analisador import _regras_aprovadas
-        p["confronto"]=confrontar(p,texto,n,_regras_aprovadas())
+        p["confronto"]=(escrituras.confrontar(p,texto,n,_regras_aprovadas())
+                         if eh_escritura(p) else confrontar(p,texto,n,_regras_aprovadas()))
+        if eh_escritura(p):
+            p["requerimentos"]=escrituras.requerimentos_disponiveis(p)
+        else:
+            escrituras.preparar_auxiliares_contrato(p)
         p.pop("decisoes",None); p.pop("minutas",None); p.pop("minutasFinais",None)
     except ErroTri7 as exc: raise HTTPException(502,str(exc)) from exc
     with conectar() as con:
@@ -235,8 +244,9 @@ def previa(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
     if not isinstance(ficha,dict): raise HTTPException(422,"Ficha invalida.")
     with conectar() as con:
         with con.cursor() as cur:
-            _buscar(cur,id,usuario,request.state.sessao["perfil"])
-    return {"minutasPrevia":_previa_minutas(ficha)}
+            r=_buscar(cur,id,usuario,request.state.sessao["perfil"])
+    p=decifrar(r["payload_cifrado"])
+    return {"minutasPrevia":_previa_minutas(ficha,p)}
 
 
 @router.post("/{id}/gerar",dependencies=[Depends(proteger_csrf)])
@@ -247,15 +257,18 @@ def gerar(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
             r=_buscar(cur,id,usuario,request.state.sessao["perfil"],True); _versao(r,dados)
             p=decifrar(r["payload_cifrado"])
             if not p.get("confronto"): raise HTTPException(409,"Consulte a matrícula e confira os dados antes de gerar.")
-            if p['confronto'].get('versaoRegras') != VERSAO_CONFRONTO:
+            if p['confronto'].get('versaoRegras') != versao_confronto(p):
                 raise HTTPException(409,"A conferência foi feita com regras anteriores. Clique em Confrontar com a matrícula novamente.")
             decisoes=dados.get("decisoes") or {}
             ficha=dados.get("ficha")
             if not isinstance(ficha,dict): raise HTTPException(422,"Ficha inválida.")
             try:
-                nova,aplicadas=aplicar_decisoes(p,ficha,decisoes,dados.get("extracaoConferida"))
-                reconstruida=ficha_de(nova)
-                minutas=servico.atos(reconstruida)
+                if eh_escritura(p):
+                    nova,aplicadas=escrituras.aplicar_decisoes(
+                        p,ficha,decisoes,dados.get("extracaoConferida"))
+                else:
+                    nova,aplicadas=aplicar_decisoes(p,ficha,decisoes,dados.get("extracaoConferida"))
+                minutas=gerar_minutas(p,nova)
             except ValueError as exc:
                 raise HTTPException(422,str(exc)) from exc
             except (TypeError,ValueError,AttributeError,KeyError) as exc:
@@ -277,18 +290,36 @@ def gerar(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
 @router.put("/{id}/minuta",dependencies=[Depends(proteger_csrf)])
 def editar_minuta(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
     final=dados.get("textos") or {}
-    if set(final)!={"venda","alienacao"} or any(not isinstance(v,str) or len(v)>100_000 for v in final.values()):
+    if (not isinstance(final,dict) or not final or len(final)>12 or
+        any(not isinstance(k,str) or not isinstance(v,str) or len(v)>100_000 for k,v in final.items())):
         raise HTTPException(422,"Textos da minuta inválidos.")
     with conectar() as con:
         with con.cursor() as cur:
             r=_buscar(cur,id,usuario,request.state.sessao["perfil"],True); _versao(r,dados)
             p=decifrar(r["payload_cifrado"])
             if not p.get("minutas"): raise HTTPException(409,"Gere a minuta antes de editar.")
+            if set(final) != set(p["minutas"]):
+                raise HTTPException(422,"Textos da minuta não correspondem aos atos gerados.")
             p["minutasFinais"]=final
             salvo=_salvar(cur,r,p,"EDICAO_HUMANA",usuario,"MINUTA")
             registrar_auditoria_cursor(cur,request,"minuta_editada","sucesso",usuario,str(id))
         con.commit()
     return _publico(salvo)
+
+
+@router.get("/{id}/requerimento/{tipo}")
+def baixar_requerimento(id:UUID,tipo:str,request:Request,usuario=Depends(acesso)):
+    with conectar() as con:
+        with con.cursor() as cur:
+            r=_buscar(cur,id,usuario,request.state.sessao["perfil"])
+    p=decifrar(r["payload_cifrado"])
+    try:
+        nome,conteudo=escrituras.gerar_requerimento_docx(p,tipo)
+    except ValueError as exc:
+        raise HTTPException(422,str(exc)) from exc
+    seguro=re.sub(r'[^\w .()-]','_',nome,flags=re.UNICODE)
+    return Response(conteudo,media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    headers={"Content-Disposition":f'attachment; filename="{seguro}"',"Cache-Control":"no-store"})
 
 
 @router.get("/{id}/historico")
@@ -347,7 +378,15 @@ def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=Non
         arquivo=cli.buscar_documento_ged(r["documento_id"])
         conferir_prazo(prazo)
         p=extrair_contrato(arquivo["dados"],progresso,permitir_ocr=permitir_ocr,prazo=prazo)
-        p["minutasPrevia"]=_previa_minutas(p.get("ficha"))
+        if eh_escritura(p):
+            try:
+                escrituras.enriquecer_modelo_tri7(p,cli)
+            except ErroTri7:
+                p.setdefault("alertasExtracao",[]).append({
+                    "campo":"Modelo da Tri7",
+                    "motivo":"O catálogo de minutas não respondeu. O traslado foi extraído; selecione o modelo na Tri7 ao conferir."
+                })
+        p["minutasPrevia"]=_previa_minutas(p.get("ficha"),p)
         p["origemGed"]={"protocolo":r["protocolo"],"documentoId":r["documento_id"],"metadados":next(d for d in documentos_publicos(docs) if str(d["ged_documento_id"])==r["documento_id"])}
     except OcrIndisponivel as exc:
         # Digitalizado no caminho direto (a Vercel nao tem motor de OCR): isto

@@ -18,6 +18,7 @@ from backend.app.contratos_nucleo.comparacao import areas_iguais, designativo
 VERSAO_CONFRONTO = '20260901-confronto-v4-sem-blocos-de-operacao'
 from backend.app.servicos.analise_matricula import analisar_matricula
 from backend.app.servicos.documentos_contratos import extrair_documento, conferir_prazo
+from backend.app.servicos import escrituras
 
 
 def cifrador():
@@ -137,6 +138,8 @@ def extrair_contrato(dados, progresso=None, *, permitir_ocr=True, prazo=None):
     documento=extrair_documento(dados,progresso,permitir_ocr=permitir_ocr,prazo=prazo)
     conferir_prazo(prazo)
     chave=chave_texto(documento["texto"])
+    if escrituras.eh_escritura_publica(documento["texto"]):
+        return escrituras.extrair(documento)
     if "caixa economica federal" not in chave:
         outro=_documento_reconhecido(chave)
         if outro:
@@ -178,6 +181,44 @@ def extrair_contrato(dados, progresso=None, *, permitir_ocr=True, prazo=None):
         evidencias[campo["campo"]]={"paginas":paginas,"origem":ficha["origens"].get(campo["campo"],ficha["origens"].get(campo["campo"].split('.')[0],"Parser — conferir documento"))}
     conferir_prazo(prazo)
     return {"documento":documento,"fichaOriginal":ficha,"ficha":copy.deepcopy(ficha),"alertasExtracao":alertas,"evidencias":evidencias}
+
+
+def eh_escritura(payload):
+    return payload.get("tipoDocumento") == "ESCRITURA_PUBLICA"
+
+
+def versao_confronto(payload):
+    return escrituras.VERSAO if eh_escritura(payload) else VERSAO_CONFRONTO
+
+
+def previa_minutas(payload, ficha=None):
+    if eh_escritura(payload):
+        # Antes do confronto exibe o modelo principal; atos auxiliares só
+        # aparecem quando o fólio confirmar que são necessários.
+        return escrituras.gerar_minutas(payload, ficha or payload.get("ficha"))
+    try:
+        saida = servico.atos(ficha_de(ficha or payload.get("ficha") or {}))
+        saida.update(escrituras.gerar_minutas_auxiliares(payload))
+        return saida
+    except Exception:
+        return None
+
+
+def normalizar_ficha(payload, ficha):
+    if eh_escritura(payload):
+        return escrituras.normalizar_ficha(ficha)
+    nova = servico.para_json(ficha_de(ficha))
+    nova["origens"] = payload["ficha"]["origens"]
+    nova["brutos"] = payload["ficha"]["brutos"]
+    return nova
+
+
+def gerar_minutas(payload, ficha):
+    if eh_escritura(payload):
+        return escrituras.gerar_minutas(payload, ficha)
+    saida = servico.atos(ficha_de(ficha))
+    saida.update(escrituras.gerar_minutas_auxiliares(payload))
+    return saida
 
 
 def completar_juros_ausentes(payload):
