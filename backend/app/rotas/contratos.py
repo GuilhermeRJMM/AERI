@@ -193,6 +193,58 @@ def documento(id:UUID,request:Request,usuario=Depends(acesso)):
     except ErroTri7 as exc: raise HTTPException(502,str(exc)) from exc
 
 
+@router.post("/{id}/itbi",dependencies=[Depends(proteger_csrf)])
+def importar_guia_itbi(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
+    """Lê somente a guia escolhida e incorpora campos fiscais comprovados."""
+    documento_id=numero(dados.get("documentoId"))
+    with conectar() as con:
+        with con.cursor() as cur: r=_buscar(cur,id,usuario,request.state.sessao["perfil"])
+    _versao(r,dados)
+    if r["estado"] not in {"EXTRAIDO","CONFERIDO","MINUTA"}:
+        raise HTTPException(409,"Aguarde a extração da escritura antes de selecionar o ITBI.")
+    inicial=decifrar(r["payload_cifrado"])
+    if not eh_escritura(inicial):
+        raise HTTPException(422,"Selecione uma escritura pública para complementar com o ITBI.")
+    try:
+        cli=cliente_tri7()
+        documentos=cli.listar_documentos_protocolo(r["protocolo"])["documentos"]
+        disponiveis=escrituras.documentos_itbi_disponiveis(documentos,exceto=r["documento_id"])
+        selecionado=next((item for item in disponiveis if item["ged_documento_id"]==documento_id),None)
+        if not selecionado:
+            raise HTTPException(422,"A guia selecionada não pertence ao protocolo ou não foi identificada como ITBI.")
+        arquivo=cli.buscar_documento_ged(documento_id)
+        documento_itbi=extrair_documento(
+            arquivo["dados"],permitir_ocr=False,prazo=time.monotonic()+35
+        )
+        resultado=escrituras.extrair_guia_itbi(documento_itbi)
+    except OcrIndisponivel as exc:
+        raise HTTPException(422,"A guia de ITBI está digitalizada e precisa do OCR da serventia.") from exc
+    except (DocumentoInvalido, ValueError) as exc:
+        raise HTTPException(422,str(exc)) from exc
+    except ErroTri7 as exc:
+        raise HTTPException(502,str(exc)) from exc
+
+    with conectar() as con:
+        with con.cursor() as cur:
+            atual=_buscar(cur,id,usuario,request.state.sessao["perfil"],True)
+            _versao(atual,dados)
+            payload=decifrar(atual["payload_cifrado"])
+            payload.setdefault("documentosComplementares",{})["itbiDisponiveis"]=disponiveis
+            try:
+                escrituras.anexar_guia_itbi(payload,resultado,selecionado)
+            except ValueError as exc:
+                raise HTTPException(422,str(exc)) from exc
+            salvo=_salvar(cur,atual,payload,"ITBI_GED",usuario,"EXTRAIDO")
+            registrar_auditoria_cursor(
+                cur,request,"contrato_itbi_selecionado","sucesso",usuario,str(id),
+                {"documento":documento_id,"campos":sum(
+                    bool(valor) for valor in (resultado.get("campos") or {}).values()
+                )},
+            )
+        con.commit()
+    return _publico(salvo)
+
+
 @router.post("/{id}/matricula",dependencies=[Depends(proteger_csrf)])
 def comparar(id:UUID,dados:dict,request:Request,usuario=Depends(acesso)):
     if len(json.dumps(dados))>1_000_000: raise HTTPException(413,"Ficha muito grande.")
@@ -388,6 +440,12 @@ def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=Non
                 })
         p["minutasPrevia"]=_previa_minutas(p.get("ficha"),p)
         p["origemGed"]={"protocolo":r["protocolo"],"documentoId":r["documento_id"],"metadados":next(d for d in documentos_publicos(docs) if str(d["ged_documento_id"])==r["documento_id"])}
+        if eh_escritura(p):
+            p["documentosComplementares"]={
+                "itbiDisponiveis":escrituras.documentos_itbi_disponiveis(
+                    docs,exceto=r["documento_id"]
+                )
+            }
     except OcrIndisponivel as exc:
         # Digitalizado no caminho direto (a Vercel nao tem motor de OCR): isto
         # nao e falha, e trabalho para o executor. Volta para a fila em vez de

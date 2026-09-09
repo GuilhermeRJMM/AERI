@@ -219,6 +219,23 @@ test('a mesma tela apresenta escritura, atos auxiliares e requerimento',()=>{
     assert.equal(a.elemento('contratos-previa-venda').hidden,true);
 });
 
+test('escritura permite escolher guia de ITBI do GED sem preencher valor do negócio como imposto',()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'escritura',versao:3,confrontoAtual:true,dados:{tipoDocumento:'ESCRITURA_PUBLICA',
+        gruposFicha:[['titulo','Título público']],ficha:{titulo:{especie:'Venda e compra'},matriculas:['39547']},
+        alertasExtracao:[],evidencias:{},documentosComplementares:{
+            itbiDisponiveis:[{ged_documento_id:'267388',descricao:'Guia de ITBI digital'}],
+            itbiSelecionado:{camposAplicados:{},conferencia:{matricula:'39.547',valor_negocio:'400.000,00'},alertas:['Base de cálculo não consta.']}
+        }}};
+    a.rodar('trabalho=entrada;desenhar()');
+    const html=a.elemento('contratos-complementares').innerHTML;
+    assert.match(html,/Guia de ITBI digital/);
+    assert.match(html,/data-importar-itbi/);
+    assert.match(html,/R\$400\.000,00/);
+    assert.match(html,/não substitui a base de cálculo/);
+    assert.match(html,/Base de cálculo não consta/);
+});
+
 test('comparação não tem mais o bloco de conferência da operação',()=>{
     const a=ambiente();
     const html=a.rodar("quadroComparacao({campo:'imovel.area',contrato:'200 m²',matricula:'190 m²',situacao:'REVISAR',permiteMatricula:true})");

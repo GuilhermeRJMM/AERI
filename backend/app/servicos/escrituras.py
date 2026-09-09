@@ -26,7 +26,7 @@ from backend.app.gerador_notas.servico import MOLDE
 from backend.app.servicos.analise_matricula import analisar_matricula
 
 
-VERSAO = "20260909-escrituras-v1"
+VERSAO = "20260909-escrituras-v2-itbi-ged"
 
 ROTULOS_TRANSMITENTES = (
     "VENDEDOR", "VENDEDORA", "VENDEDORES", "VENDEDORAS",
@@ -72,6 +72,31 @@ def _sem_acento(valor: object) -> str:
 
 def _chave(valor: object) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", _sem_acento(valor))).strip().upper()
+
+
+def documentos_itbi_disponiveis(documentos: list[dict], *, exceto: object = None) -> list[dict]:
+    """Devolve somente anexos que o usuário pode escolher como fonte de ITBI."""
+    ignorado = str(exceto or "")
+    saida = []
+    for documento in documentos or []:
+        if not isinstance(documento, dict):
+            continue
+        identificador = str(documento.get("ged_documento_id") or "")
+        descricao = " ".join(str(documento.get(campo) or "") for campo in (
+            "tipo_documento", "categoria", "descricao",
+        ))
+        chave = _chave(descricao)
+        if not identificador or identificador == ignorado or "ITBI" not in chave:
+            continue
+        saida.append({
+            "ged_documento_id": identificador,
+            "tipo_documento": str(documento.get("tipo_documento") or "Guia de ITBI"),
+            "categoria": str(documento.get("categoria") or ""),
+            "descricao": str(documento.get("descricao") or ""),
+            "versao": documento.get("versao"),
+            "status_atual": str(documento.get("status_atual") or ""),
+        })
+    return saida
 
 
 def eh_escritura_publica(texto: str) -> bool:
@@ -247,6 +272,140 @@ def _itbi(texto: str) -> dict:
         "guia": _primeiro(r"Guia(?:\s+de\s+Informa[çc][aã]o\s+do\s+ITBI)?\s*n?[.º°o]*\s*([\d./-]+)", trecho),
         "valor_recolhido": _primeiro(r"Valor\s+(?:Pago|Recolhido)\s*:\s*R\$\s*([\d.]+,\d{2})", trecho),
     }
+
+
+def _primeiro_de(padroes: tuple[str, ...], texto: str) -> str:
+    for padrao in padroes:
+        achado = re.search(padrao, texto, re.I | re.S)
+        if achado:
+            return re.sub(r"\s+", " ", achado.group(1)).strip(" .;:-")
+    return ""
+
+
+def extrair_guia_itbi(documento: dict) -> dict:
+    """Extrai somente dados fiscais comprovados pelo anexo selecionado.
+
+    O valor do negócio e a área servem para conferência, mas nunca são
+    promovidos silenciosamente a base de cálculo. Guia sem avaliação ou sem
+    DUAM continua incompleta, como ocorre no protocolo 185.925.
+    """
+    texto = str((documento or {}).get("texto") or "")
+    if "ITBI" not in _chave(texto):
+        raise ValueError("O documento selecionado não foi reconhecido como guia de ITBI.")
+
+    valor = r"([\d.]+,\d{2})"
+    numero = r"([\d./-]{2,30})"
+    campos = {
+        "guia": _primeiro_de((
+            rf"Guia\s+de\s+(?:Informa[^\n:]{{0,35}}|Lan[^\n:]{{0,45}})\s+n\s*[.º°o]*\s*{numero}",
+            rf"Guia\s+n\s*[.º°o]*\s*{numero}",
+        ), texto),
+        "base_calculo": _primeiro_de((
+            rf"Base\s+de\s+C[^\n:]{{0,35}}:\s*R\$\s*{valor}",
+            rf"Im[oó]vel\s+Avaliado\s+em\s*R\$\s*{valor}",
+        ), texto),
+        "duam": _primeiro_de((
+            rf"D[UI]AM\s+n\s*[.º°o]*\s*{numero}",
+            rf"D[UI]AM\s*:\s*{numero}",
+        ), texto),
+        "valor_recolhido": _primeiro_de((
+            rf"Valor\s+(?:Recolhido|Pago)\s*:\s*R\$\s*{valor}",
+            rf"VALOR\s+A\s+RECOLHER\s*:\s*R\$\s*{valor}",
+        ), texto),
+        "data_quitacao": _primeiro_de((
+            r"(?:quitad[ao]|recolhimento)\s+(?:em|:)\s*(\d{2}/\d{2}/\d{4})",
+            r"Data\s+de\s+(?:Pagamento|Quita[çc][aã]o)\s*:\s*(\d{2}/\d{2}/\d{4})",
+        ), texto).replace("/", "."),
+    }
+    conferencia = {
+        "matricula": _primeiro_de((
+            r"Matr[íi�]cula\s+n\s*[.º°o�]*\s*([\d.]+)",
+            r"N[uú�]mero\s+do\s+registro\s*:\s*(?:Matr[íi�]cula\s+n\s*[.º°o�]*\s*)?([\d.]+)",
+        ), texto),
+        "valor_negocio": _primeiro_de((
+            rf"Valor\s+do\s+Neg[oó�]cio\s+Jur[íi�]dico\s*:.{{0,80}}?R\$\s*{valor}",
+        ), texto),
+        "area": _primeiro_de((
+            r"[ÁA�]rea\s+total\s*\(ha/m[²2�]\)\s*:.{0,180}?\b([\d.,]+\s*(?:ha|m[²2�]))",
+        ), texto),
+        "parte_ideal": _primeiro_de((
+            r"Parte\s+Ideal\s*:.{0,180}?\b([\d.,]+\s*%)",
+        ), texto),
+    }
+    vazios = [
+        rotulo for campo, rotulo in (
+            ("guia", "número da guia"), ("base_calculo", "base de cálculo"),
+            ("duam", "DUAM"), ("valor_recolhido", "valor do imposto"),
+            ("data_quitacao", "data de quitação"),
+        ) if not campos[campo]
+    ]
+    alertas = []
+    if vazios:
+        alertas.append(
+            "O anexo não comprova " + ", ".join(vazios) +
+            "; esses campos permanecerão para conferência na Tri7."
+        )
+    return {
+        "campos": campos,
+        "conferencia": conferencia,
+        "alertas": alertas,
+        "sha256": str(documento.get("sha256") or ""),
+        "ocr": bool(documento.get("ocr")),
+    }
+
+
+def anexar_guia_itbi(payload: dict, resultado: dict, metadados: dict) -> dict:
+    """Vincula a guia escolhida sem trocar dados do título por valores vazios."""
+    if payload.get("tipoDocumento") != "ESCRITURA_PUBLICA":
+        raise ValueError("A guia de ITBI complementar está disponível para escrituras públicas.")
+    ficha = payload.get("ficha") or {}
+    matriculas = {
+        re.sub(r"\D", "", str(numero)) for numero in ficha.get("matriculas", [])
+        if re.sub(r"\D", "", str(numero))
+    }
+    matricula_guia = re.sub(
+        r"\D", "", str((resultado.get("conferencia") or {}).get("matricula") or "")
+    )
+    if matricula_guia and matriculas and matricula_guia not in matriculas:
+        raise ValueError("A matrícula informada na guia de ITBI não corresponde à escritura selecionada.")
+
+    campos = resultado.get("campos") or {}
+    destino = ficha.setdefault("valores", {}).setdefault("itbi", {})
+    original = payload.setdefault("fichaOriginal", copy.deepcopy(ficha))
+    destino_original = original.setdefault("valores", {}).setdefault("itbi", {})
+    aplicados = {}
+    for campo in ("data_quitacao", "base_calculo", "duam", "guia", "valor_recolhido"):
+        valor = str(campos.get(campo) or "").strip()
+        if valor:
+            destino[campo] = valor
+            destino_original[campo] = valor
+            aplicados[campo] = valor
+
+    alertas = list(resultado.get("alertas") or [])
+    valor_guia = str((resultado.get("conferencia") or {}).get("valor_negocio") or "")
+    valor_titulo = str(ficha.get("valores", {}).get("operacao") or "")
+    numeros = lambda valor: re.sub(r"\D", "", valor or "").lstrip("0")
+    if valor_guia and valor_titulo and numeros(valor_guia) != numeros(valor_titulo):
+        alertas.append(
+            f"O valor do negócio na guia (R${valor_guia}) diverge do título (R${valor_titulo})."
+        )
+
+    complemento = payload.setdefault("documentosComplementares", {})
+    complemento["itbiSelecionado"] = {
+        "ged_documento_id": str(metadados.get("ged_documento_id") or ""),
+        "tipo_documento": str(metadados.get("tipo_documento") or "Guia de ITBI"),
+        "descricao": str(metadados.get("descricao") or ""),
+        "status_atual": str(metadados.get("status_atual") or ""),
+        "camposAplicados": aplicados,
+        "conferencia": resultado.get("conferencia") or {},
+        "alertas": alertas,
+        "sha256": str(resultado.get("sha256") or ""),
+    }
+    # Qualquer conferência anterior ficou desatualizada depois da nova fonte.
+    for chave in ("confronto", "decisoes", "minutas", "minutasFinais", "fichaGerada", "requerimentos"):
+        payload.pop(chave, None)
+    payload["minutasPrevia"] = gerar_minutas(payload, ficha)
+    return payload
 
 
 def extrair(documento: dict) -> dict:
@@ -506,21 +665,32 @@ def _forma_titulo(ficha: dict) -> str:
     )
 
 
-def _nota_itbi(ficha: dict) -> str:
+def _nota_itbi(ficha: dict, *, anexo_ged: bool = False) -> str:
     itbi = ficha.get("valores", {}).get("itbi", {})
-    campos = ("data_quitacao", "base_calculo", "duam", "guia", "valor_recolhido")
-    if not any(itbi.get(c) for c in campos):
-        return "[[conferir dados do ITBI constantes do título]]"
+    data = itbi.get("data_quitacao") or "de  de"
+    base = itbi.get("base_calculo") or "Valor•avaliacao•imovel•itbi«a»"
+    duam = itbi.get("duam") or "Numero•duam•itbi«a»"
+    guia = itbi.get("guia") or "Numero•protocolo•itbi«a»"
+    valor = itbi.get("valor_recolhido") or "Valor•recolhido•itbi«a»"
+    completos = all(itbi.get(c) for c in (
+        "data_quitacao", "base_calculo", "duam", "guia", "valor_recolhido"
+    ))
+    if anexo_ged and completos:
+        return (
+            "foram apresentadas a Guia de Lançamento e Pagamento do Imposto "
+            f"Sobre Transmissão de Bens Imóveis de n.º {guia}, constando avaliação "
+            f"do imóvel em R${base}; e, Certidão de Quitação de DUAM n.º {duam}, "
+            f"no valor de R${valor}, quitada em {data}"
+        )
     return (
-        "o recolhimento do Imposto Sobre a Transmissão de Bens Imóveis - ITBI "
-        f"em data de {itbi.get('data_quitacao') or '[[data]]'}; Base de cálculo: "
-        f"R${itbi.get('base_calculo') or '[[base de cálculo]]'}; DUAM: "
-        f"{itbi.get('duam') or '[[DUAM]]'}; Guia n.º {itbi.get('guia') or '[[guia]]'}; "
-        f"Valor recolhido: R${itbi.get('valor_recolhido') or '[[valor]]'}"
+        "Constou da escritura o recolhimento do Imposto Sobre a Transmissão de "
+        f"Bens Imóveis ITBI em data de {data}; Base de cálculo: R${base}; "
+        f"Duam: {duam}; Guia n.º {guia}; Valor recolhido: R${valor}"
     )
 
 
-def _minuta_principal(ficha: dict, confronto: dict, modelo: dict | None) -> dict:
+def _minuta_principal(ficha: dict, confronto: dict, modelo: dict | None,
+                      *, itbi_ged: bool = False) -> dict:
     especie = ficha.get("titulo", {}).get("especie", "Escritura pública")
     if _chave(especie) not in {"VENDA E COMPRA", "COMPRA E VENDA"}:
         texto_modelo = str((modelo or {}).get("texto") or "").strip()
@@ -530,25 +700,38 @@ def _minuta_principal(ficha: dict, confronto: dict, modelo: dict | None) -> dict
         )
         return {"texto": texto, "pendencias": [{"campo": "modelo", "motivo": "Confira e complete os campos variáveis do modelo da Tri7.", "grau": "CONFIRIR", "sugestao": ""}]}
 
-    transmitentes = ficha.get("transmitentes", {}).get("qualificacao") or "[[qualificação dos transmitentes]]"
-    adquirentes = ficha.get("adquirentes", {}).get("qualificacao") or "[[qualificação dos adquirentes]]"
-    valor = ficha.get("valores", {}).get("operacao") or "[[valor da operação]]"
-    origem = confronto.get("contexto", {}).get("origem") or "[[origem]]"
+    numero = _numero_formatado(confronto.get("numero") or (ficha.get("matriculas") or [""])[0])
+    data_ato = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d.%m.%Y")
+    forma = _forma_titulo(ficha)
     texto = (
-        "VENDA E COMPRA. "
-        f"TRANSMITENTE(S): {transmitentes}. "
-        f"ADQUIRENTE(S): {adquirentes}. "
-        "IMÓVEL: O descrito na matrícula. "
-        f"ORIGEM: {origem}. "
-        f"FORMA DO TÍTULO: {_forma_titulo(ficha)}. "
-        f"VALOR: R${valor}. "
-        f"*NOTAS: Constou da escritura: I)- {_nota_itbi(ficha)}; e, II)- a "
-        "demonstração ou declaração do recolhimento das parcelas previstas no "
-        "art. 15, §1º, da Lei Estadual n.º 19.191/2015. DOU FÉ."
+        f"Tipo•ato•ficha«a».Numero•ato•f«a»-{numero} - Data: {data_ato}. "
+        "Protocolo n.º Numero•ordem•prot«a», de ... VENDA E COMPRA. "
+        "TRANSMITENTE(S): Qualificacao•vendedor•i«a»; SE PJ (preencher os campos "
+        "referentes à representação) no ato representada por REPRESENTANTES_CTRL_Q«m», "
+        "nos termos do (Contrato Social ou xx Alteração do Contrato Social) datado de "
+        "xx.xx.xxxx«m», devidamente registrado na JUCEG em xx.xx.xxxx«m», sob o n.º "
+        "xxxxxxxxxx«m», Nire xxxxxxxxx«m»; (Se houver procurador: nos termos da "
+        "Procuração lavrada em xx.xx.xxxx«m», às fls.xxx«m», Livro xxx«m», pelo "
+        "Cartório xxxxxxxxxxxxxxx«m»). ADQUIRENTE(S): Qualificacao•proprietario•i«a»; "
+        "SE PJ (preencher os campos referentes à representação) no ato representada por "
+        "REPRESENTANTES_CTRL_Q«m», nos termos do (Contrato Social ou xx Alteração do "
+        "Contrato Social) datado de xx.xx.xxxx«m», devidamente registrado na JUCEG em "
+        "xx.xx.xxxx«m», sob o n.º xxxxxxxxxx«m», Nire xxxxxxxxx«m»; (Se houver "
+        "procurador: nos termos da Procuração lavrada em xx.xx.xxxx«m», às fls.xxx«m», "
+        "Livro xxx«m», pelo Cartório xxxxxxxxxxxxxxx«m»). IMÓVEL: xx«m»% do imóvel "
+        "descrito na matrícula, (SE RURAL ACRESCENTAR: equivalente a xx,xxxx«m»ha). "
+        "ORIGEM: (SELECIONAR: Origem - Ctrl+T)«m». "
+        f"FORMA DO TÍTULO: {forma}. "
+        "VALOR: (SELECIONAR: Forma de Pagamento - Ctrl+T)«m». "
+        f"*NOTAS: I)- {_nota_itbi(ficha, anexo_ged=itbi_ged)}; "
+        "II)- (SE RURAL ACRESCENTAR: (SELECIONAR: Notas-Livro 02 - ITR - Ctrl+T)«m»); "
+        "e, III)- (SELECIONAR: Notas-Livro 02 - Abono Recolhimento - Ctrl+T)«m». "
+        "DOU FÉ. Selo: . Cotação do ato: emolumentos: R$; ISSQN: R$; taxa judiciária: "
+        "R$; ; Total: R$. Morrinhos-GO, de  de. Oficial: /xxxxx/xxxxx/"
     )
     pendencias = []
-    if "[[" in texto:
-        pendencias.append({"campo": "minuta principal", "motivo": "Há campos não identificados que precisam ser completados na Tri7.", "grau": "CONFERIR", "sugestao": ""})
+    if any(marcador in texto for marcador in ("xx«,", "xx«", "Numero•", "Valor•", "SELECIONAR:")):
+        pendencias.append({"campo": "minuta principal", "motivo": "Há seleções e campos variáveis que precisam ser completados na Tri7.", "grau": "CONFERIR", "sugestao": ""})
     return {"texto": texto, "pendencias": pendencias}
 
 
@@ -591,7 +774,8 @@ def gerar_minutas(payload: dict, ficha: dict | None = None) -> dict:
     ficha = normalizar_ficha(ficha or payload.get("ficha") or {})
     confronto = payload.get("confronto") or {}
     modelo = payload.get("modeloTri7")
-    saida = {"principal": _minuta_principal(ficha, confronto, modelo)}
+    itbi_ged = bool((payload.get("documentosComplementares") or {}).get("itbiSelecionado"))
+    saida = {"principal": _minuta_principal(ficha, confronto, modelo, itbi_ged=itbi_ged)}
     auxiliares = confronto.get("auxiliares", {})
     if auxiliares.get("cep"):
         saida["cep"] = _minuta_cep(ficha, confronto.get("numero"))

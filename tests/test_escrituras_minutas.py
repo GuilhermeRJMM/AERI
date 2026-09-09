@@ -24,6 +24,64 @@ Recolhimento: 03/08/2026; Guia n.º 826/2026; Valor Recolhido: R$ 4.800,00.
 
 
 class TesteEscriturasMinutas(unittest.TestCase):
+    def test_lista_somente_guias_itbi_do_protocolo(self):
+        documentos = [
+            {"ged_documento_id": 10, "tipo_documento": "Traslado", "descricao": "Escritura"},
+            {"ged_documento_id": 11, "tipo_documento": "Guia", "descricao": "Guia de ITBI digital"},
+            {"ged_documento_id": 12, "categoria": "ITBI", "descricao": "Documento fiscal"},
+        ]
+        itens = escrituras.documentos_itbi_disponiveis(documentos, exceto=12)
+        self.assertEqual([i["ged_documento_id"] for i in itens], ["11"])
+
+    def test_guia_itbi_incompleta_nao_inventa_dados_fiscais(self):
+        documento = {"texto": """
+            GUIA DE INFORMAÇÃO DO ITBI
+            Matrícula n.º 39.547
+            Valor do Negócio Jurídico: R$ 400.000,00
+            Área total (ha/m²): 7,8183 ha
+            Parte Ideal: 100%
+        """, "sha256": "abc", "ocr": False}
+        resultado = escrituras.extrair_guia_itbi(documento)
+        self.assertEqual(resultado["conferencia"]["matricula"], "39.547")
+        self.assertEqual(resultado["conferencia"]["valor_negocio"], "400.000,00")
+        self.assertTrue(all(not valor for valor in resultado["campos"].values()))
+        self.assertIn("base de cálculo", resultado["alertas"][0])
+
+    def test_guia_itbi_completa_preenche_somente_campos_comprovados(self):
+        documento = {"texto": """
+            GUIA DE LANÇAMENTO E PAGAMENTO DO ITBI
+            Matrícula n.º 39.547
+            Guia n.º 458/2026
+            Base de Cálculo: R$ 1.164.000,00
+            DUAM n.º 1557714/0
+            Valor Recolhido: R$ 34.920,00
+            Data de Pagamento: 29/04/2026
+        """, "sha256": "def", "ocr": False}
+        resultado = escrituras.extrair_guia_itbi(documento)
+        self.assertEqual(resultado["campos"], {
+            "guia": "458/2026", "base_calculo": "1.164.000,00",
+            "duam": "1557714/0", "valor_recolhido": "34.920,00",
+            "data_quitacao": "29.04.2026",
+        })
+        payload = {
+            "tipoDocumento": "ESCRITURA_PUBLICA",
+            "ficha": {"matriculas": ["39547"], "valores": {"operacao": "1.164.000,00", "itbi": {}}},
+        }
+        escrituras.anexar_guia_itbi(payload, resultado, {
+            "ged_documento_id": "88", "descricao": "Guia ITBI",
+        })
+        self.assertEqual(payload["ficha"]["valores"]["itbi"]["guia"], "458/2026")
+        self.assertEqual(len(payload["documentosComplementares"]["itbiSelecionado"]["camposAplicados"]), 5)
+
+    def test_guia_de_outra_matricula_e_recusada(self):
+        payload = {
+            "tipoDocumento": "ESCRITURA_PUBLICA",
+            "ficha": {"matriculas": ["39547"], "valores": {"itbi": {}}},
+        }
+        resultado = {"campos": {}, "conferencia": {"matricula": "39.546"}}
+        with self.assertRaisesRegex(ValueError, "não corresponde"):
+            escrituras.anexar_guia_itbi(payload, resultado, {})
+
     def test_extrai_escritura_sem_misturar_documentos_das_partes(self):
         payload = escrituras.extrair({"texto": ESCRITURA, "ocr": False, "paginas": []})
         self.assertEqual(payload["tipoDocumento"], "ESCRITURA_PUBLICA")
@@ -47,6 +105,18 @@ class TesteEscriturasMinutas(unittest.TestCase):
         escrituras.enriquecer_modelo_tri7(payload, Tri7())
         self.assertEqual(payload["modeloTri7"]["minutaId"], 505)
         self.assertEqual(payload["modeloTri7"]["texto"], "MODELO INSTITUCIONAL")
+
+    def test_minuta_de_venda_segue_padrao_e_nao_leva_email_da_escritura(self):
+        payload = escrituras.extrair({
+            "texto": ESCRITURA + " E-mail: pessoa@example.com", "ocr": False, "paginas": [],
+        })
+        payload["confronto"] = {"numero": "9790", "contexto": {}, "auxiliares": {}}
+        texto = escrituras.gerar_minutas(payload)["principal"]["texto"]
+        self.assertIn("Qualificacao•vendedor•i«a»", texto)
+        self.assertIn("Qualificacao•proprietario•i«a»", texto)
+        self.assertIn("Numero•ordem•prot«a»", texto)
+        self.assertNotIn("@", texto)
+        self.assertNotIn("E-mail", texto)
 
     def test_requerimento_combinado_e_docx_editavel(self):
         payload = escrituras.extrair({"texto": ESCRITURA, "ocr": False, "paginas": []})

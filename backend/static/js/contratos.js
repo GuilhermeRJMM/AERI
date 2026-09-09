@@ -98,6 +98,19 @@ function desenharAutomatizacoes(dados){
     ];
     $('automatizacoes').innerHTML=`<div class="contratos-confirmacoes">${itens.map(i=>`<p class="${i.ok?'ok':'atencao'}"><strong>${i.ok?'✓':'!'}</strong> ${escaparHtml(i.texto)}</p>`).join('')}</div>`;
 }
+function desenharComplementares(dados){
+    const alvo=$('complementares');
+    if(dados.tipoDocumento!=='ESCRITURA_PUBLICA'){alvo.replaceChildren();return;}
+    const complemento=dados.documentosComplementares||{};
+    const disponiveis=complemento.itbiDisponiveis||[];
+    const selecionado=complemento.itbiSelecionado;
+    if(!disponiveis.length&&!selecionado){alvo.replaceChildren();return;}
+    const opcoes=disponiveis.map(d=>`<option value="${escaparHtml(String(d.ged_documento_id))}">${escaparHtml(d.descricao||d.tipo_documento||'Guia de ITBI')}</option>`).join('');
+    const conferencia=selecionado?.conferencia||{};
+    const aplicados=Object.keys(selecionado?.camposAplicados||{});
+    const resumo=selecionado?`<div class="contratos-confirmacoes"><p class="${aplicados.length?'ok':'atencao'}"><strong>${aplicados.length?'✓':'!'}</strong> ${escaparHtml(aplicados.length?`${aplicados.length} campo(s) fiscal(is) comprovado(s) foram inseridos na minuta.`:'A guia foi conferida, mas não contém campos fiscais suficientes para preencher a minuta.')}</p>${(selecionado.alertas||[]).map(a=>`<p class="atencao"><strong>!</strong> ${escaparHtml(a)}</p>`).join('')}</div><p class="contratos-aviso">Conferência do anexo: matrícula ${escaparHtml(conferencia.matricula||'não identificada')} · valor do negócio ${escaparHtml(conferencia.valor_negocio?`R$${conferencia.valor_negocio}`:'não identificado')}. O valor do negócio não substitui a base de cálculo.</p>`:'';
+    alvo.innerHTML=`<details class="contratos-alertas-extracao" open><summary>Complementar com ITBI do GED (opcional)</summary><p>Selecione a guia vinculada ao protocolo. Somente dados fiscais expressamente preenchidos serão inseridos.</p>${disponiveis.length?`<div class="contratos-form"><label>Guia de ITBI<select id="contratos-itbi-select">${opcoes}</select></label><button type="button" class="btn" data-importar-itbi>Conferir e inserir ITBI</button></div>`:''}${resumo}</details>`;
+}
 function textosMinuta(dados){
     const finais=dados?.minutasFinais||{}, geradas=dados?.minutas||{};
     const chaves=[...new Set(['venda','alienacao',...Object.keys(geradas),...Object.keys(finais)])];
@@ -173,6 +186,7 @@ function desenhar(){
     const alertas=(dados.alertasExtracao||[]).filter(a=>campoVisivel(a.campo));
     $('alertas').innerHTML=alertas.length?`<details class="contratos-alertas-extracao"><summary>Pontos que precisam de conferência</summary>${alertas.map(a=>`<p>${escaparHtml(a.campo)} — ${escaparHtml(a.motivo)}</p>`).join('')}</details>`:'<p class="contratos-confirmacao-ok"><strong>✓</strong> Extração concluída sem alertas automáticos.</p>';
     desenharAutomatizacoes(dados);
+    desenharComplementares(dados);
     $('matricula').value=dados.confronto?.numero || dados.ficha.matricula?.numero || dados.ficha.matriculas?.[0] || '';
     $('conferencia').hidden=!dados.confronto;
     if(dados.confronto){
@@ -260,7 +274,7 @@ async function extrairSelecionado(id){
         mensagem(e.name==='AbortError'?'A requisição excedeu o tempo de espera. Aguarde alguns segundos e retome este mesmo trabalho, sem criar outro.':e.message);
     }finally{clearTimeout(limite);if(g===geracao)$('mensagem').setAttribute('aria-busy','false');}
 }
-export function limparContratos(){geracao++;esperaOcrAte=0;clearTimeout(timer);clearTimeout(timerPrevia);modoExtracao(false);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','pendencias-minuta','minutas-extras','requerimentos','acoes-extras'])$(s).replaceChildren();preencherPrevia('minuta-venda-preview','');preencherPrevia('minuta-alienacao-preview','');$('previa-estado').textContent='';$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
+export function limparContratos(){geracao++;esperaOcrAte=0;clearTimeout(timer);clearTimeout(timerPrevia);modoExtracao(false);trabalho=null;protocolo=null;for(const s of ['extraido','conferencia','minutas','retomar'])$(s).hidden=true;for(const s of ['documentos','recentes','ficha','historico','comparacoes','exigencias','alertas','automatizacoes','complementares','pendencias-minuta','minutas-extras','requerimentos','acoes-extras'])$(s).replaceChildren();preencherPrevia('minuta-venda-preview','');preencherPrevia('minuta-alienacao-preview','');$('previa-estado').textContent='';$('matricula').value='';$('original').removeAttribute('href');$('confirmacao').checked=false;$('mensagem').setAttribute('aria-busy','false');avisoGeracao('');$('copia-status').textContent='';mensagem('');}
 
 function copiarTextoNoIframe(texto){
     const campo=document.createElement('textarea');
@@ -299,6 +313,14 @@ export function iniciarContratos(){
         if(!r.documentos.length) mensagem('Nenhum documento GED vinculado ao protocolo.');
     });});
     $('documentos').addEventListener('click',e=>{const b=e.target.closest('[data-ged]');if(b)acao(b,async()=>{geracao++;clearTimeout(timer);modoExtracao(true);mensagem('Obtendo o documento no GED e extraindo o texto… Isso pode levar alguns segundos.');try{trabalho=await requisicaoAeri('/api/contratos',json('POST',{protocolo,documentoId:b.dataset.ged}));await extrairSelecionado(trabalho.id);}catch(erro){modoExtracao(false);throw erro;}});});
+    $('complementares').addEventListener('click',e=>{const b=e.target.closest('[data-importar-itbi]');if(b)acao(b,async()=>{
+        const seletor=$('itbi-select');
+        if(!seletor?.value)throw new Error('Selecione uma guia de ITBI do GED.');
+        mensagem('Conferindo a guia de ITBI selecionada…');
+        trabalho=await requisicaoAeri(`/api/contratos/${trabalho.id}/itbi`,json('POST',{versao:trabalho.versao,documentoId:seletor.value}));
+        desenhar();
+        mensagem('✓ Guia de ITBI conferida. Revise o resultado antes de confrontar a matrícula.',true);
+    });});
     $('retomar').addEventListener('click',e=>acao(e.target,async()=>{if(trabalho)await extrairSelecionado(trabalho.id);}));
     $('recentes-btn').addEventListener('click',e=>acao(e.target,async()=>{const r=await requisicaoAeri('/api/contratos');$('recentes').innerHTML=r.map(t=>`<button class="btn" data-trabalho="${t.id}">Protocolo ${escaparHtml(t.protocolo)} · ${escaparHtml(t.estado)}</button>`).join('')||'<p>Nenhum trabalho anterior.</p>';}));
     $('recentes').addEventListener('click',e=>{const b=e.target.closest('[data-trabalho]');if(b){geracao++;acompanhar(b.dataset.trabalho);}});
