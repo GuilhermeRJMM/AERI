@@ -16,7 +16,7 @@ import {carregarRegistrosAuxiliares, iniciarRegistrosAuxiliares, limparRegistros
 import {ativarStatusOnr, iniciarStatusOnr, pararStatusOnr} from './status_onr.js?v=20260820-robustez-v1-api1';
 import {carregarUsuarios, exigirTrocaSenha, iniciarUsuarios} from './usuarios.js?v=20260831-setores-v1-api1';
 import {iniciarAtualizacaoPeriodica} from './util.js?v=20260820-robustez-v1';
-import {iniciarAtalhosGlobais} from './atalhos.js?v=20260821-atalhos-v1';
+import {iniciarAtalhosGlobais} from './atalhos.js?v=20260910-salao-v1';
 
 const INTERVALO_ATUALIZACAO_MS = 30_000;
 let pararAtualizacoesPeriodicas = [];

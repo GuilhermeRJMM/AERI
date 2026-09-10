@@ -1,4 +1,7 @@
+import {abrirSalaoJogos} from './jogos.js?v=20260910-salao-v1';
+
 const SEQUENCIA = ['ArrowUp', 'ArrowDown', 'Digit6', 'Digit7'];
+const SEQUENCIA_SALAO = ['ArrowUp', 'ArrowDown', 'Digit2', 'Digit2'];
 const TEMPO_LIMITE_MS = 1800;
 
 function elementoEmEdicao(alvo) {
@@ -187,16 +190,33 @@ function abrirTabuleiro() {
 
 export function iniciarAtalhosGlobais() {
     let posicao = 0;
+    let posicaoSalao = 0;
     let ultimaTecla = 0;
 
     window.addEventListener('keydown', evento => {
         if (evento.repeat || evento.ctrlKey || evento.altKey || evento.metaKey || elementoEmEdicao(evento.target)) return;
 
         const agora = Date.now();
-        if (agora - ultimaTecla > TEMPO_LIMITE_MS) posicao = 0;
+        if (agora - ultimaTecla > TEMPO_LIMITE_MS) {
+            posicao = 0;
+            posicaoSalao = 0;
+        }
         ultimaTecla = agora;
 
-        if (evento.code === SEQUENCIA[posicao]) {
+        const codigo = evento.code === 'Numpad2' ? 'Digit2' : evento.code;
+
+        if (codigo === SEQUENCIA_SALAO[posicaoSalao]) {
+            posicaoSalao += 1;
+            if (posicaoSalao === SEQUENCIA_SALAO.length) {
+                posicaoSalao = 0;
+                posicao = 0;
+                abrirSalaoJogos();
+            }
+        } else {
+            posicaoSalao = codigo === SEQUENCIA_SALAO[0] ? 1 : 0;
+        }
+
+        if (codigo === SEQUENCIA[posicao]) {
             posicao += 1;
             if (posicao === SEQUENCIA.length) {
                 posicao = 0;
@@ -204,6 +224,6 @@ export function iniciarAtalhosGlobais() {
             }
             return;
         }
-        posicao = evento.code === SEQUENCIA[0] ? 1 : 0;
+        posicao = codigo === SEQUENCIA[0] ? 1 : 0;
     });
 }

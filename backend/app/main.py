@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 from backend.app.rotas import (
     analisador, autenticacao, buscas, custas, gerador_notas, incra, intimacoes,
-    integracoes, livro_protocolos, registros_auxiliares, mapa_onr, poligonos,
+    integracoes, jogos, livro_protocolos, registros_auxiliares, mapa_onr, poligonos,
     status_onr, usuarios,
 )
 from backend.app.seguranca_web import politica_frame_ancestors
@@ -52,6 +52,7 @@ app.include_router(buscas.router)
 app.include_router(incra.router)
 app.include_router(custas.router)
 app.include_router(integracoes.router)
+app.include_router(jogos.router)
 app.include_router(registros_auxiliares.router)
 app.include_router(livro_protocolos.router)
 app.include_router(mapa_onr.router)
