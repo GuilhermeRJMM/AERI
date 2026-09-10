@@ -558,6 +558,80 @@ def _grupos_de_selo(item: dict) -> set[str]:
     return grupos
 
 
+def _identidade_linha_custas(item: dict) -> tuple | None:
+    """Identifica uma linha financeira que a Tri7 expandiu em vários atos.
+
+    ``protocolo-completo`` devolve um objeto por ato praticado, mas os campos
+    financeiros continuam sendo os da linha agrupada exibida na tela da Tri7.
+    Ex.: uma linha ``Busca``, quantidade 10 e total R$ 239,90 aparece dez
+    vezes, sempre com os mesmos dez selos e o mesmo total. Somar os dez
+    objetos multiplicaria indevidamente a cobrança por dez.
+
+    Só consolidamos quando existe prova objetiva: quantidade maior que um e
+    o conjunto completo de selos é idêntico. Sem selos, preservamos os itens
+    separados para não fundir cobranças apenas porque possuem o mesmo valor.
+    """
+    detalhes = item.get("detalhes_emolumentos") or {}
+    try:
+        quantidade = int(detalhes.get("quant_item") or 0)
+    except (TypeError, ValueError):
+        return None
+    selos = tuple(sorted(
+        str(selo.get("selo") or "").strip()
+        for selo in item.get("selos") or []
+        if isinstance(selo, dict) and str(selo.get("selo") or "").strip()
+    ))
+    if quantidade <= 1 or not selos:
+        return None
+    campos_financeiros = (
+        "valor_base_calculo", "emolumentos", "tx_jud", "fundos", "iss",
+        "total_do_item",
+    )
+    return (
+        _normalizar(str(item.get("natureza_formal_descricao") or "")),
+        _normalizar(str(item.get("tabela_cobranca") or "")),
+        str(item.get("codigo_selo") or "").strip(),
+        quantidade,
+        tuple(str(_decimal_monetario(detalhes.get(campo))) for campo in campos_financeiros),
+        selos,
+    )
+
+
+def _linhas_custas_unicas(itens: list[dict]) -> list[dict]:
+    """Reconstitui as linhas financeiras sem perder os atos individuais."""
+    linhas = []
+    identidades = set()
+    for item in itens:
+        identidade = _identidade_linha_custas(item)
+        if identidade is not None:
+            if identidade in identidades:
+                continue
+            identidades.add(identidade)
+        linhas.append(item)
+    return linhas
+
+
+def _memoria_linhas_custas(itens: list[dict]) -> list[dict]:
+    memoria = []
+    for item in _linhas_custas_unicas(itens):
+        detalhes = item.get("detalhes_emolumentos") or {}
+        total = _decimal_monetario(detalhes.get("total_do_item"))
+        if total is None:
+            continue
+        try:
+            quantidade = max(int(detalhes.get("quant_item") or 1), 1)
+        except (TypeError, ValueError):
+            quantidade = 1
+        memoria.append({
+            "natureza": _colapsar_espacos(
+                str(item.get("natureza_formal_descricao") or "Item sem natureza")
+            ),
+            "quantidade": quantidade,
+            "total": _formatar_reais(total),
+        })
+    return memoria
+
+
 def _regra_total_custas_agrupadas(
     protocolo_json: dict,
     textos_registros: dict[tuple[str, int], str] | None = None,
@@ -586,16 +660,23 @@ def _regra_total_custas_agrupadas(
     for itens_grupo in por_grupo.values():
         if len(itens_grupo) < 2:
             continue
+        linhas_custas = _linhas_custas_unicas(itens_grupo)
         totais = [
             _decimal_monetario((item.get("detalhes_emolumentos") or {}).get("total_do_item"))
-            for item in itens_grupo
+            for item in linhas_custas
         ]
         if any(total is None for total in totais):
             continue
         candidatos = []
-        for item, total in zip(itens_grupo, totais):
+        # Os atos continuam individuais mesmo quando a cobrança é uma única
+        # linha agrupada. Portanto, a deduplicação acima vale só para a soma;
+        # todas as saídas precisam participar da soma das cotações impressas.
+        for item in itens_grupo:
+            total = _decimal_monetario(
+                (item.get("detalhes_emolumentos") or {}).get("total_do_item")
+            )
             chave = _chave_registro(item)
-            if not chave or chave[1] <= 0 or total <= 0:
+            if not chave or chave[1] <= 0 or total is None or total <= 0:
                 continue
             registrado = item.get("atos_registrados") or {}
             if chave[0] == "M":
@@ -657,6 +738,11 @@ def _regra_total_custas_agrupadas(
                     f"diverge da soma dos itens agrupados "
                     f"(R$ {_formatar_reais(total_agrupado)})."
                 ),
+                "memoriaCalculo": {
+                    "totalCotacoes": _formatar_reais(total_texto),
+                    "totalItensAgrupados": _formatar_reais(total_agrupado),
+                    "linhas": _memoria_linhas_custas(itens_grupo),
+                },
             })
     return ocorrencias
 
@@ -720,24 +806,34 @@ def _regra_ordem_itens_protocolo(protocolo_json: dict) -> list[dict]:
     padrao_imovel = re.compile(
         r"\b(?:CODIGO DE ENDERECAMENTO POSTAL|CEP|ITR|CCIR|INCRA|CAR|CCI|"
         r"CADASTRO MUNICIPAL|DESIGNACAO CADASTRAL|ATUALIZACAO DE DESIGNACAO|"
+        r"CERTIFICADO DE CADASTRO (?:DE )?IMOVEL RURAL|"
+        r"ATUALIZACAO DO CERTIFICADO DE CADASTRO (?:DE )?IMOVEL RURAL|"
         r"DENOMINACAO DO IMOVEL|LOGRADOURO|NUMERACAO PREDIAL)\b"
     )
     padrao_pessoa = re.compile(
         r"\b(?:INSERCAO|ATUALIZACAO|RETIFICACAO)\s+(?:DE\s+)?(?:DADOS|"
         r"QUALIFICACAO|CPF|CNPJ|NOME|ESTADO CIVIL|REGIME DE CASAMENTO)\b|"
-        r"\b(?:REGIME DE CASAMENTO|ALTERACAO DE NOME|QUALIFICACAO PESSOAL)\b"
+        r"\b(?:OBITO|CASAMENTO|DIVORCIO|REGIME DE CASAMENTO|"
+        r"ALTERACAO DE NOME|QUALIFICACAO PESSOAL)\b"
     )
 
-    def fase(item: dict) -> int:
+    def fase(item: dict) -> int | None:
         natureza = _normalizar(str(item.get("natureza_formal_descricao") or ""))
         if padrao_imovel.search(natureza):
             return 0
         if padrao_pessoa.search(natureza):
             return 1
-        return 2
+        tipo_ato = _normalizar(str((item.get("atos_registrados") or {}).get("ato_tipo") or ""))
+        # Registro em sentido estrito é uma evidência objetiva do título
+        # principal. Averbação desconhecida, porém, não pode ser promovida a
+        # ato principal por exclusão: isso gerava falso alerta sempre que o
+        # catálogo da Tri7 ganhava uma natureza ainda não mapeada aqui.
+        if tipo_ato == "R":
+            return 2
+        return None
 
     ocorrencias = []
-    sequencias: dict[tuple[str, int], list[tuple[tuple[str, int], int, str]]] = {}
+    sequencias: dict[tuple[str, int], list[tuple[tuple[str, int], int | None, str]]] = {}
     for item in protocolo_json.get("itens_do_pedido") or []:
         chave = _chave_registro(item)
         registrado = item.get("atos_registrados") or {}
@@ -755,10 +851,17 @@ def _regra_ordem_itens_protocolo(protocolo_json: dict) -> list[dict]:
     for chave, itens_sequencia in sequencias.items():
         # Um mesmo ato pode aparecer repetido em itens de custas. Consolida-o
         # e usa a numeração oficial, nunca a posição instável no retorno.
-        por_codigo: dict[tuple[str, int], tuple[int, str]] = {}
+        por_codigo: dict[tuple[str, int], tuple[int | None, str]] = {}
         for codigo, fase_item, natureza in itens_sequencia:
             anterior = por_codigo.get(codigo)
-            if anterior is None or fase_item < anterior[0]:
+            if (
+                anterior is None
+                or (anterior[0] is None and fase_item is not None)
+                or (
+                    fase_item is not None and anterior[0] is not None
+                    and fase_item < anterior[0]
+                )
+            ):
                 por_codigo[codigo] = (fase_item, natureza)
         ordenados = sorted(
             ((codigo, *dados) for codigo, dados in por_codigo.items()),
@@ -767,6 +870,8 @@ def _regra_ordem_itens_protocolo(protocolo_json: dict) -> list[dict]:
         for anterior, atual in zip(ordenados, ordenados[1:]):
             codigo_anterior, fase_anterior, natureza_anterior = anterior
             codigo_atual, fase_atual, natureza_atual = atual
+            if fase_anterior is None or fase_atual is None:
+                continue
             if fase_atual < fase_anterior:
                 ocorrencias.append({
                     "regra": "ORDEM_OPERACIONAL",

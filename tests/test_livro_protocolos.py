@@ -360,6 +360,52 @@ class TesteConferirProtocolo(unittest.TestCase):
         self.assertIn("R.17 e Registro Auxiliar 29.569", relevantes[0]["descricao"])
         self.assertIn("1.531,01", relevantes[0]["descricao"])
         self.assertIn("1.531,02", relevantes[0]["descricao"])
+        self.assertEqual(relevantes[0]["memoriaCalculo"]["totalCotacoes"], "1.531,01")
+        self.assertEqual(relevantes[0]["memoriaCalculo"]["totalItensAgrupados"], "1.531,02")
+
+    def test_total_nao_multiplica_linha_financeira_expandida_em_varios_atos(self):
+        grupo = "00032608255875825430009"
+        selos = [
+            {"selo": "0001", "selo_agrupador": grupo},
+            {"selo": "0002", "selo_agrupador": grupo},
+        ]
+
+        def item_insercao(matricula, ato):
+            return {
+                "natureza_formal_descricao": "Inserção de Dados",
+                "tabela_cobranca": "AVERBAÇÃO SVD",
+                "codigo_selo": "2564",
+                "dados_imovel": {"tipo_registro": "M", "numero_registro": matricula},
+                "atos_registrados": {"ato_tipo": "A", "ato_numero": ato, "texto": ""},
+                "detalhes_emolumentos": {
+                    "quant_item": 2, "emolumentos": 89.06, "fundos": 21.60,
+                    "iss": 4.46, "tx_jud": 0, "valor_base_calculo": 0,
+                    "total_do_item": 115.12,
+                },
+                "selos": list(selos),
+            }
+
+        protocolo = _protocolo_base(itens_do_pedido=[
+            item_insercao(1073, 7),
+            item_insercao(2227, 15),
+        ])
+        textos = {
+            ("M", 1073): (
+                "AV.07-1.073 - Data: 09.09.2026. INSERÇÃO DE DADOS. "
+                "Cotação do ato: Total: R$57,56."
+            ),
+            ("M", 2227): (
+                "AV.15-2.227 - Data: 09.09.2026. INSERÇÃO DE DADOS. "
+                "Cotação do ato: Total: R$57,56."
+            ),
+        }
+
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 9, 9),
+            textos_registros=textos,
+        )
+
+        self.assertFalse(any(o["regra"] == "TOTAL_CUSTAS_DIVERGENTE" for o in ocorrencias))
 
     def test_descricao_titulo_em_branco_e_ocorrencia_grave(self):
         protocolo = _protocolo_base()
@@ -776,6 +822,43 @@ class TesteConferirProtocolo(unittest.TestCase):
             textos_registros={("M", 152): "R.01-152 VENDA E COMPRA\nAV.02-152 CEP"},
         )
         self.assertTrue(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
+
+    def test_ccir_por_extenso_antes_da_insercao_de_dados_e_ordem_correta(self):
+        imovel = {"tipo_registro": "M", "numero_registro": 1073}
+        protocolo = _protocolo_base(itens_do_pedido=[
+            {"natureza_formal_descricao": "Atualização do Certificado de Cadastro de Imóvel Rural",
+             "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 6, "texto": ""}},
+            {"natureza_formal_descricao": "Inserção de Dados",
+             "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 7, "texto": ""}},
+            {"natureza_formal_descricao": "Inventário",
+             "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "R", "ato_numero": 9, "texto": ""}},
+        ])
+
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 9, 9),
+        )
+
+        self.assertFalse(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
+
+    def test_averbacao_desconhecida_nao_e_presumida_como_ato_principal(self):
+        imovel = {"tipo_registro": "M", "numero_registro": 1073}
+        protocolo = _protocolo_base(itens_do_pedido=[
+            {"natureza_formal_descricao": "Nova natureza ainda não catalogada",
+             "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 6, "texto": ""}},
+            {"natureza_formal_descricao": "Inserção de Dados",
+             "dados_imovel": imovel,
+             "atos_registrados": {"ato_tipo": "A", "ato_numero": 7, "texto": ""}},
+        ])
+
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 9, 9),
+        )
+
+        self.assertFalse(any(o["regra"] == "ORDEM_OPERACIONAL" for o in ocorrencias))
 
     def test_api_pode_retornar_ato_principal_antes_das_duas_fases_preparatorias(self):
         imovel = {"tipo_registro": "M", "numero_registro": 27090}

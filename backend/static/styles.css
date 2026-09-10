@@ -1310,6 +1310,14 @@ body.sidebar-recolhida .nav-item {
 }
 .livroproto-confirmar-excecao:hover { background: rgba(146,64,14,.1); }
 .livroproto-confirmar-excecao:disabled { opacity: .5; cursor: not-allowed; }
+.livroproto-memoria { margin-top: 8px; color: var(--text-soft); font-weight: 500; }
+.livroproto-memoria > summary { cursor: pointer; font-size: .72rem; }
+.livroproto-memoria-totais { margin: 8px 0; font-size: .72rem; }
+.livroproto-memoria table { width: 100%; border-collapse: collapse; font-size: .7rem; }
+.livroproto-memoria th, .livroproto-memoria td {
+  padding: 5px 7px; text-align: left; border-bottom: 1px solid var(--glass-border);
+}
+.livroproto-memoria th { color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
 .livroproto-consulta-card { max-width: 760px; padding: 24px; }
 .livroproto-data-label {
   display: block; margin-bottom: 9px; color: var(--text-soft);

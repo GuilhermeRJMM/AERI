@@ -86,6 +86,26 @@ function itensLivroProto(filtro) {
     return protocolos.filter(item => item.status === filtro);
 }
 
+function renderizarMemoriaCalculo(ocorrencia) {
+    const memoria = ocorrencia.memoriaCalculo;
+    if (!memoria?.linhas?.length) return '';
+    const linhas = memoria.linhas.map(linha => `
+        <tr>
+            <td>${escaparHtml(linha.natureza)}</td>
+            <td>${escaparHtml(linha.quantidade)}</td>
+            <td>R$ ${escaparHtml(linha.total)}</td>
+        </tr>`).join('');
+    return `<details class="livroproto-memoria">
+        <summary>Ver memória do cálculo (${memoria.linhas.length} itens financeiros)</summary>
+        <div class="livroproto-memoria-totais">
+            Cotações nos atos: <b>R$ ${escaparHtml(memoria.totalCotacoes)}</b> ·
+            Itens agrupados da Tri7: <b>R$ ${escaparHtml(memoria.totalItensAgrupados)}</b>
+        </div>
+        <table><thead><tr><th>Natureza</th><th>Qtd.</th><th>Total da linha</th></tr></thead>
+            <tbody>${linhas}</tbody></table>
+    </details>`;
+}
+
 function renderizarOcorrencias(item) {
     if (item.erro) return `<span class="livroproto-erro-item">${escaparHtml(item.erro)}</span>`;
     if (!item.conferido) return '<span class="livroproto-nao-conferido">—</span>';
@@ -110,6 +130,7 @@ function renderizarOcorrencias(item) {
         return `<li class="livroproto-gravidade-${ocorrencia.gravidade.toLowerCase()}">
             <details><summary>${escaparHtml(ocorrencia.descricao)}</summary>
                 <small><b>${escaparHtml(tipo)}</b> · Regra ${escaparHtml(ocorrencia.regra || 'não informada')} · Fonte: ${escaparHtml(fonte)}</small>
+                ${renderizarMemoriaCalculo(ocorrencia)}
                 ${botao}
             </details></li>`;
     }).join('')}</ul>`;
