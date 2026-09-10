@@ -236,6 +236,26 @@ test('escritura permite escolher guia de ITBI do GED sem preencher valor do neg�
     assert.match(html,/Base de cálculo não consta/);
 });
 
+test('clique no ITBI informa quando a guia não possui nenhum campo fiscal preenchido',async()=>{
+    const a=ambiente();
+    a.ctx.entrada={id:'escritura',versao:3,confrontoAtual:true,dados:{tipoDocumento:'ESCRITURA_PUBLICA',
+        gruposFicha:[['titulo','Título público']],ficha:{titulo:{especie:'Venda e compra'},matriculas:['39547']},
+        alertasExtracao:[],evidencias:{},documentosComplementares:{
+            itbiDisponiveis:[{ged_documento_id:'267388',descricao:'Guia de ITBI digital'}]
+        }}};
+    a.rodar('trabalho=entrada;desenhar()');
+    a.elemento('contratos-itbi-select').value='267388';
+    a.ctx.resposta=structuredClone(a.ctx.entrada);
+    a.ctx.resposta.versao=4;
+    a.ctx.resposta.dados.documentosComplementares.itbiSelecionado={camposAplicados:{},alertas:[]};
+    const botao={disabled:false,dataset:{},closest:s=>s==='[data-importar-itbi]'?botao:null};
+    a.elemento('contratos-complementares').handlers.click({target:botao});
+    await new Promise(r=>setImmediate(r));await new Promise(r=>setImmediate(r));
+    assert.match(a.elemento('contratos-mensagem').textContent,/estão em branco/);
+    assert.match(a.elemento('contratos-mensagem').textContent,/Nenhum dado fiscal foi inventado/);
+    assert.equal(a.chamadas.length,1);
+});
+
 test('comparação não tem mais o bloco de conferência da operação',()=>{
     const a=ambiente();
     const html=a.rodar("quadroComparacao({campo:'imovel.area',contrato:'200 m²',matricula:'190 m²',situacao:'REVISAR',permiteMatricula:true})");

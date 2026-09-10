@@ -109,7 +109,7 @@ function desenharComplementares(dados){
     const conferencia=selecionado?.conferencia||{};
     const aplicados=Object.keys(selecionado?.camposAplicados||{});
     const resumo=selecionado?`<div class="contratos-confirmacoes"><p class="${aplicados.length?'ok':'atencao'}"><strong>${aplicados.length?'✓':'!'}</strong> ${escaparHtml(aplicados.length?`${aplicados.length} campo(s) fiscal(is) comprovado(s) foram inseridos na minuta.`:'A guia foi conferida, mas não contém campos fiscais suficientes para preencher a minuta.')}</p>${(selecionado.alertas||[]).map(a=>`<p class="atencao"><strong>!</strong> ${escaparHtml(a)}</p>`).join('')}</div><p class="contratos-aviso">Conferência do anexo: matrícula ${escaparHtml(conferencia.matricula||'não identificada')} · valor do negócio ${escaparHtml(conferencia.valor_negocio?`R$${conferencia.valor_negocio}`:'não identificado')}. O valor do negócio não substitui a base de cálculo.</p>`:'';
-    alvo.innerHTML=`<details class="contratos-alertas-extracao" open><summary>Complementar com ITBI do GED (opcional)</summary><p>Selecione a guia vinculada ao protocolo. Somente dados fiscais expressamente preenchidos serão inseridos.</p>${disponiveis.length?`<div class="contratos-form"><label>Guia de ITBI<select id="contratos-itbi-select">${opcoes}</select></label><button type="button" class="btn" data-importar-itbi>Conferir e inserir ITBI</button></div>`:''}${resumo}</details>`;
+    alvo.innerHTML=`<details class="contratos-alertas-extracao" open><summary>Complementar com ITBI do GED (opcional)</summary><p>Selecione a guia vinculada ao protocolo. Somente dados fiscais expressamente preenchidos serão inseridos.</p>${disponiveis.length?`<div class="contratos-form"><label>Guia de ITBI<select id="contratos-itbi-select">${opcoes}</select></label><button type="button" class="btn" data-importar-itbi>Analisar e inserir dados do ITBI</button></div>`:''}${resumo}</details>`;
 }
 function textosMinuta(dados){
     const finais=dados?.minutasFinais||{}, geradas=dados?.minutas||{};
@@ -319,7 +319,13 @@ export function iniciarContratos(){
         mensagem('Conferindo a guia de ITBI selecionada…');
         trabalho=await requisicaoAeri(`/api/contratos/${trabalho.id}/itbi`,json('POST',{versao:trabalho.versao,documentoId:seletor.value}));
         desenhar();
-        mensagem('✓ Guia de ITBI conferida. Revise o resultado antes de confrontar a matrícula.',true);
+        const selecionado=trabalho.dados?.documentosComplementares?.itbiSelecionado||{};
+        const quantidade=Object.keys(selecionado.camposAplicados||{}).length;
+        if(quantidade){
+            mensagem(`✓ Guia de ITBI conferida: ${quantidade} campo(s) fiscal(is) inserido(s). Revise antes de confrontar a matrícula.`,true);
+        }else{
+            mensagem('A guia foi lida, mas número da guia, base de cálculo, DUAM, valor do imposto e quitação estão em branco. Nenhum dado fiscal foi inventado.');
+        }
     });});
     $('retomar').addEventListener('click',e=>acao(e.target,async()=>{if(trabalho)await extrairSelecionado(trabalho.id);}));
     $('recentes-btn').addEventListener('click',e=>acao(e.target,async()=>{const r=await requisicaoAeri('/api/contratos');$('recentes').innerHTML=r.map(t=>`<button class="btn" data-trabalho="${t.id}">Protocolo ${escaparHtml(t.protocolo)} · ${escaparHtml(t.estado)}</button>`).join('')||'<p>Nenhum trabalho anterior.</p>';}));

@@ -41,6 +41,20 @@ def _buscar(cursor, id, usuario, perfil, trava=False):
 def _publico(r):
     payload=decifrar(r["payload_cifrado"])
     if payload:
+        # A prévia é derivada da ficha e do contexto atual. Trabalhos extraídos
+        # antes de uma melhoria do montador podem ter guardado um rascunho
+        # antigo; recalculá-la na resposta evita exigir que o usuário altere um
+        # campo só para disparar a atualização. Isto não grava nem transforma a
+        # prévia em minuta conferida.
+        if isinstance(payload.get("ficha"),dict):
+            try:
+                atualizada=_previa_minutas(payload["ficha"],payload)
+                if atualizada is not None:
+                    payload["minutasPrevia"]=atualizada
+            except (KeyError,TypeError,ValueError):
+                # Trabalhos históricos com ficha incompleta continuam
+                # acessíveis; a prévia antiga é preferível a derrubar a tela.
+                pass
         payload.pop("documento",None) # Texto integral só no endpoint autenticado específico.
         if payload.get("confronto"):
             payload["confronto"].pop("texto",None)
@@ -424,7 +438,8 @@ def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=Non
     try:
         cli=cli or cliente_tri7()
         conferir_prazo(prazo)
-        docs=cli.listar_documentos_protocolo(r["protocolo"])["documentos"]
+        consulta_protocolo=cli.listar_documentos_protocolo(r["protocolo"])
+        docs=consulta_protocolo["documentos"]
         if r["documento_id"] not in {str(d.get("ged_documento_id")) for d in docs}:
             raise ValueError("O documento não pertence mais ao protocolo.")
         conferir_prazo(prazo)
@@ -446,7 +461,6 @@ def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=Non
                     "campo":"Modelo da Tri7",
                     "motivo":"O catálogo de minutas não respondeu. O traslado foi extraído; selecione o modelo na Tri7 ao conferir."
                 })
-        p["minutasPrevia"]=_previa_minutas(p.get("ficha"),p)
         p["origemGed"]={"protocolo":r["protocolo"],"documentoId":r["documento_id"],"metadados":next(d for d in documentos_publicos(docs) if str(d["ged_documento_id"])==r["documento_id"])}
         if eh_escritura(p):
             p["documentosComplementares"]={
@@ -454,6 +468,10 @@ def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=Non
                     docs,exceto=r["documento_id"]
                 )
             }
+        # Monte somente depois de anexar o número do protocolo e os documentos
+        # complementares. Antes, o primeiro rascunho nascia com marcadores e só
+        # era corrigido após qualquer edição manual na ficha.
+        p["minutasPrevia"]=_previa_minutas(p.get("ficha"),p)
     except OcrIndisponivel as exc:
         # Digitalizado no caminho direto (a Vercel nao tem motor de OCR): isto
         # nao e falha, e trabalho para o executor. Volta para a fila em vez de
