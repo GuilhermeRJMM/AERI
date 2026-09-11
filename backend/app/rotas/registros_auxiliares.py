@@ -10,6 +10,7 @@ from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_c
 from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
 from backend.app.servicos.executor_presenca import executor_ativo
+from backend.app.servicos.custas import revalidar_negativas_custas
 from backend.app.servicos.registros_auxiliares import (
     extrair_indice_registro_auxiliar,
     normalizar_busca,
@@ -498,18 +499,33 @@ def _executar_sincronizacao(
                         SET ultima_sincronizacao=NOW(), atualizado_em=NOW() WHERE id=1"""
                     )
 
+                fronteira_conferida = bool(
+                    modo == "NOVOS" and ausentes > 0 and falhas == 0 and not falha
+                )
+                custas_revalidadas = []
+                if novos or alterados or fronteira_conferida:
+                    custas_revalidadas = revalidar_negativas_custas(
+                        cursor,
+                        usuario,
+                        confirmar_pendentes=fronteira_conferida,
+                    )
+
                 registrar_auditoria_cursor(
                     cursor, request, "sincronizar_registros_auxiliares", "sucesso", usuario,
                     detalhes={"modo": modo, "processados": processados, "encontrados": encontrados,
                               "novos": novos, "alterados": alterados, "ausentes": ausentes,
-                              "falhas": falhas},
+                              "falhas": falhas,
+                              "custasRevalidadas": len(custas_revalidadas),
+                              "fronteiraConferida": fronteira_conferida},
                 )
                 estado_json = _estado_json(cursor)
                 conexao.commit()
                 return {"modo": modo, "processados": processados, "encontrados": encontrados,
                         "novos": novos, "alterados": alterados, "ausentes": ausentes,
                         "numerosNovos": numeros_novos, "falhas": falhas, "erros": erros,
-                        "falha": falha, "estado": estado_json}
+                        "falha": falha, "estado": estado_json,
+                        "custasRevalidadas": custas_revalidadas,
+                        "fronteiraConferida": fronteira_conferida}
             finally:
                 conexao.rollback()
                 cursor.execute(

@@ -11,7 +11,12 @@ from starlette.requests import Request
 from backend.app.rotas.custas import _analisar_versao_esperada, exportar_relatorio_custas
 from pypdf import PdfReader
 
-from backend.app.servicos.custas import extrair_pedidos_texto, gerar_relatorio_custas_pdf, validar_item_custas
+from backend.app.servicos.custas import (
+    extrair_pedidos_texto,
+    gerar_relatorio_custas_pdf,
+    revalidar_negativas_custas,
+    validar_item_custas,
+)
 
 
 def bloco(pedido: str, observacao: str, nome="PESSOA DE TESTE", documento="12345678901") -> str:
@@ -242,7 +247,7 @@ class TesteImportacaoPesquisaAutomatica(unittest.TestCase):
         )
         extraido = {"itens": itens, "alertas": [], "ignorados": 0, "total": len(itens)}
 
-        def buscar(_cursor, pedido, _usuario, _preco=None):
+        def buscar(_cursor, pedido, _usuario, _preco=None, **_opcoes):
             numeros = encontrados.get(pedido["pedido"], [])
             return {"item": {"id": str(pedido["id"]), "pedido": pedido["pedido"],
                              "status": "BUSCA_REALIZADA",
@@ -255,6 +260,8 @@ class TesteImportacaoPesquisaAutomatica(unittest.TestCase):
              patch.object(rotas, "_registrar_evento"), \
              patch.object(rotas, "registrar_auditoria_cursor"), \
              patch.object(rotas, "_preco_certidao_registro_auxiliar", return_value=Decimal("139.93")), \
+             patch.object(rotas, "_sincronizar_indice_antes_da_pesquisa",
+                          return_value={"confiavel": True, "motivo": "fronteira_conferida"}), \
              patch.object(rotas, "_pesquisar_registros", side_effect=buscar) as pesquisa:
             resposta = asyncio.run(
                 rotas.importar_relatorio(request, confirmar=True, usuario="AUDITOR")
@@ -322,6 +329,85 @@ class TesteImportacaoPesquisaAutomatica(unittest.TestCase):
         self.assertEqual(resposta["importados"], 0)
 
 
+class TesteAtualizacaoSeguraAntesDaPesquisa(unittest.TestCase):
+    def _request(self):
+        return Request({"type": "http", "method": "POST", "path": "/api/custas/importar", "headers": []})
+
+    def test_fronteira_so_e_confiavel_quando_a_tri7_retorna_ausencia(self):
+        from backend.app.rotas import custas as rotas
+
+        saida_sync = {
+            "processados": 30, "encontrados": 6, "novos": 6, "alterados": 0,
+            "ausentes": 24, "falhas": 0, "falha": None,
+        }
+        with patch(
+            "backend.app.rotas.registros_auxiliares._executar_sincronizacao",
+            return_value=saida_sync,
+        ):
+            saida = rotas._sincronizar_indice_antes_da_pesquisa(self._request(), "AUDITOR")
+
+        self.assertTrue(saida["confiavel"])
+        self.assertEqual(saida["motivo"], "fronteira_conferida")
+
+    def test_lote_cheio_nao_autoriza_resultado_negativo(self):
+        from backend.app.rotas import custas as rotas
+
+        saida_sync = {
+            "processados": 30, "encontrados": 30, "novos": 30, "alterados": 0,
+            "ausentes": 0, "falhas": 0, "falha": None,
+        }
+        with patch(
+            "backend.app.rotas.registros_auxiliares._executar_sincronizacao",
+            return_value=saida_sync,
+        ):
+            saida = rotas._sincronizar_indice_antes_da_pesquisa(self._request(), "AUDITOR")
+
+        self.assertFalse(saida["confiavel"])
+        self.assertEqual(saida["motivo"], "indice_ainda_avancando")
+
+    def test_envio_interno_tambem_fica_pendente_sem_indice_confiavel(self):
+        from backend.app.rotas import custas as rotas
+
+        cursor = MagicMock()
+        cursor.fetchone.return_value = {
+            "id": uuid4(), "pedido": "S26090215801D", "nome": "MAURO SHOITI SUGURI",
+            "documento": "12345630895", "modalidade": "ALIENACAO_FIDUCIARIA",
+            "produto": "SOJA", "safra": "2026/2027", "resultado": "PENDENTE",
+            "numero_registro": "", "status": "FAZER_PESQUISA", "finalizado": False,
+            "criado_em": datetime.now(timezone.utc), "atualizado_em": datetime.now(timezone.utc),
+        }
+        cursor_contexto = MagicMock()
+        cursor_contexto.__enter__.return_value = cursor
+        conexao = MagicMock()
+        conexao.cursor.return_value = cursor_contexto
+        conexao_contexto = MagicMock()
+        conexao_contexto.__enter__.return_value = conexao
+        dados = {
+            "pedido": "S26090215801D", "nome": "MAURO SHOITI SUGURI",
+            "documento": "12345630895", "modalidade": "ALIENACAO",
+            "produto": "SOJA", "safra": "26/2027",
+        }
+
+        with patch.object(rotas, "conectar", return_value=conexao_contexto), \
+             patch.object(rotas, "_sincronizar_indice_antes_da_pesquisa",
+                          return_value={"confiavel": False, "motivo": "tri7_indisponivel"}), \
+             patch.object(rotas, "localizar_registros_custas", return_value=[]), \
+             patch.object(rotas, "_registrar_evento"), \
+             patch.object(rotas, "registrar_auditoria_cursor"), \
+             patch.object(rotas, "custas_json", side_effect=lambda item: item):
+            resposta = rotas.incluir_busca_registro_auxiliar(
+                dados, self._request(), usuario="AUDITOR"
+            )
+
+        insercao = next(
+            chamada for chamada in cursor.execute.call_args_list
+            if "INSERT INTO custas_livro3_aeri" in chamada.args[0]
+        )
+        self.assertIn("PENDENTE", insercao.args[1])
+        self.assertIn("FAZER_PESQUISA", insercao.args[1])
+        self.assertEqual(resposta["resultado"], "PENDENTE")
+
+
 class TestePesquisaRegistroAuxiliar(unittest.TestCase):
     """Fixa o comportamento da pesquisa depois de extraí-la da rota.
 
@@ -338,7 +424,7 @@ class TestePesquisaRegistroAuxiliar(unittest.TestCase):
         # hash_documento exige AERI_BUSCAS_HMAC_KEY e falha fechado sem ela --
         # comportamento correto; aqui interessa a forma da consulta.
         with patch.object(rotas, "_registrar_evento") as evento, \
-             patch.object(rotas, "hash_documento", return_value="hash-de-teste"), \
+             patch("backend.app.servicos.custas.hash_documento", return_value="hash-de-teste"), \
              patch.object(rotas, "custas_json", side_effect=lambda linha: linha):
             saida = rotas._pesquisar_registros(cursor, pedido, "AUDITOR", Decimal("139.93"))
         consultas = [c.args[0] for c in cursor.execute.call_args_list]
@@ -358,9 +444,10 @@ class TestePesquisaRegistroAuxiliar(unittest.TestCase):
         self.assertEqual(saida["registros"], [7, 9])
         self.assertEqual(saida["valor"], 279.86)   # 139,93 por registro
         atualizacao = next(c for c in consultas if "SET resultado=" in c)
-        self.assertIn("status='BUSCA_REALIZADA'", atualizacao)
+        self.assertIn("status=%s", atualizacao)
         gravados = parametros[consultas.index(atualizacao)]
         self.assertEqual(gravados[1], "7, 9")
+        self.assertEqual(gravados[2], "BUSCA_REALIZADA")
         evento.assert_called_once()
 
     def test_negativa_cobra_uma_certidao_e_nao_zero(self):
@@ -386,3 +473,73 @@ class TestePesquisaRegistroAuxiliar(unittest.TestCase):
         busca = next(c for c in consultas if "registros_auxiliares_aeri" in c)
         self.assertNotIn("documentos_hash", busca)
         self.assertIn("nomes_busca LIKE %s", busca)
+
+    def test_sem_fronteira_confirmada_nao_produz_negativa(self):
+        from decimal import Decimal
+        from backend.app.rotas import custas as rotas
+
+        cursor = MagicMock()
+        cursor.fetchall.return_value = []
+        cursor.fetchone.return_value = {
+            **self._pedido(), "resultado": "PENDENTE", "status": "FAZER_PESQUISA"
+        }
+        with patch.object(rotas, "_registrar_evento"), \
+             patch("backend.app.servicos.custas.hash_documento", return_value="hash-de-teste"), \
+             patch.object(rotas, "custas_json", side_effect=lambda linha: linha):
+            saida = rotas._pesquisar_registros(
+                cursor, self._pedido(), "AUDITOR", Decimal("139.93"), permitir_negativa=False
+            )
+
+        self.assertEqual(saida["resultado"], "PENDENTE")
+        atualizacao = next(
+            chamada for chamada in cursor.execute.call_args_list
+            if "UPDATE custas_livro3_aeri" in chamada.args[0]
+        )
+        self.assertEqual(atualizacao.args[1][2], "FAZER_PESQUISA")
+
+
+class TesteRevalidacaoCustas(unittest.TestCase):
+    def _pedido(self, resultado="NEGATIVA", status="CUSTAS_INFORMADAS"):
+        return {
+            "id": uuid4(),
+            "pedido": "S26090215801D",
+            "nome": "MAURO SHOITI SUGURI",
+            "documento": "123.456.308-95",
+            "modalidade": "ALIENACAO_FIDUCIARIA",
+            "produto": "SOJA",
+            "safra": "2026/2027",
+            "resultado": resultado,
+            "status": status,
+        }
+
+    def test_negativa_antiga_vira_positiva_quando_novo_registro_aparece(self):
+        cursor = MagicMock()
+        cursor.fetchall.side_effect = [[self._pedido()], [{"numero": 29571}]]
+        cursor.fetchone.return_value = {"pedido": "S26090215801D"}
+
+        with patch("backend.app.servicos.custas.hash_documento", return_value="hash-cpf"):
+            corrigidos = revalidar_negativas_custas(cursor, "cron")
+
+        self.assertEqual(corrigidos[0]["resultado"], "POSITIVA")
+        self.assertEqual(corrigidos[0]["registros"], [29571])
+        self.assertEqual(corrigidos[0]["status"], "CUSTAS_ERRADAS")
+        busca = next(
+            chamada for chamada in cursor.execute.call_args_list
+            if "registros_auxiliares_aeri" in chamada.args[0]
+        )
+        self.assertIn("documentos_hash ? %s OR nomes_busca LIKE %s", busca.args[0])
+        self.assertIn("hash-cpf", busca.args[1])
+
+    def test_pendente_so_vira_negativa_com_fronteira_confirmada(self):
+        pedido = self._pedido("PENDENTE", "FAZER_PESQUISA")
+        cursor = MagicMock()
+        cursor.fetchall.side_effect = [[pedido], []]
+        cursor.fetchone.return_value = {"pedido": pedido["pedido"]}
+
+        with patch("backend.app.servicos.custas.hash_documento", return_value="hash-cpf"):
+            corrigidos = revalidar_negativas_custas(
+                cursor, "cron", confirmar_pendentes=True
+            )
+
+        self.assertEqual(corrigidos[0]["resultado"], "NEGATIVA")
+        self.assertEqual(corrigidos[0]["status"], "BUSCA_REALIZADA")

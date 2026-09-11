@@ -5,6 +5,10 @@ import unicodedata
 import pymupdf
 from fastapi import HTTPException
 from pypdf import PdfReader
+from psycopg.types.json import Jsonb
+
+from backend.app.servicos.buscas import hash_documento
+from backend.app.servicos.registros_auxiliares import normalizar_busca, normalizar_safra
 
 
 MODALIDADES = {"PENHOR", "ALIENACAO_FIDUCIARIA"}
@@ -25,6 +29,100 @@ STATUS_CUSTAS = {
     "CUSTAS_ERRADAS",
 }
 STATUS_FINAIS = {"DUPLICADO_DEVOLVIDO", "RESPONDIDO", "SEM_PAGAMENTO"}
+
+
+def localizar_registros_custas(cursor, pedido: dict) -> list[int]:
+    """Pesquisa nome e CPF/CNPJ sem permitir que um deles invalide o outro."""
+    termo = normalizar_busca(pedido.get("nome", ""))
+    documento = "".join(c for c in pedido.get("documento", "") if c.isdigit())
+    filtros = ["situacao='ATIVO'", "produtos ? %s", "safras ? %s", "modalidade=%s"]
+    parametros = [
+        normalizar_busca(pedido.get("produto", "")),
+        normalizar_safra(pedido.get("safra", "")),
+        "ALIENAÇÃO" if pedido.get("modalidade") == "ALIENACAO_FIDUCIARIA" else pedido.get("modalidade"),
+    ]
+    if len(documento) in {11, 14}:
+        # O documento vem primeiro por ser mais estável. O nome permanece no
+        # OR para o acervo antigo em que o CPF/CNPJ não pôde ser indexado.
+        filtros.append("(documentos_hash ? %s OR nomes_busca LIKE %s)")
+        parametros.extend((hash_documento(documento), f"%{termo}%"))
+    else:
+        filtros.append("nomes_busca LIKE %s")
+        parametros.append(f"%{termo}%")
+    cursor.execute(
+        f"SELECT numero FROM registros_auxiliares_aeri WHERE {' AND '.join(filtros)} ORDER BY numero",
+        tuple(parametros),
+    )
+    return [item["numero"] for item in cursor.fetchall()]
+
+
+def revalidar_negativas_custas(
+    cursor, usuario: str, limite: int = 200, *, confirmar_pendentes: bool = False
+) -> list[dict]:
+    """Revalida ausências depois que o índice recebe dados novos.
+
+    Negativas antigas sempre podem ser promovidas a positivas. Pendências só
+    podem virar negativas quando o chamador confirma que alcançou a fronteira
+    disponível da Tri7.
+    """
+    resultados = ["NEGATIVA"] + (["PENDENTE"] if confirmar_pendentes else [])
+    cursor.execute(
+        """SELECT * FROM custas_livro3_aeri
+           WHERE resultado=ANY(%s) AND finalizado=FALSE
+             AND status IN ('FAZER_PESQUISA', 'BUSCA_REALIZADA', 'CUSTAS_INFORMADAS', 'PAGO_PROCESSANDO')
+           ORDER BY (status IN ('CUSTAS_INFORMADAS', 'PAGO_PROCESSANDO')) DESC,
+                    atualizado_em DESC
+           LIMIT %s""",
+        (resultados, max(1, min(int(limite), 1000))),
+    )
+    corrigidos = []
+    for pedido in cursor.fetchall():
+        numeros = localizar_registros_custas(cursor, pedido)
+        resultado_anterior = pedido["resultado"]
+        if not numeros and not (resultado_anterior == "PENDENTE" and confirmar_pendentes):
+            continue
+        status_anterior = pedido["status"]
+        novo_resultado = "POSITIVA" if numeros else "NEGATIVA"
+        if numeros and status_anterior in {"CUSTAS_INFORMADAS", "PAGO_PROCESSANDO"}:
+            novo_status = "CUSTAS_ERRADAS"
+        else:
+            novo_status = "BUSCA_REALIZADA"
+        numeros_texto = ", ".join(str(numero) for numero in numeros)
+        cursor.execute(
+            """UPDATE custas_livro3_aeri
+               SET resultado=%s, numero_registro=%s, status=%s,
+                   atualizado_por=NULL, atualizado_em=NOW()
+               WHERE id=%s AND resultado=%s
+               RETURNING pedido""",
+            (novo_resultado, numeros_texto, novo_status, pedido["id"], resultado_anterior),
+        )
+        if not cursor.fetchone():
+            continue
+        detalhes = {
+            "ator": usuario,
+            "resultadoAnterior": resultado_anterior,
+            "resultadoAtual": novo_resultado,
+            "statusAnterior": status_anterior,
+            "statusAtual": novo_status,
+            "registros": numeros,
+            "motivo": (
+                "registro localizado após sincronização do índice"
+                if numeros else "fronteira do índice conferida sem ocorrência"
+            ),
+        }
+        cursor.execute(
+            """INSERT INTO eventos_custas_livro3_aeri
+               (item_id, pedido, tipo, usuario, detalhes)
+               VALUES (%s, %s, 'REVALIDACAO_INDICE', NULL, %s)""",
+            (pedido["id"], pedido["pedido"], Jsonb(detalhes)),
+        )
+        corrigidos.append({
+            "pedido": pedido["pedido"],
+            "resultado": novo_resultado,
+            "registros": numeros,
+            "status": novo_status,
+        })
+    return corrigidos
 
 
 def rotulo_certidao_custas(item: dict) -> str:

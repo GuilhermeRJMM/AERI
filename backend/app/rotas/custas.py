@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from psycopg.types.json import Jsonb
+from starlette.concurrency import run_in_threadpool
 
 from backend.app.autenticacao import exigir_permissao, proteger_csrf
 from backend.app.database import conectar, preparar_banco
@@ -13,9 +14,9 @@ from backend.app.servicos.custas import (
     custas_json,
     extrair_pedidos_pdf,
     gerar_relatorio_custas_pdf,
+    localizar_registros_custas,
     validar_item_custas,
 )
-from backend.app.servicos.buscas import hash_documento
 from backend.app.servicos.registros_auxiliares import normalizar_busca, normalizar_safra
 
 
@@ -24,6 +25,38 @@ router = APIRouter(
     tags=["informar custas"],
     dependencies=[Depends(preparar_banco)],
 )
+
+
+def _sincronizar_indice_antes_da_pesquisa(request: Request, usuario: str) -> dict:
+    """Atualiza o índice antes de aceitar uma busca sem resultados como negativa."""
+    from backend.app.rotas.registros_auxiliares import _executar_sincronizacao
+
+    acumulado = {"processados": 0, "encontrados": 0, "novos": 0, "alterados": 0}
+    try:
+        # Um lote é o limite operacional já usado pelo módulo e evita alongar
+        # a requisição além do tempo seguro da função. Se vier totalmente
+        # preenchido, ainda não há prova de que o índice chegou ao fim; nesse
+        # caso a ausência permanece pendente até a próxima passagem.
+        saida = _executar_sincronizacao(
+            "NOVOS", tamanho=30, limite_informado=0, request=request, usuario=usuario
+        )
+        for campo in acumulado:
+            acumulado[campo] += int(saida.get(campo, 0) or 0)
+        if saida.get("falha") or int(saida.get("falhas", 0) or 0):
+            return {**acumulado, "confiavel": False, "motivo": "falha_sincronizacao"}
+        if int(saida.get("ausentes", 0) or 0) > 0:
+            return {**acumulado, "confiavel": True, "motivo": "fronteira_conferida"}
+        return {**acumulado, "confiavel": False, "motivo": "indice_ainda_avancando"}
+    except HTTPException as erro:
+        return {
+            **acumulado,
+            "confiavel": False,
+            "motivo": "sincronizacao_em_andamento" if erro.status_code == 409 else "tri7_indisponivel",
+        }
+    except Exception:
+        # A operação continua disponível, mas sem transformar ausência local
+        # em negativa enquanto não houver confirmação da atualização.
+        return {**acumulado, "confiavel": False, "motivo": "tri7_indisponivel"}
 
 
 def _analisar_versao_esperada(dados: dict) -> datetime:
@@ -193,42 +226,40 @@ def incluir_busca_registro_auxiliar(
     modalidade_busca = str(dados.get("modalidade", "")).strip().upper()
     if not pedido or not nome or not produto or not safra or modalidade_busca not in {"PENHOR", "ALIENACAO"}:
         raise HTTPException(status_code=422, detail="Informe pedido, pessoa, produto, safra e modalidade.")
-    modalidade_banco = "ALIENAÇÃO" if modalidade_busca == "ALIENACAO" else modalidade_busca
     modalidade_custas = "ALIENACAO_FIDUCIARIA" if modalidade_busca == "ALIENACAO" else modalidade_busca
-    termo = normalizar_busca(nome)
-    filtros = ["situacao='ATIVO'", "produtos ? %s", "safras ? %s", "modalidade=%s"]
-    parametros = [produto, safra, modalidade_banco]
-    if len(documento) in {11, 14}:
-        filtros.append("(nomes_busca LIKE %s OR documentos_hash ? %s)")
-        parametros.extend((f"%{termo}%", hash_documento(documento)))
-    else:
-        filtros.append("nomes_busca LIKE %s")
-        parametros.append(f"%{termo}%")
+    indice = _sincronizar_indice_antes_da_pesquisa(request, usuario)
+    pedido_busca = {
+        "nome": nome,
+        "documento": documento,
+        "produto": produto,
+        "safra": safra,
+        "modalidade": modalidade_custas,
+    }
 
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            cursor.execute(
-                f"SELECT numero FROM registros_auxiliares_aeri WHERE {' AND '.join(filtros)} ORDER BY numero",
-                tuple(parametros),
+            numeros = localizar_registros_custas(cursor, pedido_busca)
+            resultado = (
+                "POSITIVA" if numeros else ("NEGATIVA" if indice["confiavel"] else "PENDENTE")
             )
-            numeros = [item["numero"] for item in cursor.fetchall()]
-            resultado = "POSITIVA" if numeros else "NEGATIVA"
+            status = "BUSCA_REALIZADA" if resultado != "PENDENTE" else "FAZER_PESQUISA"
             identificador = uuid4()
             cursor.execute(
                 """INSERT INTO custas_livro3_aeri
                 (id, pedido, nome, documento, modalidade, produto, safra, resultado,
                  numero_registro, status, criado_por, atualizado_por)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'BUSCA_REALIZADA',%s,%s)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 ON CONFLICT (pedido) DO NOTHING RETURNING *""",
                 (identificador, pedido, nome, documento or "NÃO CONSTA", modalidade_custas,
-                 produto, safra, resultado, ", ".join(map(str, numeros)), usuario, usuario),
+                 produto, safra, resultado, ", ".join(map(str, numeros)), status, usuario, usuario),
             )
             item = cursor.fetchone()
             if not item:
                 raise HTTPException(status_code=409, detail="Este pedido já existe no Informar Custas.")
             _registrar_evento(
                 cursor, identificador, pedido, "PESQUISA_REGISTRO_AUXILIAR", usuario,
-                {"origem": "REGISTRO_AUXILIAR", "registros": numeros, "resultado": resultado},
+                {"origem": "REGISTRO_AUXILIAR", "registros": numeros, "resultado": resultado,
+                 "negativaConfirmada": bool(indice["confiavel"])},
             )
             registrar_auditoria_cursor(
                 cursor, request, "enviar_registro_auxiliar_custas", "sucesso", usuario,
@@ -279,9 +310,14 @@ async def importar_relatorio(
         if not confirmar:
             return {**resultado, "importados": 0, "duplicados": 0, "itensImportados": []}
 
+        indice = await run_in_threadpool(
+            _sincronizar_indice_antes_da_pesquisa, request, usuario
+        )
         importados = 0
         duplicados = 0
         positivas = 0
+        negativas = 0
+        pendentes = 0
         itens_importados = []
         valor_total = 0.0
         with conectar() as conexao:
@@ -307,20 +343,30 @@ async def importar_relatorio(
                             cursor, identificador, item["pedido"], "IMPORTACAO", usuario,
                             {"campos_ausentes": [a["campos"] for a in resultado["alertas"] if a["pedido"] == item["pedido"]]},
                         )
-                        # A pesquisa no Registro Auxiliar entra na mesma transacao:
-                        # e consulta local, no indice ja sincronizado. Antes o
-                        # conferente importava o relatorio e depois clicava
-                        # "Pesquisar" em cada pedido, um por um.
-                        busca = _pesquisar_registros(cursor, novo_item, usuario, preco)
+                        # A pesquisa entra na mesma transação e consulta o índice
+                        # recém-atualizado. Se não foi possível comprovar que a
+                        # atualização alcançou a fronteira da Tri7, uma ausência
+                        # fica pendente em vez de virar negativa.
+                        busca = _pesquisar_registros(
+                            cursor,
+                            novo_item,
+                            usuario,
+                            preco,
+                            permitir_negativa=bool(indice["confiavel"]),
+                        )
                         itens_importados.append(busca["item"])
                         positivas += 1 if busca["resultado"] == "POSITIVA" else 0
+                        negativas += 1 if busca["resultado"] == "NEGATIVA" else 0
+                        pendentes += 1 if busca["resultado"] == "PENDENTE" else 0
                         valor_total += busca["valor"]
                     else:
                         duplicados += 1
                 registrar_auditoria_cursor(
                     cursor, request, "importar_custas", "sucesso", usuario,
                     detalhes={"importados": importados, "duplicados": duplicados,
-                              "ignorados": resultado["ignorados"], "positivas": positivas},
+                              "ignorados": resultado["ignorados"], "positivas": positivas,
+                              "negativas": negativas, "pendentes": pendentes,
+                              "indiceConfiavel": bool(indice["confiavel"])},
                 )
             conexao.commit()
         return {
@@ -330,8 +376,11 @@ async def importar_relatorio(
             "itensImportados": itens_importados,
             "pesquisados": importados,
             "positivas": positivas,
-            "negativas": importados - positivas,
+            "negativas": negativas,
+            "pendentes": pendentes,
             "valorTotal": round(valor_total, 2),
+            "indiceConfiavel": bool(indice["confiavel"]),
+            "indiceMotivo": indice["motivo"],
         }
     except HTTPException:
         raise
@@ -396,7 +445,9 @@ def _preco_certidao_registro_auxiliar(cursor) -> Decimal:
     return item["valor"] if item else Decimal("139.93")
 
 
-def _pesquisar_registros(cursor, pedido, usuario, preco=None) -> dict:
+def _pesquisar_registros(
+    cursor, pedido, usuario, preco=None, *, permitir_negativa: bool = True
+) -> dict:
     """Procura o pedido no Registro Auxiliar e grava o resultado.
 
     A consulta e local, no indice ja sincronizado: nao ha chamada externa, entao
@@ -405,33 +456,20 @@ def _pesquisar_registros(cursor, pedido, usuario, preco=None) -> dict:
     """
     if preco is None:
         preco = _preco_certidao_registro_auxiliar(cursor)
-    termo = normalizar_busca(pedido["nome"])
-    documento = "".join(c for c in pedido["documento"] if c.isdigit())
-    filtros = ["situacao='ATIVO'", "produtos ? %s", "safras ? %s", "modalidade=%s"]
-    parametros = [normalizar_busca(pedido["produto"]), normalizar_safra(pedido["safra"]),
-                  "ALIENAÇÃO" if pedido["modalidade"] == "ALIENACAO_FIDUCIARIA" else pedido["modalidade"]]
-    if len(documento) in {11, 14}:
-        filtros.append("(nomes_busca LIKE %s OR documentos_hash ? %s)")
-        parametros.extend((f"%{termo}%", hash_documento(documento)))
-    else:
-        filtros.append("nomes_busca LIKE %s")
-        parametros.append(f"%{termo}%")
-    cursor.execute(
-        f"SELECT numero FROM registros_auxiliares_aeri WHERE {' AND '.join(filtros)} ORDER BY numero",
-        tuple(parametros),
-    )
-    numeros = [item["numero"] for item in cursor.fetchall()]
-    resultado = "POSITIVA" if numeros else "NEGATIVA"
+    numeros = localizar_registros_custas(cursor, pedido)
+    resultado = "POSITIVA" if numeros else ("NEGATIVA" if permitir_negativa else "PENDENTE")
+    status = "BUSCA_REALIZADA" if resultado != "PENDENTE" else "FAZER_PESQUISA"
     cursor.execute(
         """UPDATE custas_livro3_aeri SET resultado=%s, numero_registro=%s,
-        status='BUSCA_REALIZADA', atualizado_por=%s, atualizado_em=NOW()
+        status=%s, atualizado_por=%s, atualizado_em=NOW()
         WHERE id=%s RETURNING *""",
-        (resultado, ", ".join(str(numero) for numero in numeros), usuario, pedido["id"]),
+        (resultado, ", ".join(str(numero) for numero in numeros), status, usuario, pedido["id"]),
     )
     atualizado = cursor.fetchone()
     valor = preco * max(1, len(numeros))
     _registrar_evento(cursor, pedido["id"], pedido["pedido"], "PESQUISA_REGISTRO_AUXILIAR", usuario,
-                      {"registros": numeros, "valor": str(valor), "resultado": resultado})
+                      {"registros": numeros, "valor": str(valor), "resultado": resultado,
+                       "negativaConfirmada": bool(permitir_negativa)})
     return {"item": custas_json(atualizado), "registros": numeros,
             "valor": float(valor), "resultado": resultado}
 
@@ -441,17 +479,24 @@ def pesquisar_registros_do_pedido(
     identificador: UUID, request: Request,
     usuario: str = Depends(exigir_permissao("gerenciar_custas")),
 ):
+    indice = _sincronizar_indice_antes_da_pesquisa(request, usuario)
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute("SELECT * FROM custas_livro3_aeri WHERE id=%s", (identificador,))
             pedido = cursor.fetchone()
             if not pedido:
                 raise HTTPException(status_code=404, detail="Pedido não encontrado.")
-            saida = _pesquisar_registros(cursor, pedido, usuario)
+            saida = _pesquisar_registros(
+                cursor, pedido, usuario, permitir_negativa=bool(indice["confiavel"])
+            )
             registrar_auditoria_cursor(cursor, request, "pesquisar_registros_custas", "sucesso", usuario,
                                        pedido["pedido"], {"quantidade": len(saida["registros"])})
         conexao.commit()
-    return saida
+    return {
+        **saida,
+        "indiceConfiavel": bool(indice["confiavel"]),
+        "indiceMotivo": indice["motivo"],
+    }
 
 
 @router.get("/{identificador}/historico")

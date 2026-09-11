@@ -247,7 +247,8 @@ async function confirmarImportacao() {
         // A pesquisa no Registro Auxiliar já vem feita do servidor: o resumo diz
         // o que ela achou, para o conferente não precisar abrir pedido por pedido.
         const pesquisa = dados.pesquisados
-            ? ` Pesquisa automática: ${dados.positivas} positiva(s) e ${dados.negativas} negativa(s), ${emReais(dados.valorTotal || 0)}.`
+            ? ` Pesquisa automática: ${dados.positivas} positiva(s), ${dados.negativas} negativa(s)`
+                + `${dados.pendentes ? ` e ${dados.pendentes} pendente(s) de atualização da Tri7` : ''}, ${emReais(dados.valorTotal || 0)}.`
             : '';
         notificarCustas(`${dados.importados} pedido(s) adicionado(s).${dados.duplicados ? ` ${dados.duplicados} já existiam e foram preservados.` : ''}${pesquisa}`);
     } catch (erro) {
@@ -327,7 +328,11 @@ async function acaoTabela(evento) {
             const resposta = await requisicaoAeri(`/api/custas/${item.id}/pesquisar-registros`, {method:'POST'});
             itens = itens.map(atual => atual.id === item.id ? resposta.item : atual);
             renderizar();
-            notificarCustas(`${resposta.resultado}: ${resposta.registros.length} registro(s). Valor: ${emReais(resposta.valor)}.`);
+            if (resposta.resultado === 'PENDENTE') {
+                notificarCustas('A atualização da Tri7 não pôde ser confirmada. O AERI não emitiu uma negativa insegura.', 'erro', 6500);
+            } else {
+                notificarCustas(`${resposta.resultado}: ${resposta.registros.length} registro(s). Valor: ${emReais(resposta.valor)}.`);
+            }
         } catch (erro) { notificarCustas(erro.message, 'erro', 5200); }
         return;
     }
