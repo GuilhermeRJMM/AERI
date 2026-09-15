@@ -151,6 +151,7 @@ def passo_indexacao():
 
 def main():
     carregar_env(RAIZ / ".env")
+    carregar_env(RAIZ / ".env.buscas.local")
     parser=argparse.ArgumentParser()
     parser.add_argument("--once",action="store_true")
     parser.add_argument("--intervalo",type=int,default=10)

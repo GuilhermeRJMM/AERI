@@ -52,8 +52,8 @@ class TesteReindexacaoPeloLivro(unittest.TestCase):
         self.cliente = Mock()
 
     def _reindexar(self, alterados, cache):
-        with patch("backend.app.rotas.livro_protocolos.conectar", return_value=_conexao_falsa()), \
-                patch("backend.app.rotas.livro_protocolos.registrar_auditoria_cursor"), \
+        with patch("backend.app.servicos.reindexacao_livro.conectar", return_value=_conexao_falsa()), \
+                patch("backend.app.servicos.reindexacao_livro.registrar_auditoria_cursor"), \
                 patch("backend.app.rotas.livro_protocolos._salvar_indice_matricula",
                       return_value=({}, False, True, {}, False)) as salvar_m, \
                 patch("backend.app.rotas.livro_protocolos._salvar_indice_auxiliar",

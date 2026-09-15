@@ -30,7 +30,9 @@ from backend.app.servicos.buscas import (
     normalizar_documento,
     normalizar_nome,
     validar_configuracao_buscas,
+    texto_hash,
 )
+from backend.app.servicos.buscas_mencoes import INDICE_BUSCA_VERSAO, salvar_mencoes
 from backend.app.servicos.tri7 import (
     AutenticacaoTri7Falhou,
     ConfiguracaoTri7Invalida,
@@ -105,12 +107,23 @@ def _registrar_erro(cursor, numero: int, modo: str, erro: Exception) -> None:
         ON CONFLICT (numero) DO UPDATE SET
             modo=EXCLUDED.modo, erro=EXCLUDED.erro,
             tentativas=matriculas_busca_erros_aeri.tentativas + 1,
-            ultima_tentativa_em=NOW()""",
+            ultima_tentativa_em=NOW(),
+            proxima_tentativa_em=NOW() + make_interval(mins =>
+                LEAST(360, 15 * (1 << LEAST(matriculas_busca_erros_aeri.tentativas, 5))))""",
         (numero, modo, str(erro)[:500]),
     )
+    cursor.execute("UPDATE matriculas_busca_aeri SET falha_consulta_em=NOW() WHERE numero=%s", (numero,))
+    cursor.execute('''UPDATE fila_matriculas_busca_aeri f SET proxima_tentativa_em=e.proxima_tentativa_em
+        FROM matriculas_busca_erros_aeri e WHERE f.numero=e.numero AND f.numero=%s''', (numero,))
 
 
 def _salvar_ausencia(cursor, numero: int, status: str) -> None:
+    cursor.execute('SELECT texto_hash FROM matriculas_busca_aeri WHERE numero=%s', (numero,))
+    anterior = cursor.fetchone()
+    if anterior and anterior.get('texto_hash'):
+        # Resposta vazia posterior não apaga uma propriedade já conhecida.
+        _registrar_erro(cursor, numero, 'RECONSULTA', RuntimeError(status))
+        return
     cursor.execute(
         """INSERT INTO matriculas_busca_aeri
         (numero, situacao, confianca, quantidade_proprietarios, documentos_hash_versao)
@@ -125,6 +138,7 @@ def _salvar_ausencia(cursor, numero: int, status: str) -> None:
     cursor.execute("DELETE FROM proprietarios_matriculas_busca_aeri WHERE matricula_numero=%s", (numero,))
     cursor.execute("DELETE FROM auditorias_matriculas_aeri WHERE matricula_numero=%s", (numero,))
     _limpar_erro(cursor, numero)
+    cursor.execute('DELETE FROM fila_matriculas_busca_aeri WHERE numero=%s', (numero,))
 
 
 def _salvar_auditoria(cursor, resumo: dict) -> None:
@@ -237,14 +251,31 @@ def _tentar_revisao_complementar(cursor, numero: int, texto: str, resumo: dict) 
 def _salvar_indice(
     cursor, numero: int, texto: str, permitir_complemento: bool = False,
 ) -> tuple[dict, bool, bool, dict, bool]:
+    cursor.execute('''SELECT m.*,to_jsonb(a) AS auditoria FROM matriculas_busca_aeri m
+        LEFT JOIN auditorias_matriculas_aeri a ON a.matricula_numero=m.numero WHERE m.numero=%s''', (numero,))
+    anterior = cursor.fetchone()
+    if (anterior and anterior.get('texto_hash') == texto_hash(texto)
+            and anterior.get('motor_versao') == versao_indice_motor()
+            and anterior.get('documentos_hash_versao') == HASH_DOCUMENTOS_VERSAO
+            and anterior.get('indice_busca_versao') == INDICE_BUSCA_VERSAO
+            and anterior.get('auditoria')):
+        cursor.execute('UPDATE matriculas_busca_aeri SET consultado_em=NOW(),falha_consulta_em=NULL WHERE numero=%s', (numero,))
+        _limpar_erro(cursor, numero)
+        cursor.execute('DELETE FROM fila_matriculas_busca_aeri WHERE numero=%s AND solicitada_em<=transaction_timestamp()', (numero,))
+        resumo = {**anterior['auditoria'], 'numero': numero}
+        complemento = bool(permitir_complemento and _tentar_revisao_complementar(cursor, numero, texto, resumo))
+        return dict(anterior), False, False, resumo, complemento
     resultado = analisar_matricula(texto, numero_matricula=str(numero))
     indice = construir_indice_matricula(numero, texto, resultado)
     resumo_auditoria = construir_resumo_auditoria(numero, texto, resultado)
-    cursor.execute(
-        "SELECT texto_hash, resultado_hash FROM matriculas_busca_aeri WHERE numero=%s",
-        (numero,),
-    )
-    anterior = cursor.fetchone()
+    # Documento completo mede identificação, não acerto da cadeia dominial.
+    confianca_cadeia = resumo_auditoria.get('confianca_cadeia', 'BAIXA')
+    if resumo_auditoria.get('veredito_cadeia') != 'OK':
+        confianca_cadeia = 'BAIXA'
+    nivel = {'BAIXA': 0, 'MEDIA': 1, 'ALTA': 2}
+    for proprietario in indice['proprietarios']:
+        proprietario['confianca'] = min((proprietario['confianca'], confianca_cadeia), key=lambda v:nivel.get(v,0))
+    indice['confianca'] = min((indice['confianca'], confianca_cadeia), key=lambda v:nivel.get(v,0))
     novo = anterior is None
     alterado = bool(
         anterior and (
@@ -292,6 +323,9 @@ def _salvar_indice(
             ),
         )
     _salvar_auditoria(cursor, resumo_auditoria)
+    salvar_mencoes(cursor, numero, texto, resultado)
+    cursor.execute('UPDATE matriculas_busca_aeri SET indice_busca_versao=%s,falha_consulta_em=NULL WHERE numero=%s', (INDICE_BUSCA_VERSAO, numero))
+    cursor.execute('DELETE FROM fila_matriculas_busca_aeri WHERE numero=%s AND solicitada_em<=transaction_timestamp()', (numero,))
     complemento_executado = bool(
         permitir_complemento
         and _tentar_revisao_complementar(cursor, numero, texto, resumo_auditoria)
@@ -303,6 +337,15 @@ def _salvar_indice(
 def _estado_json(cursor) -> dict:
     cursor.execute("SELECT * FROM sincronizacao_matriculas_busca_aeri WHERE id=1")
     estado = cursor.fetchone()
+    # A fonte de verdade para "última localizada" são as linhas que possuem
+    # texto. O cursor administrativo já foi inflado por um limite de carga em
+    # versões antigas; nunca mais o apresentamos como se fosse matrícula real.
+    cursor.execute(
+        """SELECT numero FROM matriculas_busca_aeri
+        WHERE texto_hash IS NOT NULL ORDER BY numero DESC LIMIT 1"""
+    )
+    ultima_com_texto = cursor.fetchone()
+    ultimo_conhecido_real = ultima_com_texto["numero"] if ultima_com_texto else 0
     cursor.execute(
         """SELECT COUNT(*) AS total,
         COUNT(*) FILTER (WHERE situacao='ATIVA') AS ativas,
@@ -345,11 +388,11 @@ def _estado_json(cursor) -> dict:
         FROM matriculas_busca_aeri
         WHERE numero > %s AND numero <= %s""",
         (
-            estado["ultimo_conhecido"],
-            estado["ultimo_conhecido"] + JANELA_SONDAGEM_NOVOS,
+            ultimo_conhecido_real,
+            ultimo_conhecido_real + JANELA_SONDAGEM_NOVOS,
         ),
     )
-    ultimo_sondado = cursor.fetchone()["ultimo_sondado"] or estado["ultimo_conhecido"]
+    ultimo_sondado = cursor.fetchone()["ultimo_sondado"] or ultimo_conhecido_real
     cursor.execute(
         """SELECT COUNT(*) AS total,
         COUNT(*) FILTER (WHERE estado='VALIDADA_AUTOMATICAMENTE') AS validadas,
@@ -365,7 +408,7 @@ def _estado_json(cursor) -> dict:
     return {
         "limiteInicial": limite,
         "proximoInicial": estado["proximo_inicial"],
-        "ultimoConhecido": estado["ultimo_conhecido"],
+        "ultimoConhecido": ultimo_conhecido_real,
         "ultimoSondadoNovos": ultimo_sondado,
         "proximaSondagemNovos": ultimo_sondado + 1,
         "proximoRevisao": estado["proximo_revisao"],
@@ -409,7 +452,10 @@ def _selecionar_numeros_novos(
     números ainda não sondados, dentro de uma janela limitada.
     """
     tamanho = max(1, tamanho)
-    quantidade_reconsulta = max(1, tamanho // 2)
+    # Dois terços do lote ficam para a fronteira já sondada: matrícula nova
+    # costuma ocupar justamente um número que ontem respondeu "não encontrada".
+    # O terço restante continua avançando para atravessar eventuais lacunas.
+    quantidade_reconsulta = max(1, (tamanho * 2 + 2) // 3)
     inicio_reconsulta = max(1, ultimo_conhecido - JANELA_SONDAGEM_NOVOS)
     limite_exploracao = ultimo_conhecido + JANELA_SONDAGEM_NOVOS
 
@@ -417,8 +463,9 @@ def _selecionar_numeros_novos(
         """SELECT numero FROM matriculas_busca_aeri
         WHERE situacao IN ('NAO_ENCONTRADA', 'SEM_TEXTO')
           AND numero BETWEEN %s AND %s
-        ORDER BY consultado_em, numero LIMIT %s""",
-        (inicio_reconsulta, limite_exploracao, quantidade_reconsulta),
+        ORDER BY CASE WHEN numero > %s THEN 0 ELSE 1 END,
+                 consultado_em, numero LIMIT %s""",
+        (inicio_reconsulta, limite_exploracao, ultimo_conhecido, quantidade_reconsulta),
     )
     reconsultados = [item["numero"] for item in cursor.fetchall()]
 
@@ -449,8 +496,9 @@ def _selecionar_numeros_novos(
             """SELECT numero FROM matriculas_busca_aeri
             WHERE situacao IN ('NAO_ENCONTRADA', 'SEM_TEXTO')
               AND numero BETWEEN %s AND %s
-            ORDER BY consultado_em, numero LIMIT %s""",
-            (inicio_reconsulta, limite_exploracao, tamanho),
+            ORDER BY CASE WHEN numero > %s THEN 0 ELSE 1 END,
+                     consultado_em, numero LIMIT %s""",
+            (inicio_reconsulta, limite_exploracao, ultimo_conhecido, tamanho),
         )
         numeros = list(dict.fromkeys([
             *numeros,
@@ -484,11 +532,10 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
                 if limite > estado["limite_inicial"]:
                     cursor.execute(
                         """UPDATE sincronizacao_matriculas_busca_aeri
-                        SET limite_inicial=%s, ultimo_conhecido=GREATEST(ultimo_conhecido,%s), atualizado_em=NOW()
-                        WHERE id=1""", (limite, limite),
+                        SET limite_inicial=%s, atualizado_em=NOW()
+                        WHERE id=1""", (limite,),
                     )
                     estado["limite_inicial"] = limite
-                    estado["ultimo_conhecido"] = max(estado["ultimo_conhecido"], limite)
 
                 reconsultadas = exploradas = 0
                 if modo == "INICIAL":
@@ -501,34 +548,33 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
                     )
                 elif modo == "REVISAO":
                     cursor.execute(
-                        """SELECT numero FROM matriculas_busca_aeri
-                        WHERE texto_hash IS NOT NULL
-                          AND (
-                              documentos_hash_versao IS DISTINCT FROM %s
-                              OR motor_versao IS DISTINCT FROM %s
-                          )
-                        ORDER BY numero LIMIT %s""",
-                        (HASH_DOCUMENTOS_VERSAO, versao_indice_motor(), tamanho),
+                        """SELECT m.numero FROM matriculas_busca_aeri m
+                        WHERE texto_hash IS NOT NULL AND NOT EXISTS
+                          (SELECT 1 FROM matriculas_busca_erros_aeri e WHERE e.numero=m.numero)
+                        ORDER BY CASE WHEN documentos_hash_versao IS DISTINCT FROM %s
+                          OR motor_versao IS DISTINCT FROM %s OR indice_busca_versao<>%s
+                          THEN 0 ELSE 1 END, consultado_em, numero LIMIT %s""",
+                        (HASH_DOCUMENTOS_VERSAO, versao_indice_motor(), INDICE_BUSCA_VERSAO, tamanho),
                     )
                     numeros = [item["numero"] for item in cursor.fetchall()]
-                    if not numeros:
-                        cursor.execute(
-                            """SELECT numero FROM matriculas_busca_aeri
-                            WHERE texto_hash IS NOT NULL AND numero >= %s ORDER BY numero LIMIT %s""",
-                            (estado["proximo_revisao"], tamanho),
-                        )
-                        numeros = [item["numero"] for item in cursor.fetchall()]
-                        if len(numeros) < tamanho:
-                            cursor.execute(
-                                """SELECT numero FROM matriculas_busca_aeri
-                                WHERE texto_hash IS NOT NULL AND numero < %s ORDER BY numero LIMIT %s""",
-                                (estado["proximo_revisao"], tamanho - len(numeros)),
-                            )
-                            numeros.extend(item["numero"] for item in cursor.fetchall())
+                elif modo == 'PRIORITARIA':
+                    cursor.execute('''SELECT numero FROM fila_matriculas_busca_aeri
+                        WHERE proxima_tentativa_em<=NOW() ORDER BY solicitada_em,numero LIMIT %s''', (tamanho,))
+                    numeros = [item['numero'] for item in cursor.fetchall()]
+                elif modo == 'LACUNAS':
+                    cursor.execute('''SELECT m.numero FROM matriculas_busca_aeri m
+                        LEFT JOIN auditorias_matriculas_aeri a ON a.matricula_numero=m.numero
+                        WHERE NOT EXISTS(SELECT 1 FROM matriculas_busca_erros_aeri e WHERE e.numero=m.numero)
+                          AND (m.situacao='ATIVA' AND (m.quantidade_proprietarios=0 OR a.veredito_cadeia='REVISAR')
+                            OR m.situacao IN ('SEM_TEXTO','NAO_ENCONTRADA') AND m.numero<=%s)
+                          AND m.consultado_em<NOW()-INTERVAL '1 day'
+                        ORDER BY m.consultado_em,m.numero LIMIT %s''', (estado['ultimo_conhecido'], tamanho))
+                    numeros = [item['numero'] for item in cursor.fetchall()]
                 else:
                     cursor.execute(
                         """SELECT numero FROM matriculas_busca_erros_aeri
-                        ORDER BY ultima_tentativa_em, numero LIMIT %s""", (tamanho,),
+                        WHERE proxima_tentativa_em<=NOW()
+                        ORDER BY proxima_tentativa_em, numero LIMIT %s""", (tamanho,),
                     )
                     numeros = [item["numero"] for item in cursor.fetchall()]
                 conexao.commit()
@@ -616,7 +662,7 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
                         ultima_sincronizacao=NOW(), atualizado_em=NOW() WHERE id=1""",
                         (ultimo_processado + 1,),
                     )
-                elif modo == "ERROS" and ultimo_processado is not None:
+                elif modo in {"ERROS", "PRIORITARIA", "LACUNAS"} and ultimo_processado is not None:
                     cursor.execute(
                         """UPDATE sincronizacao_matriculas_busca_aeri
                         SET ultima_sincronizacao=NOW(), atualizado_em=NOW() WHERE id=1"""
@@ -658,9 +704,18 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
 
 
 def _proximo_modo_automatico(cursor) -> str:
-    cursor.execute("SELECT * FROM sincronizacao_matriculas_busca_aeri WHERE id=1")
+    # Rodízio persistido: nem erro permanente nem uma fila de alta prioridade
+    # podem impedir a cobertura do restante do acervo.
+    cursor.execute('''UPDATE sincronizacao_matriculas_busca_aeri
+        SET ciclo_automatico=ciclo_automatico+1 WHERE id=1 RETURNING *''')
     estado = cursor.fetchone()
-    if estado["proximo_inicial"] <= estado["limite_inicial"]:
+    ciclo = ('PRIORITARIA', 'NOVOS', 'REVISAO', 'LACUNAS', 'ERROS', 'REVISAO')
+    modo = ciclo[(estado['ciclo_automatico'] - 1) % len(ciclo)]
+    if modo == 'REVISAO' and estado["proximo_inicial"] <= estado["limite_inicial"]:
         return "INICIAL"
-    cursor.execute("SELECT COUNT(*) AS total FROM matriculas_busca_erros_aeri")
-    return "ERROS" if cursor.fetchone()["total"] else "NOVOS"
+    if modo in {'PRIORITARIA', 'ERROS'}:
+        tabela = 'fila_matriculas_busca_aeri' if modo == 'PRIORITARIA' else 'matriculas_busca_erros_aeri'
+        cursor.execute(f'SELECT COUNT(*) AS total FROM {tabela} WHERE proxima_tentativa_em<=NOW()')
+        if not cursor.fetchone()['total']:
+            return 'REVISAO'
+    return modo

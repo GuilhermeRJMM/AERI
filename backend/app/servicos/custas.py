@@ -218,6 +218,14 @@ def _extrair_safra(texto: str) -> str:
         normalizado,
     )
     if not captura:
+        # Alguns relatórios omitem o rótulo SAFRA: "MILHO 2026/2027".
+        # Exigir o produto junto dos anos evita capturar datas ou números de guias.
+        captura = re.search(
+            r"\b(?:SOJA(?:\s+EM\s+GRAOS)?|MILHO|SORGO|ALGODAO|CAFE|FEIJAO|ARROZ|TRIGO)"
+            r"\s*:?\s*(\d{4}|\d{2})\s*[/\-]\s*(\d{4}|\d{2})(?![\d/\-])\b",
+            normalizado,
+        )
+    if not captura:
         return "NÃO CONSTA"
     inicio, fim = captura.groups()
     inicio_num = int(inicio)

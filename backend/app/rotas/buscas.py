@@ -60,6 +60,25 @@ router = APIRouter(
     tags=["busca de titularidade"],
     dependencies=[Depends(preparar_banco)],
 )
+
+
+@router.get('/pesquisar')
+def pesquisar_combinado(
+    nome: str = Query('', max_length=300),
+    documento: str = Query('', max_length=24),
+    pagina: int = Query(1, ge=1), limite: int = Query(50, ge=1, le=100),
+    somente_ativos: bool = True, exportar: bool = False,
+    _usuario: str = Depends(exigir_permissao('acessar_buscas')),
+):
+    from backend.app.servicos.pesquisa_titularidade import pesquisar
+    if nome and not any(c.isalpha() for c in nome):
+        if documento and normalizar_documento(documento) != normalizar_documento(nome):
+            raise HTTPException(422, 'Foram informados dois documentos diferentes.')
+        documento, nome = nome, ''
+    with conectar() as con:
+        with con.cursor() as cur:
+            return pesquisar(cur, nome, documento, pagina, limite, somente_ativos, exportar)
+
 LEASE_SEGUNDOS = 300
 MAX_WORKERS_TRI7 = 3
 MAX_WORKERS_REPROCESSAMENTO = 6
@@ -185,86 +204,15 @@ def exportar_pesquisa_titularidade(
     termo: str = Query(..., min_length=3, max_length=300),
     _usuario: str = Depends(exigir_permissao("acessar_buscas")),
 ):
-    """Devolve o conjunto completo usado no texto da pesquisa.
-
-    A tabela aceita nome parcial para ajudar a localizar a pessoa. Já o texto
-    tem efeito declaratório e, por segurança, só pode usar nome normalizado
-    exato ou CPF/CNPJ completo. A consulta única também evita dezenas de
-    requisições paginadas pelo navegador.
-    """
-    documento = normalizar_documento(termo) if not any(c.isalpha() for c in termo) else ""
-    if documento:
-        if len(documento) not in {11, 14}:
-            raise HTTPException(status_code=422, detail="Informe o CPF ou CNPJ completo.")
-        try:
-            valor = hash_documento(documento)
-        except RuntimeError as erro:
-            raise HTTPException(status_code=503, detail=str(erro)) from erro
-        filtro = "p.documento_hash=%s"
-        tipo_busca = "DOCUMENTO_EXATO"
-    else:
-        valor = normalizar_nome(termo)
-        if len(valor) < 3:
-            raise HTTPException(status_code=422, detail="Informe ao menos três caracteres do nome.")
-        filtro = "p.nome_busca=%s"
-        tipo_busca = "NOME_EXATO"
-
+    """Clientes anteriores passam pelas mesmas salvaguardas da busca nova."""
+    from backend.app.servicos.pesquisa_titularidade import pesquisar
+    por_documento = not any(c.isalpha() for c in termo)
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            if documento:
-                cursor.execute(
-                    """SELECT COUNT(*) AS total FROM matriculas_busca_aeri
-                    WHERE texto_hash IS NOT NULL
-                      AND documentos_hash_versao IS DISTINCT FROM %s""",
-                    (HASH_DOCUMENTOS_VERSAO,),
-                )
-                if cursor.fetchone()["total"]:
-                    raise HTTPException(
-                        status_code=503,
-                        detail="A busca por CPF/CNPJ aguarda a reindexação segura dos documentos.",
-                    )
-            cursor.execute(
-                f"""SELECT COUNT(*) AS total
-                FROM proprietarios_matriculas_busca_aeri p
-                JOIN matriculas_busca_aeri m ON m.numero=p.matricula_numero
-                WHERE {filtro}""",
-                (valor,),
+            return pesquisar(
+                cursor, nome="" if por_documento else termo,
+                documento=termo if por_documento else "", exportar=True,
             )
-            total = int(cursor.fetchone()["total"] or 0)
-            if total > 5_000:
-                raise HTTPException(
-                    status_code=422,
-                    detail="A pesquisa exata retornou mais de 5.000 linhas; refine pelo CPF/CNPJ.",
-                )
-            cursor.execute(
-                f"""SELECT m.numero, m.situacao, m.consultado_em,
-                p.nome, p.documento_mascarado, p.tipo_documento,
-                p.proporcao, p.origem, p.confianca
-                FROM proprietarios_matriculas_busca_aeri p
-                JOIN matriculas_busca_aeri m ON m.numero=p.matricula_numero
-                WHERE {filtro}
-                ORDER BY m.numero, p.ordem""",
-                (valor,),
-            )
-            itens = cursor.fetchall()
-    return {
-        "termo": termo.strip(),
-        "tipoBusca": tipo_busca,
-        "total": total,
-        "exata": True,
-        "itens": [
-            {
-                "matricula": item["numero"], "nome": item["nome"],
-                "documento": item["documento_mascarado"],
-                "tipoDocumento": item["tipo_documento"],
-                "proporcao": item["proporcao"], "origem": item["origem"],
-                "situacao": item["situacao"], "confianca": item["confianca"],
-                "correspondencia": tipo_busca,
-                "consultadoEm": item["consultado_em"].isoformat(),
-            }
-            for item in itens
-        ],
-    }
 
 
 @router.get("/status")
@@ -621,12 +569,21 @@ def passo_automatico(request=None, usuario: str = "cron") -> dict:
     Mora aqui, e não no corpo do cron, porque agora tem dois chamadores: o cron
     diário da Vercel e o executor da serventia. Duas cópias derivariam.
     """
+    if usuario == 'executor':
+        try:
+            validar_configuracao_buscas()
+        except RuntimeError as erro:
+            raise HTTPException(503, 'Indexação indisponível: configuração de segurança ausente no servidor.') from erro
+        from backend.app.servicos.buscas_movimentacoes import recuperar_movimentacoes
+        from backend.app.rotas.buscas_indexacao import logger
+        try:
+            recuperar_movimentacoes()
+        except Exception as erro:
+            logger.warning('recuperar_movimentacoes tipo=%s', type(erro).__name__)
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             modo = _proximo_modo_automatico(cursor)
     resultado = _executar_sincronizacao(modo, 30, 0, request, usuario)
-    if modo == "NOVOS":
-        resultado["revisao"] = _executar_sincronizacao("REVISAO", 30, 0, request, usuario)
     resultado["modo"] = modo
     return resultado
 

@@ -15,6 +15,7 @@ from backend.app.servicos.conferencia_livro import conferir_itens_tri7
 from backend.app.servicos.intimacoes import situacao_conferencia
 from backend.app.servicos.livro_protocolos import janelas_livro_protocolos, montar_protocolos_do_dia, hash_regras_livro_protocolos
 from backend.app.servicos.tri7 import cliente_tri7
+from backend.app.servicos.reindexacao_livro import reindexar_registros
 
 FUSO = ZoneInfo("America/Sao_Paulo")
 
@@ -101,7 +102,12 @@ def executar_passo(chave, limite=2):
                 with con.cursor() as cur:
                     excecoes = excecoes_do_livro(cur, trabalho["data_alvo"])
             lote = resultado["fila"][:limite]
-            processados, _, _ = conferir_itens_tri7(lote, trabalho["data_alvo"], excecoes, cliente)
+            processados, alterados, textos = conferir_itens_tri7(lote, trabalho["data_alvo"], excecoes, cliente)
+            atualizacao = reindexar_registros(alterados, textos, cliente)
+            acumulado = resultado.setdefault('atualizacao', {})
+            for campo, valor in atualizacao.items():
+                if isinstance(valor, int):
+                    acumulado[campo] = acumulado.get(campo, 0) + valor
             resultado["protocolos"].extend(processados)
             resultado["fila"] = resultado["fila"][len(lote):]
             resultado["resumo"] = resumo_livro(resultado["protocolos"])

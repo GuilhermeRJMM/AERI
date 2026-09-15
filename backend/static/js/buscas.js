@@ -7,6 +7,13 @@ let indexando = false;
 let revisando = false;
 let reprocessandoPendencias = false;
 let buscaAtual = {termo:'', pagina:1, totalPaginas:0};
+let geracaoPesquisa = 0;
+
+function parametrosPesquisa(exportar=false) {
+    return new URLSearchParams({nome:buscaAtual.termo || '', documento:buscaAtual.documento || '',
+        pagina:String(buscaAtual.pagina || 1), limite:'50',
+        somente_ativos:String(!buscaAtual.incluirEncerradas), exportar:String(exportar)});
+}
 
 const CABECALHO_PESQUISA = 'Cartório do 1º Ofício de Notas e Registro de Imóveis de Morrinhos-GO';
 
@@ -137,6 +144,11 @@ export async function carregarBuscas(opcoes = {}) {
 }
 
 export function limparBuscas() {
+    geracaoPesquisa++;
+    document.getElementById('buscas-documento').value = '';
+    document.getElementById('buscas-candidatos').replaceChildren();
+    document.getElementById('buscas-candidatos').hidden = true;
+    document.getElementById('buscas-cobertura').hidden = true;
     indexando = false;
     revisando = false;
     reprocessandoPendencias = false;
@@ -217,10 +229,10 @@ function renderizarResultados(dados) {
     const totalPaginas = Number(dados.totalPaginas || 0);
     const inicio = total ? ((pagina - 1) * Number(dados.porPagina || 50)) + 1 : 0;
     const fim = total ? inicio + itens.length - 1 : 0;
-    buscaAtual = {termo:String(dados.termo || buscaAtual.termo), pagina, totalPaginas};
+    buscaAtual = {...buscaAtual, pagina, totalPaginas};
     // O texto da pesquisa qualificada existe nos dois casos: com imóveis
     // (positivo) e sem nenhum (negativo).
-    document.getElementById('btn-buscas-texto').hidden = !buscaAtual.termo;
+    document.getElementById('btn-buscas-texto').hidden = !(buscaAtual.termo || buscaAtual.documento);
     document.getElementById('buscas-texto-aviso').hidden = true;
     document.getElementById('buscas-total-resultados').textContent = total
         ? `${inicio}–${fim} de ${formatarNumero(total)} resultados`
@@ -231,12 +243,13 @@ function renderizarResultados(dados) {
     document.getElementById('btn-buscas-anterior').disabled = pagina <= 1;
     document.getElementById('btn-buscas-proxima').disabled = pagina >= totalPaginas;
     document.getElementById('buscas-resultados').innerHTML = itens.map(item => {
-        const correspondencia = item.correspondencia === 'DOCUMENTO_EXATO' ? 'CPF/CNPJ exato'
-            : item.correspondencia === 'NOME_EXATO' ? 'Nome exato' : 'Nome parcial';
+        const correspondencia = ({DOCUMENTO_EXATO:'CPF/CNPJ exato', NOME_EXATO:'Nome exato',
+            NOME_EXATO_SEM_DOCUMENTO:'Nome igual · documento ausente', DOCUMENTO_DIVERGENTE:'Documento diferente',
+            VARIACAO_DE_NOME:'Variação de nome'})[item.correspondencia] || 'Nome parcial';
         const situacao = String(item.situacao || 'REVISAR').toUpperCase();
         return `<tr>
             <td data-label="Matrícula"><strong class="buscas-matricula">${formatarNumero(item.matricula)}</strong><small class="buscas-situacao" data-situacao="${escaparHtml(situacao)}">${escaparHtml(situacao)}</small></td>
-            <td data-label="Proprietário"><strong>${escaparHtml(item.nome)}</strong><small>Confiança ${escaparHtml(item.confianca.toLowerCase())}</small></td>
+            <td data-label="Proprietário"><strong>${escaparHtml(item.nome)}</strong><small>${item.revisaoPendente ? 'Conferência pendente' : 'Confiança '+escaparHtml((item.confianca || 'BAIXA').toLowerCase())}</small></td>
             <td data-label="Documento">${escaparHtml(item.tipoDocumento || '')} ${escaparHtml(item.documento || 'Não informado')}</td>
             <td data-label="Proporção"><span class="buscas-proporcao">${escaparHtml(item.proporcao)}</span></td>
             <td data-label="Origem">${escaparHtml(item.origem)}</td>
@@ -245,9 +258,31 @@ function renderizarResultados(dados) {
             <td data-label="Ação"><button type="button" class="rotina-btn-secondary buscas-analisar" data-matricula="${item.matricula}">Analisar</button></td>
         </tr>`;
     }).join('') || '<tr><td colspan="8" class="rotina-vazio">Nenhuma matrícula foi encontrada para essa pesquisa.</td></tr>';
+    renderizarCandidatos(dados);
+}
+
+function renderizarCandidatos(dados) {
+    const alvo=document.getElementById('buscas-candidatos');
+    const candidatos=dados.candidatos || [];
+    alvo.hidden=!candidatos.length;
+    const audita=['ADMIN','SUBSTITUTO'].includes(document.body.dataset.perfil) || window.aeriPermissoes?.revisar_auditoria;
+    alvo.innerHTML='<h2>Menções em atos anteriores</h2><p>Estas menções ajudam na conferência e não compõem a lista de imóveis em propriedade atual.</p>' + candidatos.map(c=>`<article>
+        <strong>Matrícula ${formatarNumero(c.matricula)} · ${escaparHtml(c.situacao)}</strong>
+        <span>${c.revisaoPendente ? 'Extração precisa de revisão' : 'Menção histórica'}</span>
+        <ul>${(c.mencoes || []).slice(0,8).map(m=>`<li>${escaparHtml(m.nome)} · ${escaparHtml(m.ato)} · ${escaparHtml(m.papel.replaceAll('_',' ').toLowerCase())}</li>`).join('')}</ul>
+        <button class="rotina-btn-secondary" data-matricula="${Number(c.matricula)}">Abrir matrícula</button>
+        ${audita ? `<button class="rotina-btn-secondary" data-reconsultar="${Number(c.matricula)}">Reconsultar texto</button>` : ''}</article>`).join('') + (dados.maisCandidatos ? '<p>Existem mais menções. Refine pelo nome completo e CPF/CNPJ.</p>' : '');
+    const cobertura=document.getElementById('buscas-cobertura');
+    cobertura.hidden=false;
+    const pendentes=Number(dados.cobertura?.mencoes_pendentes || 0);
+    cobertura.textContent=`${formatarNumero(dados.totalMatriculas ?? dados.total)} matrículas nesta pesquisa.` +
+        (pendentes ? ` Recuperação por atos em atualização: ${formatarNumero(pendentes)} matrículas restantes.` : '') +
+        (!dados.total ? ' Nenhum titular localizado no índice; confira as menções e a cobertura antes de concluir.' : '');
 }
 
 async function executarPesquisa(pagina = 1) {
+    const geracao=++geracaoPesquisa;
+    buscaAtual.pagina=pagina;
     const botao = document.getElementById('btn-buscas-pesquisar');
     const termo = buscaAtual.termo || document.getElementById('buscas-termo').value.trim();
     botao.disabled = true;
@@ -255,28 +290,34 @@ async function executarPesquisa(pagina = 1) {
     document.getElementById('btn-buscas-proxima').disabled = true;
     document.getElementById('buscas-resultados').innerHTML = '<tr><td colspan="8" class="rotina-vazio">Pesquisando titulares no índice registral…</td></tr>';
     try {
-        renderizarResultados(await requisicaoAeri(`/api/buscas?termo=${encodeURIComponent(termo)}&pagina=${pagina}&limite=50`));
+        const dados=await requisicaoAeri(`/api/buscas/pesquisar?${parametrosPesquisa()}`);
+        if(geracao===geracaoPesquisa) renderizarResultados(dados);
     } catch (erro) {
+        if(geracao!==geracaoPesquisa)return;
+        document.getElementById('btn-buscas-texto').hidden=true;
+        document.getElementById('buscas-candidatos').hidden=true;
         document.getElementById('buscas-resultados').innerHTML = `<tr><td colspan="8" class="rotina-vazio">${escaparHtml(erro.message)}</td></tr>`;
     } finally {
-        botao.disabled = false;
+        if(geracao===geracaoPesquisa)botao.disabled = false;
     }
 }
 
 async function pesquisar(evento) {
     evento.preventDefault();
-    buscaAtual = {termo:document.getElementById('buscas-termo').value.trim(), pagina:1, totalPaginas:0};
+    buscaAtual = {termo:document.getElementById('buscas-termo').value.trim(),
+        documento:document.getElementById('buscas-documento').value.trim(),
+        incluirEncerradas:document.getElementById('buscas-incluir-encerradas').checked, pagina:1, totalPaginas:0};
     await executarPesquisa(1);
 }
 
 async function coletarTodosOsItens(termo) {
     const dados = await requisicaoAeri(
-        `/api/buscas/exportacao?termo=${encodeURIComponent(termo)}`);
+        `/api/buscas/pesquisar?${parametrosPesquisa(true)}`);
     return dados.itens || [];
 }
 
 function montarTextoPesquisa(termo, itens) {
-    const soDigitos = !/[a-zA-Z]/.test(termo);
+    const soDigitos = !/[a-zA-ZÀ-ú]/.test(termo);
 
     // Só matrícula ATIVA é imóvel em propriedade da pessoa. Encerrada saiu
     // para outra matrícula (desmembramento, remembramento, unificação) e
@@ -300,7 +341,7 @@ function montarTextoPesquisa(termo, itens) {
     const nome = soDigitos
         ? (itens[0]?.nome || '').trim()
         : termo.trim();
-    const documento = soDigitos
+    const documento = buscaAtual.documento ? documentoFormatado(buscaAtual.documento) : soDigitos
         ? documentoFormatado(termo)
         : (itens[0]?.documento || '').trim();
 
@@ -436,7 +477,7 @@ async function copiarComFormato(texto, html) {
 async function gerarTextoPesquisa() {
     const botao = document.getElementById('btn-buscas-texto');
     const aviso = document.getElementById('buscas-texto-aviso');
-    const termo = buscaAtual.termo || document.getElementById('buscas-termo').value.trim();
+    const termo = buscaAtual.termo || buscaAtual.documento || document.getElementById('buscas-termo').value.trim();
     if (!termo) return;
     const rotulo = botao.textContent;
     botao.disabled = true;
@@ -836,6 +877,15 @@ function abrirAnalise(evento) {
 }
 
 export function iniciarBuscas() {
+    document.getElementById('buscas-candidatos').addEventListener('click',async e=>{
+        const botao=e.target.closest('[data-reconsultar]');
+        if(!botao)return abrirAnalise(e);
+        botao.disabled=true; botao.textContent='Reconsultando…';
+        try {
+            await requisicaoAeri(`/api/buscas/${Number(botao.dataset.reconsultar)}/revisar`,{method:'POST'});
+            await executarPesquisa(buscaAtual.pagina);
+        } catch(erro) {botao.textContent=erro.message;botao.disabled=false;}
+    });
     document.getElementById('form-buscas').addEventListener('submit', pesquisar);
     document.getElementById('btn-buscas-texto').addEventListener('click', gerarTextoPesquisa);
     document.getElementById('btn-buscas-anterior').addEventListener('click', paginaAnterior);

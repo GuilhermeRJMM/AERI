@@ -115,15 +115,14 @@ class TesteRotaBuscas(unittest.TestCase):
             "confianca": "ALTA",
         }])
         cursor.fetchone = lambda: {"total": 1}
-        with patch.object(buscas, "conectar", return_value=_ConexaoFalsa(cursor)):
+        with patch.object(buscas, "conectar", return_value=_ConexaoFalsa(cursor)), \
+             patch("backend.app.servicos.pesquisa_titularidade.pesquisar", return_value={"itens": []}) as pesquisar:
             resposta = buscas.exportar_pesquisa_titularidade(
                 "Município de Morrinhos", "usuario"
             )
 
-        self.assertEqual("NOME_EXATO", resposta["tipoBusca"])
-        self.assertEqual(1, len(resposta["itens"]))
-        self.assertNotIn("LIKE", cursor.comandos[-1][0])
-        self.assertEqual(("MUNICIPIO DE MORRINHOS",), cursor.comandos[-1][1])
+        self.assertEqual([], resposta["itens"])
+        pesquisar.assert_called_once_with(cursor, nome="Município de Morrinhos", documento="", exportar=True)
 
     def test_cpf_incompleto_e_recusado(self):
         with self.assertRaises(HTTPException) as contexto:

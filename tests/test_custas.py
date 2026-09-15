@@ -32,6 +32,25 @@ def bloco(pedido: str, observacao: str, nome="PESSOA DE TESTE", documento="12345
 
 
 class TesteInformarCustas(unittest.TestCase):
+    def test_safra_apos_produto_sem_rotulo_preserva_ano_do_relatorio(self):
+        for modalidade, safra in (("penhor", "2026/2026"), ("alienação fiduciária", "2026/2027")):
+            with self.subTest(modalidade=modalidade):
+                resultado = extrair_pedidos_texto(bloco(
+                    "S26080000001D", f"Certidão de {modalidade} MILHO {safra}"
+                ))
+                self.assertEqual(resultado["itens"][0]["safra"], safra)
+                self.assertEqual(resultado["alertas"], [])
+
+    def test_safra_sem_rotulo_aceita_abreviacao_e_quebra_de_linha(self):
+        resultado = extrair_pedidos_texto(bloco("S26080000001D", "PENHOR SOJA\n2026-27"))
+        self.assertEqual(resultado["itens"][0]["safra"], "2026/2027")
+
+    def test_nao_confunde_data_ou_guia_com_safra(self):
+        for observacao in ("PENHOR MILHO 15/09/2026", "PENHOR MILHO. Guia 2026/2027", "PENHOR MILHO"):
+            with self.subTest(observacao=observacao):
+                resultado = extrair_pedidos_texto(bloco("S26080000001D", observacao))
+                self.assertEqual(resultado["itens"][0]["safra"], "NÃO CONSTA")
+
     def test_relatorio_pdf_usa_formato_simples_e_ordem_recebida(self):
         pdf = gerar_relatorio_custas_pdf([
             {"pedido": "S26081052542D", "modalidade": "PENHOR", "resultado": "NEGATIVA"},

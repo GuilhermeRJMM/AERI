@@ -116,7 +116,7 @@ class TesteSelecaoRotativaDeNovas(unittest.TestCase):
     def test_reconsulta_ausencias_e_avanca_a_faixa_no_mesmo_clique(self):
         cursor = MagicMock()
         cursor.fetchall.return_value = [
-            {"numero": numero} for numero in range(40002, 40017)
+            {"numero": numero} for numero in range(40002, 40022)
         ]
         cursor.fetchone.return_value = {"maior": 40030}
 
@@ -124,15 +124,15 @@ class TesteSelecaoRotativaDeNovas(unittest.TestCase):
             cursor, 40001, 30,
         )
 
-        self.assertEqual(list(range(40002, 40017)), numeros[:15])
-        self.assertEqual(list(range(40031, 40046)), numeros[15:])
-        self.assertEqual(15, reconsultadas)
-        self.assertEqual(15, exploradas)
+        self.assertEqual(list(range(40002, 40022)), numeros[:20])
+        self.assertEqual(list(range(40031, 40041)), numeros[20:])
+        self.assertEqual(20, reconsultadas)
+        self.assertEqual(10, exploradas)
 
     def test_janela_completa_faz_rodizio_das_ausencias(self):
         cursor = MagicMock()
         cursor.fetchall.side_effect = [
-            [{"numero": numero} for numero in range(40002, 40017)],
+            [{"numero": numero} for numero in range(40002, 40022)],
             [{"numero": numero} for numero in range(40002, 40032)],
         ]
         cursor.fetchone.return_value = {"maior": 40301}
@@ -142,9 +142,53 @@ class TesteSelecaoRotativaDeNovas(unittest.TestCase):
         )
 
         self.assertEqual(30, len(numeros))
-        self.assertEqual(15, reconsultadas)
+        self.assertEqual(20, reconsultadas)
         self.assertEqual(0, exploradas)
         self.assertEqual(list(range(40002, 40032)), numeros)
+
+    def test_prioriza_ausencias_acima_da_ultima_realmente_encontrada(self):
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [
+            {"numero": numero} for numero in range(39895, 39915)
+        ]
+        cursor.fetchone.return_value = {"maior": 40046}
+
+        numeros, reconsultadas, exploradas = I._selecionar_numeros_novos(
+            cursor, 39894, 30,
+        )
+
+        self.assertEqual(list(range(39895, 39915)), numeros[:20])
+        self.assertEqual(20, reconsultadas)
+        self.assertEqual(list(range(40047, 40057)), numeros[20:])
+
+
+class TesteLimiteDaCargaNaoViraMatriculaExistente(unittest.TestCase):
+    def test_aumentar_limite_nao_promove_ultimo_conhecido(self):
+        estado = {
+            "id": 1, "proximo_inicial": 40000, "limite_inicial": 39850,
+            "ultimo_conhecido": 39894, "proximo_revisao": 1,
+        }
+        cursor = MagicMock()
+        cursor.fetchone.return_value = estado
+
+        with patch.object(I, "conectar", return_value=_conexao(cursor)), \
+                patch.object(I, "validar_configuracao_buscas"), \
+                patch.object(I, "_consultar_lote", return_value=([], None)), \
+                patch.object(I, "_estado_json", return_value={}), \
+                patch.object(I, "registrar_auditoria_cursor"):
+            I._executar_sincronizacao(
+                "INICIAL", 20, 40001, MagicMock(), "TESTE",
+            )
+
+        atualizacoes_limite = [
+            chamada for chamada in cursor.execute.call_args_list
+            if "SET limite_inicial=" in chamada.args[0]
+        ]
+        self.assertEqual(1, len(atualizacoes_limite))
+        sql = atualizacoes_limite[0].args[0]
+        self.assertNotIn("ultimo_conhecido", sql)
+        self.assertEqual((40001,), atualizacoes_limite[0].args[1])
+        self.assertEqual(39894, estado["ultimo_conhecido"])
 
 
 if __name__ == "__main__":

@@ -159,44 +159,12 @@ def _reindexar_registros_alterados(
     Uma falha isolada não derruba a conferência: o protocolo continua
     conferido e o número entra na contagem de falhas para nova tentativa.
     """
-    relatorio = {
-        "matriculas": 0, "matriculasNovas": 0, "matriculasAlteradas": 0,
-        "registrosAuxiliares": 0, "registrosAuxiliaresNovos": 0,
-        "falhas": 0, "numerosComFalha": [],
-    }
-    if not alterados:
-        return relatorio
-
-    with conectar() as conexao:
-        with conexao.cursor() as cursor:
-            for tipo, numero in sorted(alterados):
-                try:
-                    if tipo == "M":
-                        texto = (cache_textos.get((tipo, numero)) or (None, None))[0]
-                        if texto is None:
-                            texto = cliente.buscar_texto_matricula(numero)["texto"]
-                        _, novo, alterado, _, _ = _salvar_indice_matricula(cursor, numero, texto)
-                        relatorio["matriculas"] += 1
-                        relatorio["matriculasNovas"] += int(bool(novo))
-                        relatorio["matriculasAlteradas"] += int(bool(alterado))
-                    else:
-                        texto = (cache_textos.get((tipo, numero)) or (None, None))[0]
-                        if texto is None:
-                            texto = cliente.buscar_texto_registro_auxiliar(numero)["texto"]
-                        _, inserido = _salvar_indice_auxiliar(cursor, numero, texto)
-                        relatorio["registrosAuxiliares"] += 1
-                        relatorio["registrosAuxiliaresNovos"] += int(bool(inserido))
-                except Exception:  # noqa: BLE001
-                    relatorio["falhas"] += 1
-                    if len(relatorio["numerosComFalha"]) < 20:
-                        relatorio["numerosComFalha"].append(f"{tipo}.{numero}")
-            registrar_auditoria_cursor(
-                cursor, request, "reindexar_pelo_livro_protocolos", "sucesso",
-                usuario, detalhes=relatorio,
-            )
-        conexao.commit()
-    return relatorio
-
+    from backend.app.servicos import reindexacao_livro
+    return reindexacao_livro.reindexar_registros(
+        alterados, cache_textos, cliente, request, usuario,
+        salvar_matricula=_salvar_indice_matricula,
+        salvar_auxiliar=_salvar_indice_auxiliar,
+    )
 
 @router.post("/analisar", dependencies=[Depends(proteger_csrf)])
 async def analisar_livro_protocolos(

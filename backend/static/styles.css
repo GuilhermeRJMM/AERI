@@ -2838,6 +2838,28 @@ body.modo-incorporado .layout { padding-top:28px; }
 .buscas-form input { width:100%; padding:12px 14px; border:1px solid rgba(139,152,178,.22); border-radius:11px; outline:none; background:rgba(8,13,24,.52); color:var(--text-main); font:600 .87rem Outfit,sans-serif; }
 .buscas-form input:focus { border-color:rgba(103,87,242,.75); box-shadow:0 0 0 3px rgba(103,87,242,.12); }
 .buscas-form small { display:block; margin-top:8px; color:var(--text-muted); font-size:.68rem; }
+.buscas-identidade { display:flex; flex-wrap:wrap; align-items:end; gap:16px; margin-top:14px; }
+.buscas-identidade > label { flex:1; min-width:220px; color:var(--text-soft); font-size:.8rem; }
+.buscas-identidade input { margin-top:6px; }
+.buscas-identidade .buscas-checkbox { display:flex; align-items:center; gap:8px; padding-bottom:12px; }
+.buscas-identidade input[type=checkbox] { width:17px; height:17px; margin:0; accent-color:#8876ff; }
+.buscas-candidatos { padding:20px; }
+.buscas-candidatos h2 { margin:0; font-size:1.1rem; }
+.buscas-candidatos > p { color:var(--text-muted); font-size:.82rem; }
+.buscas-candidatos article { padding:16px 0; border-top:1px solid rgba(139,152,178,.2); }
+.buscas-candidatos article > span { display:block; margin-top:4px; color:#e9bf75; font-size:.78rem; }
+.buscas-candidatos ul { padding-left:20px; font-size:.8rem; line-height:1.7; overflow-wrap:anywhere; }
+.buscas-candidatos button { margin-right:8px; margin-top:6px; }
+@media (max-width: 700px) {
+    .buscas-resultados-card .buscas-table { min-width:0; }
+    .buscas-resultados-card .buscas-table thead { display:none; }
+    .buscas-resultados-card .buscas-table tbody,
+    .buscas-resultados-card .buscas-table tr { display:block; }
+    .buscas-resultados-card .buscas-table tr { padding:10px; border-bottom:1px solid rgba(139,152,178,.2); }
+    .buscas-resultados-card .buscas-table td { display:flex; justify-content:space-between; gap:12px; white-space:normal; overflow-wrap:anywhere; }
+    .buscas-resultados-card .buscas-table td[data-label]::before { content:attr(data-label); flex:0 0 96px; color:var(--text-muted); }
+    .buscas-resultados-card .buscas-table td small { align-self:center; }
+}
 .buscas-resultados-topo { display:flex; justify-content:space-between; align-items:center; gap:15px; padding:17px 19px; border-bottom:1px solid rgba(139,152,178,.12); }
 .buscas-resultados-topo h2 { margin:2px 0 0; color:var(--text-main); font-size:1.08rem; }
 .buscas-resultados-topo > strong { color:#c4b5fd; font-size:.75rem; }
