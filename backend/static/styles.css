@@ -2866,6 +2866,10 @@ body.modo-incorporado .layout { padding-top:28px; }
 .buscas-resultados-acoes { display:flex; align-items:center; gap:13px; flex-wrap:wrap; justify-content:flex-end; }
 .buscas-resultados-acoes > strong { color:#c4b5fd; font-size:.75rem; }
 .buscas-texto-aviso { margin:0; padding:11px 19px; border-bottom:1px solid rgba(139,152,178,.12); color:var(--text-soft); font-size:.78rem; }
+.buscas-texto-fallback { padding:14px 19px; border-bottom:1px solid rgba(139,152,178,.12); background:rgba(12,18,32,.42); color:var(--text-soft); font-size:.78rem; }
+.buscas-texto-fallback strong { display:block; color:var(--text-main); margin-bottom:4px; }
+.buscas-texto-fallback p { margin:0 0 8px; }
+.buscas-texto-fallback textarea { width:100%; min-height:220px; resize:vertical; box-sizing:border-box; }
 .buscas-table-wrap { overflow:auto; }
 .buscas-table { width:100%; min-width:1120px; border-collapse:collapse; }
 .buscas-table th { padding:10px 12px; color:var(--text-muted); background:rgba(8,13,24,.32); font-size:.62rem; letter-spacing:.045em; text-align:left; text-transform:uppercase; }

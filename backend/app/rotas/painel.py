@@ -1,6 +1,7 @@
 import hmac
 import os
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
@@ -92,11 +93,15 @@ def cron(request: Request):
 
 @router.get("/livro-protocolos/automatico")
 def ultimo_livro(_usuario=Depends(exigir_permissao("acessar_livro_protocolos"))):
+    hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
     with conectar() as con:
         with con.cursor() as cur:
-            cur.execute("SELECT estado,resultado FROM execucoes_operacionais_aeri WHERE chave='livro_protocolos' ORDER BY inicio DESC LIMIT 1")
+            cur.execute("""SELECT estado,resultado
+                FROM execucoes_operacionais_aeri
+                WHERE chave='livro_protocolos' AND data_alvo=%s
+                ORDER BY inicio DESC LIMIT 1""", (hoje,))
             r = cur.fetchone()
-    if not r or "resumo" not in r["resultado"]:
-        raise HTTPException(404, "Ainda não há resultado automático disponível.")
+    if not r or not isinstance(r.get("resultado"), dict) or "resumo" not in r["resultado"]:
+        raise HTTPException(404, "Ainda não há resultado automático para o dia de hoje.")
     resultado = {k:v for k,v in r["resultado"].items() if k != "fila"}
     return {**resultado, "estadoExecucao": r["estado"]}

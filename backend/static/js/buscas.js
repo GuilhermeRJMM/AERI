@@ -234,6 +234,7 @@ function renderizarResultados(dados) {
     // (positivo) e sem nenhum (negativo).
     document.getElementById('btn-buscas-texto').hidden = !(buscaAtual.termo || buscaAtual.documento);
     document.getElementById('buscas-texto-aviso').hidden = true;
+    document.getElementById('buscas-texto-fallback')?.remove();
     document.getElementById('buscas-total-resultados').textContent = total
         ? `${inicio}–${fim} de ${formatarNumero(total)} resultados`
         : '0 resultados';
@@ -457,7 +458,7 @@ function copiarSelecionando(html) {
 // texto puro. Devolve se a formatação foi junto.
 async function copiarComFormato(texto, html) {
     const corpo = html.replace(/^[\s\S]*<body[^>]*>|<\/body>[\s\S]*$/g, '');
-    if (copiarSelecionando(corpo)) return true;
+    if (copiarSelecionando(corpo)) return {copiou:true, formatado:true};
 
     if (window.ClipboardItem && navigator.clipboard?.write) {
         try {
@@ -465,13 +466,41 @@ async function copiarComFormato(texto, html) {
                 'text/html': new Blob([html], {type: 'text/html'}),
                 'text/plain': new Blob([texto], {type: 'text/plain'}),
             })]);
-            return true;
+            return {copiou:true, formatado:true};
         } catch {
             // sem permissão para o formato rico: cai no texto puro
         }
     }
-    await navigator.clipboard.writeText(texto);
-    return false;
+    try {
+        if (!navigator.clipboard?.writeText) return {copiou:false, formatado:false};
+        await navigator.clipboard.writeText(texto);
+        return {copiou:true, formatado:false};
+    } catch {
+        return {copiou:false, formatado:false};
+    }
+}
+
+function mostrarTextoFallback(texto) {
+    let painel = document.getElementById('buscas-texto-fallback');
+    if (!painel) {
+        painel = document.createElement('div');
+        painel.id = 'buscas-texto-fallback';
+        painel.className = 'buscas-texto-fallback';
+        document.getElementById('buscas-texto-aviso').insertAdjacentElement('afterend', painel);
+    }
+    painel.replaceChildren();
+    const titulo = document.createElement('strong');
+    titulo.textContent = 'Texto pronto para copiar manualmente';
+    const ajuda = document.createElement('p');
+    ajuda.textContent = 'O navegador bloqueou a área de transferência. Selecione o texto abaixo e pressione Ctrl+C.';
+    const area = document.createElement('textarea');
+    area.readOnly = true;
+    area.value = texto;
+    area.rows = 14;
+    painel.append(titulo, ajuda, area);
+    painel.hidden = false;
+    area.focus();
+    area.select();
 }
 
 async function gerarTextoPesquisa() {
@@ -487,12 +516,16 @@ async function gerarTextoPesquisa() {
         const itens = await coletarTodosOsItens(termo);
         const {texto, html, documentoIncompleto, nomeIncompleto, matriculas, descartadas} =
             montarTextoPesquisa(termo, itens);
-        const comFormato = await copiarComFormato(texto, html);
-        botao.textContent = 'Texto copiado!';
+        const copia = await copiarComFormato(texto, html);
+        if (!copia.copiou) mostrarTextoFallback(texto);
+        else document.getElementById('buscas-texto-fallback')?.remove();
+        botao.textContent = copia.copiou ? 'Texto copiado!' : 'Texto gerado!';
         aviso.hidden = false;
 
         const partes = [];
-        if (!comFormato) {
+        if (!copia.copiou) {
+            partes.push('O texto foi gerado, mas o navegador bloqueou a cópia automática. Ele está disponível abaixo para copiar manualmente.');
+        } else if (!copia.formatado) {
             partes.push('Copiado sem formatação (este navegador não permitiu o formato rico) — ajuste para Arial 12 e alinhamento à esquerda ao colar.');
         } else {
             partes.push(`Texto ${matriculas.length ? 'positivo' : 'negativo'} copiado.`);

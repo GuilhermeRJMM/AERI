@@ -67,11 +67,19 @@ def executar_passo(chave, limite=2):
                 return {"estado": "EM_EXECUCAO"}
             cur.execute("SELECT * FROM execucoes_operacionais_aeri WHERE chave=%s AND estado='EM_EXECUCAO' ORDER BY inicio DESC LIMIT 1", (chave,))
             trabalho = cur.fetchone()
+            data_alvo_hoje = agora.astimezone(FUSO).date()
+            if trabalho and trabalho["data_alvo"] != data_alvo_hoje:
+                # Não carregue uma fila de ontem depois da virada do dia.
+                cur.execute("""UPDATE execucoes_operacionais_aeri
+                    SET estado='CANCELADO', fim=%s,
+                        erro='Execução encerrada na virada do dia.'
+                    WHERE id=%s AND estado='EM_EXECUCAO'""", (agora, trabalho["id"]))
+                trabalho = None
             if not trabalho and config["proxima_execucao"] and config["proxima_execucao"] > agora:
                 return {"estado": "AGUARDANDO"}
             if not trabalho:
                 cur.execute("""INSERT INTO execucoes_operacionais_aeri(id,chave,data_alvo,estado)
-                    VALUES (%s,%s,%s,'EM_EXECUCAO') RETURNING *""", (uuid4(), chave, agora.astimezone(FUSO).date()))
+                    VALUES (%s,%s,%s,'EM_EXECUCAO') RETURNING *""", (uuid4(), chave, data_alvo_hoje))
                 trabalho = cur.fetchone()
             cur.execute("""UPDATE automacoes_operacionais_aeri SET trava=%s,trava_ate=%s,ultima_tentativa=%s WHERE chave=%s""",
                         (token, agora + timedelta(minutes=15), agora, chave))

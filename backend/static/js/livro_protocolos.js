@@ -295,10 +295,8 @@ export function iniciarLivroProtocolos() {
     });
     const campoData = document.getElementById('livroproto-data');
     const hoje = new Date();
-    const ontem = new Date(hoje);
-    ontem.setDate(ontem.getDate() - 1);
     campoData.max = dataLocalIso(hoje);
-    campoData.value = dataLocalIso(ontem);
+    campoData.value = dataLocalIso(hoje);
     document.getElementById('livroproto-pdf').addEventListener('change', selecionarPdfLivroProto);
     document.getElementById('btn-livroproto-data').addEventListener('click', analisarLivroProtocolosPorData);
     document.getElementById('btn-livroproto-pdf').addEventListener('click', analisarLivroProtocolosPdf);
