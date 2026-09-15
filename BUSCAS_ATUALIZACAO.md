@@ -23,10 +23,11 @@ No executor local, uma passagem por hora consulta as três janelas de apresenta�
 ## Implantação
 
 1. As migrações 046 e 047 são aditivas; 046 corrige o último número conhecido pelo maior texto realmente localizado. 047 cria índices auxiliares e filas, sem remover titulares.
-2. O executor precisa da **mesma** `AERI_BUSCAS_HMAC_KEY` de produção. Não gerar outra: documentos indexados deixariam de coincidir.
-3. `scripts/configurar_chave_buscas.ps1` recebe a chave existente de forma oculta e salva somente `.env.buscas.local`, ignorado pelo Git. O executor carrega esse arquivo depois de `.env`, preservando variáveis já definidas no processo.
-4. Reiniciar o executor após configurar a chave. Sem ela a indexação permanece indisponível. Não basta publicar o frontend.
-5. As menções são preenchidas gradualmente, durante a reindexação. Publicar não significa que todo o acervo foi reanalisado. A interface informa quantas matrículas ainda aguardam esse índice.
+2. O executor pode usar a **mesma** `AERI_BUSCAS_HMAC_KEY` de produção. Não gerar outra: documentos indexados deixariam de coincidir.
+3. Se a chave não puder ser instalada na máquina, a opção remota usa `AERI_HASH_REMOTO_TOKEN`: o executor envia lotes de documentos por HTTPS e recebe somente os HMACs. A chave HMAC fica na Vercel; CPF/CNPJ, token e resposta não são gravados em logs. Há limite de 120 chamadas e 3.000 documentos por minuto, cache volátil de cinco minutos e falha fechada (sem concluir negativas quando o serviço falha).
+4. O script `scripts/provisionar_hash_remoto.py` cria uma credencial aleatória de um ano, grava apenas seu hash no Postgres e salva o valor uma vez em `.env.buscas.local`. O mesmo valor precisa ser cadastrado como variável sensível `AERI_HASH_REMOTO_TOKEN` na Vercel. A credencial pode ser revogada na tabela `executores_hash_documentos_aeri`.
+5. Reiniciar o executor após configurar a chave ou o token. Sem uma dessas configurações a indexação permanece indisponível. Não basta publicar o frontend.
+6. As menções são preenchidas gradualmente, durante a reindexação. Publicar não significa que todo o acervo foi reanalisado. A interface informa quantas matrículas ainda aguardam esse índice.
 
 ## Verificação e reversão
 

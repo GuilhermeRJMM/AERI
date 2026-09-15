@@ -19,7 +19,7 @@ from backend.app.rotas import (
 )
 from backend.app.seguranca_web import politica_frame_ancestors
 from backend.app.database import conectar
-from backend.app.rotas import painel, contratos
+from backend.app.rotas import painel, contratos, executor_hash
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -63,6 +63,7 @@ app.include_router(status_onr.router)
 app.include_router(usuarios.router)
 app.include_router(painel.router)
 app.include_router(contratos.router)
+app.include_router(executor_hash.router)
 
 
 @app.middleware("http")

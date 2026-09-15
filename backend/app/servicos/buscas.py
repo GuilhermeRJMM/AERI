@@ -27,21 +27,37 @@ def _segredo_documentos() -> bytes:
     # mude silenciosamente o hash de todo documento já indexado, tornando a
     # busca por CPF/CNPJ permanentemente muda sem reindexação.
     segredo = os.getenv("AERI_BUSCAS_HMAC_KEY")
-    if not segredo:
+    if not segredo or segredo == '[SENSITIVE]':
         raise RuntimeError("Configure AERI_BUSCAS_HMAC_KEY para proteger os documentos da busca.")
     return segredo.encode("utf-8")
 
 
 def validar_configuracao_buscas() -> None:
     """Falha antes de consultar a Tri7 quando a chave do índice não existe."""
-    _segredo_documentos()
+    if os.getenv('AERI_BUSCAS_HMAC_KEY') not in (None, '', '[SENSITIVE]'):
+        _segredo_documentos()
+    else:
+        from backend.app.servicos.hash_remoto import verificar_servico
+        verificar_servico()
 
 
 def hash_documento(valor: object) -> str:
-    documento = normalizar_documento(valor)
-    if len(documento) not in {11, 14}:
-        return ""
-    return hmac.new(_segredo_documentos(), documento.encode("ascii"), hashlib.sha256).hexdigest()
+    return hash_documentos([valor])[0]
+
+
+def hash_documentos(valores) -> list[str]:
+    documentos = [normalizar_documento(v) for v in valores]
+    validos = list(dict.fromkeys(d for d in documentos if len(d) in (11, 14)))
+    if not validos:
+        return ['' for _ in documentos]
+    if os.getenv('AERI_BUSCAS_HMAC_KEY') not in (None, '', '[SENSITIVE]'):
+        segredo = _segredo_documentos()
+        hashes = [hmac.new(segredo, d.encode('ascii'), hashlib.sha256).hexdigest() for d in validos]
+    else:
+        from backend.app.servicos.hash_remoto import calcular_hashes
+        hashes = calcular_hashes(validos)
+    por_documento = dict(zip(validos, hashes))
+    return [por_documento.get(d, '') for d in documentos]
 
 
 def mascarar_documento(valor: object) -> str:
@@ -75,14 +91,16 @@ def construir_indice_matricula(numero: int, texto: str, resultado: dict) -> dict
 
     evidencias = resultado.get("evidencias", {}).get("proprietarios", [])
     proprietarios = []
-    for ordem, item in enumerate(resultado.get("proprietarios_atuais") or [], start=1):
+    titulares = resultado.get("proprietarios_atuais") or []
+    hashes_titulares = hash_documentos(item.get('cpf') or '' for item in titulares)
+    for ordem, item in enumerate(titulares, start=1):
         nome = re.sub(r"\s+", " ", str(item.get("nome") or "")).strip()
         nome_busca = normalizar_nome(nome)
         if not nome_busca:
             continue
         documento = item.get("cpf") or ""
         evidencia = evidencias[ordem - 1] if ordem <= len(evidencias) else {}
-        documento_protegido = hash_documento(documento) if normalizar_documento(documento) else ""
+        documento_protegido = hashes_titulares[ordem-1]
         proprietarios.append({
             "ordem": ordem,
             "nome": nome,
