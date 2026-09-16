@@ -1,0 +1,125 @@
+diff --git a/l3bot.py b/l3bot.py
+index b25ffa4..0ec7a72 100644
+--- a/l3bot.py
++++ b/l3bot.py
+@@ -2015,7 +2015,11 @@ class PywinautoAssistedTri7:
+         self._signer_gate: _SignerGateBinding | None = None
+         self._saved_certificate: tuple[AssistedOrder, object] | None = None
+         self._manual_selection: _ManualSelectionBinding | None = None
+-        self._submitted_protocols: set[str] = set()
++        self._submitted_protocols: set[str] = set()
++        # Intento de envio evita duplicação; confirmação completa autoriza o AERI.
++        self._confirmed_protocols: set[str] = set()
++        self.integracao_aeri = None
++        self._eventos_aeri: dict[str, str] = {}
+         self._waiting_list_search: tuple[object, ...] | None = None
+         self._observation_text_by_protocol: dict[str, str] = {}
+ 
+@@ -3471,25 +3475,30 @@ class PywinautoAssistedTri7:
+         )
+         return True
+ 
+-    def send_and_finalize(self, order: AssistedOrder) -> None:
++    def send_and_finalize(self, order: AssistedOrder) -> None:
+         """Send to SAEC, acknowledge the success information, then finalize."""
+-        if not self.certificate_printed_and_selected(order):
+-            raise SafetyStop("seleção manual da certidão ainda está pendente")
+-        self.accept_expected_dialog(SEND_TO_SAEC)
+-        # Accepting SEND_TO_SAEC is the point of no return: the certificate is
+-        # at SAEC from here on.  Record it before the confirmation dialogs, so
+-        # that a later mismatch cannot leave this adapter claiming nothing was
+-        # sent and strand an order that in fact went through.
+-        self._submitted_protocols.add(order.protocol)
+-        self.accept_expected_dialog(ATTACHMENT_SENT)
+-        self.accept_expected_dialog(FINALIZE_IN_SAEC)
+-        self._manual_selection = None
++        if not self.certificate_printed_and_selected(order):
++            raise SafetyStop("seleção manual da certidão ainda está pendente")
++        if self.integracao_aeri is not None:
++            try:
++                self._eventos_aeri[order.protocol] = self.integracao_aeri.preparar(order.protocol)
++            except Exception as error:
++                raise SafetyStop("não foi possível preparar a confirmação local do AERI") from error
++        self.accept_expected_dialog(SEND_TO_SAEC)
++        # O envio pode ter ocorrido: guardar o intento impede repetir a certidão.
++        # Só os diálogos seguintes comprovam o sucesso para a integração.
++        self._submitted_protocols.add(order.protocol)
++        self.accept_expected_dialog(ATTACHMENT_SENT)
++        self.accept_expected_dialog(FINALIZE_IN_SAEC)
++        self._confirmed_protocols.add(order.protocol)
++        self._manual_selection = None
+ 
+     def submission_succeeded(self, order: AssistedOrder) -> bool:
+         if not isinstance(order, AssistedOrder):
+             raise SafetyStop("ordem assistida inválida")
+-        if order.protocol not in self._submitted_protocols:
+-            return False
++        if (order.protocol not in self._submitted_protocols
++                or order.protocol not in self._confirmed_protocols):
++            return False
+         # Tri7 drops its main window from enumeration while the SAEC attachment
+         # is processed, so proving the send with a single unretried lookup
+         # failed with "janela Tri7 ausente" on an order that had gone through.
+@@ -3503,9 +3512,14 @@ class PywinautoAssistedTri7:
+         # hidden owned windows.  Only a *visible* dialog means that submission
+         # still needs operator interaction; hidden remnants are not an active
+         # postcondition and previously prevented the two exit steps forever.
+-        if self._owned_windows(main, visible_only=True):
+-            return False
+-        return True
++        if self._owned_windows(main, visible_only=True):
++            return False
++        if self.integracao_aeri is not None:
++            try:
++                self.integracao_aeri.confirmar(self._eventos_aeri[order.protocol])
++            except Exception as error:
++                raise SafetyStop("envio concluído; confirmação do AERI precisa de recuperação local") from error
++        return True
+ 
+     def return_and_refresh_saec(self) -> None:
+         """Return through the certificate and order forms, then refresh SAEC."""
+@@ -6847,17 +6861,25 @@ def run_f8_auto_mode(
+     # Claim the lock before anything else: a second instance must refuse at
+     # startup, not after attaching itself to the same Tri7.
+     checkpoint_path = checkpoint_path_factory()
+-    instance_lock = SingleInstanceLock(checkpoint_path.parent / _INSTANCE_LOCK_NAME)
+-    instance_lock.acquire()
+-    try:
++    instance_lock = SingleInstanceLock(checkpoint_path.parent / _INSTANCE_LOCK_NAME)
++    instance_lock.acquire()
++    integracao_aeri = None
++    try:
+         if desktop_factory is None:
+             from pywinauto import Desktop
+ 
+             desktop_factory = Desktop
+         desktop = desktop_factory(backend="win32")
+-        tri7 = tri7_factory(
+-            desktop, "win32", action_policy=ActionPolicy(execute=True)
+-        )
++        tri7 = tri7_factory(
++            desktop, "win32", action_policy=ActionPolicy(execute=True)
++        )
++        if isinstance(tri7, PywinautoAssistedTri7):
++            from l3bot_aeri import IntegracaoAeri
++            integracao_aeri = IntegracaoAeri(
++                checkpoint_path.parent / "respostas-aeri.sqlite3", avisar=print_fn,
++            )
++            tri7.integracao_aeri = integracao_aeri
++            integracao_aeri.iniciar()
+         lookup = (
+             lookup_port_factory()
+             if lookup_port_factory is not None
+@@ -6875,8 +6897,10 @@ def run_f8_auto_mode(
+             max_orders=max_orders,
+             auto_open_orders=auto_open_orders,
+         )
+-    finally:
+-        instance_lock.release()
++    finally:
++        if integracao_aeri is not None:
++            integracao_aeri.fechar()
++        instance_lock.release()
+ 
+ 
+ def _run_f8_auto_locked(

@@ -1,11 +1,15 @@
 import os
 import re
 import secrets
+from datetime import datetime, timedelta, timezone
+from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from psycopg.types.json import Jsonb
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria_cursor
@@ -37,6 +41,106 @@ router = APIRouter(
     tags=["integração Informar Custas"],
     dependencies=[Depends(preparar_banco)],
 )
+
+
+class CertidaoRespondida(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    eventoId: UUID
+    pedido: str = Field(pattern=r"^S\d{11}D$", max_length=20)
+    respondidoEm: datetime
+    confirmacao: Literal["ENVIO_E_FINALIZACAO_SAEC_CONFIRMADOS"]
+
+    @field_validator("respondidoEm")
+    @classmethod
+    def validar_data(cls, valor: datetime) -> datetime:
+        if valor.tzinfo is None or valor.utcoffset() is None:
+            raise ValueError("Informe a data com fuso horário.")
+        if valor > datetime.now(timezone.utc) + timedelta(minutes=5):
+            raise ValueError("A data da resposta está no futuro.")
+        return valor.astimezone(timezone.utc)
+
+
+@router.post("/respondida")
+def confirmar_certidao_respondida(
+    dados: CertidaoRespondida,
+    request: Request,
+    usuario: str = Depends(exigir_token_integracao_custas),
+):
+    """Recebe o recibo do L3BOT sem repetir envios nem desfazer reaberturas."""
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            # A chave única serializa também duas entregas simultâneas do evento.
+            # O recibo e a alteração do pedido são confirmados na mesma transação.
+            cursor.execute(
+                """INSERT INTO recibos_certidoes_l3bot_aeri
+                (evento_id, pedido, respondido_em, situacao)
+                VALUES (%s, %s, %s, 'RECEBIDO')
+                ON CONFLICT (evento_id) DO NOTHING RETURNING evento_id""",
+                (dados.eventoId, dados.pedido, dados.respondidoEm),
+            )
+            novo = cursor.fetchone()
+            if not novo:
+                cursor.execute(
+                    "SELECT * FROM recibos_certidoes_l3bot_aeri WHERE evento_id=%s FOR UPDATE",
+                    (dados.eventoId,),
+                )
+                recibo = cursor.fetchone()
+                if (recibo["pedido"] != dados.pedido
+                        or recibo["respondido_em"] != dados.respondidoEm):
+                    raise HTTPException(409, "Identificador de evento já utilizado com outros dados.")
+                situacao = recibo["situacao"]
+            else:
+                cursor.execute(
+                    "SELECT * FROM custas_livro3_aeri WHERE pedido=%s FOR UPDATE",
+                    (dados.pedido,),
+                )
+                item = cursor.fetchone()
+                if not item:
+                    situacao = "NAO_ENCONTRADO"
+                elif item["finalizado"] and item["status"] == "RESPONDIDO":
+                    situacao = "JA_RESPONDIDO"
+                elif item["finalizado"] or item["status"] in {"DUPLICADO_DEVOLVIDO", "SEM_PAGAMENTO"}:
+                    situacao = "CONFLITO"
+                else:
+                    cursor.execute(
+                        """SELECT EXISTS (SELECT 1 FROM eventos_custas_livro3_aeri
+                        WHERE item_id=%s AND tipo='REABERTURA' AND criado_em >= %s) AS reaberto""",
+                        (item["id"], dados.respondidoEm),
+                    )
+                    if cursor.fetchone()["reaberto"]:
+                        situacao = "CONFLITO"
+                    else:
+                        cursor.execute(
+                            """UPDATE custas_livro3_aeri SET status='RESPONDIDO',
+                            finalizado=TRUE, finalizado_em=NOW(), atualizado_em=NOW(),
+                            atualizado_por=NULL WHERE id=%s""",
+                            (item["id"],),
+                        )
+                        cursor.execute(
+                            """INSERT INTO eventos_custas_livro3_aeri
+                            (item_id, pedido, tipo, usuario, detalhes)
+                            VALUES (%s, %s, 'CERTIDAO_RESPONDIDA_L3BOT', NULL, %s)""",
+                            (item["id"], dados.pedido, Jsonb({
+                                "origem": "L3BOT", "ator": usuario,
+                                "eventoId": str(dados.eventoId),
+                                "respondidoEm": dados.respondidoEm.isoformat(),
+                            })),
+                        )
+                        situacao = "CONFIRMADO"
+                cursor.execute(
+                    "UPDATE recibos_certidoes_l3bot_aeri SET situacao=%s WHERE evento_id=%s",
+                    (situacao, dados.eventoId),
+                )
+                registrar_auditoria_cursor(
+                    cursor, request, "confirmar_certidao_respondida_l3bot", situacao.lower(),
+                    usuario, dados.pedido, detalhes={"origem": "L3BOT", "eventoId": str(dados.eventoId)},
+                )
+        conexao.commit()
+    return JSONResponse(
+        {"eventoId": str(dados.eventoId), "pedido": dados.pedido, "situacao": situacao},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.get("/pendentes")
