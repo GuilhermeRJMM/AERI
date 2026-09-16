@@ -1469,6 +1469,82 @@ class TesteDadosImovel(unittest.TestCase):
 
         self.assertEqual(valores_por_rotulo(identificacao, "Nome"), ["Córrego das Galinhas"])
 
+    def test_usucapiao_que_rematricula_imovel_inteiro_encerra_origem(self):
+        casos = (
+            (
+                "o imóvel objeto do presente registro foi usucapido pelos seus "
+                "proprietários e, em consequência, matriculado e registrado "
+                "novamente sob o n.º 5.761",
+                "5.761",
+            ),
+            (
+                "o imóvel objeto da presente matrícula e registro foi usucapido "
+                "pelos seus proprietários e, em consequência, matriculado e "
+                "registrado sob o n.º 5.761",
+                "5.761",
+            ),
+        )
+        for encerramento, sucessora in casos:
+            with self.subTest(encerramento=encerramento):
+                texto = f"""
+                MATRÍCULA 973. IMÓVEL: Fazenda Areias, com área de 10ha.
+                PROPRIETÁRIO: Sebastião Cardoso, CPF 016.775.431-91.
+                AV.09-973 - MATRÍCULA. Certifico que {encerramento}.
+                """
+                situacao = analisar_matricula(texto)["imovel"]["situacao"]
+                self.assertEqual(situacao["status"], "ENCERRADA")
+                self.assertEqual(situacao["matricula_sucessora"], sucessora)
+
+    def test_indicacao_posterior_de_titularidade_atual_prevalece(self):
+        texto = """
+        MATRÍCULA 4.900. IMÓVEL: Fazenda Cerradão, com área de 44,2161ha.
+        PROPRIETÁRIO: Pessoa Antiga.
+        AV.08-4.900 - MATRÍCULA. O imóvel objeto da presente matrícula foi
+        usucapido pelos proprietários e matriculado e registrado novamente sob
+        o n.º 11.287.
+        ----------------------------------------------------------------------
+        AV.09-4.900 - INDICAÇÃO DE TITULARIDADE EX-OFFICIO. Procede-se a
+        presente averbação para esclarecer o domínio do imóvel total descrito
+        nesta matrícula que, atualmente, pertence aos seguintes co-proprietários:
+        ATO CO-PROPRIETÁRIO PERCENTUAL (%)
+        Matr. Maria Cândida do Sacramento 80%
+        R.04 Sebastião Cardoso 20%
+        Total 02 proprietários 100%.
+        """
+
+        resultado = analisar_matricula(texto)
+
+        self.assertEqual(resultado["imovel"]["situacao"], {"status": "ATIVA", "origem": "AV.09"})
+
+    def test_divisoes_sucessivas_que_esgotam_area_encerram_origem(self):
+        texto = """
+        MATRÍCULA 5.545. IMÓVEL: Fazenda Cerradão, com a área total de
+        58,61,77 hectares. PROPRIETÁRIOS: Sebastião Cardoso, CPF 016.775.431-91;
+        Jair Gomes de Oliveira, CPF 049.248.191-15; e Luiz Silveira Santos,
+        CPF 014.200.971-72.
+        ----------------------------------------------------------------------
+        AV.01-5.545 - MATRÍCULA. Em virtude de divisão, desmembrou-se desta
+        matrícula um imóvel com a área de 34,36,77 ha, conforme matrícula
+        n.º 5.889, pertencente a Sebastião Cardoso.
+        ----------------------------------------------------------------------
+        AV.02-5.545 - MATRÍCULA. Em virtude de divisão, desmembrou-se desta
+        matrícula um imóvel com a área de 15,00,00 ha, conforme matrícula
+        n.º 5.890, pertencente a Jair Gomes de Oliveira.
+        ----------------------------------------------------------------------
+        AV.03-5.545 - MATRÍCULA. Em virtude de divisão, desmembrou-se desta
+        matrícula um imóvel com a área de 9,25,00 ha, conforme matrícula
+        n.º 5.891, pertencente a Luiz Silveira Santos.
+        """
+
+        resultado = analisar_matricula(texto)
+
+        self.assertEqual(resultado["imovel"]["situacao"]["status"], "ENCERRADA")
+        self.assertEqual(
+            resultado["imovel"]["situacao"]["matriculas_sucessoras"],
+            ["5.889", "5.890", "5.891"],
+        )
+        self.assertEqual(resultado["proprietarios_atuais"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

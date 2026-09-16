@@ -1965,6 +1965,22 @@ class TesteProprietarios(unittest.TestCase):
             [],
         )
 
+    def test_folhas_com_verso_nao_substituem_nome_do_adquirente(self):
+        descricao = """
+        R.02-5.224 - COMPRA E VENDA. Nos termos da escritura pública de compra
+        e venda, lavrada pelo Tabelião do 1º Ofício no Lº 234, fls. 87vº/90 e v,
+        Sebastião Cardoso, brasileiro, fazendeiro, portador do CPF n.º
+        016.775.431-91; adquiriu por compra feita a Mariana Peixoto Gonçalves,
+        parte correspondente a 1/11 (um onze avos), no imóvel objeto da
+        presente matrícula.
+        """
+
+        resultado = calcular_cadeia_dominial([SimpleNamespace(descricao=descricao)])
+
+        self.assertEqual(resultado[0]["nome"], "Sebastião Cardoso")
+        self.assertEqual(resultado[0]["cpf"], "016.775.431-91")
+        self.assertEqual(resultado[0]["proporcao"], "9,09%")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -223,6 +223,20 @@ def _percentual_por_partes_avaliadas(texto):
 def _percentual_por_fracao_do_imovel(texto):
     """Fração ordinária referida ao imóvel: 1/3 do imóvel objeto."""
 
+    parte_correspondente = re.search(
+        r'parte\s+correspondente\s+a\s*(\d+)\s*/\s*(\d+)\s*'
+        r'(?:\([^)]{1,100}\)\s*)?,?\s*'
+        r'(?:n[oa]|d[oa]|sobre\s+o)\s+im[óo]vel\s+(?:objeto|constante|descrito)\b',
+        texto,
+        re.I,
+    )
+    if parte_correspondente and int(parte_correspondente.group(2)) > 0:
+        return (
+            int(parte_correspondente.group(1))
+            / int(parte_correspondente.group(2))
+            * 100.0
+        )
+
     fracao_objeto = re.search(
         r'(?:OBJETO|IM[ÓO]VEL)\s*:\s*.{0,120}?parte\s+ideal\s+de\s+'
         r'(\d+)\s*/\s*(\d+)\s+do\s+im[óo]vel',
@@ -660,14 +674,16 @@ def _bloco_do_adquirente(texto):
     if m:
         t = m.group(1).strip().rstrip(';, ')
         t = re.sub(
-            r'^.*\bfls?\.?\s*[\w\-\/]+(?:\s+e\s+verso|\s*v[ºo°]?)?[;,.]\s*',
+            r'^.*\bfls?\.?\s*[\wº°\.\-\/]+(?:\s+e\s+(?:verso|v(?:erso)?))?'
+            r'(?:\s*v[ºo°]?)?[;,.]\s*',
             '',
             t,
             flags=re.I | re.DOTALL,
         )
         t = re.sub(
             r'^.*\bL[º°o]\s*\d+\s*,\s*(?:fls?\.?\s*)?'
-            r'[\w\-\/]+(?:\s+e\s+verso|\s*v[ºo°]?|ev)?[;,.]\s*',
+            r'[\wº°\.\-\/]+(?:\s+e\s+(?:verso|v(?:erso)?)|\s*v[ºo°]?|ev)?'
+            r'[;,.]\s*',
             '',
             t,
             flags=re.I | re.DOTALL,
@@ -2719,7 +2735,10 @@ def _aplicar_desmembramento_por_divisao(estado, ato, descricao_normalizada):
     if not (
         "EM VIRTUDE DE DIVISAO" in descricao_normalizada
         and re.search(r"\bDESMEMBROU-SE\s+DESTA\s+MATRICULA\b", descricao_normalizada)
-        and "MATRICULAD" in descricao_normalizada
+        and (
+            "MATRICULAD" in descricao_normalizada
+            or "CONFORME MATRICULA" in descricao_normalizada
+        )
         and "PERTENCENTE A" in descricao_normalizada
     ):
         return False

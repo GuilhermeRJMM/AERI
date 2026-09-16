@@ -231,8 +231,14 @@ def _tem_saida_integral_do_imovel(normalizado: str) -> bool:
         r"\bMATRICULAD[OA]\s+SOB\s+O?\s*N",
         normalizado, re.DOTALL,
     )) or bool(re.search(
-        r"\bIM[OÓ]VEL\s+OBJETO\s+D[AE]\s+(?:PRESENTE\s+)?MATRICULA\b.{0,300}?"
-        r"\bMATRICULAD[OA]\s+E\s+REGISTRAD[OA]\s+NOVAMENTE\s+SOB\s+O?\s*N",
+        # Usucapiões antigos usam tanto "presente matrícula" quanto
+        # "presente registro" e nem sempre repetem a palavra "novamente".
+        # Em todos eles o imóvel inteiro ganha outro fólio, sem remanescente.
+        r"\bIM[OÓ]VEL\s+OBJETO\s+D[OAE]\s+(?:PRESENTE\s+)?"
+        r"(?:MATRICULA|REGISTRO)(?:\s+E\s+REGISTRO)?\b.{0,420}?"
+        r"\b(?:FOI\s+)?USUCAPID[OA]\b.{0,260}?"
+        r"\bMATRICULAD[OA](?:\s+E\s+REGISTRAD[OA])?"
+        r"(?:\s+NOVAMENTE)?\s+SOB\s+(?:O\s+)?N",
         normalizado, re.DOTALL,
     )) or bool(re.search(
         # Unificação: o imóvel desta matrícula foi juntado a outros e o
@@ -243,6 +249,63 @@ def _tem_saida_integral_do_imovel(normalizado: str) -> bool:
         r"\bMATRICULAD[OA]\s+SOB\s+O?\s*N",
         normalizado, re.DOTALL,
     ))
+
+
+def _area_historica_em_hectares(valor: str) -> Optional[float]:
+    """Converte 34,36,77 ha e a notação decimal comum para hectares."""
+    partes = re.findall(r"\d+", valor or "")
+    if len(partes) >= 3 and len(partes[1]) == 2 and len(partes[2]) == 2:
+        return float(partes[0]) + float(partes[1]) / 100 + float(partes[2]) / 10000
+    return _valor_decimal(valor)
+
+
+def _sucessoras_divisao_exaustiva(atos: list, area_registral: str | None) -> list[str]:
+    """Reconhece divisões lançadas em várias averbações sucessivas.
+
+    A matrícula 5.545, por exemplo, não diz em um único ato que foi dividida
+    em três partes. Cada AV destaca uma área e indica sua nova matrícula. Só
+    declaramos encerramento quando a soma das áreas destacadas recompõe a área
+    registral inteira, evitando confundir desmembramento parcial com extinção.
+    """
+    if not area_registral or "ha" not in area_registral.lower():
+        return []
+    area_total = _area_historica_em_hectares(area_registral)
+    if not area_total:
+        return []
+
+    destaques = []
+    for ato in atos:
+        descricao = _descricao_ato(ato)
+        normalizado = _sem_acentos(descricao)
+        if not (
+            "EM VIRTUDE DE DIVISAO" in normalizado
+            and re.search(r"\bDESMEMBROU\s*-?\s*SE\s+DESTA\s+MATRICULA\b", normalizado)
+        ):
+            continue
+        area = re.search(
+            r"\bAREA\s+DE\s+([\d.,]+)\s*(?:HA\b|HECTARES?\b)",
+            normalizado,
+        )
+        sucessora = re.search(
+            # Textos antigos podem trazer o ordinal já degradado pela
+            # codificação ("n.�"). Entre o N e o número aceitamos apenas
+            # uma pequena faixa sem algarismos, nunca texto livre.
+            r"\bCONFORME\s+MATRICULA\s+N?[^\d]{0,12}(\d[\d.]*)",
+            normalizado,
+        )
+        if not area or not sucessora:
+            continue
+        hectares = _area_historica_em_hectares(area.group(1))
+        if hectares is not None:
+            destaques.append((hectares, sucessora.group(1).rstrip(".")))
+
+    if len(destaques) < 2:
+        return []
+    # Um centiare equivale a 0,0001 ha. A margem cobre arredondamentos da
+    # digitação histórica sem admitir perda material de área.
+    if abs(sum(area for area, _ in destaques) - area_total) > 0.001:
+        return []
+    return list(dict.fromkeys(numero for _, numero in destaques))
 
 
 def _tem_desmembramento_integral(normalizado: str) -> bool:
@@ -1031,7 +1094,12 @@ def _averbar_encerramento(resultado, descricao_ato, codigo, normalizado, rural, 
     )
     sucessoras_desmembramento = _sucessoras_desmembramento_integral(descricao_ato, normalizado)
     if encerramento_explicito:
-        sucessora = re.search(r"matriculad[oa]\s+sob\s+o\s+n?[.º°o\s]*([\d.]+)", descricao_ato, re.IGNORECASE)
+        sucessora = re.search(
+            r"matriculad[oa](?:\s+e\s+registrad[oa])?"
+            r"(?:\s+novamente)?\s+sob\s+(?:o\s+)?n?[.º°o\s]*([\d.]+)",
+            descricao_ato,
+            re.IGNORECASE,
+        )
         resultado["situacao"] = {"status": "ENCERRADA", "origem": codigo}
         if sucessora:
             resultado["situacao"]["matricula_sucessora"] = sucessora.group(1).rstrip(".")
@@ -1051,6 +1119,29 @@ def _averbar_encerramento(resultado, descricao_ato, codigo, normalizado, rural, 
             "mensagem": "O imóvel foi integralmente desmembrado. Consulte todas as matrículas sucessoras.",
             "origem": codigo,
         })
+
+
+def _averbar_titularidade_atual(resultado, descricao_ato, codigo, normalizado, proprietarios):
+    """Uma declaração posterior e expressa de domínio atual prevalece.
+
+    Alguns fólios receberam indicação de titularidade ex-officio depois de
+    uma averbação histórica de rematriculação. Quando o ato posterior afirma
+    que o imóvel *atualmente pertence* às pessoas da tabela e a cadeia foi
+    efetivamente reconstruída, ele é a fonte mais recente da situação atual.
+    """
+    if not (
+        "INDICACAO DE TITULARIDADE" in normalizado
+        and "ATUALMENTE" in normalizado
+        and "PERTENCE" in normalizado
+        and proprietarios
+    ):
+        return
+    resultado["situacao"] = {"status": "ATIVA", "origem": codigo}
+    resultado["alertas"][:] = [
+        alerta
+        for alerta in resultado["alertas"]
+        if alerta.get("tipo") != "MATRÍCULA ENCERRADA"
+    ]
 
 
 def _averbar_demolicao(resultado, descricao_ato, codigo, normalizado, rural, rua):
@@ -1421,6 +1512,9 @@ def extrair_dados_imovel(
         _averbar_cci_historico(resultado, descricao_ato, codigo, normalizado, rural, rua)
         _averbar_cci_avulso(resultado, descricao_ato, codigo, normalizado, rural, rua)
         _averbar_encerramento(resultado, descricao_ato, codigo, normalizado, rural, rua)
+        _averbar_titularidade_atual(
+            resultado, descricao_ato, codigo, normalizado, proprietarios
+        )
         _averbar_demolicao(resultado, descricao_ato, codigo, normalizado, rural, rua)
         _averbar_ccir(resultado, descricao_ato, codigo, normalizado, rural, rua)
         _averbar_car(resultado, descricao_ato, codigo, normalizado, rural, rua)
@@ -1429,6 +1523,26 @@ def extrair_dados_imovel(
         _averbar_clausula_restritiva(resultado, descricao_ato, codigo, normalizado, rural, rua)
         _averbar_divergencia_de_area(resultado, descricao_ato, codigo, normalizado, rural, rua)
 
+
+    sucessoras_divisao = _sucessoras_divisao_exaustiva(atos, area_registral)
+    if sucessoras_divisao:
+        resultado["situacao"] = {
+            "status": "ENCERRADA",
+            "origem": _codigo_ato(atos[-1]) if atos else "Texto registral",
+            "matriculas_sucessoras": sucessoras_divisao,
+        }
+        resultado["alertas"][:] = [
+            alerta for alerta in resultado["alertas"]
+            if alerta.get("tipo") != "MATRÍCULA ENCERRADA"
+        ]
+        resultado["alertas"].append({
+            "tipo": "MATRÍCULA ENCERRADA",
+            "mensagem": (
+                "A soma das áreas destacadas por divisão esgotou a área "
+                "registral. Consulte as matrículas sucessoras."
+            ),
+            "origem": resultado["situacao"]["origem"],
+        })
 
     encerramento_textual = _tem_encerramento_explicito(texto_normalizado)
     desmembramento_integral = _tem_desmembramento_integral(texto_normalizado)
