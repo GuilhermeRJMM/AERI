@@ -2,6 +2,7 @@
 from backend.app.database import conectar
 from backend.app.seguranca_web import registrar_auditoria_cursor
 from backend.app.servicos.buscas_mencoes import enfileirar_matriculas
+from backend.app.servicos.custas import revalidar_negativas_custas
 
 
 def reindexar_registros(alterados, cache_textos, cliente, request=None, usuario='executor',
@@ -13,7 +14,8 @@ def reindexar_registros(alterados, cache_textos, cliente, request=None, usuario=
         from backend.app.rotas.registros_auxiliares import _salvar_indice
         salvar_auxiliar = _salvar_indice
     relatorio = dict(matriculas=0, matriculasNovas=0, matriculasAlteradas=0,
-        registrosAuxiliares=0, registrosAuxiliaresNovos=0, falhas=0, numerosComFalha=[])
+        registrosAuxiliares=0, registrosAuxiliaresNovos=0,
+        custasRevalidadas=0, falhas=0, numerosComFalha=[])
     if not alterados:
         return relatorio
     with conectar() as con:
@@ -43,6 +45,25 @@ def reindexar_registros(alterados, cache_textos, cliente, request=None, usuario=
                         relatorio['numerosComFalha'].append(f'{tipo}.{numero}')
                     if tipo == 'M':
                         enfileirar_matriculas(cur, [numero], 'LIVRO_PROTOCOLOS')
+
+            # O Livro de Protocolos tambem alimenta o indice do Registro
+            # Auxiliar. Assim que um desses textos entra (novo ou alterado),
+            # uma negativa antiga do Informar Custas pode deixar de ser
+            # verdadeira. Revalidamos ainda na mesma operacao, sem depender
+            # do proximo ciclo do executor ou de uma nova busca manual.
+            if relatorio['registrosAuxiliares']:
+                try:
+                    with con.transaction():
+                        corrigidos = revalidar_negativas_custas(
+                            cur, usuario, limite=1000
+                        )
+                    relatorio['custasRevalidadas'] = len(corrigidos)
+                except Exception:
+                    # A conferencia do Livro continua valida, mas a falha fica
+                    # explicita na auditoria e na resposta para nova tentativa.
+                    relatorio['falhas'] += 1
+                    if len(relatorio['numerosComFalha']) < 20:
+                        relatorio['numerosComFalha'].append('CUSTAS.REVALIDACAO')
             registrar_auditoria_cursor(cur, request, 'reindexar_pelo_livro_protocolos',
                 'parcial' if relatorio['falhas'] else 'sucesso', usuario, detalhes=relatorio)
         con.commit()

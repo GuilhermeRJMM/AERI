@@ -54,6 +54,8 @@ class TesteReindexacaoPeloLivro(unittest.TestCase):
     def _reindexar(self, alterados, cache):
         with patch("backend.app.servicos.reindexacao_livro.conectar", return_value=_conexao_falsa()), \
                 patch("backend.app.servicos.reindexacao_livro.registrar_auditoria_cursor"), \
+                patch("backend.app.servicos.reindexacao_livro.revalidar_negativas_custas",
+                      return_value=[]) as revalidar_custas, \
                 patch("backend.app.rotas.livro_protocolos._salvar_indice_matricula",
                       return_value=({}, False, True, {}, False)) as salvar_m, \
                 patch("backend.app.rotas.livro_protocolos._salvar_indice_auxiliar",
@@ -61,14 +63,14 @@ class TesteReindexacaoPeloLivro(unittest.TestCase):
             relatorio = _reindexar_registros_alterados(
                 alterados, cache, self.cliente, Mock(), "TESTE",
             )
-        return relatorio, salvar_m, salvar_ra
+        return relatorio, salvar_m, salvar_ra, revalidar_custas
 
     def test_matricula_reaproveita_o_texto_ja_baixado_na_conferencia(self):
         # O ganho central: a conferência já baixou o texto da matrícula, então
         # reindexar não custa consulta nova à Tri7.
         cache = {("M", 24070): ("MATRÍCULA 24.070 ...", None)}
 
-        relatorio, salvar_m, _ = self._reindexar({("M", 24070)}, cache)
+        relatorio, salvar_m, _, _ = self._reindexar({("M", 24070)}, cache)
 
         self.cliente.buscar_texto_matricula.assert_not_called()
         salvar_m.assert_called_once()
@@ -79,7 +81,7 @@ class TesteReindexacaoPeloLivro(unittest.TestCase):
     def test_matricula_fora_do_cache_e_consultada(self):
         self.cliente.buscar_texto_matricula.return_value = {"texto": "MATRÍCULA 1 ..."}
 
-        relatorio, salvar_m, _ = self._reindexar({("M", 1)}, {})
+        relatorio, salvar_m, _, _ = self._reindexar({("M", 1)}, {})
 
         self.cliente.buscar_texto_matricula.assert_called_once_with(1)
         salvar_m.assert_called_once()
@@ -88,20 +90,23 @@ class TesteReindexacaoPeloLivro(unittest.TestCase):
     def test_registro_auxiliar_consulta_o_proprio_texto(self):
         self.cliente.buscar_texto_registro_auxiliar.return_value = {"texto": "CPR ..."}
 
-        relatorio, _, salvar_ra = self._reindexar({("RA", 29555)}, {})
+        relatorio, _, salvar_ra, revalidar_custas = self._reindexar({("RA", 29555)}, {})
 
         self.cliente.buscar_texto_registro_auxiliar.assert_called_once_with(29555)
         salvar_ra.assert_called_once()
+        revalidar_custas.assert_called_once()
         self.assertEqual(relatorio["registrosAuxiliares"], 1)
         self.assertEqual(relatorio["registrosAuxiliaresNovos"], 1)
+        self.assertEqual(relatorio["custasRevalidadas"], 0)
 
     def test_registro_auxiliar_reaproveita_texto_baixado_na_conferencia(self):
         cache = {("RA", 29555): ("CPR ...", None)}
 
-        relatorio, _, salvar_ra = self._reindexar({("RA", 29555)}, cache)
+        relatorio, _, salvar_ra, revalidar_custas = self._reindexar({("RA", 29555)}, cache)
 
         self.cliente.buscar_texto_registro_auxiliar.assert_not_called()
         salvar_ra.assert_called_once()
+        revalidar_custas.assert_called_once()
         self.assertEqual(relatorio["registrosAuxiliares"], 1)
 
     def test_falha_em_um_numero_nao_derruba_os_demais(self):
@@ -109,12 +114,36 @@ class TesteReindexacaoPeloLivro(unittest.TestCase):
         self.cliente.buscar_texto_registro_auxiliar.side_effect = RuntimeError("Tri7 fora")
         cache = {("M", 24070): ("MATRÍCULA 24.070 ...", None)}
 
-        relatorio, salvar_m, _ = self._reindexar({("M", 24070), ("RA", 29555)}, cache)
+        relatorio, salvar_m, _, revalidar_custas = self._reindexar(
+            {("M", 24070), ("RA", 29555)}, cache
+        )
 
         salvar_m.assert_called_once()
+        revalidar_custas.assert_not_called()
         self.assertEqual(relatorio["matriculas"], 1)
         self.assertEqual(relatorio["falhas"], 1)
         self.assertEqual(relatorio["numerosComFalha"], ["RA.29555"])
+
+    def test_registro_auxiliar_revalida_custas_na_mesma_operacao(self):
+        conexao = _conexao_falsa()
+        corrigidos = [
+            {"pedido": "S26090449654D", "resultado": "POSITIVA", "registros": [29604]},
+            {"pedido": "S26090450130D", "resultado": "POSITIVA", "registros": [29604]},
+        ]
+        with patch("backend.app.servicos.reindexacao_livro.conectar", return_value=conexao), \
+                patch("backend.app.servicos.reindexacao_livro.registrar_auditoria_cursor"), \
+                patch("backend.app.servicos.reindexacao_livro.revalidar_negativas_custas",
+                      return_value=corrigidos) as revalidar, \
+                patch("backend.app.rotas.livro_protocolos._salvar_indice_auxiliar",
+                      return_value=({}, True)):
+            relatorio = _reindexar_registros_alterados(
+                {("RA", 29604)}, {("RA", 29604): ("CPR ...", None)},
+                self.cliente, Mock(), "TESTE",
+            )
+
+        revalidar.assert_called_once()
+        self.assertEqual(relatorio["custasRevalidadas"], 2)
+        self.assertEqual(relatorio["falhas"], 0)
 
     def test_sem_alteracoes_nao_abre_conexao(self):
         with patch("backend.app.rotas.livro_protocolos.conectar") as conectar_mock:
