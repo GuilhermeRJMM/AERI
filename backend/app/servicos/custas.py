@@ -179,9 +179,11 @@ def _formatar_documento(valor: str) -> str:
 
 def _extrair_modalidade(texto: str) -> str | None:
     normalizado = _sem_acentos(texto)
-    if re.search(r"\bALIENACAO(?:\s+FIDUCIARIA)?\b", normalizado):
+    # Os relatórios do SAEC podem descrever pedidos no plural ("penhores",
+    # "alienacoes fiduciarias") dentro das observações.
+    if re.search(r"\bALIENAC(?:AO|OES)(?:\s+FIDUCIARIAS?)?\b", normalizado):
         return "ALIENACAO_FIDUCIARIA"
-    if re.search(r"\bPENHOR\b", normalizado):
+    if re.search(r"\bPENHORES?\b", normalizado):
         return "PENHOR"
     return None
 

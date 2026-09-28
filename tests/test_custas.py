@@ -133,6 +133,24 @@ class TesteInformarCustas(unittest.TestCase):
         self.assertEqual(resultado["total"], 1)
         self.assertEqual(resultado["itens"][0]["modalidade"], "ALIENACAO_FIDUCIARIA")
 
+    def test_reconhece_modalidades_no_plural_nas_observacoes_do_saec(self):
+        textos = (
+            ("S26080000011D", "certidões de histórico de penhores de Soja safra 26/27", "PENHOR"),
+            (
+                "S26080000012D",
+                "certidões de histórico de alienações fiduciárias de Soja safra 26/27",
+                "ALIENACAO_FIDUCIARIA",
+            ),
+        )
+        for pedido, observacao, modalidade in textos:
+            with self.subTest(modalidade=modalidade):
+                resultado = extrair_pedidos_texto(bloco(pedido, observacao))
+                self.assertEqual(resultado["total"], 1)
+                self.assertEqual(resultado["ignorados"], 0)
+                self.assertEqual(resultado["itens"][0]["modalidade"], modalidade)
+                self.assertEqual(resultado["itens"][0]["produto"], "SOJA")
+                self.assertEqual(resultado["itens"][0]["safra"], "2026/2027")
+
     def test_extrai_safra_quando_produto_aparece_entre_rotulo_e_ano(self):
         resultado = extrair_pedidos_texto(bloco(
             "S26080000010D", "CERTIDÃO DE PENHOR SAFRA SOJA 2026/2027"
