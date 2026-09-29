@@ -1551,6 +1551,44 @@ def extrair_alteracao_nome(texto):
 def extrair_retorno_status_quo_ante(texto):
     if not re.search(r'\bSTATUS\s+QUO\s+ANTE\b', texto, re.I):
         return []
+    # Desincorporação pode devolver o bem a mais de um sócio, nomeando os
+    # destinatários no dispositivo e qualificando-os antes dele. Não basta
+    # encontrar os sócios na representação da empresa: exigir também a frase
+    # que transfere expressamente o imóvel ao patrimônio individual deles.
+    if re.search(r'\bDESINCORPORA[ÇC][ÃA]O\b|\bDESINTEGRALIZA[ÇC][ÃA]O\b', texto, re.I):
+        destino = re.search(
+            r'\bretorna\s+ao\s+patrim[oô]nio\s+individual\s+das\s+pessoas\s+f[íi]sicas'
+            r'.{0,100}?\bdos\s+s[óo]cios\s+(.{3,240}?),\s+supra\s+qualificados',
+            texto, re.I | re.DOTALL,
+        )
+        if not destino:
+            return []
+        nomes = [nome.strip(' .;') for nome in re.split(r'\s+e\s+', destino.group(1))]
+        if not 1 <= len(nomes) <= 4 or len(set(map(limpar_nome, nomes))) != len(nomes):
+            return []
+        preambulo = texto[:destino.start()]
+        titulares = []
+        for nome in nomes:
+            if not re.fullmatch(r"[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'-]{3,149}", nome):
+                return []
+            qualificacao = re.search(re.escape(nome) + r'\s*,', preambulo, re.I)
+            if not qualificacao:
+                return []
+            fim = len(preambulo)
+            for outro in nomes:
+                if outro == nome:
+                    continue
+                proximo = re.search(re.escape(outro) + r'\s*,', preambulo[qualificacao.end():], re.I)
+                if proximo:
+                    fim = min(fim, qualificacao.end() + proximo.start())
+            trecho = preambulo[qualificacao.end():min(fim, qualificacao.end() + 300)]
+            documento = re.search(r'\bCPF(?:/MF)?\b[^\d]{0,35}([\d.\-]{11,20})', trecho, re.I)
+            if not documento or len(re.sub(r'\D', '', documento.group(1))) != 11:
+                return []
+            titulares.append({'nome': nome, 'cpf': documento.group(1).rstrip('.,;')})
+        if len({re.sub(r'\D', '', titular['cpf']) for titular in titulares}) != len(titulares):
+            return []
+        return titulares
     # CPF ao lado de CNPJ/CGC: o padrão exigia documento de pessoa jurídica e
     # por isso o retorno ao status quo ante em favor de pessoa física --
     # "à propriedade de Fulano, brasileiro, solteiro, inscrito no CPF/MF sob

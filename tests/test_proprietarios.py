@@ -317,6 +317,49 @@ class TesteProprietarios(unittest.TestCase):
             }],
         )
 
+    def test_desincorporacao_devolve_imovel_aos_dois_socios_qualificados(self):
+        # Na matrícula 36.102, o R.02 devolve expressamente o bem às pessoas
+        # físicas. Os sócios também representam a empresa, mas só a frase de
+        # retorno de titularidade autoriza substituí-la na cadeia.
+        texto = """
+        MATRÍCULA 36.102. IMÓVEL: Lote 18.
+        PROPRIETÁRIOS: Fabrício Brandão Coelho Vieira, CPF 049.830.436-16,
+        e Fabíola Gabriela Pinheiro de Queiroz, CPF 719.701.692-49.
+        R.01-36.102 - INCORPORAÇÃO DE BENS PARA INTEGRALIZAÇÃO DE CAPITAL.
+        O imóvel foi incorporado ao patrimônio de JG Empreendimentos e Serviços
+        Ltda., inscrita no CNPJ/MF sob o n.º 49.993.920/0001-47.
+        R.02-36.102 - DESINCORPORAÇÃO DE BENS/DESINTEGRALIZAÇÃO DE CAPITAL.
+        JG Empreendimentos e Serviços Ltda., representada pelos sócios
+        administradores Fabrício Brandão Coelho Vieira, brasileiro, notário,
+        inscrito no CPF/MF sob o n.º 049.830.436-16, e seu cônjuge
+        Fabíola Gabriela Pinheiro de Queiroz, brasileira, notária, inscrita
+        no CPF/MF sob o n.º 719.701.692-49. O imóvel retorna ao patrimônio
+        individual das pessoas físicas ("status quo ante") dos sócios
+        Fabrício Brandão Coelho Vieira e Fabíola Gabriela Pinheiro de Queiroz,
+        supra qualificados, em virtude da desincorporação do bem.
+        """
+        atos = [SimpleNamespace(descricao=item["texto"]) for item in separar_atos(texto)]
+
+        resultado = calcular_cadeia_dominial(atos, texto)
+
+        self.assertEqual(
+            [(item["nome"], item["cpf"], item["proporcao"]) for item in resultado],
+            [
+                ("Fabrício Brandão Coelho Vieira", "049.830.436-16", "50%"),
+                ("Fabíola Gabriela Pinheiro de Queiroz", "719.701.692-49", "50%"),
+            ],
+        )
+
+    def test_desincorporacao_nao_presume_retorno_sem_qualificacao_individual(self):
+        texto = """
+        R.02 - DESINCORPORAÇÃO DE BENS. A sociedade informa que o imóvel
+        retorna ao patrimônio individual das pessoas físicas ("status quo ante")
+        dos sócios Pessoa Um e Pessoa Dois, supra qualificados.
+        """
+        from backend.app.proprietarios import extrair_retorno_status_quo_ante
+
+        self.assertEqual(extrair_retorno_status_quo_ante(texto), [])
+
     def test_consolidacao_fiduciaria_transfere_imovel_ao_credor(self):
         # Requisito do AGENTS.md ("tratar consolidação da propriedade
         # fiduciária como transferência integral ao credor fiduciário
