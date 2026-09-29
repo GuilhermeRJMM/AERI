@@ -363,6 +363,65 @@ class TesteConferirProtocolo(unittest.TestCase):
         self.assertEqual(relevantes[0]["memoriaCalculo"]["totalCotacoes"], "1.531,01")
         self.assertEqual(relevantes[0]["memoriaCalculo"]["totalItensAgrupados"], "1.531,02")
 
+    def test_ato_unico_considera_todas_as_cobrancas_mesmo_com_selos_em_grupos_distintos(self):
+        # Protocolo 186.266: o agrupador da AV.24 continha R$151,57,
+        # mas uma averbação e uma busca de R$81,55 ficaram em outro grupo.
+        totais = [57.56, 23.99, 35.01, 57.56, 23.99, 35.01]
+        grupos = ["principal", "principal", "principal", "outro", "outro", "principal"]
+        naturezas = [
+            "Cancelamento de Indisponibilidade (CNIB)",
+            "Busca (Cancelamento CNIB)",
+            "Prenotação (Cancelamento CNIB)",
+            "Pagamento Diferido (CNIB)",
+            "Busca (Pagamento Diferido CNIB)",
+            "Prenotação (Pagamento Diferido CNIB)",
+        ]
+        itens = []
+        for indice, (natureza, total, grupo) in enumerate(zip(naturezas, totais, grupos)):
+            itens.append({
+                "natureza_formal_descricao": natureza,
+                "dados_imovel": (
+                    {"tipo_registro": "M", "numero_registro": 33176} if indice == 0 else {}
+                ),
+                "atos_registrados": {
+                    "ato_tipo": "A" if indice == 0 else None,
+                    "ato_numero": 24 if indice == 0 else None,
+                },
+                "detalhes_emolumentos": {"total_do_item": total, "quant_item": 1},
+                "selos": [{"selo": str(indice), "selo_agrupador": grupo}],
+            })
+        protocolo = _protocolo_base(itens_do_pedido=itens)
+
+        def divergencias(cotacao):
+            ocorrencias = conferir_protocolo(
+                self._item_registrado(), protocolo, date(2026, 9, 28),
+                textos_registros={
+                    ("M", 33176): f"AV.24-33.176 CANCELAMENTO. Total: R${cotacao}."
+                },
+            )
+            return [item for item in ocorrencias if item["regra"] == "TOTAL_CUSTAS_DIVERGENTE"]
+
+        self.assertEqual(divergencias("233,12"), [])
+        diferencas_reais = divergencias("233,15")
+        self.assertEqual(len(diferencas_reais), 1)
+        self.assertEqual(diferencas_reais[0]["gravidade"], "ATENCAO")
+        self.assertEqual(diferencas_reais[0]["memoriaCalculo"]["totalCotacoes"], "233,15")
+        self.assertEqual(diferencas_reais[0]["memoriaCalculo"]["totalItensAgrupados"], "233,12")
+        self.assertEqual(len(diferencas_reais[0]["memoriaCalculo"]["linhas"]), 6)
+
+    def test_multiplas_saidas_nao_compara_grupo_com_cobranca_orfa(self):
+        protocolo = _protocolo_185546()
+        protocolo["itens_do_pedido"][1]["selos"] = [{"selo_agrupador": "outro-grupo"}]
+        textos = {
+            ("M", 32463): "R.17-32.463 CÉDULA. Total: R$1.075,29.",
+            ("A", 29569): "REGISTRO AUXILIAR 29.569. CÉDULA. Total: R$455,73.",
+        }
+        ocorrencias = conferir_protocolo(
+            self._item_registrado(), protocolo, date(2026, 8, 19),
+            textos_registros=textos,
+        )
+        self.assertFalse(any(o["regra"] == "TOTAL_CUSTAS_DIVERGENTE" for o in ocorrencias))
+
     def test_total_nao_multiplica_linha_financeira_expandida_em_varios_atos(self):
         grupo = "00032608255875825430009"
         selos = [

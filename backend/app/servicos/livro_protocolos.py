@@ -632,21 +632,43 @@ def _memoria_linhas_custas(itens: list[dict]) -> list[dict]:
     return memoria
 
 
+def _alvo_cotacao_cobrado(item: dict) -> tuple[tuple[str, int], tuple[str, int]] | None:
+    """Identifica a saída registral que recebeu uma cobrança positiva."""
+    total = _decimal_monetario(
+        (item.get("detalhes_emolumentos") or {}).get("total_do_item")
+    )
+    chave = _chave_registro(item)
+    if not chave or chave[1] <= 0 or total is None or total <= 0:
+        return None
+    if chave[0] == "M":
+        codigo = _codigo_ato_registrado(item)
+        return (chave, codigo) if codigo else None
+    registrado = item.get("atos_registrados") or {}
+    if registrado.get("ato_tipo") is None or registrado.get("ato_numero") is None:
+        return None
+    return (
+        chave,
+        (
+            _normalizar(str(registrado.get("ato_tipo") or "REG")),
+            int(registrado.get("ato_numero") or 0),
+        ),
+    )
+
+
 def _regra_total_custas_agrupadas(
     protocolo_json: dict,
     textos_registros: dict[tuple[str, int], str] | None = None,
 ) -> list[dict]:
-    """Compara a cotação do ato com todos os itens do mesmo selo agrupador.
+    """Compara cotações somente com conjuntos financeiros completos.
 
     Na Tri7, o total impresso no ato principal pode reunir as custas do ato,
     prenotação, busca e outros itens do agrupamento. Portanto, comparar esse
     texto apenas com ``total_do_item`` do ato principal produz falso erro.
 
-    Quando o agrupamento produz matrícula e Registro Auxiliar, cada saída tem
-    cotação própria. Nesse caso, a soma das cotações impressas nas duas saídas
-    deve ser comparada à soma de todos os itens agrupados. Entre vários atos
-    somente de matrícula, preserva a cautela anterior e não tenta repartir
-    custos sem informação suficiente.
+    Quando há uma única saída cobrada, usa todas as linhas do protocolo, mesmo
+    que a Tri7 lhes dê agrupadores distintos. Com várias saídas, uma cobrança
+    sem vínculo inequívoco impede a comparação daquele protocolo. Matrícula e
+    Registro Auxiliar no mesmo grupo continuam tendo suas cotações somadas.
     """
     textos_registros = textos_registros or {}
     itens = protocolo_json.get("itens_do_pedido") or []
@@ -655,9 +677,37 @@ def _regra_total_custas_agrupadas(
         for grupo in _grupos_de_selo(item):
             por_grupo.setdefault(grupo, []).append(item)
 
+    alvos_protocolo = {
+        alvo for item in itens if (alvo := _alvo_cotacao_cobrado(item)) is not None
+    }
+    if len(alvos_protocolo) == 1:
+        if not por_grupo:
+            return []
+        # Se há uma única saída cobrada, a cotação dela pode incluir buscas,
+        # prenotações e pagamentos diferidos com agrupadores de selo distintos.
+        # O selo sozinho não prova que a linha financeira ficou fora da cotação.
+        grupos_analisar = [itens]
+    else:
+        # Em protocolos com várias saídas, uma cobrança sem grupo, em grupo
+        # órfão ou em mais de um grupo impede repartir o total com segurança.
+        # Não atribuímos a diferença parcial a um ato específico.
+        for item in itens:
+            total = _decimal_monetario(
+                (item.get("detalhes_emolumentos") or {}).get("total_do_item")
+            )
+            if total is None or total <= 0:
+                continue
+            grupos = _grupos_de_selo(item)
+            if len(grupos) != 1:
+                return []
+            grupo = next(iter(grupos))
+            if not any(_alvo_cotacao_cobrado(membro) for membro in por_grupo[grupo]):
+                return []
+        grupos_analisar = list(por_grupo.values())
+
     ocorrencias = []
     alvos_conferidos: set[tuple[tuple[str, int], tuple[str, int]]] = set()
-    for itens_grupo in por_grupo.values():
+    for itens_grupo in grupos_analisar:
         if len(itens_grupo) < 2:
             continue
         linhas_custas = _linhas_custas_unicas(itens_grupo)
@@ -671,27 +721,12 @@ def _regra_total_custas_agrupadas(
         # Os atos continuam individuais mesmo quando a cobrança é uma única
         # linha agrupada. Portanto, a deduplicação acima vale só para a soma;
         # todas as saídas precisam participar da soma das cotações impressas.
+        alvos_do_grupo = set()
         for item in itens_grupo:
-            total = _decimal_monetario(
-                (item.get("detalhes_emolumentos") or {}).get("total_do_item")
-            )
-            chave = _chave_registro(item)
-            if not chave or chave[1] <= 0 or total is None or total <= 0:
-                continue
-            registrado = item.get("atos_registrados") or {}
-            if chave[0] == "M":
-                codigo = _codigo_ato_registrado(item)
-                if codigo:
-                    candidatos.append((item, chave, codigo))
-            elif registrado.get("ato_tipo") is not None and registrado.get("ato_numero") is not None:
-                candidatos.append((
-                    item,
-                    chave,
-                    (
-                        _normalizar(str(registrado.get("ato_tipo") or "REG")),
-                        int(registrado.get("ato_numero") or 0),
-                    ),
-                ))
+            alvo = _alvo_cotacao_cobrado(item)
+            if alvo and alvo not in alvos_do_grupo:
+                candidatos.append((item, *alvo))
+                alvos_do_grupo.add(alvo)
         if not candidatos:
             continue
         tipos_saida = {chave[0] for _item, chave, _codigo in candidatos}
@@ -730,13 +765,19 @@ def _regra_total_custas_agrupadas(
         total_agrupado = sum(totais, Decimal("0.00"))
         if total_texto != total_agrupado:
             rotulo = " e ".join(rotulos_saidas)
+            diferenca = abs(total_texto - total_agrupado)
+            # Cada linha e a cotação impressa são arredondadas a centavos.
+            # Diferenças dentro desse limite merecem revisão, não erro grave.
+            limite_arredondamento = Decimal("0.005") * (len(totais) + 1)
+            pequena_diferenca = diferenca <= limite_arredondamento
             ocorrencias.append({
                 "regra": "TOTAL_CUSTAS_DIVERGENTE",
-                "gravidade": "GRAVE",
+                "gravidade": "ATENCAO" if pequena_diferenca else "GRAVE",
                 "descricao": (
                     f"{rotulo}: total das cotações R$ {_formatar_reais(total_texto)} "
                     f"diverge da soma dos itens agrupados "
                     f"(R$ {_formatar_reais(total_agrupado)})."
+                    + (" Confira o arredondamento de centavos." if pequena_diferenca else "")
                 ),
                 "memoriaCalculo": {
                     "totalCotacoes": _formatar_reais(total_texto),
