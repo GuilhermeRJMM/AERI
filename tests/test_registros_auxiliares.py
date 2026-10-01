@@ -101,6 +101,14 @@ class TesteRegistrosAuxiliares(unittest.TestCase):
         self.assertEqual(indice["produtos"], ["SORGO"])
         self.assertEqual(indice["safras"], ["2026/2026"])
 
+    def test_safrinha_com_ano_isolado_tambem_entra_no_indice(self):
+        indice = extrair_indice_registro_auxiliar(
+            29301, "OBJETO DA GARANTIA: PENHOR de Sorgo Granífero da safrinha 2026."
+        )
+
+        self.assertEqual(indice["produtos"], ["SORGO"])
+        self.assertEqual(indice["safras"], ["2026/2026"])
+
     def test_identifica_produtos_pecuarios(self):
         indice = extrair_indice_registro_auxiliar(
             29538,

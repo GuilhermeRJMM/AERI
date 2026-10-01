@@ -241,6 +241,13 @@ def extrair_indice_registro_auxiliar(numero: int | str, texto: str) -> dict:
         safra = f"{inicio}/{fim}"
         if safra not in safras:
             safras.append(safra)
+    # Alguns registros descrevem apenas o ano da safrinha, sem período
+    # agrícola completo. Indexar o ano civil para que a busca pelo pedido
+    # encontre o registro, mantendo também eventuais períodos explícitos.
+    for ano in re.findall(r"\bSAFRINHA\s*:?[ \t]*(20\d{2})\b", normalizado):
+        safra = f"{ano}/{ano}"
+        if safra not in safras:
+            safras.append(safra)
 
     pessoas_extraidas = _extrair_pessoas(texto)
     nomes_busca = " | ".join(normalizar_busca(item["nome"]) for item in pessoas_extraidas)

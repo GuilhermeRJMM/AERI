@@ -115,6 +115,27 @@ class TesteInformarCustas(unittest.TestCase):
         self.assertEqual(resultado["itens"][0]["safra"], "2026/2027")
         self.assertEqual(resultado["itens"][0]["documento"], "123.456.789-01")
 
+    def test_penhor_singular_no_livro_tres_auxiliar_nao_e_ignorado(self):
+        texto = bloco(
+            "S26091074430D", "Solicito certidão de PENHOR cultura SOJA, safra 2026/2027"
+        ).replace("Livro 3 - Garantias", "Outros Registros Livro 3 - Auxiliar")
+
+        resultado = extrair_pedidos_texto(texto)
+
+        self.assertEqual(resultado["total"], 1)
+        self.assertEqual(resultado["ignorados"], 0)
+        self.assertEqual(resultado["itens"][0]["modalidade"], "PENHOR")
+        self.assertEqual(resultado["itens"][0]["produto"], "SOJA")
+
+    def test_safrinha_com_ano_isolado_preserva_ambiguidade(self):
+        resultado = extrair_pedidos_texto(bloco(
+            "S26091051453D", "SAFRINHA 2026, SORGO"
+        ))
+
+        self.assertEqual(resultado["itens"][0]["safra"], "SAFRINHA 2026")
+        self.assertEqual(resultado["itens"][0]["produto"], "SORGO")
+        self.assertEqual(resultado["alertas"], [])
+
     def test_extrai_alienacao_e_safra_separada_por_espaco(self):
         resultado = extrair_pedidos_texto(bloco(
             "S26080000002D", "CERTIDÃO DE ALIENAÇÃO FIDUCIÁRIA - SAFRA 2025 2026 - PRODUTO SOJA EM GRÃOS"
@@ -511,6 +532,20 @@ class TestePesquisaRegistroAuxiliar(unittest.TestCase):
         self.assertNotIn("documentos_hash", busca)
         self.assertIn("nomes_busca LIKE %s", busca)
 
+    def test_safrinha_busca_dois_periodos_sem_emitir_negativa_automatica(self):
+        saida, consultas, parametros, _e = self._pesquisar(
+            self._pedido(safra="SAFRINHA 2026"), []
+        )
+        busca = next(c for c in consultas if "registros_auxiliares_aeri" in c)
+        self.assertIn("(safras ? %s OR safras ? %s)", busca)
+        self.assertIn("2025/2026", parametros[consultas.index(busca)])
+        self.assertIn("2026/2026", parametros[consultas.index(busca)])
+        self.assertEqual(saida["resultado"], "PENDENTE")
+
+    def test_produto_nao_informado_nao_vira_negativa_automatica(self):
+        saida, _c, _p, _e = self._pesquisar(self._pedido(produto="NÃO CONSTA"), [])
+        self.assertEqual(saida["resultado"], "PENDENTE")
+
     def test_sem_fronteira_confirmada_nao_produz_negativa(self):
         from decimal import Decimal
         from backend.app.rotas import custas as rotas
@@ -580,3 +615,20 @@ class TesteRevalidacaoCustas(unittest.TestCase):
 
         self.assertEqual(corrigidos[0]["resultado"], "NEGATIVA")
         self.assertEqual(corrigidos[0]["status"], "BUSCA_REALIZADA")
+
+    def test_safrinha_ambigua_continua_pendente_mesmo_com_fronteira_confirmada(self):
+        pedido = self._pedido("PENDENTE", "FAZER_PESQUISA")
+        pedido["safra"] = "SAFRINHA 2026"
+        cursor = MagicMock()
+        cursor.fetchall.side_effect = [[pedido], []]
+
+        with patch("backend.app.servicos.custas.hash_documento", return_value="hash-cpf"):
+            corrigidos = revalidar_negativas_custas(
+                cursor, "cron", confirmar_pendentes=True
+            )
+
+        self.assertEqual(corrigidos, [])
+        self.assertFalse(any(
+            "UPDATE custas_livro3_aeri" in chamada.args[0]
+            for chamada in cursor.execute.call_args_list
+        ))

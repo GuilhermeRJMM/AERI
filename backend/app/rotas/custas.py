@@ -11,6 +11,7 @@ from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
 from backend.app.servicos.custas import (
     STATUS_FINAIS,
+    ano_safrinha_custas,
     custas_json,
     extrair_pedidos_pdf,
     gerar_relatorio_custas_pdf,
@@ -457,7 +458,15 @@ def _pesquisar_registros(
     if preco is None:
         preco = _preco_certidao_registro_auxiliar(cursor)
     numeros = localizar_registros_custas(cursor, pedido)
-    resultado = "POSITIVA" if numeros else ("NEGATIVA" if permitir_negativa else "PENDENTE")
+    # Um pedido que diz apenas "safrinha 2026" não prova qual período
+    # agrícola o registro usa. Ausência local não autoriza certidão negativa.
+    negativa_segura = (
+        permitir_negativa
+        and ano_safrinha_custas(pedido.get("safra", "")) is None
+        and pedido.get("produto") != "NÃO CONSTA"
+        and pedido.get("safra") != "NÃO CONSTA"
+    )
+    resultado = "POSITIVA" if numeros else ("NEGATIVA" if negativa_segura else "PENDENTE")
     status = "BUSCA_REALIZADA" if resultado != "PENDENTE" else "FAZER_PESQUISA"
     cursor.execute(
         """UPDATE custas_livro3_aeri SET resultado=%s, numero_registro=%s,
@@ -469,7 +478,7 @@ def _pesquisar_registros(
     valor = preco * max(1, len(numeros))
     _registrar_evento(cursor, pedido["id"], pedido["pedido"], "PESQUISA_REGISTRO_AUXILIAR", usuario,
                       {"registros": numeros, "valor": str(valor), "resultado": resultado,
-                       "negativaConfirmada": bool(permitir_negativa)})
+                       "negativaConfirmada": resultado == "NEGATIVA"})
     return {"item": custas_json(atualizado), "registros": numeros,
             "valor": float(valor), "resultado": resultado}
 

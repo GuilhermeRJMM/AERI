@@ -35,12 +35,22 @@ def localizar_registros_custas(cursor, pedido: dict) -> list[int]:
     """Pesquisa nome e CPF/CNPJ sem permitir que um deles invalide o outro."""
     termo = normalizar_busca(pedido.get("nome", ""))
     documento = "".join(c for c in pedido.get("documento", "") if c.isdigit())
-    filtros = ["situacao='ATIVO'", "produtos ? %s", "safras ? %s", "modalidade=%s"]
-    parametros = [
-        normalizar_busca(pedido.get("produto", "")),
-        normalizar_safra(pedido.get("safra", "")),
-        "ALIENAÇÃO" if pedido.get("modalidade") == "ALIENACAO_FIDUCIARIA" else pedido.get("modalidade"),
-    ]
+    safra = pedido.get("safra", "")
+    ano_safrinha = ano_safrinha_custas(safra)
+    filtros = ["situacao='ATIVO'", "produtos ? %s"]
+    parametros = [normalizar_busca(pedido.get("produto", ""))]
+    if ano_safrinha is not None:
+        # "Safrinha 2026" não informa se o título foi indexado como
+        # 2025/2026 ou 2026/2026. Buscar ambas, sem presumir uma negativa.
+        filtros.append("(safras ? %s OR safras ? %s)")
+        parametros.extend((f"{ano_safrinha - 1}/{ano_safrinha}", f"{ano_safrinha}/{ano_safrinha}"))
+    else:
+        filtros.append("safras ? %s")
+        parametros.append(normalizar_safra(safra))
+    filtros.append("modalidade=%s")
+    parametros.append(
+        "ALIENAÇÃO" if pedido.get("modalidade") == "ALIENACAO_FIDUCIARIA" else pedido.get("modalidade")
+    )
     if len(documento) in {11, 14}:
         # O documento vem primeiro por ser mais estável. O nome permanece no
         # OR para o acervo antigo em que o CPF/CNPJ não pôde ser indexado.
@@ -79,6 +89,12 @@ def revalidar_negativas_custas(
     for pedido in cursor.fetchall():
         numeros = localizar_registros_custas(cursor, pedido)
         resultado_anterior = pedido["resultado"]
+        if not numeros and (
+            ano_safrinha_custas(pedido.get("safra", "")) is not None
+            or pedido.get("produto") == "NÃO CONSTA"
+            or pedido.get("safra") == "NÃO CONSTA"
+        ):
+            continue
         if not numeros and not (resultado_anterior == "PENDENTE" and confirmar_pendentes):
             continue
         status_anterior = pedido["status"]
@@ -168,6 +184,11 @@ def _limpar_espacos(valor: str) -> str:
     return re.sub(r"\s+", " ", valor or "").strip(" ,;:-")
 
 
+def ano_safrinha_custas(valor: str) -> int | None:
+    captura = re.fullmatch(r"SAFRINHA\s+(20\d{2})", normalizar_busca(valor or ""))
+    return int(captura.group(1)) if captura else None
+
+
 def _formatar_documento(valor: str) -> str:
     digitos = re.sub(r"\D", "", valor or "")
     if len(digitos) == 11:
@@ -183,7 +204,7 @@ def _extrair_modalidade(texto: str) -> str | None:
     # "alienacoes fiduciarias") dentro das observações.
     if re.search(r"\bALIENAC(?:AO|OES)(?:\s+FIDUCIARIAS?)?\b", normalizado):
         return "ALIENACAO_FIDUCIARIA"
-    if re.search(r"\bPENHORES?\b", normalizado):
+    if re.search(r"\bPENHOR(?:ES)?\b", normalizado):
         return "PENHOR"
     return None
 
@@ -228,7 +249,10 @@ def _extrair_safra(texto: str) -> str:
             normalizado,
         )
     if not captura:
-        return "NÃO CONSTA"
+        # Safrinha é identificada pelo ano da colheita, sem o início do
+        # período agrícola. Preservar essa distinção para a pesquisa.
+        safrinha = re.search(r"\bSAFRINHA\s*:?[ \t]*(20\d{2})\b", normalizado)
+        return f"SAFRINHA {safrinha.group(1)}" if safrinha else "NÃO CONSTA"
     inicio, fim = captura.groups()
     inicio_num = int(inicio)
     if len(inicio) == 2:
