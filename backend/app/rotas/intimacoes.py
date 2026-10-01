@@ -19,6 +19,7 @@ from backend.app.servicos.intimacoes import (
     validar_novo_andamento,
 )
 from backend.app.seguranca_web import registrar_auditoria_cursor
+from backend.app.servicos.rtd_sincronizacao import anexar_rtd
 
 
 router = APIRouter(
@@ -73,7 +74,7 @@ def listar_intimacoes(
                 _select_intimacoes() + (" WHERE i.excluida_em IS NOT NULL" if lixeira else " WHERE i.excluida_em IS NULL")
                 + " ORDER BY i.protocolo"
             )
-            return [intimacao_json(item) for item in cursor.fetchall()]
+            return anexar_rtd(cursor, [intimacao_json(item) for item in cursor.fetchall()], _usuario)
 
 
 @router.post("", status_code=201, dependencies=[Depends(proteger_csrf)])

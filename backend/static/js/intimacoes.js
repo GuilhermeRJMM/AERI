@@ -1,5 +1,6 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
+import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd} from './rtd_intimacoes.js?v=20261001-1';
 
 let intimacoes = [];
 const intimacoesPendentes = new Set();
@@ -10,6 +11,26 @@ let faseAtiva = 'INTIMACAO';
 const FASES_INTIMACAO = ['INTIMACAO', 'EDITAL', 'CONSOLIDACAO'];
 let filtroSituacao = 'TODAS';
 let exibindoLixeira = false;
+let statusRtd = null;
+let statusRtdConsultado = 0;
+
+function renderizarPainelRtd() {
+    const painel = document.getElementById('rtd-painel');
+    if (!painel) return;
+    const novos = intimacoes.filter(temNovidadeRtd).length;
+    const sync = statusRtd?.sincronizacao;
+    const contagens = statusRtd?.contagens;
+    const ultima = sync?.ultimo_sucesso;
+    const atrasado = ultima && Date.now() - Date.parse(ultima) > 10 * 60000;
+    const horario = ultima ? new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(ultima)) : null;
+    painel.innerHTML = `<strong>Diligências RTD${novos ? ` · ${novos} intimação(ões) com novidade` : ''}</strong>
+        <p>${horario ? `Última consulta concluída: ${horario}.` : 'Aguardando a primeira sincronização do executor.'} Consulta automática a cada 5 minutos.</p>
+        ${atrasado ? '<p role="status">Atualização atrasada. Confira se o executor está ligado.</p>' : ''}
+        ${sync?.erro ? `<p role="alert">${escaparHtml(sync.erro)}</p>` : ''}
+        ${contagens ? `<p>${contagens.vinculados} pedidos vinculados · ${contagens.fila} na fila · ${contagens.falhas} com falha · ${contagens.sem_vinculo} sem vínculo</p>` : ''}
+        ${novos ? '<button type="button" data-rtd-novidades>Ver novidades de todas as fases</button>' : ''}
+        ${statusRtd?.revisao?.length ? `<details><summary>Pedidos que precisam de revisão</summary><ul>${statusRtd.revisao.map(p => `<li>${escaparHtml(p.protocolo)} · ${escaparHtml(p.in_documento || '')} · ${escaparHtml(p.erro || ({SEM_IN:'IN não identificado no documento',IN_AMBIGUO:'Mais de um IN no documento',IN_NAO_CADASTRADO:'IN ainda não cadastrado',CONFLITO:'Vínculo divergente'})[p.vinculo] || p.vinculo)}</li>`).join('')}</ul></details>` : ''}`;
+}
 
 function pode(permissao) {
     return ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil) || Boolean(window.aeriPermissoes?.[permissao]);
@@ -98,6 +119,7 @@ function detalhesFaseInicial(item) {
         ? historico.map(evento => `<li><strong>${escaparHtml(evento.tipo)}</strong><span>${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(evento.criado_em))} · ${escaparHtml(evento.usuario)}</span></li>`).join('')
         : '<li><span>Carregando histórico operacional…</span></li>';
     return `<div class="rotina-intimacao-detalhes">
+        ${detalhesRtd(item)}
         <section class="rotina-card-grade rotina-card-identificacao">
             ${campoCard('Protocolo RTD', valorOuTraco(item.protocoloRtd))}
             ${campoCard('N.º OS Tri7', valorOuTraco(item.numeroOsTri7))}
@@ -158,11 +180,11 @@ function renderizarIntimacoes() {
     const daFase = intimacoes.filter(item => faseAtiva === 'TODAS' || item.fase === faseAtiva);
     const filtradas = daFase.filter(item => [
         item.protocolo, item.protocoloRtd, item.numeroOsTri7, item.protocoloTri7,
-        item.credor, item.devedor, item.nomeAndamento, item.certidaoDecursoPrazo,
+        item.credor, item.devedor, item.nomeAndamento, item.certidaoDecursoPrazo, ...(item.rtd || []).flatMap(p => [p.protocolo,p.situacao]),
     ]
         .some(valor => String(valor || '').toLowerCase().includes(termo)))
-        .filter(item => filtroSituacao === 'TODAS' || (filtroSituacao === 'PENDENTES' ? ['vermelho','cinza'].includes(situacaoIntimacao(item).classe) : situacaoIntimacao(item).classe === filtroSituacao))
-        .sort((a, b) => situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo));
+        .filter(item => filtroSituacao === 'TODAS' || (filtroSituacao === 'RTD' ? temNovidadeRtd(item) : filtroSituacao === 'PENDENTES' ? ['vermelho','cinza'].includes(situacaoIntimacao(item).classe) : situacaoIntimacao(item).classe === filtroSituacao))
+        .sort((a, b) => ordenarNovidadesRtd(a,b) || situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo));
 
     tbody.innerHTML = filtradas.map(item => {
         const situacao = situacaoIntimacao(item);
@@ -171,8 +193,8 @@ function renderizarIntimacoes() {
             <td><span class="rotina-status ${situacao.classe}"><i></i>${situacao.rotulo}</span><small>${situacao.detalhe}</small></td>
             <td><strong class="rotina-protocolo">${escaparHtml(item.protocolo)}</strong></td>
             <td>${escaparHtml(item.credor)}</td>
-            <td>${escaparHtml(item.devedor)}</td>
-            <td>${escaparHtml(item.nomeAndamento || 'Não informado')}</td>
+            <td>${escaparHtml(item.devedor)}${item.devedorFonte === 'RTD' ? '<small>Identificado no documento RTD</small>' : ''}</td>
+            <td>${escaparHtml(item.nomeAndamento || 'Não informado')}${resumoRtd(item)}</td>
             <td>${formatarDataRotina(item.ultimoAndamento)}</td>
             <td>${item.ultimaConferencia ? formatarDataRotina(item.ultimaConferencia) : '—'}</td>
             <td>${botaoPastaIntimacao(item)}</td>
@@ -198,6 +220,7 @@ function renderizarIntimacoes() {
         botao.setAttribute('aria-selected', String(ativa));
     });
     document.getElementById('rotina-total').textContent = `${filtradas.length} de ${daFase.length} nesta fase`;
+    renderizarPainelRtd();
 }
 
 export async function carregarIntimacoes(opcoes = {}) {
@@ -218,6 +241,11 @@ export async function carregarIntimacoes(opcoes = {}) {
             if (atual && new Date(atual.atualizadoEm) > new Date(recebida.atualizadoEm)) return atual;
             return recebida;
         });
+        if (Date.now() - statusRtdConsultado > 60000) {
+            statusRtdConsultado = Date.now();
+            try { statusRtd = await requisicaoAeri('/api/rtd-intimacoes/status', {background:true}); }
+            catch (_) { statusRtd = {sincronizacao:{erro:'Não foi possível obter o estado da sincronização RTD.'}}; }
+        }
     } catch (falha) {
         console.error(falha);
         // Mantém a última lista conhecida em vez de zerar: uma falha
@@ -228,6 +256,7 @@ export async function carregarIntimacoes(opcoes = {}) {
 
 export function limparIntimacoes() {
     intimacoes = [];
+    statusRtd = null; statusRtdConsultado = 0;
     renderizarIntimacoes();
 }
 
@@ -583,6 +612,15 @@ function exportarIntimacoesCsv() {
 async function tratarAcaoTabela(evento) {
     const botao = evento.target.closest('button[data-acao]');
     if (!botao) return;
+    if (botao.dataset.acao === 'rtd-lido') {
+        botao.disabled = true;
+        try {
+            await requisicaoAeri(`/api/rtd-intimacoes/${botao.dataset.rtd}/lido`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({versao:Number(botao.dataset.versao)})});
+            await carregarIntimacoes();
+        } catch (erro) { alert(erro.message); }
+        finally { botao.disabled = false; }
+        return;
+    }
     if (botao.dataset.acao === 'abrir-pasta') abrirPastaIntimacao(botao.dataset.protocolo);
     if (botao.dataset.acao === 'gerar-desistencia') gerarNotaDesistencia(botao.dataset.protocolo);
     if (botao.dataset.acao === 'detalhes') {
@@ -602,6 +640,18 @@ async function tratarAcaoTabela(evento) {
 }
 
 export function iniciarIntimacoes() {
+    if (!document.getElementById('rtd-estilos')) {
+        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261001-1'; document.head.appendChild(css);
+        const painel = document.createElement('section'); painel.id='rtd-painel'; painel.className='rtd-painel'; painel.setAttribute('aria-label','Acompanhamento das diligências RTD');
+        document.getElementById('rotina-resumo').before(painel);
+        painel.addEventListener('click', evento => {
+            if (!evento.target.closest('[data-rtd-novidades]')) return;
+            faseAtiva='TODAS'; filtroSituacao='RTD'; exibindoLixeira=false;
+            document.getElementById('busca-intimacao').value='';
+            document.getElementById('filtro-situacao-intimacao').value='RTD';
+            carregarIntimacoes();
+        });
+    }
     window.addEventListener('aeri:abrir-alerta', async evento => {
         if (evento.detail.modulo !== 'rotina') return;
         faseAtiva='TODAS'; filtroSituacao='PENDENTES'; exibindoLixeira=false;
@@ -613,6 +663,7 @@ export function iniciarIntimacoes() {
     seletor.id = 'filtro-situacao-intimacao';
     seletor.innerHTML = '<option value="TODAS">Todas as situações</option><option value="PENDENTES">Pendentes / atrasadas / sem atividade</option><option value="verde">Conferidas hoje</option><option value="amarelo">Vencem hoje</option><option value="vermelho">Atrasadas</option><option value="cinza">Sem atividade</option>';
     seletor.addEventListener('change', () => { filtroSituacao = seletor.value; renderizarIntimacoes(); });
+    seletor.insertAdjacentHTML('beforeend', '<option value="RTD">Novidades do RTD</option>');
     busca.parentElement.appendChild(seletor);
     if (cargoAdministrativo()) {
         const lixeira = document.createElement('button');

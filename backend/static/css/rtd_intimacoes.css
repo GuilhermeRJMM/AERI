@@ -1,0 +1,11 @@
+.rtd-painel { margin: 1rem 0; padding: 1rem; border: 1px solid #52677b; border-radius: 12px; background: #1c293a; color: #eef4fc; }
+.rtd-painel p { margin: .4rem 0; }
+.rtd-painel button, .rtd-pedido button { border: 1px solid #47d8b0; border-radius: 7px; background: #174d41; color: #fff; padding: .55rem .8rem; cursor: pointer; }
+.rtd-resumo { display: block; margin-top: .5rem; line-height: 1.4; }
+.rtd-novo { color: #72efc7; }
+.rtd-detalhes { margin: 1rem 0; }
+.rtd-pedido { padding: 1rem; margin: .7rem 0; border: 1px solid #536273; border-radius: 10px; color: #e8ecf4; }
+.rtd-pedido.rtd-novo { border-left: 4px solid #48dcad; }
+.rtd-pedido p, .rtd-pedido li { line-height: 1.55; }
+.rtd-pedido details { margin-top: .75rem; }
+.rtd-painel details { margin-top: .6rem; overflow-wrap: anywhere; }

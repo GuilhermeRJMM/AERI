@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd} from '../backend/static/js/rtd_intimacoes.js';
+const antigo = {rtd:[{novo:false,alteradoEm:'2026-10-01T10:00:00Z'}]};
+const novo = {rtd:[{novo:true,alteradoEm:'2026-10-01T09:00:00Z',protocolo:'123',situacao:'<script>',versao:2,eventos:[]}]};
+assert.equal(temNovidadeRtd(novo), true);
+assert.equal(temNovidadeRtd({}), false);
+assert.ok(ordenarNovidadesRtd(novo,antigo)<0);
+assert.ok(ordenarNovidadesRtd(novo,{rtd:[{novo:true,alteradoEm:'2026-10-01T08:00:00Z'}]})<0);
+assert.ok(resumoRtd(novo).includes('&lt;script&gt;'));
+assert.ok(!detalhesRtd(novo).includes('<script>'));
+assert.ok(detalhesRtd(novo).includes('data-versao="2"'));
+assert.equal(detalhesRtd({}), '');
+console.log('RTD frontend: 8 verificações aprovadas.');

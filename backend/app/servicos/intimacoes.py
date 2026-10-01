@@ -69,6 +69,7 @@ def intimacao_json(registro: dict) -> dict:
         "protocolo": registro["protocolo"],
         "credor": registro["credor"],
         "devedor": registro["devedor"],
+        "devedorFonte": "RTD" if registro.get("devedor_rtd_valor") == registro["devedor"] else None,
         "nomeAndamento": registro["nome_andamento"],
         "ultimoAndamento": registro["ultimo_andamento"].isoformat(),
         "ultimaConferencia": (
