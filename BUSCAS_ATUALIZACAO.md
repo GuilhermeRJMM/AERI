@@ -8,7 +8,16 @@
 - Menções por ato são um índice auxiliar: transmitentes, adquirentes, qualificados e retificações aparecem em uma seção de conferência. Não viram proprietários pela simples menção.
 - Variações históricas de nome só são associadas a um titular pelo mesmo documento protegido e na mesma matrícula.
 - Auditoria da cadeia pendente, documento conflitante, índice antigo ou falha de reconsulta reduzem a confiança. A geração do texto é bloqueada quando há pendências relevantes. Sem resultados, lacunas no índice impedem gerar uma negativa automática.
-- A exportação antiga também usa essas salvaguardas. Os endpoints continuam exigindo sessão e permissão de Buscas; reconsultas exigem permissão de revisão e CSRF.
+- A exportação antiga também usa essas salvaguardas. Os endpoints continuam exigindo sessão e permissão de Buscas; reconsultas administrativas exigem permissão de revisão e CSRF.
+
+### Gerar e copiar texto
+
+- A geração compara todas as palavras do nome completo, desconsiderando apenas `da/de/do/das/dos/e` e sua posição. `Eduardo da Costa Nóbrega` corresponde a `Eduardo Costa da Nóbrega`; nomes parciais ou sobrenomes acrescentados não são promovidos à mesma identidade.
+- Pessoas com documentos diferentes exigem pesquisa por CPF/CNPJ; menções históricas continuam separadas da titularidade atual.
+- O botão usa `POST /api/buscas/preparar-texto`, com sessão, permissão de Buscas e CSRF. Antes de gerar, reconsulta na Tri7 até 20 matrículas pendentes diretamente relacionadas à identidade pesquisada e atualiza seu índice pelo serviço central. Não altera cadastros na Tri7 nem inicia reindexação global; a auditoria registra apenas os números reconsultados.
+- Depois da atualização, as salvaguardas de exportação são verificadas novamente. Falha ou texto vazio da Tri7, ambiguidade e cadeia ainda pendente não liberam uma negativa. Lacunas de outras pessoas não impedem uma positiva cuja titularidade foi conferida.
+- O botão passa a `Copiar texto` após a geração. Uma segunda tentativa usa o texto já validado, sem nova consulta, para manter a ação direta do usuário exigida por alguns navegadores. Quando a cópia é bloqueada, o texto também fica disponível para seleção e `Ctrl+C`.
+- Uma nova pesquisa ou saída da sessão invalida o texto preparado; respostas atrasadas não copiam resultados da pessoa anterior.
 
 ## Atualização
 

@@ -8,6 +8,7 @@ let revisando = false;
 let reprocessandoPendencias = false;
 let buscaAtual = {termo:'', pagina:1, totalPaginas:0};
 let geracaoPesquisa = 0;
+let textoPreparado = null;
 
 function parametrosPesquisa(exportar=false) {
     return new URLSearchParams({nome:buscaAtual.termo || '', documento:buscaAtual.documento || '',
@@ -145,6 +146,8 @@ export async function carregarBuscas(opcoes = {}) {
 
 export function limparBuscas() {
     geracaoPesquisa++;
+    textoPreparado = null;
+    document.getElementById('buscas-texto-fallback')?.remove();
     document.getElementById('buscas-documento').value = '';
     document.getElementById('buscas-candidatos').replaceChildren();
     document.getElementById('buscas-candidatos').hidden = true;
@@ -233,6 +236,9 @@ function renderizarResultados(dados) {
     // O texto da pesquisa qualificada existe nos dois casos: com imóveis
     // (positivo) e sem nenhum (negativo).
     document.getElementById('btn-buscas-texto').hidden = !(buscaAtual.termo || buscaAtual.documento);
+    document.getElementById('btn-buscas-texto').textContent = 'Gerar texto';
+    document.getElementById('btn-buscas-texto').disabled = false;
+    textoPreparado = null;
     document.getElementById('buscas-texto-aviso').hidden = true;
     document.getElementById('buscas-texto-fallback')?.remove();
     document.getElementById('buscas-total-resultados').textContent = total
@@ -246,7 +252,7 @@ function renderizarResultados(dados) {
     document.getElementById('buscas-resultados').innerHTML = itens.map(item => {
         const correspondencia = ({DOCUMENTO_EXATO:'CPF/CNPJ exato', NOME_EXATO:'Nome exato',
             NOME_EXATO_SEM_DOCUMENTO:'Nome igual · documento ausente', DOCUMENTO_DIVERGENTE:'Documento diferente',
-            VARIACAO_DE_NOME:'Variação de nome'})[item.correspondencia] || 'Nome parcial';
+            NOME_EQUIVALENTE:'Nome equivalente', VARIACAO_DE_NOME:'Variação de nome'})[item.correspondencia] || 'Nome parcial';
         const situacao = String(item.situacao || 'REVISAR').toUpperCase();
         return `<tr>
             <td data-label="Matrícula"><strong class="buscas-matricula">${formatarNumero(item.matricula)}</strong><small class="buscas-situacao" data-situacao="${escaparHtml(situacao)}">${escaparHtml(situacao)}</small></td>
@@ -283,6 +289,10 @@ function renderizarCandidatos(dados) {
 
 async function executarPesquisa(pagina = 1) {
     const geracao=++geracaoPesquisa;
+    textoPreparado = null;
+    document.getElementById('btn-buscas-texto').hidden = true;
+    document.getElementById('buscas-texto-aviso').hidden = true;
+    document.getElementById('buscas-texto-fallback')?.remove();
     buscaAtual.pagina=pagina;
     const botao = document.getElementById('btn-buscas-pesquisar');
     const termo = buscaAtual.termo || document.getElementById('buscas-termo').value.trim();
@@ -311,10 +321,11 @@ async function pesquisar(evento) {
     await executarPesquisa(1);
 }
 
-async function coletarTodosOsItens(termo) {
-    const dados = await requisicaoAeri(
-        `/api/buscas/pesquisar?${parametrosPesquisa(true)}`);
-    return dados.itens || [];
+async function prepararTextoPesquisa() {
+    return requisicaoAeri('/api/buscas/preparar-texto', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({nome:buscaAtual.termo || '', documento:buscaAtual.documento || ''}),
+    });
 }
 
 function montarTextoPesquisa(termo, itens) {
@@ -439,6 +450,7 @@ function copiarSelecionando(html) {
     area.innerHTML = html;
     document.body.appendChild(area);
     try {
+        area.focus({preventScroll:true});
         const selecao = window.getSelection();
         const intervalo = document.createRange();
         intervalo.selectNodeContents(area);
@@ -508,15 +520,26 @@ async function gerarTextoPesquisa() {
     const aviso = document.getElementById('buscas-texto-aviso');
     const termo = buscaAtual.termo || buscaAtual.documento || document.getElementById('buscas-termo').value.trim();
     if (!termo) return;
-    const rotulo = botao.textContent;
+    const geracao = geracaoPesquisa;
+    const assinatura = parametrosPesquisa(true).toString();
     botao.disabled = true;
-    botao.textContent = 'Gerando…';
+    botao.textContent = textoPreparado ? 'Copiando…' : 'Conferindo e gerando…';
     aviso.hidden = true;
     try {
-        const itens = await coletarTodosOsItens(termo);
+        if (!textoPreparado || textoPreparado.assinatura !== assinatura) {
+            const dados = await prepararTextoPesquisa();
+            if (geracao !== geracaoPesquisa) return;
+            if (dados.reconsultadas) {
+                const atualizados = await requisicaoAeri(`/api/buscas/pesquisar?${parametrosPesquisa()}`);
+                if (geracao !== geracaoPesquisa) return;
+                renderizarResultados(atualizados);
+            }
+            textoPreparado = {assinatura, ...montarTextoPesquisa(termo, dados.itens || [])};
+        }
         const {texto, html, documentoIncompleto, nomeIncompleto, matriculas, descartadas} =
-            montarTextoPesquisa(termo, itens);
+            textoPreparado;
         const copia = await copiarComFormato(texto, html);
+        if (geracao !== geracaoPesquisa) return;
         if (!copia.copiou) mostrarTextoFallback(texto);
         else document.getElementById('buscas-texto-fallback')?.remove();
         botao.textContent = copia.copiou ? 'Texto copiado!' : 'Texto gerado!';
@@ -524,7 +547,7 @@ async function gerarTextoPesquisa() {
 
         const partes = [];
         if (!copia.copiou) {
-            partes.push('O texto foi gerado, mas o navegador bloqueou a cópia automática. Ele está disponível abaixo para copiar manualmente.');
+            partes.push('O texto está pronto. Clique novamente em Copiar texto para tentar a cópia sem uma nova consulta, ou use Ctrl+C no texto abaixo.');
         } else if (!copia.formatado) {
             partes.push('Copiado sem formatação (este navegador não permitiu o formato rico) — ajuste para Arial 12 e alinhamento à esquerda ao colar.');
         } else {
@@ -547,12 +570,14 @@ async function gerarTextoPesquisa() {
         }
         aviso.textContent = partes.join(' ');
     } catch (erro) {
+        if (geracao !== geracaoPesquisa) return;
         aviso.hidden = false;
         aviso.textContent = `Não foi possível gerar o texto: ${erro.message}`;
-        botao.textContent = rotulo;
     } finally {
-        botao.disabled = false;
-        window.setTimeout(() => { botao.textContent = rotulo; }, 2600);
+        if (geracao === geracaoPesquisa) {
+            botao.disabled = false;
+            botao.textContent = textoPreparado ? 'Copiar texto' : 'Gerar texto';
+        }
     }
 }
 

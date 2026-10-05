@@ -7,6 +7,23 @@ from fastapi import HTTPException
 from backend.app.servicos.buscas import hash_documento, normalizar_documento, normalizar_nome
 
 
+PARTICULAS_NOME = {'DA', 'DE', 'DO', 'DAS', 'DOS', 'E'}
+
+
+def palavras_nome(nome):
+    # Mantém multiplicidade: não aceita sobrenomes faltando ou acrescentados.
+    return sorted(t for t in normalizar_nome(nome).split() if t not in PARTICULAS_NOME)
+
+
+def filtro_nome_completo(nome, alias):
+    palavras = palavras_nome(nome)
+    if not palavras:
+        return f'{alias}.nome_busca=%s', [nome]
+    return (f'''ARRAY(SELECT palavra FROM regexp_split_to_table({alias}.nome_busca, '\\s+')
+        AS partes(palavra) WHERE palavra NOT IN ('DA','DE','DO','DAS','DOS','E','')
+        ORDER BY palavra COLLATE "C") = %s::text[]''', [palavras])
+
+
 def filtros_identidade(nome, documento, alias='p', exata=False):
     nome = normalizar_nome(nome)
     documento = normalizar_documento(documento)
@@ -23,9 +40,12 @@ def filtros_identidade(nome, documento, alias='p', exata=False):
         raise HTTPException(503, 'A busca por documento está indisponível nesta configuração.') from exc
     if len(nome) >= 3:
         # Palavras fora de ordem são candidatos, não identidade confirmada.
-        tokens = [t for t in nome.split() if t not in {'DA','DE','DO','DAS','DOS','E'}]
-        condicao = f'{alias}.nome_busca=%s' if exata or not tokens else ' AND '.join(f'{alias}.nome_busca LIKE %s' for _ in tokens)
-        valores = [nome] if exata or not tokens else [f'%{t}%' for t in tokens]
+        tokens = [t for t in nome.split() if t not in PARTICULAS_NOME]
+        if exata:
+            condicao, valores = filtro_nome_completo(nome, alias)
+        else:
+            condicao = f'{alias}.nome_busca=%s' if not tokens else ' AND '.join(f'{alias}.nome_busca LIKE %s' for _ in tokens)
+            valores = [nome] if not tokens else [f'%{t}%' for t in tokens]
         partes.append(f'({condicao})')
         parametros.extend(valores)
     return '(' + ' OR '.join(partes) + ')', parametros, nome, documento
@@ -36,7 +56,9 @@ def _item(row, nome, documento_protegido):
     conflito = bool(documento_protegido and row.get('documento_hash') and not doc_igual)
     correspondencia = ('DOCUMENTO_DIVERGENTE' if conflito else 'DOCUMENTO_EXATO' if doc_igual
         else 'NOME_EXATO_SEM_DOCUMENTO' if documento_protegido and row['nome_busca'] == nome
-        else 'NOME_EXATO' if row['nome_busca'] == nome else 'VARIACAO_DE_NOME')
+        else 'NOME_EXATO' if row['nome_busca'] == nome
+        else 'NOME_EQUIVALENTE' if palavras_nome(nome) and palavras_nome(row['nome_busca']) == palavras_nome(nome)
+        else 'VARIACAO_DE_NOME')
     pendente = bool(row.get('falha_consulta_em') or row.get('veredito_cadeia') != 'OK'
         or row.get('indice_busca_versao', 0) < 2 or conflito
         or documento_protegido and not doc_igual)
@@ -47,7 +69,8 @@ def _item(row, nome, documento_protegido):
         consultadoEm=row['consultado_em'].isoformat())
 
 
-def pesquisar(cursor, nome='', documento='', pagina=1, limite=50, somente_ativos=True, exportar=False):
+def pesquisar(cursor, nome='', documento='', pagina=1, limite=50, somente_ativos=True, exportar=False,
+              validar_exportacao=True):
     filtro, parametros, nome, documento = filtros_identidade(nome, documento, exata=exportar)
     protegido = hash_documento(documento) if documento else None
     if documento:
@@ -58,10 +81,11 @@ def pesquisar(cursor, nome='', documento='', pagina=1, limite=50, somente_ativos
     # Alias comprovado pelo mesmo documento dentro da mesma matrícula.
     # Documento antigo retificado nunca é promovido ao documento atual.
     if nome:
+        alias_nome, alias_parametros = filtro_nome_completo(nome, 'x') if exportar else ('x.nome_busca=%s', [nome])
         filtro = f'''({filtro} OR EXISTS (SELECT 1 FROM mencoes_matriculas_busca_aeri x
             WHERE x.matricula_numero=p.matricula_numero AND x.documento_hash=p.documento_hash
-              AND x.nome_busca=%s))'''
-        parametros.append(nome)
+              AND ({alias_nome})))'''
+        parametros.extend(alias_parametros)
     estado = "AND m.situacao='ATIVA'" if somente_ativos or exportar else ''
     base = f'''FROM proprietarios_matriculas_busca_aeri p
         JOIN matriculas_busca_aeri m ON m.numero=p.matricula_numero
@@ -78,7 +102,12 @@ def pesquisar(cursor, nome='', documento='', pagina=1, limite=50, somente_ativos
         p.confianca,a.veredito_cadeia {base}
         ORDER BY CASE WHEN p.documento_hash=%s THEN 0 WHEN p.nome_busca=%s THEN 1 ELSE 2 END,
         p.nome,m.numero,p.ordem LIMIT %s OFFSET %s''', (*parametros, protegido, nome, tamanho, (pagina-1)*limite if not exportar else 0))
-    itens = [_item(row, nome, protegido) for row in cursor.fetchall()]
+    linhas = cursor.fetchall()
+    itens = [_item(row, nome, protegido) for row in linhas]
+    if exportar and validar_exportacao and not protegido:
+        documentos = {r['documento_hash'] for r in linhas if r.get('documento_hash')}
+        if len(documentos) > 1:
+            raise HTTPException(409, 'Há pessoas com nomes equivalentes e documentos diferentes. Informe o CPF/CNPJ da pessoa antes de gerar o texto.')
 
     filtro_m, param_m, _, _ = filtros_identidade(nome, documento, 'x', exata=exportar)
     cursor.execute(f'''SELECT m.numero,m.situacao,m.consultado_em,
@@ -100,7 +129,7 @@ def pesquisar(cursor, nome='', documento='', pagina=1, limite=50, somente_ativos
         # CPF prevalece; nomes correspondentes sem documento exigem identificação.
         if protegido:
             itens = [i for i in itens if i['correspondencia'] not in {'DOCUMENTO_DIVERGENTE'}]
-        if any(i['revisaoPendente'] for i in itens) or any(c['revisaoPendente'] for c in candidatos) or len(encontrados)>50:
+        if validar_exportacao and (any(i['revisaoPendente'] for i in itens) or any(c['revisaoPendente'] for c in candidatos) or len(encontrados)>50):
             raise HTTPException(409, 'Há correspondências que precisam de conferência. Revise a identificação e as matrículas indicadas antes de gerar o texto.')
     cursor.execute('''SELECT COUNT(*) FILTER(WHERE situacao='ATIVA' AND quantidade_proprietarios=0) AS sem_titular,
         COUNT(*) FILTER(WHERE texto_hash IS NOT NULL AND indice_busca_versao<2) AS mencoes_pendentes,
@@ -108,7 +137,11 @@ def pesquisar(cursor, nome='', documento='', pagina=1, limite=50, somente_ativos
         FROM matriculas_busca_aeri''')
     cobertura = dict(cursor.fetchone())
     cobertura['mais_antiga'] = cobertura['mais_antiga'].isoformat() if cobertura.get('mais_antiga') else None
-    if exportar and not itens and (cobertura['mencoes_pendentes'] or cobertura['sem_titular']):
+    if exportar and validar_exportacao and not itens and nome:
+        aproximada = pesquisar(cursor, nome, documento, limite=1)
+        if aproximada['total']:
+            raise HTTPException(409, 'A pesquisa encontrou nomes parciais ou diferentes. Informe o nome completo ou CPF/CNPJ antes de gerar o texto; esses resultados não significam uma negativa.')
+    if exportar and validar_exportacao and not itens and (cobertura['mencoes_pendentes'] or cobertura['sem_titular']):
         raise HTTPException(409, 'Nenhum titular localizado, mas o índice ainda possui lacunas de extração. Conclua a conferência antes de gerar uma negativa.')
     return dict(termo=nome or documento, nomePesquisa=nome, tipoBusca='COMBINADA' if nome and documento else 'NOME' if nome else 'DOCUMENTO_EXATO',
         quantidade=len(itens), total=total, totalMatriculas=contagem['matriculas'], pagina=pagina, porPagina=limite,

@@ -7,6 +7,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 from psycopg.types.json import Jsonb
 
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
@@ -82,6 +83,54 @@ def pesquisar_combinado(
 LEASE_SEGUNDOS = 300
 MAX_WORKERS_TRI7 = 3
 MAX_WORKERS_REPROCESSAMENTO = 6
+
+
+class PesquisaTexto(BaseModel):
+    nome: str = Field(default='', max_length=300)
+    documento: str = Field(default='', max_length=24)
+
+
+@router.post('/preparar-texto', dependencies=[Depends(proteger_csrf)])
+def preparar_texto_pesquisa(
+    dados: PesquisaTexto, request: Request,
+    usuario: str = Depends(exigir_permissao('acessar_buscas')),
+):
+    """Atualiza somente pendências da identidade pesquisada; não escreve na Tri7."""
+    from backend.app.servicos.pesquisa_titularidade import pesquisar
+
+    nome, documento = dados.nome.strip(), dados.documento.strip()
+    if nome and not any(c.isalpha() for c in nome):
+        if documento and normalizar_documento(documento) != normalizar_documento(nome):
+            raise HTTPException(422, 'Foram informados dois documentos diferentes.')
+        documento, nome = nome, ''
+    with conectar() as con:
+        with con.cursor() as cur:
+            previa = pesquisar(cur, nome, documento, exportar=True, validar_exportacao=False)
+    pendentes = sorted({int(i['matricula']) for i in previa['itens'] + previa['candidatos']
+                        if i['revisaoPendente']})
+    if len(pendentes) > 20 or previa['maisCandidatos']:
+        raise HTTPException(409, 'Há muitas matrículas pendentes. Refine pelo CPF/CNPJ ou aguarde a atualização do índice antes de gerar o texto.')
+    if pendentes:
+        try:
+            validar_configuracao_buscas()
+        except RuntimeError as erro:
+            raise HTTPException(503, 'A conferência automática está indisponível nesta configuração.') from erro
+        resultados, falha = _consultar_lote(pendentes)
+        # Uma consulta vazia/falha não transforma o resultado anterior em negativa.
+        if falha or len(resultados) != len(pendentes) or any(r['status'] != 'OK' for r in resultados):
+            raise HTTPException(502, 'Não foi possível conferir todas as matrículas na Tri7. Nenhum texto foi liberado; tente novamente.')
+        with conectar() as con:
+            with con.cursor() as cur:
+                for resultado in resultados:
+                    _salvar_indice(cur, resultado['numero'], resultado['texto'], permitir_complemento=False)
+                registrar_auditoria_cursor(cur, request, 'preparar_texto_busca', 'sucesso', usuario,
+                                          detalhes={'matriculasReconsultadas': pendentes})
+                con.commit()
+    with conectar() as con:
+        with con.cursor() as cur:
+            resposta = pesquisar(cur, nome, documento, exportar=True)
+    resposta['reconsultadas'] = len(pendentes)
+    return resposta
 
 
 
