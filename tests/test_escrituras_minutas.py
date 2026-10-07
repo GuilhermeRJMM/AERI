@@ -24,6 +24,18 @@ Recolhimento: 03/08/2026; Guia n.º 826/2026; Valor Recolhido: R$ 4.800,00.
 
 
 class TesteEscriturasMinutas(unittest.TestCase):
+    def test_classifica_escritura_pelo_titulo_notarial(self):
+        self.assertTrue(escrituras.eh_escritura_publica(ESCRITURA))
+
+    def test_mencao_a_escritura_publica_em_contrato_caixa_nao_muda_o_tipo(self):
+        contrato = """
+        CONTRATO DE COMPRA E VENDA E FINANCIAMENTO HABITACIONAL
+        CAIXA ECONOMICA FEDERAL
+        INSTRUMENTO PARTICULAR COM EFEITOS DE ESCRITURA PUBLICA.
+        VENDA E COMPRA, MUTUO E ALIENACAO FIDUCIARIA.
+        """
+        self.assertFalse(escrituras.eh_escritura_publica(contrato))
+
     def test_lista_somente_guias_itbi_do_protocolo(self):
         documentos = [
             {"ged_documento_id": 10, "tipo_documento": "Traslado", "descricao": "Escritura"},

@@ -100,9 +100,31 @@ def documentos_itbi_disponiveis(documentos: list[dict], *, exceto: object = None
 
 
 def eh_escritura_publica(texto: str) -> bool:
-    chave = _chave(texto[:12_000])
-    return "ESCRITURA PUBLICA" in chave or (
-        "TRASLADO" in chave and "LIVRO DE ESCRITURA" in chave
+    bruto = str(texto or "")[:12_000]
+    cabecalho = _chave(bruto[:4_000])
+    linhas = [_chave(linha) for linha in bruto.splitlines() if linha.strip()][:30]
+
+    # Contratos habitacionais da CAIXA podem dizer que o instrumento particular
+    # tem efeitos/força de escritura pública. Isso não transforma o contrato em
+    # traslado notarial; a seleção pelo GED também precisa ser respeitada.
+    contrato_caixa = "CAIXA ECONOMICA FEDERAL" in cabecalho and any(
+        marca in cabecalho for marca in (
+            "CONTRATO", "INSTRUMENTO PARTICULAR", "MUTUO", "FINANCIAMENTO",
+            "ALIENACAO FIDUCIARIA",
+        )
+    )
+    if contrato_caixa:
+        return False
+
+    if "LIVRO DE ESCRITURA" in cabecalho and "TRASLADO" in cabecalho:
+        return True
+
+    # Exige o título notarial em linha de cabeçalho. Uma menção incidental à
+    # expressão no corpo do contrato não basta para selecionar o parser de
+    # escrituras públicas.
+    return any(
+        re.match(r"^(?:TITULO\s+)?ESCRITURA PUBLICA\s+(?:DE|QUE)\b", linha)
+        for linha in linhas
     )
 
 

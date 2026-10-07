@@ -442,10 +442,16 @@ def _processar_contrato_reservado(r,token,*,cli=None,permitir_ocr=True,prazo=Non
         docs=consulta_protocolo["documentos"]
         if r["documento_id"] not in {str(d.get("ged_documento_id")) for d in docs}:
             raise ValueError("O documento não pertence mais ao protocolo.")
+        metadados_documento=next(
+            (d for d in docs if str(d.get("ged_documento_id"))==r["documento_id"]), {}
+        )
         conferir_prazo(prazo)
         arquivo=cli.buscar_documento_ged(r["documento_id"])
         conferir_prazo(prazo)
-        p=extrair_contrato(arquivo["dados"],progresso,permitir_ocr=permitir_ocr,prazo=prazo)
+        p=extrair_contrato(
+            arquivo["dados"],progresso,permitir_ocr=permitir_ocr,prazo=prazo,
+            metadados_documento=metadados_documento,
+        )
         metadados_protocolo=consulta_protocolo.get("protocolo") or {}
         p["protocoloMetadados"]={
             "numero":str(r["protocolo"]),

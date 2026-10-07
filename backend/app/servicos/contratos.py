@@ -134,11 +134,23 @@ def _documento_reconhecido(texto_chave: str) -> str | None:
     return None
 
 
-def extrair_contrato(dados, progresso=None, *, permitir_ocr=True, prazo=None):
+def _ged_indica_contrato(metadados_documento) -> bool:
+    if not isinstance(metadados_documento, dict):
+        return False
+    rotulo = chave_texto(" ".join(str(metadados_documento.get(campo) or "") for campo in (
+        "tipo_documento", "categoria", "descricao",
+    )))
+    return "contrato" in rotulo or "instrumento particular" in rotulo
+
+
+def extrair_contrato(dados, progresso=None, *, permitir_ocr=True, prazo=None,
+                     metadados_documento=None):
     documento=extrair_documento(dados,progresso,permitir_ocr=permitir_ocr,prazo=prazo)
     conferir_prazo(prazo)
     chave=chave_texto(documento["texto"])
-    if escrituras.eh_escritura_publica(documento["texto"]):
+    # A classificação do documento selecionado no GED prevalece sobre uma
+    # menção incidental a "escritura pública" no corpo de contrato da CAIXA.
+    if not _ged_indica_contrato(metadados_documento) and escrituras.eh_escritura_publica(documento["texto"]):
         return escrituras.extrair(documento)
     if "caixa economica federal" not in chave:
         outro=_documento_reconhecido(chave)

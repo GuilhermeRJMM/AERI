@@ -286,6 +286,24 @@ def test_documento_desconhecido_mantem_o_aviso_generico():
             servicos.extrair_contrato(b'%PDF teste')
 
 
+def test_metadados_ged_de_contrato_caixa_impedem_parser_de_escritura():
+    from backend.app.servicos import contratos as servicos
+    documento={'texto':'CAIXA ECONOMICA FEDERAL. Instrumento particular com efeitos de escritura pública.',
+               'paginas':[],'ocr':False}
+    ficha={'contrato':{'numero':'1'},'vendedores':[{}],'compradores':[{}],
+           'origens':{'_natureza':'nato-digital'}}
+    with patch.object(servicos,'extrair_documento',return_value=documento), \
+         patch.object(servicos.servico,'para_json',return_value=ficha), \
+         patch.object(servicos,'campos_ficha',return_value=[]), \
+         patch.object(servicos.escrituras,'eh_escritura_publica',return_value=True) as classificar:
+        resultado=servicos.extrair_contrato(
+            b'%PDF teste',
+            metadados_documento={'tipo_documento':'Contrato da Caixa'},
+        )
+    classificar.assert_not_called()
+    assert resultado['ficha']==ficha
+
+
 def test_pagina_em_branco_nao_derruba_o_documento_digitalizado():
     """Verso em branco de folha digitalizada devolve texto vazio.
 
@@ -327,13 +345,16 @@ def test_sucesso_limpa_o_erro_da_tentativa_anterior(ambiente):
     """Digitalizado passa por AGUARDANDO com o motivo gravado. Sem limpar, o
     trabalho terminava EXTRAIDO carregando o texto de uma falha superada."""
     a=ambiente;r=registro();a.cur.fetchone.return_value=r
-    a.cli.listar_documentos_protocolo.return_value={'documentos':[{'ged_documento_id':7}]}
+    a.cli.listar_documentos_protocolo.return_value={'documentos':[{
+        'ged_documento_id':7,'tipo_documento':'Contrato da Caixa',
+    }]}
     a.cli.buscar_documento_ged.return_value={'dados':b'%PDF teste'}
-    with patch.object(rotas,'extrair_contrato',return_value={'ficha':{}}), \
+    with patch.object(rotas,'extrair_contrato',return_value={'ficha':{}}) as extrator, \
          patch.object(rotas,'_previa_minutas',return_value=None), \
          patch.object(rotas,'documentos_publicos',return_value=[{'ged_documento_id':7}]), \
          patch.object(rotas,'_salvar'):
         resultado=rotas._processar_contrato_reservado(r,uuid4(),cli=a.cli,permitir_ocr=True)
     assert resultado['estado']=='EXTRAIDO'
+    assert extrator.call_args.kwargs['metadados_documento']['tipo_documento']=='Contrato da Caixa'
     conclusao=next(c.args[0] for c in a.cur.execute.call_args_list if 'progresso=100' in c.args[0])
     assert 'erro=NULL' in conclusao
