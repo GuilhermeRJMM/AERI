@@ -285,3 +285,19 @@ export function ladosDoAnel(anel, fechado = true) {
     }
     return lados;
 }
+
+/** Descrição corrida das distâncias entre vértices consecutivos. */
+export function descricaoLados(anel, fechado = true) {
+    if (!Array.isArray(anel) || anel.length < (fechado ? 3 : 2)) return '';
+    const numero = valor => valor.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+    return ladosDoAnel(anel, fechado).map((lado, indice) => {
+        const de = `P-${String(lado.de).padStart(2, '0')}`;
+        const para = `P-${String(lado.para).padStart(2, '0')}`;
+        const inicio = indice === 0 ? 'Do' : 'do';
+        return `${inicio} vértice ${de} ao vértice ${para} mede `
+            + `${numero(lado.distancia)} metros`;
+    }).join('; ') + '.';
+}

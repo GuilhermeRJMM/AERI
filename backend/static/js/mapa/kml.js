@@ -19,7 +19,9 @@
  * metros -- por isso o datum vai escrito no arquivo, e não subentendido.
  */
 
-import {areaM2, centroide, perimetroM} from './geometria.js?v=20260819-poligonos-v13';
+import {
+    areaM2, centroide, descricaoLados, perimetroM,
+} from './geometria.js?v=20261008-poligonos-v14';
 
 // Ordem e grafia exatas do item 6 do manual da API. Os nomes têm no
 // máximo 10 caracteres porque no shapefile o QGIS trunca nesse tamanho
@@ -236,6 +238,7 @@ export function montarKml(dados) {
         dados.matricula ? `Matrícula ${dados.matricula}` : '',
         dados.observacao || '',
         mapa.motivo ? `Motivo do envio: ${mapa.motivo}` : '',
+        descricaoLados(anel, dados.tipo === 'POLIGONO'),
         // O manual pede o ponto central na tela de cadastro (3.4.5.1),
         // mas o quadro de atributos tem 34 campos e nenhum para ele.
         // Inventar um 35º quebraria leitor estrito; aqui fica à mão para

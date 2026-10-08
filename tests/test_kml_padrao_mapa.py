@@ -169,6 +169,13 @@ class TesteKmlDoMapa(unittest.TestCase):
         descricao = self.arvore.find(".//k:Placemark/k:description", KML_NS).text
         self.assertIn("SIRGAS 2000", descricao)
 
+    def test_descricao_corrida_informa_a_medida_de_cada_lado(self):
+        descricao = self.arvore.find(".//k:Placemark/k:description", KML_NS).text
+        self.assertIn("Do vértice P-01 ao vértice P-02 mede ", descricao)
+        self.assertIn("metros; do vértice P-02 ao vértice P-03 mede ", descricao)
+        self.assertIn("do vértice P-04 ao vértice P-01 mede ", descricao)
+        self.assertEqual(descricao.count(" mede "), 4)
+
     def test_anel_desenhado_ao_contrario_e_invertido(self):
         # Este é o teste que de fato exercita a inversão: a entrada é
         # horária e a saída tem de sair na ordem oposta à digitada.

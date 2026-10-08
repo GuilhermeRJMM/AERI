@@ -9,10 +9,11 @@ import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {escaparHtml} from './util.js';
 import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v13';
 import {
-    areaM2, azimuteGraus, centroide, destinoGeodesico, distanciaM,
-    formatarArea, formatarDistancia, formatarGms, ladosDoAnel, perimetroM,
-} from './mapa/geometria.js?v=20260819-poligonos-v13';
-import {montarKml} from './mapa/kml.js?v=20260819-poligonos-v13';
+    areaM2, azimuteGraus, centroide, descricaoLados, destinoGeodesico,
+    distanciaM, formatarArea, formatarDistancia, formatarGms, ladosDoAnel,
+    perimetroM,
+} from './mapa/geometria.js?v=20261008-poligonos-v14';
+import {montarKml} from './mapa/kml.js?v=20261008-poligonos-v14';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -651,6 +652,7 @@ function exportarGeoJson() {
                 matricula: elemento('poligonos-matricula').value.trim() || null,
                 area_m2: fechar ? areaM2(rascunho.anel) : null,
                 perimetro_m: perimetroM(rascunho.anel, fechar),
+                descricao_lados: descricaoLados(rascunho.anel, fechar),
             },
             geometry: geometria,
         }],
@@ -700,6 +702,7 @@ async function exportarMemorial() {
         `Sistema: SIRGAS 2000 / UTM fuso ${utm.fuso}S`,
         `Área: ${formatarArea(areaM2(rascunho.anel))}`,
         `Perímetro: ${formatarDistancia(perimetroM(rascunho.anel, true))}`,
+        `Descrição dos lados: ${descricaoLados(rascunho.anel, true)}`,
         '',
         'VÉRTICES',
         'Nº'.padEnd(6) + 'ESTE'.padEnd(16) + 'NORTE'.padEnd(17) + 'LATITUDE'.padEnd(18) + 'LONGITUDE',
