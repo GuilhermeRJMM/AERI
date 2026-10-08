@@ -5,11 +5,6 @@ import subprocess
 import sys
 from urllib.parse import unquote, urlparse
 
-try:
-    from ferramentas.nota_desistencia import ErroNotaDesistencia, gerar_nota_desistencia
-except ModuleNotFoundError:  # Execução direta pelo protocolo local do Windows.
-    from nota_desistencia import ErroNotaDesistencia, gerar_nota_desistencia
-
 
 PASTA_BASE = Path(
     r"T:\Setor Apoio\Setor Certidao\04. Processos Intimacao\02 - Processos SAEC\07 - 2026\02 - Agua. pagamento (emolu informados)"
@@ -98,10 +93,27 @@ def localizar_pasta_existente(protocolo: str, raizes=None) -> Path | None:
 
 def abrir_pasta(protocolo: str) -> Path:
     pasta = localizar_pasta_existente(protocolo) or caminho_pasta(protocolo)
-    if not pasta.exists():
-        pasta.mkdir(parents=True, exist_ok=True)
-    os.startfile(str(pasta))
+    if not pasta.is_dir():
+        copiar_caminho(pasta)
+        notificar(f"Pasta de {protocolo} não localizada. O caminho esperado foi copiado para a área de transferência.")
+        return pasta
+    try:
+        os.startfile(str(pasta))
+    except OSError:
+        copiar_caminho(pasta)
+        notificar(f"Não foi possível abrir a pasta de {protocolo}. O caminho foi copiado para a área de transferência.")
     return pasta
+
+
+def copiar_caminho(caminho: Path) -> None:
+    """Copia o caminho local para que o usuário possa colá-lo no Explorer."""
+    subprocess.run(
+        ["clip.exe"],
+        input=str(caminho),
+        text=True,
+        check=True,
+        timeout=5,
+    )
 
 
 def notificar(mensagem: str) -> None:
@@ -118,7 +130,14 @@ def executar_comando(argumento: str) -> Path:
         return abrir_pasta(protocolo)
     pasta = localizar_pasta_existente(protocolo)
     if pasta is None:
-        raise ErroNotaDesistencia("A pasta da intimação não foi localizada.")
+        raise RuntimeError("A pasta da intimação não foi localizada.")
+    try:
+        from ferramentas.nota_desistencia import gerar_nota_desistencia
+    except ModuleNotFoundError as erro:
+        if erro.name != "ferramentas":
+            raise
+        from nota_desistencia import gerar_nota_desistencia
+
     destino = gerar_nota_desistencia(pasta, protocolo)
     os.startfile(str(destino))
     notificar(
