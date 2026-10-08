@@ -145,6 +145,7 @@ def _limpar_dados_de_seguranca(cursor) -> None:
     retencao = min(max(retencao, 30), 730)
     cursor.execute("DELETE FROM sessoes_aeri WHERE expira_em < NOW() - INTERVAL '7 days'")
     cursor.execute("DELETE FROM tentativas_login_aeri WHERE criada_em < NOW() - INTERVAL '2 days'")
+    cursor.execute("DELETE FROM tickets_sso_sync_aeri WHERE expira_em < NOW() - INTERVAL '1 day'")
     cursor.execute(
         "DELETE FROM auditoria_aeri WHERE criada_em < NOW() - (%s * INTERVAL '1 day')",
         (retencao,),

@@ -1,7 +1,9 @@
+import json
 from datetime import datetime, timezone
+from urllib.parse import parse_qs
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from backend.app.autenticacao import (
     COOKIE_SESSAO,
@@ -28,6 +30,11 @@ from backend.app.seguranca_web import (
     validar_origem,
 )
 from backend.app.seguranca_mfa import decifrar_segredo, validar_totp
+from backend.app.servicos.sso_sync import (
+    SsoSyncConfiguracaoInvalida,
+    SsoSyncTicketInvalido,
+    validar_ticket_sync,
+)
 
 
 router = APIRouter(prefix="/api", tags=["autenticação"])
@@ -110,6 +117,114 @@ def login(dados: dict, request: Request):
         COOKIE_SESSAO, token, max_age=SESSAO_SEGUNDOS, httponly=True,
         secure=True, samesite=politica_samesite_sessao(), path="/",
     )
+    return resposta
+
+
+async def _ler_ticket_sync(request: Request) -> str:
+    corpo = await request.body()
+    if not corpo or len(corpo) > 10_000:
+        raise HTTPException(status_code=400, detail="Solicitação de acesso do Sync inválida.")
+    tipo = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    try:
+        if tipo == "application/x-www-form-urlencoded":
+            campos = parse_qs(corpo.decode("utf-8"), keep_blank_values=True, max_num_fields=8)
+            ticket = (campos.get("ticket") or [""])[0]
+        elif tipo == "application/json":
+            dados = json.loads(corpo.decode("utf-8"))
+            ticket = dados.get("ticket", "") if isinstance(dados, dict) else ""
+        else:
+            raise HTTPException(status_code=415, detail="Envie o ticket do Sync como formulário ou JSON.")
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as erro:
+        raise HTTPException(status_code=400, detail="Solicitação de acesso do Sync inválida.") from erro
+    if not isinstance(ticket, str) or not ticket.strip():
+        raise HTTPException(status_code=400, detail="Ticket do Sync não informado.")
+    return ticket.strip()
+
+
+@router.post("/login/sync")
+async def login_sync(request: Request):
+    """Abre a sessão AERI a partir de ticket assinado e de uso único do Sync.
+
+    O endpoint não aceita senha nem usa sessão do Sync diretamente. O ticket
+    é validado com a chave pública e consumido no mesmo commit da sessão AERI.
+    """
+    ticket_bruto = await _ler_ticket_sync(request)
+    try:
+        ticket = validar_ticket_sync(ticket_bruto)
+    except SsoSyncConfiguracaoInvalida as erro:
+        raise HTTPException(status_code=503, detail=str(erro)) from erro
+    except SsoSyncTicketInvalido as erro:
+        raise HTTPException(status_code=401, detail="O acesso enviado pelo Sync é inválido ou expirou.") from erro
+
+    preparar_banco()
+    estado_erro = None
+    sessao_nova = None
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """INSERT INTO tickets_sso_sync_aeri (jti_hash, expira_em)
+                VALUES (%s, to_timestamp(%s))
+                ON CONFLICT (jti_hash) DO NOTHING
+                RETURNING jti_hash""",
+                (ticket.jti_hash, ticket.expira_em),
+            )
+            ticket_novo = cursor.fetchone()
+            if not ticket_novo:
+                estado_erro = (409, "Este acesso do Sync já foi utilizado. Gere um novo acesso no Sync.")
+                registrar_auditoria_cursor(
+                    cursor, request, "login_sync", "ticket_reutilizado", ticket.usuario,
+                    detalhes={"origem": "SYNC"},
+                )
+            else:
+                cursor.execute(
+                    """SELECT * FROM usuarios_aeri
+                    WHERE UPPER(usuario)=UPPER(%s) AND ativo=TRUE""",
+                    (ticket.usuario,),
+                )
+                conta = cursor.fetchone()
+                if not conta:
+                    estado_erro = (403, "Seu usuário do Sync ainda não está habilitado no AERI.")
+                    registrar_auditoria_cursor(
+                        cursor, request, "login_sync", "usuario_nao_habilitado", ticket.usuario,
+                        detalhes={"origem": "SYNC"},
+                    )
+                elif conta.get("mfa_ativo") and "mfa" not in ticket.metodos_autenticacao:
+                    estado_erro = (403, "O Sync precisa confirmar a autenticação em dois fatores para este usuário.")
+                    registrar_auditoria_cursor(
+                        cursor, request, "login_sync", "mfa_nao_confirmado", conta["usuario"],
+                        detalhes={"origem": "SYNC"},
+                    )
+                else:
+                    conta["permissoes_relacionais"] = permissoes_efetivas_cursor(
+                        cursor, conta["usuario"], conta["perfil"]
+                    )
+                    token_sessao, csrf = criar_sessao_cursor(cursor, conta["usuario"], request)
+                    sessao_nova = (token_sessao, csrf)
+                    registrar_auditoria_cursor(
+                        cursor, request, "login_sync", "sucesso", conta["usuario"],
+                        detalhes={"origem": "SYNC"},
+                    )
+        conexao.commit()
+
+    if estado_erro:
+        raise HTTPException(status_code=estado_erro[0], detail=estado_erro[1])
+    if not sessao_nova:
+        raise HTTPException(status_code=500, detail="Não foi possível iniciar a sessão do AERI.")
+
+    token_sessao, _csrf = sessao_nova
+    resposta = RedirectResponse("/", status_code=303)
+    resposta.set_cookie(
+        COOKIE_SESSAO, token_sessao, max_age=SESSAO_SEGUNDOS, httponly=True,
+        secure=True,
+        # Lax permite a navegação de retorno do POST iniciado no Sync. Para
+        # incorporação em iframe, a configuração existente de SYNC_ORIGINS
+        # muda a política para None (sempre Secure).
+        samesite=("lax" if politica_samesite_sessao() == "strict" else politica_samesite_sessao()),
+        path="/",
+    )
+    resposta.headers["Cache-Control"] = "no-store"
+    resposta.headers["Pragma"] = "no-cache"
+    resposta.headers["Referrer-Policy"] = "no-referrer"
     return resposta
 
 
