@@ -1,5 +1,6 @@
 from datetime import date
 from unittest.mock import patch
+import pytest
 
 from backend.app.servicos.documentos_intimacao import (
     ErroDocumentoIntimacao,
@@ -8,6 +9,8 @@ from backend.app.servicos.documentos_intimacao import (
     extrair_dados_documento_rtd,
     estruturar_endereco,
 )
+from backend.app.servicos.preparacao_intimacao import complementar_tri7, ler_pasta_processo, protocolo_rgi_da_pasta
+from backend.app.servicos.tri7 import ErroTri7
 
 
 OFICIO = """
@@ -100,6 +103,88 @@ def test_matricula_com_digito_verificador_identifica_registro_sem_escolher_outro
         R.09-30.338 - VENDA E COMPRA. Outro contrato n.º 999999999999.""")
     assert dados["registroGarantia"] == "R.03"
     assert dados["titulo"].startswith("Contrato de Compra e Venda de Imóvel")
+
+
+def test_matricula_preenche_titulo_de_instrumento_particular_do_mesmo_contrato():
+    dados = {"contrato": {"numero": "844441753253"}, "avisos": []}
+    complementar_matricula(dados, """R.03-30.338 - ALIENAÇÃO FIDUCIÁRIA.
+        Instrumento Particular de Compra e Venda de Imóvel, Mútuo e Alienação Fiduciária em Garantia
+        n.º 8.4444.1753253-0, datado de 18.01.2018.
+        R.09-30.338 - ALIENAÇÃO FIDUCIÁRIA. Outro contrato n.º 999999999999.""")
+    assert dados["registroGarantia"] == "R.03"
+    assert dados["titulo"] == "Instrumento Particular de Compra e Venda de Imóvel, Mútuo e Alienação Fiduciária em Garantia"
+
+
+def test_matricula_nao_escolhe_titulo_se_contrato_aparece_em_dois_registros():
+    dados = {"contrato": {"numero": "844441753253"}, "avisos": []}
+    complementar_matricula(dados, """R.03-30.338 - ALIENAÇÃO FIDUCIÁRIA. Contrato de Compra e Venda n.º 844441753253.
+        R.04-30.338 - ALIENAÇÃO FIDUCIÁRIA. Instrumento Particular de Compra e Venda n.º 844441753253.""")
+    assert "titulo" not in dados
+    assert "registroGarantia" not in dados
+    assert any("não foi localizado de forma única" in aviso for aviso in dados["avisos"])
+
+
+def test_falha_da_consulta_do_protocolo_nao_impede_titulo_da_matricula():
+    dados = {"matricula": "30338", "protocoloTri7": "186462",
+             "contrato": {"numero": "844441753253"}, "avisos": []}
+    class Cliente:
+        def buscar_texto_matricula(self, numero):
+            assert numero == "30338"
+            return {"texto": "R.03-30.338 - ALIENAÇÃO FIDUCIÁRIA. Contrato de Compra e Venda de Imóvel, Mútuo e Alienação Fiduciária em Garantia n.º 8.4444.1753253-0, datado de 18.01.2018."}
+
+        def buscar_protocolo_completo(self, numero):
+            raise ErroTri7("Protocolo indisponível")
+
+    with patch("backend.app.servicos.preparacao_intimacao.cliente_tri7", return_value=Cliente()):
+        complementar_tri7(dados)
+    assert dados["registroGarantia"] == "R.03"
+    assert dados["titulo"] == "Contrato de Compra e Venda de Imóvel, Mútuo e Alienação Fiduciária em Garantia"
+    assert any("consultar o protocolo" in aviso for aviso in dados["avisos"])
+
+
+def test_pasta_do_in_identifica_protocolo_rgi_pelo_recibo_e_ignora_exame_calculo(tmp_path):
+    pasta = tmp_path / "IN01688928C" / "Expedido pelo Cartório"
+    pasta.mkdir(parents=True)
+    (pasta / "186.463.pdf").write_bytes(b"%PDF recibo")
+    (pasta / "46.286.pdf").write_bytes(b"%PDF exame")
+    (pasta / "Título Registrado - RI - Protocolo 186463.PDF").write_bytes(b"%PDF titulo")
+    texto = "Protocolo........:186.463\nGerado via SAEC - Protocolo: IN01688928C\nProtocolo.....................:186.463, de 06/10/2026"
+    with patch("backend.app.servicos.documentos_intimacao._ler_pdf", return_value=texto):
+        numero, data, avisos = protocolo_rgi_da_pasta(pasta.parent, "IN01688928C")
+    assert (numero, data, avisos) == ("186463", "06/10/2026", [])
+
+
+def test_pasta_do_in_nao_escolhe_protocolo_rgi_ambiguo(tmp_path):
+    pasta = tmp_path / "IN01688928C" / "Expedido pelo Cartório"
+    pasta.mkdir(parents=True)
+    (pasta / "186.463.pdf").write_bytes(b"%PDF recibo")
+    (pasta / "186.464.pdf").write_bytes(b"%PDF outro")
+    numero, data, avisos = protocolo_rgi_da_pasta(pasta.parent, "IN01688928C")
+    assert (numero, data) == ("", "")
+    assert any("único protocolo RGI" in aviso for aviso in avisos)
+
+
+def test_pasta_do_in_nao_aceita_recibo_de_outro_in(tmp_path):
+    pasta = tmp_path / "IN01688928C" / "Expedido pelo Cartório"
+    pasta.mkdir(parents=True)
+    (pasta / "186.463.pdf").write_bytes(b"%PDF recibo")
+    with patch("backend.app.servicos.documentos_intimacao._ler_pdf", return_value="Protocolo........:186.463\nGerado via SAEC - Protocolo: IN01688738C"):
+        numero, data, avisos = protocolo_rgi_da_pasta(pasta.parent, "IN01688928C")
+    assert (numero, data) == ("", "")
+    assert any("não confirma este IN" in aviso for aviso in avisos)
+
+
+def test_pasta_do_in_rejeita_divergencia_com_protocolo_ja_vinculado(tmp_path):
+    pasta = tmp_path / "IN01688928C" / "Recebido para Intimação"
+    pasta.mkdir(parents=True)
+    (pasta / "Ofício.pdf").write_bytes(b"%PDF oficio")
+    (pasta / "Planilha de Projeção.pdf").write_bytes(b"%PDF projecao")
+    with patch("backend.app.servicos.preparacao_intimacao.analisar_pdfs_intimacao",
+               return_value={"protocoloTri7": "186462", "avisos": []}), patch(
+               "backend.app.servicos.preparacao_intimacao.protocolo_rgi_da_pasta",
+               return_value=("186463", "06/10/2026", [])):
+        with pytest.raises(ErroDocumentoIntimacao, match="diverge"):
+            ler_pasta_processo("IN01688928C", pasta=pasta.parent)
 
 
 def test_pdf_com_caracteres_ilegiveis_exige_revisao():

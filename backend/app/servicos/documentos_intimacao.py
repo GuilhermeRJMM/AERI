@@ -476,6 +476,10 @@ def complementar_matricula(dados: dict, texto: str) -> None:
     registro = re.match(r"R[.\s-]*(\d+)", ato, re.IGNORECASE)
     if registro:
         dados["registroGarantia"] = f"R.{int(registro.group(1)):02d}"
-    titulo = re.search(r"(Contrato de (?:Compra e Venda|Financiamento).*?)(?:\s+n[.º°\s]*\d|,?\s+(?:datado|firmado)\s+|,?\s+celebrado\s+)", ato, re.IGNORECASE | re.DOTALL)
+    titulo = re.search(
+        r"((?:Contrato de (?:Compra e Venda|Financiamento)|Instrumento Particular(?: de)?|C[eé]dula de Cr[eé]dito Imobili[aá]rio).{0,220}?)"
+        r"(?:\s+n[.º°\s]*\d|,?\s+(?:datado|firmado)\s+|,?\s+celebrado\s+)",
+        ato, re.IGNORECASE | re.DOTALL,
+    )
     if titulo:
         dados["titulo"] = re.sub(r"\s+", " ", titulo.group(1)).strip(" ,;.")

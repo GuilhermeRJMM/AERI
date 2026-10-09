@@ -58,7 +58,18 @@ def atualizar_ceps(dados, raiz=PASTA_CEPS):
 def complementar_tri7(dados):
     try:
         cliente = cliente_tri7()
-        if dados.get('protocoloTri7'):
+    except (ErroTri7, ValueError):
+        dados['avisos'].append('Não foi possível consultar a Tri7. Confira a descrição do título, o registro da garantia e a data do protocolo.')
+        return
+    # Uma falha na consulta do protocolo não pode impedir a leitura da
+    # matrícula: é dela que vêm o ato da garantia e a descrição do título.
+    if dados.get('matricula'):
+        try:
+            complementar_matricula(dados, cliente.buscar_texto_matricula(dados['matricula'])['texto'])
+        except (ErroTri7, ValueError):
+            dados['avisos'].append('Não foi possível consultar o texto da matrícula na Tri7. Confira o registro da garantia e a descrição do título.')
+    if dados.get('protocoloTri7'):
+        try:
             protocolo = cliente.buscar_protocolo_completo(dados['protocoloTri7'])['protocolo']
             data = protocolo.get('data_protocolo') or protocolo.get('protocolo_data')
             if data and not dados.get('dataProtocolo'):
@@ -66,10 +77,53 @@ def complementar_tri7(dados):
                     dados['dataProtocolo'] = datetime.fromisoformat(str(data)).strftime('%d/%m/%Y')
                 except ValueError:
                     pass
-        if dados.get('matricula'):
-            complementar_matricula(dados, cliente.buscar_texto_matricula(dados['matricula'])['texto'])
-    except (ErroTri7, ValueError):
-        dados['avisos'].append('Não foi possível completar os dados pela Tri7. Confira a descrição do título, o registro da garantia e a data do protocolo.')
+        except (ErroTri7, ValueError):
+            dados['avisos'].append('Não foi possível consultar o protocolo na Tri7. Confira a data do protocolo.')
+
+
+def protocolo_rgi_da_pasta(pasta: Path, protocolo_in: str) -> tuple[str, str, list[str]]:
+    """Lê o recibo do protocolo RGI na pasta do IN; nunca escolhe outro número solto."""
+    expedidos = [item for item in pasta.iterdir() if item.is_dir()
+        and normalizar(item.name) == 'EXPEDIDO PELO CARTORIO']
+    if len(expedidos) != 1:
+        return '', '', ['Pasta "Expedido pelo Cartório" não localizada de forma única; confira o protocolo RGI.']
+    raiz = pasta.resolve()
+    arquivos = [item for item in expedidos[0].iterdir() if item.is_file() and item.suffix.lower() == '.pdf']
+    recibos = {}
+    numeros = set()
+    for arquivo in arquivos:
+        nome = normalizar(arquivo.stem)
+        if re.fullmatch(r'\d{3}\.\d{3}|\d{6}', nome):
+            numero = re.sub(r'\D', '', nome)
+            numeros.add(numero)
+            recibos.setdefault(numero, []).append(arquivo)
+        else:
+            titulo = re.fullmatch(r'TITULO REGISTRADO\s*-\s*RI\s*-\s*PROTOCOLO\s*(\d{6})', nome)
+            if titulo:
+                numeros.add(titulo.group(1))
+    if len(numeros) != 1:
+        return '', '', ['Não foi encontrado um único protocolo RGI de seis dígitos nos comprovantes da pasta deste IN. Confira o número manualmente.']
+    numero = numeros.pop()
+    if len(recibos.get(numero, [])) != 1:
+        return '', '', ['O recibo do protocolo RGI não foi localizado de forma única na pasta deste IN. Confira o número manualmente.']
+    recibo = recibos[numero][0]
+    if not recibo.resolve().is_relative_to(raiz) or recibo.stat().st_size > LIMITE_PDF_INTIMACAO:
+        return '', '', ['O recibo do protocolo está fora da pasta permitida ou acima de 8 MB. Confira o número manualmente.']
+    from backend.app.servicos.documentos_intimacao import _ler_pdf
+    try:
+        texto = _ler_pdf(recibo.read_bytes(), 'Recibo do protocolo RGI')
+    except (ErroDocumentoIntimacao, OSError):
+        return '', '', ['Não foi possível ler o recibo do protocolo RGI. Confira o número manualmente.']
+    formato_numero = rf'{numero[:3]}\.?{numero[3:]}'
+    if not re.search(rf'\b{re.escape(protocolo_in)}\b', texto, re.IGNORECASE) or not re.search(
+        rf'\bProtocolo[.\s]{{0,35}}:\s*{formato_numero}(?!\d)', texto, re.IGNORECASE
+    ):
+        return '', '', ['O recibo não confirma este IN e o protocolo RGI indicado no nome do arquivo. Confira o número manualmente.']
+    data = re.search(
+        rf'\bProtocolo[.\s]{{0,35}}:\s*{formato_numero}\s*,?\s*de\s+(\d{{2}}/\d{{2}}/\d{{4}})',
+        texto, re.IGNORECASE,
+    )
+    return numero, data.group(1) if data else '', []
 
 
 def ler_pasta_processo(protocolo, protocolo_tri7='', referencia=None, pasta=None):
@@ -94,6 +148,14 @@ def ler_pasta_processo(protocolo, protocolo_tri7='', referencia=None, pasta=None
             raise ErroDocumentoIntimacao('PDF fora da pasta permitida ou acima de 8 MB.')
         return arquivo.read_bytes()
     dados = analisar_pdfs_intimacao(escolher('OFICIO'), escolher('PLANILHA DE PROJECAO'), referencia, protocolo, protocolo_tri7)
+    numero_rgi, data_rgi, avisos_rgi = protocolo_rgi_da_pasta(pasta, protocolo)
+    dados['avisos'].extend(avisos_rgi)
+    if numero_rgi:
+        if dados.get('protocoloTri7') and re.sub(r'\D', '', str(dados['protocoloTri7'])) != numero_rgi:
+            raise ErroDocumentoIntimacao('O protocolo RGI da pasta diverge do protocolo vinculado a este IN no AERI.')
+        dados['protocoloTri7'] = numero_rgi
+        if data_rgi and not dados.get('dataProtocolo'):
+            dados['dataProtocolo'] = data_rgi
     registrados = [f for f in pasta.rglob('*.PDF') if normalizar(f.stem).startswith('TITULO REGISTRADO')]
     if len(registrados) == 1 and registrados[0].resolve().is_relative_to(raiz) and registrados[0].stat().st_size <= LIMITE_PDF_INTIMACAO:
         from backend.app.servicos.documentos_intimacao import _ler_pdf, complementar_titulo_registrado
