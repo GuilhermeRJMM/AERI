@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import html
+import unicodedata
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
@@ -56,6 +57,16 @@ def _digitos(valor: str | None) -> str:
 
 def _nome_arquivo(valor: str) -> str:
     return re.sub(r"[\r\n\t]+", " ", valor).strip(" ,;.-")
+
+
+def _nome_para_comparacao(valor: str) -> str:
+    """Ignora apenas variações de acento, caixa e espaços na conferência do CPF."""
+    sem_acentos = "".join(
+        caractere
+        for caractere in unicodedata.normalize("NFKD", valor)
+        if not unicodedata.combining(caractere)
+    )
+    return re.sub(r"\s+", " ", sem_acentos).strip().casefold()
 
 
 def _corrigir_indicador_numero(valor: str) -> str:
@@ -247,7 +258,11 @@ def extrair_dados_documento_rtd(conteudo: bytes, protocolo_in: str) -> dict:
             pessoa = {"nome": _nome_arquivo(match.group(1)), "cpf": _digitos(match.group(2))}
             if len(pessoa["cpf"]) != 11 or not pessoa["nome"]:
                 continue
-            if any(item.get("cpf") == pessoa["cpf"] and item.get("nome") != pessoa["nome"] for item in devedores):
+            if any(
+                item.get("cpf") == pessoa["cpf"]
+                and _nome_para_comparacao(item.get("nome", "")) != _nome_para_comparacao(pessoa["nome"])
+                for item in devedores
+            ):
                 raise ErroDocumentoIntimacao("O PDF apresenta nomes diferentes para o mesmo CPF. Confira manualmente.")
             if not any(item.get("cpf") == pessoa["cpf"] for item in devedores):
                 devedores.append(pessoa)

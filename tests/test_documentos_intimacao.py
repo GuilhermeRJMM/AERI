@@ -158,6 +158,35 @@ def test_pdf_unico_rtd_extrai_dois_devedores_e_dois_enderecos():
     assert dados["enderecos"][1]["numero"] == "S/N"
 
 
+def test_pdf_rtd_aceita_mesmo_cpf_com_nome_apenas_sem_acento():
+    texto = """Ofício INT/2026/043 - IN01688738C
+    Ao Ilmo Sr. ROGÉRIO CARLOS MACHADO (CPF: 944.390.951-00).
+    Fiduciante(s): ROGERIO CARLOS MACHADO - CPF:94439095100, Solteiro
+    Matrícula(s): 30338
+    Endereço para notificação:
+    1) Rua A, n.º 123, Centro, Morrinhos-GO, CEP: 75650-082.
+    OBSERVAÇÕES:
+    """
+    with patch("backend.app.servicos.documentos_intimacao._ler_pdf", return_value=texto):
+        dados = extrair_dados_documento_rtd(b"%PDF combinado", "IN01688738C")
+    assert dados["devedores"] == [{"nome": "ROGERIO CARLOS MACHADO", "cpf": "94439095100"}]
+
+
+def test_pdf_rtd_rejeita_nomes_realmente_diferentes_para_o_mesmo_cpf():
+    texto = """Ofício INT/2026/043 - IN01688738C
+    Ao Ilmo Sr. ROGÉRIO CARLOS MACHADO (CPF: 944.390.951-00).
+    Fiduciante(s): OUTRA PESSOA - CPF:94439095100
+    Matrícula(s): 30338
+    """
+    with patch("backend.app.servicos.documentos_intimacao._ler_pdf", return_value=texto):
+        try:
+            extrair_dados_documento_rtd(b"%PDF combinado", "IN01688738C")
+        except ErroDocumentoIntimacao as erro:
+            assert "nomes diferentes para o mesmo CPF" in str(erro)
+        else:
+            raise AssertionError("Nomes diferentes para o mesmo CPF foram aceitos")
+
+
 def test_pdf_rtd_com_outro_in_e_rejeitado():
     with patch("backend.app.servicos.documentos_intimacao._ler_pdf", return_value="IN01688738C"):
         try:
