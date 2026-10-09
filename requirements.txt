@@ -12,3 +12,4 @@ vercel==0.10.0
 vercel-oidc[verify]==0.8.0
 jsonschema==4.25.1
 cryptography==48.0.1
+python-multipart==0.0.32

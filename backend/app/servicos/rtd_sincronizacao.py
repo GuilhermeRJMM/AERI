@@ -47,6 +47,11 @@ def salvar_pedido(cursor, anterior, dados, cliente):
     cursor.execute('SELECT id FROM intimacoes_aeri WHERE protocolo_rtd=%s AND excluida_em IS NULL', (protocolo,))
     legado = [x['id'] for x in cursor.fetchall()]
     alvo, vinculo = decidir_vinculo(ins, correspondencias, legado, anterior.get('intimacao_id'))
+    # O vínculo criado manualmente junto com uma saída do AERI é evidência
+    # operacional. Um PDF sem IN não desfaz esse vínculo nem o reclassifica
+    # como erro de associação.
+    if anterior.get('vinculo') == 'ENVIO_AERI' and not ins:
+        alvo, vinculo = anterior.get('intimacao_id'), 'ENVIO_AERI'
     mudou = (novo != anterior['dados'] or alvo != anterior.get('intimacao_id')
              or vinculo != anterior['vinculo'] or destinatarios != (anterior.get('destinatarios') or []))
     versao = anterior['versao'] + int(mudou)

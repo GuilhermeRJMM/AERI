@@ -942,6 +942,90 @@
         </div>
     </div>
 
+    <div id="modal-rtd-notificacao" class="modal-overlay">
+        <div class="modal-box rotina-modal rtd-envio-modal">
+            <button class="modal-fechar" id="btn-fechar-rtd-notificacao" type="button" aria-label="Fechar">&times;</button>
+            <div class="rotina-form-header">
+                <span class="eyebrow">ENVIO À CENTRAL</span>
+                <h2>Preparar notificação RTD</h2>
+                <p>Confira os dados e o PDF. O pedido só será enviado depois da confirmação final.</p>
+            </div>
+            <p id="rtd-envio-ambiente-aviso" class="rtd-envio-status is-homologacao" role="status" aria-live="polite" hidden></p>
+            <form id="form-rtd-notificacao" class="rtd-envio-form">
+                <input id="rtd-envio-intimacao-id" type="hidden">
+                <input id="rtd-envio-operacao-id" type="hidden">
+                <section class="rtd-envio-secao">
+                    <h3>Cartório de destino</h3>
+                    <div class="rtd-envio-linha rtd-destino-busca">
+                        <label><span>Estado</span><input id="rtd-destino-uf" value="GO" maxlength="2" required></label>
+                        <label><span>Cidade</span><input id="rtd-destino-cidade" value="Morrinhos" maxlength="100" required></label>
+                        <button type="button" class="rotina-btn-secondary" id="btn-buscar-cartorios-rtd">Buscar cartórios</button>
+                    </div>
+                    <label><span>Selecione o cartório</span><select id="rtd-destino-cartorio" required disabled><option value="">Busque pela cidade primeiro</option></select></label>
+                </section>
+                <section class="rtd-envio-secao">
+                    <h3>Remetente</h3>
+                    <div class="rtd-envio-linha">
+                        <label><span>Nome / serventia</span><input id="rtd-remetente-nome" maxlength="160" required></label>
+                        <label><span>CPF/CNPJ</span><input id="rtd-remetente-documento" maxlength="18" inputmode="numeric" required></label>
+                    </div>
+                    <div class="rtd-envio-endereco" data-parte="remetente">
+                        <label><span>CEP</span><input data-endereco="CEP" maxlength="9" inputmode="numeric" required></label>
+                        <label><span>Logradouro</span><input data-endereco="Logradouro" maxlength="160" required></label>
+                        <label><span>Número</span><input data-endereco="Numero" maxlength="40" required></label>
+                        <label><span>Complemento</span><input data-endereco="Complemento" maxlength="100"></label>
+                        <label><span>Bairro</span><input data-endereco="Bairro" maxlength="100" required></label>
+                        <label><span>Cidade</span><input data-endereco="Cidade" maxlength="100" required></label>
+                        <label><span>Estado</span><input data-endereco="UF" maxlength="2" required></label>
+                    </div>
+                </section>
+                <section class="rtd-envio-secao">
+                    <div class="rtd-envio-secao-titulo">
+                        <h3>Destinatários e endereços</h3>
+                        <div class="rtd-envio-botoes-destinatario">
+                            <button type="button" class="rotina-btn-secondary" id="btn-adicionar-endereco-rtd">Adicionar outro endereço à mesma pessoa</button>
+                            <button type="button" class="rotina-btn-secondary" id="btn-adicionar-notificado-rtd">Adicionar outra pessoa</button>
+                        </div>
+                    </div>
+                    <p class="rtd-envio-ajuda">Cadastre cada endereço como um destinatário separado. Se for a mesma pessoa em dois endereços, use o botão correspondente; os dados pessoais serão repetidos para conferência.</p>
+                    <div id="rtd-notificados-lista"></div>
+                </section>
+                <section class="rtd-envio-secao">
+                    <h3>Documento para a notificação</h3>
+                    <p class="rtd-envio-ajuda">Na pasta deste IN, selecione o arquivo <strong>Documentos RTD.pdf</strong>. O navegador não permite que o AERI anexe arquivos da rede sem você selecioná-los.</p>
+                    <button type="button" class="rotina-btn-secondary rtd-abrir-pasta" id="btn-abrir-pasta-rtd">Abrir pasta deste IN</button>
+                    <label><span>Documentos RTD.pdf (PDF de até 4,3 MB)</span><input id="rtd-arquivo-notificacao" type="file" accept="application/pdf,.pdf" required></label>
+                    <div class="rtd-envio-documentos-lista" aria-label="Conferência do documento">
+                        <p>Antes de selecionar o PDF, confirme que ele contém, nesta ordem:</p>
+                        <ol>
+                            <li>Ofício contra-fé;</li>
+                            <li>Recibo do protocolo do Registro de Imóveis;</li>
+                            <li>Ofício do credor com etiqueta eletrônica;</li>
+                            <li>Planilha de projeção enviada pelo credor.</li>
+                        </ol>
+                        <label class="rtd-envio-checkbox"><input id="rtd-confirmar-documentos" type="checkbox" required><span>O PDF reúne os quatro documentos na ordem indicada.</span></label>
+                        <label class="rtd-envio-checkbox"><input id="rtd-confirmar-assinatura" type="checkbox" required><span>O PDF foi assinado digitalmente depois de reunir os documentos.</span></label>
+                    </div>
+                    <p class="rtd-envio-ajuda">Conforme o procedimento do cartório, o envio é feito sem requerimento extra. O AERI enviará somente este PDF.</p>
+                    <div class="rtd-envio-linha">
+                        <label><span>Credor / nome para recebimento</span><input id="rtd-credor-notificacao" maxlength="160" required></label>
+                        <label><span>CNPJ do credor (14 números)</span><input id="rtd-credor-cnpj" maxlength="14" inputmode="numeric" pattern="[0-9]{14}" required></label>
+                    </div>
+                    <label><span>Observações adicionais (opcional)</span><textarea id="rtd-informacoes-adicionais" maxlength="4500" rows="3"></textarea></label>
+                    <p class="rtd-envio-ajuda">O AERI montará a frase “Recebido em nome de: [credor], inscrita no CNPJ: [CNPJ]”. Confira o CNPJ nos documentos antes de enviar.</p>
+                    <label class="rtd-envio-checkbox"><input id="rtd-entrega-destinatario" type="checkbox" required checked><span>Entregar somente ao destinatário ou representante legal (procedimento padrão).</span></label>
+                </section>
+                <label class="rtd-envio-confirmacao"><input id="rtd-confirmar-sem-duplicidade" type="checkbox" required><span>Conferi na Central RTD que não há um envio igual já em andamento ou concluído.</span></label>
+                <label class="rtd-envio-confirmacao"><input id="rtd-confirmar-envio" type="checkbox" required><span id="rtd-confirmacao-envio-texto">Revisei destinatários, endereços, cartório e documento; autorizo o envio desta notificação à Central RTD.</span></label>
+                <p id="rtd-envio-status" class="rtd-envio-status" role="status" aria-live="polite"></p>
+                <div class="rotina-form-actions">
+                    <button type="button" class="rotina-btn-secondary" id="btn-cancelar-rtd-notificacao">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btn-confirmar-rtd-notificacao">Enviar notificação</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="modal-check-intimacao" class="modal-overlay">
         <div class="modal-box rotina-modal rotina-check-modal">
             <button class="modal-fechar" id="btn-fechar-check-intimacao">&times;</button>
@@ -1023,6 +1107,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261008-poligonos-v14"></script>
+    <script type="module" src="/static/js/app.js?v=20261009-poligonos-v14-rtd-v1"></script>
 </body>
 </html>

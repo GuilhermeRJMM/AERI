@@ -1,8 +1,10 @@
-# Integração do AERI com a Central ONRTDPJ
+# Histórico de planejamento — integração com a Central ONRTDPJ
+
+> **Documento histórico, não usar como instrução operacional.** O texto abaixo descreve o planejamento anterior e está superado. Consulte [`RTD_INTIMACOES.md`](RTD_INTIMACOES.md) para o funcionamento e a configuração atuais, incluindo o formulário manual de envio de notificações.
 
 ## Situação
 
-Documento de planejamento validado em **03/07/2026**. A integração descrita aqui ainda não está implementada.
+Documento de planejamento validado em **03/07/2026**. O conteúdo abaixo registra requisitos e hipóteses daquele momento e pode estar superado; não descreve o funcionamento atual.
 
 Objetivo: eliminar a consulta manual dos pedidos enviados ao RTD. O AERI deverá associar o protocolo da Central a uma intimação, consultar automaticamente a situação do pedido e apresentar o retorno na Rotina - Intimação.
 

@@ -138,5 +138,17 @@ class TesteRTD(unittest.TestCase):
         self.assertTrue(any('INSERT INTO rtd_eventos' in s for s in sqls))
         self.assertFalse(any('UPDATE intimacoes_aeri' in s for s in sqls))
 
+    def test_preserva_vinculo_criado_pelo_envio_aeri_sem_in_no_pdf(self):
+        cur = Mock(); cur.fetchall.side_effect = [[], []]
+        anterior = dict(protocolo=PROTOCOLO, candidatos=[], destinatarios=[], consultado_em=None,
+                        documento_hash='hash-anterior', dados=retrato({'Situacao':'Enviado pelo AERI'}),
+                        versao=1, intimacao_id='intimacao-a', erro=None, vinculo='ENVIO_AERI')
+        self.assertEqual(salvar_pedido(cur, anterior, {'Situacao':'Enviado pelo AERI'}, Mock()),
+                         (True, False))
+        atualizacao = next(chamada for chamada in cur.execute.call_args_list
+                           if 'UPDATE rtd_pedidos_aeri SET intimacao_id=' in chamada.args[0])
+        self.assertEqual(atualizacao.args[1][0], 'intimacao-a')
+        self.assertEqual(atualizacao.args[1][4], 'ENVIO_AERI')
+
 
 if __name__ == '__main__': unittest.main()
