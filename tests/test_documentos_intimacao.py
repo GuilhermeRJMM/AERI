@@ -172,6 +172,38 @@ def test_pdf_rtd_aceita_mesmo_cpf_com_nome_apenas_sem_acento():
     assert dados["devedores"] == [{"nome": "ROGERIO CARLOS MACHADO", "cpf": "94439095100"}]
 
 
+def test_pdf_rtd_preenche_cnpj_do_credor_sem_confundir_com_o_cartorio():
+    texto = """IN01688738C
+    CNPJ: 20.639.962/0001-00 - CNS: 02.618-7
+    1. BANCO DO CERRADO S.A. - CNPJ 12.345.678/0001-99, credor fiduciário,
+    requer a intimação do fiduciante abaixo.
+    Fiduciante(s): ROGERIO CARLOS MACHADO - CPF:94439095100
+    Matrícula(s): 30338
+    Endereço para notificação:
+    1) Rua A, n.º 123, Centro, Morrinhos-GO, CEP: 75650-082.
+    OBSERVAÇÕES:
+    """
+    with patch("backend.app.servicos.documentos_intimacao._ler_pdf", return_value=texto):
+        dados = extrair_dados_documento_rtd(b"%PDF combinado", "IN01688738C")
+    assert dados["cnpjCredor"] == "12345678000199"
+
+
+def test_pdf_rtd_nao_escolhe_cnpj_quando_ha_dois_credores():
+    texto = """IN01688738C
+    1. BANCO UM - CNPJ 12.345.678/0001-99, credor fiduciário.
+    2. BANCO DOIS - CNPJ 98.765.432/0001-11, credor fiduciário.
+    Fiduciante(s): ROGERIO CARLOS MACHADO - CPF:94439095100
+    Matrícula(s): 30338
+    Endereço para notificação:
+    1) Rua A, n.º 123, Centro, Morrinhos-GO, CEP: 75650-082.
+    OBSERVAÇÕES:
+    """
+    with patch("backend.app.servicos.documentos_intimacao._ler_pdf", return_value=texto):
+        dados = extrair_dados_documento_rtd(b"%PDF combinado", "IN01688738C")
+    assert dados["cnpjCredor"] == ""
+    assert any("CNPJ do credor" in aviso for aviso in dados["avisos"])
+
+
 def test_pdf_rtd_rejeita_nomes_realmente_diferentes_para_o_mesmo_cpf():
     texto = """Ofício INT/2026/043 - IN01688738C
     Ao Ilmo Sr. ROGÉRIO CARLOS MACHADO (CPF: 944.390.951-00).

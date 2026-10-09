@@ -116,6 +116,22 @@ def _extrair_devedores(texto: str) -> list[dict]:
     return encontrados
 
 
+def _extrair_cnpj_credor_rtd(texto: str) -> str:
+    """Localiza CNPJ identificado como credor, sem confundi-lo com o do cartório."""
+    candidatos = set()
+    padrao = re.compile(
+        r"(?m)^[ \t]*(?:\d{1,2}[.)][ \t]*)?[^\r\n]{3,120}?[ \t]*(?:[-–—]|\()[ \t]*CNPJ[ \t]*:?[ \t]*([\d./-]{14,20})"
+    )
+    for match in padrao.finditer(texto):
+        cnpj = _digitos(match.group(1))
+        if len(cnpj) != 14:
+            continue
+        contexto = texto[max(0, match.start() - 160):min(len(texto), match.end() + 550)]
+        if re.search(r"\bcredor(?:a|\(a\))?\b|\brequer\b", contexto, re.IGNORECASE):
+            candidatos.add(cnpj)
+    return next(iter(candidatos)) if len(candidatos) == 1 else ""
+
+
 def _extrair_matricula(texto: str) -> str:
     match = re.search(r"Matr[ií]cula(?:\(s\)|s)?\s*:\s*([^\r\n]+)", texto, re.IGNORECASE)
     if not match:
@@ -246,6 +262,7 @@ def extrair_dados_documento_rtd(conteudo: bytes, protocolo_in: str) -> dict:
     if identificadores and identificadores != {protocolo_in.upper()}:
         raise ErroDocumentoIntimacao("O PDF contém outro número de IN. Confira o arquivo selecionado.")
 
+    cnpj_credor = _extrair_cnpj_credor_rtd(texto)
     devedores = _extrair_devedores(texto)
     texto_corrente = re.sub(r"\s+", " ", texto)
     padroes = (
@@ -306,10 +323,12 @@ def extrair_dados_documento_rtd(conteudo: bytes, protocolo_in: str) -> dict:
     avisos = []
     if not identificadores:
         avisos.append("O número do IN não apareceu no texto extraído. Confirme que este PDF pertence ao processo selecionado.")
+    if not cnpj_credor:
+        avisos.append("Não foi possível identificar com segurança um único CNPJ do credor. Confira e preencha esse campo manualmente.")
     if any(not all(endereco[campo] for campo in ("cep", "logradouro", "numero", "bairro", "cidade", "uf")) for endereco in estruturados):
         avisos.append("Alguns componentes de endereço não foram separados com segurança. Complete os campos vazios antes do envio.")
     avisos.append("Confira cada nome, CPF e endereço no PDF; a extração não substitui a revisão antes do envio.")
-    return {"devedores": devedores, "enderecos": estruturados, "avisos": avisos}
+    return {"cnpjCredor": cnpj_credor, "devedores": devedores, "enderecos": estruturados, "avisos": avisos}
 
 
 def _extrair_processo(texto: str) -> str:

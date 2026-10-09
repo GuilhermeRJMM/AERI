@@ -370,6 +370,7 @@ async function extrairDocumentoRtdSelecionado() {
             mostrarStatus('O PDF não forneceu uma combinação válida de devedor e endereço de Morrinhos. Revise o documento e preencha manualmente.');
             return;
         }
+        if (dados.cnpjCredor) document.getElementById('rtd-credor-cnpj').value = dados.cnpjCredor;
         filaRtdSeparada = pares;
         indiceFilaRtdSeparada = 0;
         filaRtdFinalizada = false;
@@ -378,7 +379,7 @@ async function extrairDocumentoRtdSelecionado() {
         for (const campoId of ['rtd-confirmar-sem-duplicidade', 'rtd-confirmar-envio']) {
             document.getElementById(campoId).checked = false;
         }
-        mostrarStatus(`${pessoas.length} devedor(es) e ${enderecos.length} endereço(s) de Morrinhos identificados: ${pares.length} notificação(ões) individual(is). ${(dados.avisos || []).join(' ')}`);
+        mostrarStatus(`${pessoas.length} devedor(es) e ${enderecos.length} endereço(s) de Morrinhos identificados: ${pares.length} notificação(ões) individual(is). ${dados.cnpjCredor ? 'CNPJ do credor preenchido a partir do PDF; confira se corresponde ao nome exibido.' : ''} ${(dados.avisos || []).join(' ')}`);
     } catch (erro) {
         if (versao === versaoExtracaoRtd) mostrarStatus(`${erro.message} Os campos continuam disponíveis para preenchimento manual.`);
     } finally {
