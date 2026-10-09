@@ -85,6 +85,7 @@ from backend.app.servicos.executor_presenca import registrar_presenca
 from backend.app.rotas.contratos import processar_proximo_contrato
 from backend.app.rotas.buscas import passo_automatico as passo_buscas
 from backend.app.rotas.registros_auxiliares import passo_automatico as passo_registros_auxiliares
+from backend.app.servicos.preparacao_intimacao import processar_preparacao_intimacao
 
 
 # A indexacao avancava por uma aba de navegador em laco: 4.605 lotes de
@@ -195,7 +196,10 @@ def main():
                 logging.info("automacao=%s estado=%s",chave,r["estado"])
             r=processar_proximo_contrato()
             logging.info("contratos estado=%s",r["estado"])
-            indexa = passo_indexacao() if r["estado"] == "SEM_TRABALHO" else None
+            preparacao = processar_preparacao_intimacao()
+            if preparacao["estado"] != "SEM_TRABALHO":
+                logging.info("preparacao_intimacao estado=%s", preparacao["estado"])
+            indexa = passo_indexacao() if r["estado"] == "SEM_TRABALHO" and preparacao["estado"] == "SEM_TRABALHO" else None
             # A batida diz a Vercel que esta maquina esta viva e dando conta, e
             # o cron de madrugada se abstem. Vai depois do trabalho: uma volta
             # que falhou inteira nao deve valer como presenca.

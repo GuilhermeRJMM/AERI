@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
 from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
 
@@ -20,6 +20,14 @@ from backend.app.servicos.intimacoes import (
 )
 from backend.app.seguranca_web import registrar_auditoria_cursor
 from backend.app.servicos.rtd_sincronizacao import anexar_rtd
+from backend.app.servicos.documentos_intimacao import (
+    ErroDocumentoIntimacao,
+    LIMITE_PDF_INTIMACAO,
+    analisar_pdfs_intimacao,
+    extrair_dados_documento_rtd,
+)
+from backend.app.servicos.contratos import cifrador, decifrar
+from backend.app.servicos.preparacao_intimacao import complementar_tri7
 
 
 router = APIRouter(
@@ -61,6 +69,150 @@ def _data_certificacao_cursor(cursor, data_intimacao: date | None, andamento: st
         return None
     cursor.execute("SELECT data FROM feriados_aeri WHERE ativo=TRUE")
     return somar_dias_uteis(data_intimacao, 16, {item["data"] for item in cursor.fetchall()})
+
+
+@router.post("/{identificador}/preparar-documentos-rede", dependencies=[Depends(proteger_csrf)], status_code=202)
+def solicitar_documentos_rede(identificador: UUID, request: Request,
+    usuario: str = Depends(exigir_permissao("alterar_intimacoes"))):
+    try:
+        cifrador()
+    except RuntimeError:
+        raise HTTPException(503, "Configure a chave de proteção no AERI e no executor para ler os documentos pela rede.") from None
+    with conectar() as con:
+        with con.cursor() as cur:
+            cur.execute("SELECT fase FROM intimacoes_aeri WHERE id=%s AND excluida_em IS NULL FOR SHARE", (identificador,))
+            item = cur.fetchone()
+            if not item:
+                raise HTTPException(404, "Intimação não encontrada.")
+            if item['fase'] != 'INTIMACAO':
+                raise HTTPException(409, "Preparação disponível apenas na fase inicial.")
+            cur.execute("""UPDATE preparacoes_intimacao_aeri SET estado='ERRO', erro='A leitura expirou. Solicite novamente.'
+                WHERE intimacao_id=%s AND usuario=%s AND estado IN ('PENDENTE','LENDO')
+                AND atualizado_em < NOW() - INTERVAL '5 minutes'""", (identificador, usuario))
+            cur.execute("""INSERT INTO preparacoes_intimacao_aeri(id,intimacao_id,usuario,estado)
+                VALUES(%s,%s,%s,'PENDENTE') ON CONFLICT(intimacao_id,usuario)
+                WHERE estado IN ('PENDENTE','LENDO') DO UPDATE SET usuario=EXCLUDED.usuario RETURNING id,estado""",
+                (uuid4(), identificador, usuario))
+            trabalho = cur.fetchone()
+            registrar_auditoria_cursor(cur, request, "solicitar_documentos_intimacao_rede", "sucesso", usuario, str(identificador), {})
+        con.commit()
+    return {"id": str(trabalho['id']), "estado": trabalho['estado']}
+
+
+@router.get("/{identificador}/preparar-documentos-rede/{trabalho_id}")
+def consultar_documentos_rede(identificador: UUID, trabalho_id: UUID,
+    usuario: str = Depends(exigir_permissao("alterar_intimacoes"))):
+    with conectar() as con:
+        with con.cursor() as cur:
+            cur.execute("""SELECT p.estado,p.dados_cifrados,p.erro FROM preparacoes_intimacao_aeri p
+                JOIN intimacoes_aeri i ON i.id=p.intimacao_id
+                WHERE p.id=%s AND p.intimacao_id=%s AND p.usuario=%s AND p.expira_em>NOW()
+                AND i.excluida_em IS NULL AND i.fase='INTIMACAO'""", (trabalho_id, identificador, usuario))
+            item = cur.fetchone()
+    if not item:
+        raise HTTPException(404, "Leitura não encontrada ou expirada.")
+    dados = decifrar(item['dados_cifrados']) if item['estado'] == 'PRONTO' else None
+    if dados:
+        # O executor tem acesso à unidade T:, mas a credencial Tri7 normalmente
+        # fica apenas no servidor. Este complemento é somente leitura.
+        dados['avisos'] = [aviso for aviso in dados['avisos']
+            if not aviso.startswith('Não foi possível completar os dados pela Tri7.')]
+        complementar_tri7(dados)
+    return {"estado": item['estado'], "erro": item['erro'], "dados": dados}
+
+
+@router.post("/{identificador}/preparar-documentos", dependencies=[Depends(proteger_csrf)])
+async def analisar_documentos_intimacao(
+    identificador: UUID,
+    request: Request,
+    oficio: UploadFile = File(...),
+    projecao: UploadFile = File(...),
+    titulo_registrado: UploadFile | None = File(None),
+    usuario: str = Depends(exigir_permissao("alterar_intimacoes")),
+):
+    """Extrai dados de dois PDFs para uma prévia; não os persiste nem envia."""
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """SELECT protocolo, protocolo_tri7, fase FROM intimacoes_aeri
+                WHERE id=%s AND excluida_em IS NULL""",
+                (identificador,),
+            )
+            intimacao = cursor.fetchone()
+    if not intimacao:
+        raise HTTPException(status_code=404, detail="Intimação não encontrada ou está na lixeira.")
+    if intimacao["fase"] != "INTIMACAO":
+        raise HTTPException(status_code=409, detail="A preparação está disponível apenas na fase inicial da intimação.")
+
+    oficio_bytes = await oficio.read(LIMITE_PDF_INTIMACAO + 1)
+    projecao_bytes = await projecao.read(LIMITE_PDF_INTIMACAO + 1)
+    titulo_bytes = await titulo_registrado.read(LIMITE_PDF_INTIMACAO + 1) if titulo_registrado else None
+    if sum(map(len, (oficio_bytes, projecao_bytes, titulo_bytes or b""))) > 4_000_000:
+        raise HTTPException(status_code=413, detail="Os PDFs selecionados ultrapassam 4 MB no total. Use a leitura da pasta pelo executor ou selecione apenas ofício e projeção.")
+    try:
+        from zoneinfo import ZoneInfo
+        hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+        resultado = analisar_pdfs_intimacao(
+            oficio_bytes,
+            projecao_bytes,
+            hoje,
+            intimacao["protocolo"],
+            intimacao["protocolo_tri7"] or "",
+            titulo_bytes,
+        )
+        complementar_tri7(resultado)
+    except ErroDocumentoIntimacao as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+    # A auditoria registra apenas a operação e as contagens, nunca o texto dos PDFs.
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            registrar_auditoria_cursor(
+                cursor,
+                request,
+                "preparar_documentos_intimacao",
+                "sucesso",
+                usuario,
+                str(identificador),
+                {
+                    "devedores": len(resultado["devedores"]),
+                    "enderecos": len(resultado["enderecos"]),
+                    "avisos": len(resultado["avisos"]),
+                },
+            )
+        conexao.commit()
+    return resultado
+
+
+@router.post("/{identificador}/extrair-documento-rtd", dependencies=[Depends(proteger_csrf)])
+async def extrair_documento_rtd(
+    identificador: UUID,
+    request: Request,
+    arquivo: UploadFile = File(...),
+    usuario: str = Depends(exigir_permissao("alterar_intimacoes")),
+):
+    """Preenche o formulário a partir do PDF escolhido; não envia nada ao RTD."""
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute("SELECT protocolo FROM intimacoes_aeri WHERE id=%s AND excluida_em IS NULL", (identificador,))
+            item = cursor.fetchone()
+    if not item:
+        raise HTTPException(404, "Intimação não encontrada ou está na lixeira.")
+    if str(arquivo.filename or "").casefold() != "documentos rtd.pdf":
+        raise HTTPException(422, "Selecione o arquivo Documentos RTD.pdf da pasta deste IN.")
+    conteudo = await arquivo.read(4_300_001)
+    if len(conteudo) > 4_300_000:
+        raise HTTPException(413, "O PDF ultrapassa 4,3 MB.")
+    try:
+        dados = extrair_dados_documento_rtd(conteudo, item["protocolo"])
+    except ErroDocumentoIntimacao as exc:
+        raise HTTPException(422, str(exc)) from None
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            registrar_auditoria_cursor(cursor, request, "extrair_documento_rtd", "sucesso", usuario,
+                str(identificador), {"devedores": len(dados["devedores"]), "enderecos": len(dados["enderecos"])})
+        conexao.commit()
+    return dados
 
 
 @router.get("")

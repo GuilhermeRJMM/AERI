@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20260915-buscas-v2">
+    <link rel="stylesheet" href="/static/styles.css?v=20261009-documentos-intimacao-v1">
     <link rel="stylesheet" href="/static/painel.css?v=20260904-barra">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -942,6 +942,65 @@
         </div>
     </div>
 
+    <div id="modal-documentos-intimacao" class="modal-overlay">
+        <div class="modal-box rotina-modal intimacao-documentos-modal">
+            <button class="modal-fechar" id="btn-fechar-documentos-intimacao" type="button" aria-label="Fechar">&times;</button>
+            <div class="rotina-form-header">
+                <span class="eyebrow">PREPARAÇÃO DO PROCESSO</span>
+                <h2>Documentos da intimação</h2>
+                <p id="documentos-intimacao-contexto">Selecione os documentos recebidos para preencher uma prévia revisável.</p>
+            </div>
+            <section class="intimacao-documentos-origem">
+                <p>Se o executor estiver ligado e enxergar a unidade T:, leia diretamente a pasta deste IN. Caso contrário, selecione os PDFs abaixo. O conteúdo não entra no histórico da intimação.</p>
+                <button type="button" class="rotina-btn-secondary" id="btn-ler-documentos-intimacao-rede">Ler pasta deste IN automaticamente</button>
+                <p>Leitura manual dos PDFs, caso a pasta não esteja acessível ao executor:</p>
+                <label><span>Ofício/requerimento do credor</span><input id="documentos-intimacao-oficio" type="file" accept="application/pdf,.pdf" required></label>
+                <label><span>Planilha de projeção</span><input id="documentos-intimacao-projecao" type="file" accept="application/pdf,.pdf" required></label>
+                <label><span>Título registrado, se disponível</span><input id="documentos-intimacao-titulo-registrado" type="file" accept="application/pdf,.pdf"></label>
+                <label class="intimacao-documentos-confirmacao"><input id="documentos-intimacao-confirmar-origem" type="checkbox"><span>Conferi que os PDFs selecionados pertencem a este IN.</span></label>
+                <button type="button" class="rotina-btn-secondary" id="btn-analisar-documentos-intimacao">Ler documentos</button>
+                <p id="documentos-intimacao-status" class="rtd-envio-status" role="status" aria-live="polite"></p>
+            </section>
+            <section id="documentos-intimacao-editor" class="intimacao-documentos-editor" hidden>
+                <p class="intimacao-documentos-aviso">Confira e corrija cada dado antes de preparar os textos. Endereços e valores exigem conferência humana. O AERI não salvará, assinará nem enviará documentos automaticamente.</p>
+                <div id="documentos-intimacao-avisos" class="intimacao-documentos-avisos"></div>
+                <div class="intimacao-documentos-campos">
+                    <label><span>Processo do credor</span><input id="doc-int-processo" maxlength="40"></label>
+                    <label><span>Número do Ofício Contra-Fé</span><input id="doc-int-numero-oficio" maxlength="30" placeholder="INT/2026/042"></label>
+                    <label><span>Protocolo do Registro de Imóveis</span><input id="doc-int-protocolo-tri7" maxlength="40"></label>
+                    <label><span>Data do protocolo</span><input id="doc-int-data-protocolo" maxlength="20" placeholder="dd/mm/aaaa"></label>
+                    <label><span>Matrícula</span><input id="doc-int-matricula" maxlength="30"></label>
+                    <label><span>Registro da alienação fiduciária</span><input id="doc-int-registro-garantia" maxlength="30" placeholder="Ex.: R.03"></label>
+                    <label><span>Credor fiduciário</span><input id="doc-int-credor" maxlength="160"></label>
+                    <label><span>CNPJ do credor</span><input id="doc-int-cnpj" maxlength="18" inputmode="numeric"></label>
+                    <label class="intimacao-documentos-largo"><span>Título/descrição do contrato</span><textarea id="doc-int-titulo" rows="2" maxlength="700"></textarea></label>
+                    <label><span>Número do contrato</span><input id="doc-int-contrato" maxlength="80"></label>
+                    <label><span>Data do contrato</span><input id="doc-int-data-contrato" maxlength="20" placeholder="dd/mm/aaaa"></label>
+                    <label class="intimacao-documentos-largo"><span>Devedores — um por linha: Nome | CPF</span><textarea id="doc-int-devedores" rows="3" placeholder="NOME COMPLETO | 00000000000"></textarea></label>
+                    <label class="intimacao-documentos-largo"><span>Endereço do imóvel</span><textarea id="doc-int-endereco-imovel" rows="2"></textarea></label>
+                    <label class="intimacao-documentos-largo"><span>Endereços para intimação — um por linha</span><textarea id="doc-int-enderecos" rows="3"></textarea></label>
+                    <label><span>Data da projeção</span><input id="doc-int-data-projecao" maxlength="20" placeholder="dd/mm/aaaa"></label>
+                    <label><span>Valor projetado</span><input id="doc-int-valor-projecao" inputmode="decimal" placeholder="0,00"></label>
+                    <label class="intimacao-documentos-largo"><span>Valor projetado por extenso</span><input id="doc-int-valor-extenso" maxlength="250"></label>
+                    <label class="intimacao-documentos-largo"><span>Escrevente signatário</span><input id="doc-int-signatario" value="Guilherme Richard Jesus Morais Medeiros" maxlength="160"></label>
+                    <label><span>Devedor desta via</span><select id="doc-int-devedor-alvo"></select></label>
+                </div>
+                <div class="intimacao-documentos-acoes">
+                    <button type="button" class="rotina-btn-secondary" data-documento-intimacao="autuacao">Preparar Autuação</button>
+                    <button type="button" class="rotina-btn-secondary" data-documento-intimacao="oficio">Preparar Ofício Contra-Fé</button>
+                    <button type="button" class="rotina-btn-secondary" data-documento-intimacao="convocacao">Preparar Convocação</button>
+                </div>
+                <section id="documentos-intimacao-previa" class="intimacao-documentos-previa" hidden>
+                    <div><h3 id="documentos-intimacao-previa-titulo">Prévia</h3><button type="button" class="rotina-btn-secondary" id="btn-copiar-documento-intimacao">Copiar texto formatado</button></div>
+                    <article id="documentos-intimacao-previa-conteudo"></article>
+                </section>
+                <div class="rotina-form-actions">
+                    <button type="button" class="rotina-btn-secondary" id="btn-preparar-rtd-dados-intimacao">Preparar notificações individuais no RTD</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
     <div id="modal-rtd-notificacao" class="modal-overlay">
         <div class="modal-box rotina-modal rtd-envio-modal">
             <button class="modal-fechar" id="btn-fechar-rtd-notificacao" type="button" aria-label="Fechar">&times;</button>
@@ -964,19 +1023,26 @@
                     <label><span>Selecione o cartório</span><select id="rtd-destino-cartorio" required disabled><option value="">Busque pela cidade primeiro</option></select></label>
                 </section>
                 <section class="rtd-envio-secao">
+                    <h3>Documento e preenchimento</h3>
+                    <p class="rtd-envio-ajuda">Selecione o <strong>Documentos RTD.pdf</strong> deste IN. O AERI tentará preencher os devedores e os endereços do próprio arquivo; confira cada campo antes de enviar.</p>
+                    <button type="button" class="rotina-btn-secondary rtd-abrir-pasta" id="btn-abrir-pasta-rtd">Abrir pasta deste IN</button>
+                    <label><span>Documentos RTD.pdf (PDF de até 4,3 MB)</span><input id="rtd-arquivo-notificacao" type="file" accept="application/pdf,.pdf" required></label>
+                    <p id="rtd-extracao-status" class="rtd-envio-ajuda" role="status" aria-live="polite"></p>
+                </section>
+                <section class="rtd-envio-secao">
                     <h3>Remetente</h3>
                     <div class="rtd-envio-linha">
-                        <label><span>Nome / serventia</span><input id="rtd-remetente-nome" maxlength="160" required></label>
-                        <label><span>CPF/CNPJ</span><input id="rtd-remetente-documento" maxlength="18" inputmode="numeric" required></label>
+                        <label><span>Nome / serventia</span><input id="rtd-remetente-nome" value="Cartório do 1º Ofício de Notas e Registros de Imóveis" maxlength="160" required></label>
+                        <label><span>CPF/CNPJ</span><input id="rtd-remetente-documento" value="20.639.962/0001-00" maxlength="18" inputmode="numeric" required></label>
                     </div>
                     <div class="rtd-envio-endereco" data-parte="remetente">
-                        <label><span>CEP</span><input data-endereco="CEP" maxlength="9" inputmode="numeric" required></label>
-                        <label><span>Logradouro</span><input data-endereco="Logradouro" maxlength="160" required></label>
-                        <label><span>Número</span><input data-endereco="Numero" maxlength="40" required></label>
-                        <label><span>Complemento</span><input data-endereco="Complemento" maxlength="100"></label>
-                        <label><span>Bairro</span><input data-endereco="Bairro" maxlength="100" required></label>
-                        <label><span>Cidade</span><input data-endereco="Cidade" maxlength="100" required></label>
-                        <label><span>Estado</span><input data-endereco="UF" maxlength="2" required></label>
+                        <label><span>CEP</span><input data-endereco="CEP" value="75650082" maxlength="9" inputmode="numeric" required></label>
+                        <label><span>Logradouro</span><input data-endereco="Logradouro" value="RUA MAESTRO VICENTE JOSÉ VIEIRA" maxlength="160" required></label>
+                        <label><span>Número</span><input data-endereco="Numero" value="706" maxlength="40" required></label>
+                        <label><span>Complemento</span><input data-endereco="Complemento" value="LOJA 01" maxlength="100"></label>
+                        <label><span>Bairro</span><input data-endereco="Bairro" value="CENTRO" maxlength="100" required></label>
+                        <label><span>Cidade</span><input data-endereco="Cidade" value="MORRINHOS" maxlength="100" required></label>
+                        <label><span>Estado</span><input data-endereco="UF" value="GO" maxlength="2" required></label>
                     </div>
                 </section>
                 <section class="rtd-envio-secao">
@@ -987,16 +1053,14 @@
                             <button type="button" class="rotina-btn-secondary" id="btn-adicionar-notificado-rtd">Adicionar outra pessoa</button>
                         </div>
                     </div>
-                    <p class="rtd-envio-ajuda">Cadastre cada endereço como um destinatário separado. Se for a mesma pessoa em dois endereços, use o botão correspondente; os dados pessoais serão repetidos para conferência.</p>
+                    <p id="rtd-fila-indicador" class="rtd-envio-ajuda" role="status" hidden></p>
+                    <p class="rtd-envio-ajuda" id="rtd-ajuda-notificados">Cadastre cada endereço como um destinatário separado. Se for a mesma pessoa em dois endereços, use o botão correspondente; os dados pessoais serão repetidos para conferência.</p>
                     <div id="rtd-notificados-lista"></div>
                 </section>
                 <section class="rtd-envio-secao">
                     <h3>Documento para a notificação</h3>
-                    <p class="rtd-envio-ajuda">Na pasta deste IN, selecione o arquivo <strong>Documentos RTD.pdf</strong>. O navegador não permite que o AERI anexe arquivos da rede sem você selecioná-los.</p>
-                    <button type="button" class="rotina-btn-secondary rtd-abrir-pasta" id="btn-abrir-pasta-rtd">Abrir pasta deste IN</button>
-                    <label><span>Documentos RTD.pdf (PDF de até 4,3 MB)</span><input id="rtd-arquivo-notificacao" type="file" accept="application/pdf,.pdf" required></label>
+                    <p class="rtd-envio-ajuda">O navegador exige que você selecione o PDF da rede. Antes do envio, confirme que o arquivo contém, nesta ordem:</p>
                     <div class="rtd-envio-documentos-lista" aria-label="Conferência do documento">
-                        <p>Antes de selecionar o PDF, confirme que ele contém, nesta ordem:</p>
                         <ol>
                             <li>Ofício contra-fé;</li>
                             <li>Recibo do protocolo do Registro de Imóveis;</li>
@@ -1107,6 +1171,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261009-poligonos-v14-rtd-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20261009-documentos-intimacao-v2"></script>
 </body>
 </html>

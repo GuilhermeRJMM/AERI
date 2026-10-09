@@ -1,6 +1,7 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
 import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd} from './rtd_intimacoes.js?v=20261006-fluxo-v2';
+import {abrirDocumentosIntimacao, iniciarDocumentosIntimacao} from './intimacao_documentos.js?v=20261009-v1';
 
 let intimacoes = [];
 const intimacoesPendentes = new Set();
@@ -16,6 +17,20 @@ let statusRtdConsultado = 0;
 const enviosRtdPorIntimacao = new Map();
 const enviosRtdCarregando = new Set();
 let envioRtdEmCurso = false;
+let extracaoRtdEmCurso = false;
+let versaoExtracaoRtd = 0;
+let filaRtdSeparada = null;
+let filaRtdDosOriginais = false;
+let indiceFilaRtdSeparada = 0;
+let filaRtdFinalizada = false;
+
+function novaChaveOperacaoRtd() {
+    return globalThis.crypto?.randomUUID?.()
+        || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, letra => {
+            const numero = Math.random() * 16 | 0;
+            return (letra === 'x' ? numero : (numero & 0x3 | 0x8)).toString(16);
+        });
+}
 
 function renderizarPainelRtd() {
     const painel = document.getElementById('rtd-painel');
@@ -172,6 +187,10 @@ function detalhesFaseInicial(item) {
                 Gerar nota de Desistência
             </button>
         </section>` : ''}
+        ${pode('alterar_intimacoes') && item.fase === 'INTIMACAO' ? `<section class="rotina-documentos-acoes">
+            <div><h3>Autuação e documentos da intimação</h3><p>Leia o ofício e a projeção, confira os dados e prepare os textos para os modelos da aba “Texto” da Tri7.</p></div>
+            <button type="button" class="rotina-gerar-desistencia" data-acao="preparar-documentos-intimacao" data-id="${item.id}">Preparar documentos</button>
+        </section>` : ''}
         <section class="rtd-envios-historico">
             <div class="rtd-envio-cabecalho"><div><span class="rtd-origem">SOLICITAÇÕES ENVIADAS PELO AERI</span><h3>Histórico de envios</h3></div>
                 ${pode('alterar_intimacoes') && item.fase === 'INTIMACAO' ? `<button type="button" data-acao="novo-envio-rtd" data-id="${item.id}">Preparar notificação</button>` : ''}
@@ -240,20 +259,48 @@ function novoCampoNotificado({copiarPessoa = false} = {}) {
     return bloco;
 }
 
-function abrirEnvioRtd(id) {
+function preencherParRtd(par) {
+    const bloco = document.querySelector('#rtd-notificados-lista [data-rtd-notificado]');
+    bloco.querySelector('[data-pessoa="Nome"]').value = par.pessoa.nome;
+    bloco.querySelector('[data-pessoa="CpfCnpj"]').value = par.pessoa.cpf || par.pessoa.cnpj || '';
+    for (const [chave, valor] of Object.entries(par.endereco)) {
+        const input = bloco.querySelector(`[data-endereco="${chave}"]`);
+        if (input) input.value = valor;
+    }
+    document.getElementById('rtd-destino-cidade').value = par.endereco.Cidade || 'Morrinhos';
+    document.getElementById('rtd-destino-uf').value = par.endereco.UF || 'GO';
+}
+
+function atualizarFilaRtd() {
+    const ativa = Array.isArray(filaRtdSeparada);
+    document.getElementById('btn-adicionar-notificado-rtd').hidden = ativa;
+    document.getElementById('btn-adicionar-endereco-rtd').hidden = ativa;
+    document.getElementById('rtd-fila-indicador').hidden = !ativa;
+    document.getElementById('rtd-ajuda-notificados').textContent = ativa
+        ? 'Um envio por vez. Após a confirmação da Central, o AERI mostrará o próximo par de pessoa e endereço para nova revisão.'
+        : 'Cadastre cada endereço como um destinatário separado. Se for a mesma pessoa em dois endereços, use o botão correspondente; os dados pessoais serão repetidos para conferência.';
+    if (ativa) {
+        const total = filaRtdSeparada.length;
+        document.getElementById('rtd-fila-indicador').textContent = `Notificação ${indiceFilaRtdSeparada + 1} de ${total}: um devedor em um endereço por pedido.`;
+        document.getElementById('btn-confirmar-rtd-notificacao').textContent = `Enviar ${indiceFilaRtdSeparada + 1} de ${total}`;
+    }
+}
+
+function abrirEnvioRtd(id, paresRtd = null, dadosCredor = null) {
     const item = intimacoes.find(registro => registro.id === id);
     if (!item || !pode('alterar_intimacoes')) return;
+    versaoExtracaoRtd += 1;
+    extracaoRtdEmCurso = false;
     document.getElementById('form-rtd-notificacao').reset();
+    document.getElementById('rtd-arquivo-notificacao').disabled = false;
+    document.getElementById('rtd-extracao-status').textContent = '';
     document.getElementById('rtd-envio-intimacao-id').value = id;
-    document.getElementById('rtd-envio-operacao-id').value = globalThis.crypto?.randomUUID?.()
-        || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, letra => {
-            const numero = Math.random() * 16 | 0;
-            return (letra === 'x' ? numero : (numero & 0x3 | 0x8)).toString(16);
-        });
+    document.getElementById('rtd-envio-operacao-id').value = novaChaveOperacaoRtd();
     document.getElementById('rtd-destino-uf').value = 'GO';
     document.getElementById('rtd-destino-cidade').value = 'Morrinhos';
     document.getElementById('rtd-entrega-destinatario').checked = true;
-    document.getElementById('rtd-credor-notificacao').value = item.credor || '';
+    document.getElementById('rtd-credor-notificacao').value = dadosCredor?.credor || item.credor || '';
+    document.getElementById('rtd-credor-cnpj').value = dadosCredor?.cnpj || '';
     document.getElementById('rtd-destino-cartorio').innerHTML = '<option value="">Busque pela cidade primeiro</option>';
     document.getElementById('rtd-destino-cartorio').disabled = true;
     document.getElementById('rtd-envio-ambiente-aviso').hidden = true;
@@ -263,12 +310,83 @@ function abrirEnvioRtd(id) {
     document.getElementById('rtd-confirmacao-envio-texto').textContent = 'Revisei destinatários, endereços, cartório e documento; autorizo o envio desta notificação à Central RTD.';
     document.getElementById('rtd-notificados-lista').replaceChildren();
     novoCampoNotificado();
+    filaRtdSeparada = paresRtd?.length ? paresRtd : null;
+    filaRtdDosOriginais = Boolean(filaRtdSeparada);
+    indiceFilaRtdSeparada = 0;
+    filaRtdFinalizada = false;
+    if (filaRtdSeparada) preencherParRtd(filaRtdSeparada[0]);
+    atualizarFilaRtd();
     document.getElementById('modal-rtd-notificacao').classList.add('aberta');
 }
 
 function fecharEnvioRtd() {
     if (envioRtdEmCurso) return;
+    versaoExtracaoRtd += 1;
     document.getElementById('modal-rtd-notificacao').classList.remove('aberta');
+}
+
+async function extrairDocumentoRtdSelecionado() {
+    const arquivoInput = document.getElementById('rtd-arquivo-notificacao');
+    const arquivo = arquivoInput.files?.[0];
+    const status = document.getElementById('rtd-envio-status');
+    const statusExtracao = document.getElementById('rtd-extracao-status');
+    const mostrarStatus = mensagem => { status.textContent = mensagem; statusExtracao.textContent = mensagem; };
+    const id = document.getElementById('rtd-envio-intimacao-id').value;
+    if (!arquivo || !id) return;
+    if (arquivo.name.toLocaleLowerCase('pt-BR') !== 'documentos rtd.pdf' || arquivo.size > 4_300_000) {
+        mostrarStatus('Selecione Documentos RTD.pdf da pasta deste IN, com até 4,3 MB.');
+        return;
+    }
+    if (filaRtdDosOriginais) {
+        mostrarStatus('Devedores e endereços já vieram dos PDFs originais. Confira-os com o Documentos RTD.pdf anexado antes de enviar.');
+        return;
+    }
+    filaRtdSeparada = null;
+    indiceFilaRtdSeparada = 0;
+    filaRtdFinalizada = false;
+    document.getElementById('rtd-notificados-lista').replaceChildren();
+    novoCampoNotificado();
+    atualizarFilaRtd();
+    const versao = ++versaoExtracaoRtd;
+    extracaoRtdEmCurso = true;
+    document.getElementById('btn-confirmar-rtd-notificacao').disabled = true;
+    mostrarStatus('Lendo os devedores e endereços do PDF selecionado…');
+    try {
+        const corpo = new FormData();
+        corpo.set('arquivo', arquivo, arquivo.name);
+        const dados = await requisicaoAeri(`/api/intimacoes/${id}/extrair-documento-rtd`, {method:'POST', body:corpo});
+        if (versao !== versaoExtracaoRtd || document.getElementById('rtd-envio-intimacao-id').value !== id
+            || arquivoInput.files?.[0] !== arquivo) return;
+        const pessoas = dados.devedores || [];
+        const enderecos = (dados.enderecos || []).filter(endereco =>
+            String(endereco.cidade).toLocaleUpperCase('pt-BR') === 'MORRINHOS' && endereco.uf === 'GO');
+        const pares = pessoas.flatMap(pessoa => enderecos.map(endereco => ({
+            pessoa,
+            endereco:{CEP:endereco.cep, Logradouro:endereco.logradouro, Numero:endereco.numero,
+                Complemento:endereco.complemento, Bairro:endereco.bairro,
+                Cidade:endereco.cidade, UF:endereco.uf},
+        })));
+        if (!pares.length || pares.length > 20) {
+            mostrarStatus('O PDF não forneceu uma combinação válida de devedor e endereço de Morrinhos. Revise o documento e preencha manualmente.');
+            return;
+        }
+        filaRtdSeparada = pares;
+        indiceFilaRtdSeparada = 0;
+        filaRtdFinalizada = false;
+        preencherParRtd(pares[0]);
+        atualizarFilaRtd();
+        for (const campoId of ['rtd-confirmar-sem-duplicidade', 'rtd-confirmar-envio']) {
+            document.getElementById(campoId).checked = false;
+        }
+        mostrarStatus(`${pessoas.length} devedor(es) e ${enderecos.length} endereço(s) de Morrinhos identificados: ${pares.length} notificação(ões) individual(is). ${(dados.avisos || []).join(' ')}`);
+    } catch (erro) {
+        if (versao === versaoExtracaoRtd) mostrarStatus(`${erro.message} Os campos continuam disponíveis para preenchimento manual.`);
+    } finally {
+        if (versao === versaoExtracaoRtd) {
+            extracaoRtdEmCurso = false;
+            document.getElementById('btn-confirmar-rtd-notificacao').disabled = filaRtdFinalizada;
+        }
+    }
 }
 
 async function buscarCartoriosRtd() {
@@ -330,7 +448,7 @@ function formatarCnpjRtd(valor) {
 async function enviarNotificacaoRtd(evento) {
     evento.preventDefault();
     const form = evento.currentTarget;
-    if (!form.reportValidity() || envioRtdEmCurso) return;
+    if (extracaoRtdEmCurso || !form.reportValidity() || envioRtdEmCurso || filaRtdFinalizada) return;
     const arquivo = document.getElementById('rtd-arquivo-notificacao').files?.[0];
     const status = document.getElementById('rtd-envio-status');
     const pdfValido = arquivoItem => arquivoItem && arquivoItem.size <= 4_300_000
@@ -365,6 +483,10 @@ async function enviarNotificacaoRtd(evento) {
         EntregueSomenteAoDestinatario:document.getElementById('rtd-entrega-destinatario').checked,
         Notificados:[...document.querySelectorAll('[data-rtd-notificado]')].map(bloco => lerParteRtd(bloco, 'destinatario')),
     };
+    if (filaRtdSeparada && pedido.Notificados.length !== 1) {
+        status.textContent = 'Esta sequência exige exatamente um destinatário e um endereço por pedido.';
+        return;
+    }
     const dados = new FormData();
     dados.set('intimacao_id', document.getElementById('rtd-envio-intimacao-id').value);
     dados.set('chave_operacao', document.getElementById('rtd-envio-operacao-id').value);
@@ -386,6 +508,22 @@ async function enviarNotificacaoRtd(evento) {
         }
         await carregarEnviosRtd(document.getElementById('rtd-envio-intimacao-id').value, true);
         await carregarIntimacoes();
+        if (filaRtdSeparada && ['CRIADO', 'HOMOLOGACAO_OK'].includes(resultado.estado)) {
+            document.getElementById('rtd-arquivo-notificacao').disabled = true;
+            indiceFilaRtdSeparada += 1;
+            if (indiceFilaRtdSeparada < filaRtdSeparada.length) {
+                document.getElementById('rtd-envio-operacao-id').value = novaChaveOperacaoRtd();
+                preencherParRtd(filaRtdSeparada[indiceFilaRtdSeparada]);
+                for (const id of ['rtd-confirmar-sem-duplicidade', 'rtd-confirmar-envio']) {
+                    document.getElementById(id).checked = false;
+                }
+                atualizarFilaRtd();
+                status.textContent += ` Próximo pedido: ${indiceFilaRtdSeparada + 1} de ${filaRtdSeparada.length}. Revise e confirme de novo; o próximo não será enviado automaticamente.`;
+            } else {
+                filaRtdFinalizada = true;
+                status.textContent += ` Sequência concluída: ${filaRtdSeparada.length} pedidos individuais.`;
+            }
+        }
     } catch (erro) {
         status.textContent = erro.message;
         const id = document.getElementById('rtd-envio-intimacao-id').value;
@@ -393,7 +531,7 @@ async function enviarNotificacaoRtd(evento) {
         renderizarIntimacoes();
     } finally {
         envioRtdEmCurso = false;
-        document.getElementById('btn-confirmar-rtd-notificacao').disabled = false;
+        document.getElementById('btn-confirmar-rtd-notificacao').disabled = filaRtdFinalizada;
         document.getElementById('btn-cancelar-rtd-notificacao').disabled = false;
         document.getElementById('btn-fechar-rtd-notificacao').disabled = false;
     }
@@ -860,6 +998,10 @@ async function tratarAcaoTabela(evento) {
         renderizarIntimacoes();
     }
     if (botao.dataset.acao === 'novo-envio-rtd') abrirEnvioRtd(botao.dataset.id);
+    if (botao.dataset.acao === 'preparar-documentos-intimacao') {
+        const item = intimacoes.find(registro => registro.id === botao.dataset.id);
+        if (item && pode('alterar_intimacoes')) abrirDocumentosIntimacao(item);
+    }
     if (botao.dataset.acao === 'conferir') abrirCheckIntimacao(botao.dataset.id);
     if (botao.dataset.acao === 'editar') editarIntimacao(botao.dataset.id);
     if (botao.dataset.acao === 'excluir') excluirIntimacao(botao.dataset.id);
@@ -869,6 +1011,7 @@ async function tratarAcaoTabela(evento) {
 }
 
 export function iniciarIntimacoes() {
+    iniciarDocumentosIntimacao((id, pares, credor) => abrirEnvioRtd(id, pares, credor));
     if (!document.getElementById('rtd-estilos')) {
         const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261009-rtd-procedimento-v1'; document.head.appendChild(css);
         const painel = document.createElement('section'); painel.id='rtd-painel'; painel.className='rtd-painel'; painel.setAttribute('aria-label','Acompanhamento das diligências RTD');
@@ -953,6 +1096,7 @@ export function iniciarIntimacoes() {
         if (evento.target.id === 'modal-rtd-notificacao') fecharEnvioRtd();
     });
     document.getElementById('btn-buscar-cartorios-rtd').addEventListener('click', buscarCartoriosRtd);
+    document.getElementById('rtd-arquivo-notificacao').addEventListener('change', extrairDocumentoRtdSelecionado);
     document.getElementById('btn-adicionar-notificado-rtd').addEventListener('click', novoCampoNotificado);
     document.getElementById('btn-adicionar-endereco-rtd').addEventListener('click', () => novoCampoNotificado({copiarPessoa:true}));
     document.getElementById('btn-abrir-pasta-rtd').addEventListener('click', () => {
