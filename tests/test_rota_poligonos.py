@@ -182,6 +182,39 @@ class TesteValidacaoDeEntrada(unittest.TestCase):
         self.assertEqual(campos["area_m2"], 0.0)
         self.assertGreater(campos["perimetro_m"], 0)
 
+    def test_dados_do_memorial_sao_persistidos_separados_do_onr(self):
+        campos = R._validar_entrada({
+            "nome": "Lote 6", "anel": _quadrado(0, 0),
+            "dadosMapa": {
+                "uf": "GO",
+                "memorial": {
+                    "lote": "Lote 06",
+                    "logradouro": "Rua São José",
+                    "estilo": "VERTICES",
+                    "assinarProprietario": True,
+                    "lados": [
+                        {"posicao": "FRENTE", "confrontante": "Rua A"},
+                        {"posicao": "FRENTE", "confrontante": "Lote 7"},
+                        {"posicao": "FUNDOS", "confrontante": "Chácara B"},
+                    ],
+                },
+            },
+        })
+
+        mapa = campos["dados_mapa"]
+        self.assertEqual(mapa["uf"], "GO")
+        self.assertEqual(mapa["memorial"]["logradouro"], "Rua São José")
+        self.assertEqual(mapa["memorial"]["estilo"], "VERTICES")
+        self.assertTrue(mapa["memorial"]["assinarProprietario"])
+        self.assertEqual(len(mapa["memorial"]["lados"]), 4)
+        self.assertEqual(mapa["memorial"]["lados"][0]["posicao"], "FRENTE")
+        self.assertEqual(mapa["memorial"]["lados"][1]["posicao"], "OUTRO")
+
+    def test_sinalizador_de_assinatura_nao_aceita_texto_como_verdadeiro(self):
+        validado = R.validar_dados_memorial(
+            {"assinarProprietario": "false"}, 3)
+        self.assertFalse(validado["assinarProprietario"])
+
 
 if __name__ == "__main__":
     unittest.main()

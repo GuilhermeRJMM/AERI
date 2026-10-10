@@ -68,6 +68,11 @@ class TesteKmlDoMapa(unittest.TestCase):
             "nome": "Fazenda Boa Vista & Cia <teste>",
             "matricula": "10.151",
             "observacao": "conferência",
+            # Os dados anexados para a minuta não são atributos do ONR.
+            "dadosMapa": {"memorial": {
+                "lote": "06",
+                "lados": [{"posicao": "FRENTE", "confrontante": "Dado particular de teste"}],
+            }},
             "anel": ANEL_HORARIO,
             "tipo": "POLIGONO",
         })
@@ -175,6 +180,12 @@ class TesteKmlDoMapa(unittest.TestCase):
         self.assertIn("metros; do vértice P-02 ao vértice P-03 mede ", descricao)
         self.assertIn("do vértice P-04 ao vértice P-01 mede ", descricao)
         self.assertEqual(descricao.count(" mede "), 4)
+
+    def test_dados_do_memorial_nao_entram_nos_atributos_do_onr(self):
+        # Os campos novos servem somente à planta imprimível. Não podem
+        # alterar o contrato fechado dos 34 atributos oficiais do arquivo.
+        self.assertNotIn("Dado particular de teste", self.kml)
+        self.assertNotIn("memorial", self.kml.lower())
 
     def test_anel_desenhado_ao_contrario_e_invertido(self):
         # Este é o teste que de fato exercita a inversão: a entrada é

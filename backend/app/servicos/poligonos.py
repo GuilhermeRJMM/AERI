@@ -791,6 +791,68 @@ def validar_dados_mapa(dados) -> dict:
     }
 
 
+_POSICOES_MEMORIAL = {"FRENTE", "CHANFRO", "FUNDOS", "DIREITO", "ESQUERDO", "OUTRO"}
+
+
+def validar_dados_memorial(dados, quantidade_lados: int) -> dict:
+    """Valida os campos opcionais da planta e do memorial imprimíveis.
+
+    Esses dados ficam no JSONB já existente, mas separados dos atributos
+    oficiais do ONR. São sempre texto informado pelo usuário: o AERI não
+    deduz confrontantes a partir da imagem ou de outros imóveis.
+    """
+    dados = dados if isinstance(dados, dict) else {}
+
+    def texto(chave: str, limite: int) -> str:
+        valor = str(dados.get(chave) or "")
+        valor = "".join(caractere for caractere in valor if caractere.isprintable())
+        return re.sub(r"\s+", " ", valor).strip()[:limite]
+
+    estilo = str(dados.get("estilo") or "CONFRONTACOES").upper()
+    if estilo not in {"CONFRONTACOES", "VERTICES"}:
+        estilo = "CONFRONTACOES"
+
+    itens = dados.get("lados") if isinstance(dados.get("lados"), list) else []
+    quantidade_lados = max(0, min(int(quantidade_lados or 0), 10_000))
+    lados = []
+    for indice in range(quantidade_lados):
+        item = itens[indice] if indice < len(itens) and isinstance(itens[indice], dict) else {}
+        posicao = str(item.get("posicao") or "OUTRO").upper()
+        if posicao not in _POSICOES_MEMORIAL:
+            posicao = "OUTRO"
+        lados.append({
+            "posicao": posicao,
+            "confrontante": " ".join(
+                "".join(caractere for caractere in str(item.get("confrontante") or "")
+                        if caractere.isprintable()).split()
+            )[:240],
+        })
+
+    # Uma descrição não pode chamar dois lados diferentes de "frente".
+    encontrou_frente = False
+    for lado in lados:
+        if lado["posicao"] != "FRENTE":
+            continue
+        if encontrou_frente:
+            lado["posicao"] = "OUTRO"
+        encontrou_frente = True
+
+    return {
+        "lote": texto("lote", 80),
+        "quadra": texto("quadra", 80),
+        "setor": texto("setor", 120),
+        "logradouro": texto("logradouro", 200),
+        "estilo": estilo,
+        "responsavelNome": texto("responsavelNome", 160),
+        "responsavelTitulo": texto("responsavelTitulo", 100),
+        "responsavelConselho": texto("responsavelConselho", 40),
+        "responsavelRegistro": texto("responsavelRegistro", 60),
+        "art": texto("art", 80),
+        "assinarProprietario": dados.get("assinarProprietario") is True,
+        "lados": lados,
+    }
+
+
 def centroide(anel: list) -> tuple:
     """Ponto central do imóvel, que a tela de cadastro do Mapa pede.
 

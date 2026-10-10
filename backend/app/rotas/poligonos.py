@@ -16,6 +16,7 @@ from backend.app.servicos.poligonos import (
     se_sobrepoem,
     validar_anel,
     validar_dados_mapa,
+    validar_dados_memorial,
 )
 
 
@@ -61,10 +62,17 @@ def _validar_entrada(dados: dict) -> dict:
 
     observacao = str(dados.get("observacao") or "").strip()[:2000] or None
 
+    dados_mapa = validar_dados_mapa(dados.get("dadosMapa"))
+    dados_mapa["memorial"] = validar_dados_memorial(
+        (dados.get("dadosMapa") or {}).get("memorial")
+        if isinstance(dados.get("dadosMapa"), dict) else None,
+        len(anel) if tipo == "POLIGONO" else 0,
+    )
+
     return {
         "nome": nome, "tipo": tipo, "anel": anel, "matricula": matricula,
         "cor": cor, "observacao": observacao,
-        "dados_mapa": validar_dados_mapa(dados.get("dadosMapa")),
+        "dados_mapa": dados_mapa,
         **medidas(anel, tipo),
     }
 

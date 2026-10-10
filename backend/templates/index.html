@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20261009-documentos-intimacao-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=20261010-poligonos-print-v1">
     <link rel="stylesheet" href="/static/painel.css?v=20260904-barra">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -573,12 +573,52 @@
                             </section>
 
                             <section class="poligonos-bloco">
+                                <h2>Planta e memorial</h2>
+                                <p class="poligonos-nota">Preencha os dados que devem aparecer no documento. Os confrontantes são informados por você; o AERI não os deduz pela imagem do mapa.</p>
+                                <div class="poligonos-grade">
+                                    <div><label for="poligonos-memorial-lote">Lote</label><input id="poligonos-memorial-lote" maxlength="80" placeholder="Ex.: 06"></div>
+                                    <div><label for="poligonos-memorial-quadra">Quadra</label><input id="poligonos-memorial-quadra" maxlength="80" placeholder="Ex.: 02"></div>
+                                </div>
+                                <label for="poligonos-memorial-setor">Setor / gleba</label>
+                                <input id="poligonos-memorial-setor" maxlength="120" placeholder="Ex.: Residencial Primavera">
+                                <label for="poligonos-memorial-logradouro">Logradouro / localização</label>
+                                <input id="poligonos-memorial-logradouro" maxlength="200" placeholder="Rua, estrada ou descrição rural">
+                                <label for="poligonos-memorial-estilo">Descrição corrida</label>
+                                <select id="poligonos-memorial-estilo">
+                                    <option value="CONFRONTACOES">Por lados e confrontações</option>
+                                    <option value="VERTICES">Por azimutes, distâncias e vértices</option>
+                                </select>
+                                <h3 class="poligonos-subtitulo">Lados e confrontantes</h3>
+                                <p class="poligonos-nota">Classifique os lados olhando da frente do imóvel para dentro. Não use “direito” ou “esquerdo” sem conferir a orientação correta.</p>
+                                <div class="poligonos-memorial-tabela-wrap">
+                                    <table class="poligonos-tabela poligonos-memorial-tabela">
+                                        <thead><tr><th>Trecho</th><th>Posição</th><th>Confrontante informado</th></tr></thead>
+                                        <tbody id="poligonos-memorial-lados"><tr><td colspan="3">Feche um polígono para informar os lados.</td></tr></tbody>
+                                    </table>
+                                </div>
+                                <h3 class="poligonos-subtitulo">Responsável e assinaturas</h3>
+                                <label for="poligonos-responsavel-nome">Nome do responsável técnico (opcional)</label>
+                                <input id="poligonos-responsavel-nome" maxlength="160" autocomplete="off">
+                                <div class="poligonos-grade">
+                                    <div><label for="poligonos-responsavel-titulo">Título profissional</label><input id="poligonos-responsavel-titulo" maxlength="100" placeholder="Ex.: Engenheiro agrimensor"></div>
+                                    <div><label for="poligonos-responsavel-conselho">Conselho</label><input id="poligonos-responsavel-conselho" maxlength="40" placeholder="Ex.: CREA-GO"></div>
+                                </div>
+                                <label for="poligonos-responsavel-registro">N.º de registro</label>
+                                <input id="poligonos-responsavel-registro" maxlength="60" autocomplete="off">
+                                <label for="poligonos-art">ART / RRT (opcional)</label>
+                                <input id="poligonos-art" maxlength="80" autocomplete="off">
+                                <label class="poligonos-checkbox"><input id="poligonos-assinar-proprietario" type="checkbox"> Incluir campo de assinatura do(s) proprietário(s)</label>
+                            </section>
+
+                            <section class="poligonos-bloco">
                                 <h2>Exportar</h2>
                                 <div class="poligonos-acoes">
+                                    <button type="button" id="poligonos-exportar-planta-memorial" class="btn btn-primary">Planta + memorial (PDF)</button>
                                     <button type="button" id="poligonos-exportar-memorial" class="btn">Memorial</button>
                                     <button type="button" id="poligonos-exportar-geojson" class="btn">GeoJSON</button>
                                     <button type="button" id="poligonos-exportar-kml" class="btn">KML</button>
                                 </div>
+                                <p class="poligonos-nota">Abre a impressão do navegador; selecione “Salvar como PDF” para gerar o arquivo.</p>
                             </section>
 
                             <section class="poligonos-bloco">
@@ -863,6 +903,8 @@
 
         </div>
     </div>
+
+    <div id="poligonos-impressao" aria-hidden="true"></div>
 
     <div id="modal-resultado" class="modal-overlay">
         <div class="modal-box">
@@ -1171,6 +1213,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261009-documentos-intimacao-v2"></script>
+    <script type="module" src="/static/js/app.js?v=20261010-planta-memorial-v1"></script>
 </body>
 </html>

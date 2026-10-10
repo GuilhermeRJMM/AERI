@@ -14,6 +14,7 @@ import {
     perimetroM,
 } from './mapa/geometria.js?v=20261008-poligonos-v14';
 import {montarKml} from './mapa/kml.js?v=20261008-poligonos-v14';
+import {montarDocumentoPoligonos} from './mapa/documento.js?v=20261010-planta-memorial-v1';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -21,6 +22,7 @@ let mapa = null;
 let permitido = false;
 let salvos = [];
 let sobreposicoes = new Map();
+let tituloAntesImpressao = null;
 
 const rascunho = {
     ferramenta: 'navegar',   // navegar | poligono | linha | ponto
@@ -29,6 +31,8 @@ const rascunho = {
     editandoId: null,
     verticeArrastado: null,
     cor: '#f97316',
+    memorialLados: [],
+    arrasteMemorialInvalidado: false,
 };
 
 function elemento(id) {
@@ -361,17 +365,110 @@ const CAMPOS_DO_MAPA = {
     motivo: 'poligonos-motivo',
 };
 
+const CAMPOS_DO_MEMORIAL = {
+    lote: 'poligonos-memorial-lote',
+    quadra: 'poligonos-memorial-quadra',
+    setor: 'poligonos-memorial-setor',
+    logradouro: 'poligonos-memorial-logradouro',
+    estilo: 'poligonos-memorial-estilo',
+    responsavelNome: 'poligonos-responsavel-nome',
+    responsavelTitulo: 'poligonos-responsavel-titulo',
+    responsavelConselho: 'poligonos-responsavel-conselho',
+    responsavelRegistro: 'poligonos-responsavel-registro',
+    art: 'poligonos-art',
+};
+
+const POSICOES_MEMORIAL = [
+    ['FRENTE', 'Frente'], ['CHANFRO', 'Chanfro'], ['FUNDOS', 'Fundos'],
+    ['DIREITO', 'Lado direito'], ['ESQUERDO', 'Lado esquerdo'], ['OUTRO', 'Outro'],
+];
+
+function lerDadosMemorial() {
+    const campos = Object.fromEntries(Object.entries(CAMPOS_DO_MEMORIAL).map(([chave, id]) =>
+        [chave, elemento(id).value.trim()]));
+    return {
+        ...campos,
+        assinarProprietario: elemento('poligonos-assinar-proprietario').checked,
+        lados: rascunho.memorialLados.map(lado => ({
+            posicao: lado.posicao || 'OUTRO',
+            confrontante: lado.confrontante || '',
+        })),
+    };
+}
+
+function atualizarTabelaMemorial() {
+    const corpo = elemento('poligonos-memorial-lados');
+    const quantidade = rascunho.tipo === 'POLIGONO' && rascunho.anel.length >= 3
+        ? rascunho.anel.length : 0;
+    if (!quantidade) {
+        corpo.innerHTML = '<tr><td colspan="3">Feche um polígono para informar os lados.</td></tr>';
+        return;
+    }
+    rascunho.memorialLados = Array.from({length: quantidade}, (_, indice) =>
+        rascunho.memorialLados[indice] || {posicao: 'OUTRO', confrontante: ''});
+    const lados = ladosDoAnel(rascunho.anel, true);
+    corpo.innerHTML = lados.map((lado, indice) => {
+        const dados = rascunho.memorialLados[indice];
+        const opcoes = POSICOES_MEMORIAL.map(([valor, rotulo]) =>
+            `<option value="${valor}" ${dados.posicao === valor ? 'selected' : ''}>${rotulo}</option>`).join('');
+        return `<tr>
+            <td>P-${String(lado.de).padStart(2, '0')} → P-${String(lado.para).padStart(2, '0')}</td>
+            <td><select data-memorial-posicao="${indice}" aria-label="Posição do lado P-${lado.de} a P-${lado.para}">${opcoes}</select></td>
+            <td><input type="text" maxlength="240" data-memorial-confrontante="${indice}" aria-label="Confrontante do lado P-${lado.de} a P-${lado.para}" value="${escaparHtml(dados.confrontante)}" placeholder="Informe o imóvel, via ou descrição"></td>
+        </tr>`;
+    }).join('');
+}
+
+function limparMetadadosDoLado(indice) {
+    if (rascunho.memorialLados[indice]) {
+        rascunho.memorialLados[indice] = {posicao: 'OUTRO', confrontante: ''};
+    }
+}
+
+function removerVertice(indice) {
+    const quantidade = rascunho.anel.length;
+    if (rascunho.tipo === 'POLIGONO' && quantidade >= 3) {
+        rascunho.memorialLados.splice(indice, 1);
+        const novaQuantidade = quantidade - 1;
+        if (novaQuantidade >= 3) {
+            // O vértice removido funde os dois lados vizinhos; a antiga
+            // confrontação desse novo trecho deve ser confirmada de novo.
+            const trechoFundido = (indice - 1 + novaQuantidade) % novaQuantidade;
+            limparMetadadosDoLado(trechoFundido);
+        } else {
+            rascunho.memorialLados = [];
+        }
+    } else {
+        rascunho.memorialLados = [];
+    }
+    rascunho.anel.splice(indice, 1);
+}
+
 function lerDadosMapa() {
-    return Object.fromEntries(
-        Object.entries(CAMPOS_DO_MAPA).map(([chave, id]) =>
-            [chave, elemento(id).value.trim()]),
-    );
+    return {
+        ...Object.fromEntries(
+            Object.entries(CAMPOS_DO_MAPA).map(([chave, id]) =>
+                [chave, elemento(id).value.trim()]),
+        ),
+        memorial: lerDadosMemorial(),
+    };
 }
 
 function escreverDadosMapa(dados = {}) {
     Object.entries(CAMPOS_DO_MAPA).forEach(([chave, id]) => {
         elemento(id).value = dados[chave] || '';
     });
+    const memorial = dados.memorial || {};
+    Object.entries(CAMPOS_DO_MEMORIAL).forEach(([chave, id]) => {
+        elemento(id).value = memorial[chave] || (chave === 'estilo' ? 'CONFRONTACOES' : '');
+    });
+    elemento('poligonos-assinar-proprietario').checked = memorial.assinarProprietario === true;
+    rascunho.memorialLados = Array.isArray(memorial.lados)
+        ? memorial.lados.map(lado => ({
+            posicao: POSICOES_MEMORIAL.some(([valor]) => valor === lado?.posicao)
+                ? lado.posicao : 'OUTRO',
+            confrontante: String(lado?.confrontante || ''),
+        })) : [];
 }
 
 function atualizarPontoCentral() {
@@ -391,6 +488,7 @@ function atualizarTudo() {
     atualizarMedidas();
     atualizarCoordenadas();
     atualizarPontoCentral();
+    atualizarTabelaMemorial();
 }
 
 // ---------------------------------------------------------------------------
@@ -399,7 +497,9 @@ function atualizarTudo() {
 
 function definirFerramenta(nome) {
     rascunho.ferramenta = nome;
+    const tipoAnterior = rascunho.tipo;
     rascunho.tipo = nome === 'linha' ? 'LINHA' : nome === 'ponto' ? 'PONTO' : 'POLIGONO';
+    if (rascunho.tipo !== tipoAnterior) rascunho.memorialLados = [];
     document.querySelectorAll('[data-ferramenta]').forEach(botao => {
         botao.classList.toggle('ativo', botao.dataset.ferramenta === nome);
     });
@@ -413,14 +513,24 @@ function limparRascunho() {
     elemento('poligonos-matricula').value = '';
     elemento('poligonos-observacao').value = '';
     escreverDadosMapa({});
+    rascunho.memorialLados = [];
     elemento('poligonos-excluir').hidden = true;
     atualizarTudo();
 }
 
 function aoClicarNoMapa(geo) {
     if (rascunho.ferramenta === 'navegar') return;
-    if (rascunho.ferramenta === 'ponto') rascunho.anel = [[geo.lon, geo.lat]];
-    else rascunho.anel.push([geo.lon, geo.lat]);
+    if (rascunho.ferramenta === 'ponto') {
+        rascunho.anel = [[geo.lon, geo.lat]];
+        rascunho.memorialLados = [];
+    } else {
+        if (rascunho.tipo === 'POLIGONO' && rascunho.anel.length >= 3) {
+            // Ao acrescentar vértice, a antiga aresta de fechamento passa
+            // a ser um lado diferente e não deve herdar confrontante.
+            limparMetadadosDoLado(rascunho.anel.length - 1);
+        }
+        rascunho.anel.push([geo.lon, geo.lat]);
+    }
     atualizarTudo();
 }
 
@@ -433,24 +543,35 @@ function ligarArrasteDeVertices() {
         const indice = Number(alca.dataset.alca);
         if (evento.altKey) {
             // Alt+clique remove o vértice -- o gesto do Scribble Maps.
-            rascunho.anel.splice(indice, 1);
+            removerVertice(indice);
             atualizarTudo();
             return;
         }
         rascunho.verticeArrastado = indice;
+        rascunho.arrasteMemorialInvalidado = false;
         evento.preventDefault();
         evento.stopPropagation();
     });
 
     area.addEventListener('pointermove', evento => {
         if (rascunho.verticeArrastado == null) return;
+        if (!rascunho.arrasteMemorialInvalidado && rascunho.tipo === 'POLIGONO'
+            && rascunho.memorialLados.length === rascunho.anel.length) {
+            const indice = rascunho.verticeArrastado;
+            limparMetadadosDoLado((indice - 1 + rascunho.anel.length) % rascunho.anel.length);
+            limparMetadadosDoLado(indice);
+            rascunho.arrasteMemorialInvalidado = true;
+        }
         const caixa = area.getBoundingClientRect();
         const geo = mapa.telaParaGeo(evento.clientX - caixa.left, evento.clientY - caixa.top);
         rascunho.anel[rascunho.verticeArrastado] = [geo.lon, geo.lat];
         atualizarTudo();
     });
 
-    const soltar = () => { rascunho.verticeArrastado = null; };
+    const soltar = () => {
+        rascunho.verticeArrastado = null;
+        rascunho.arrasteMemorialInvalidado = false;
+    };
     area.addEventListener('pointerup', soltar);
     area.addEventListener('pointercancel', soltar);
 }
@@ -604,6 +725,7 @@ async function importarTexto() {
             body: JSON.stringify({texto}),
         });
         rascunho.anel = resultado.anel;
+        rascunho.memorialLados = [];
         rascunho.editandoId = null;
         mapa.ajustarPara(rascunho.anel);
         atualizarTudo();
@@ -724,6 +846,44 @@ async function exportarMemorial() {
     baixar(`${nomeBase()}_memorial.txt`, linhas.join('\n'), 'text/plain;charset=utf-8');
 }
 
+async function exportarPlantaMemorial() {
+    if (rascunho.tipo !== 'POLIGONO' || rascunho.anel.length < 3) {
+        alert('Desenhe um polígono fechado com pelo menos três vértices para gerar a planta.');
+        return;
+    }
+    let utm;
+    try {
+        utm = await requisicaoAeri('/api/poligonos/utm', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({anel: rascunho.anel}),
+        });
+    } catch (falha) {
+        alert(falha.message);
+        return;
+    }
+
+    const nome = elemento('poligonos-nome').value.trim() || 'Imóvel sem nome';
+    const impressao = elemento('poligonos-impressao');
+    try {
+        impressao.innerHTML = montarDocumentoPoligonos({
+            nome,
+            matricula: elemento('poligonos-matricula').value.trim(),
+            anel: rascunho.anel,
+            utm,
+            dadosMapa: lerDadosMapa(),
+        });
+    } catch (falha) {
+        alert(falha.message || 'Não foi possível montar a planta e o memorial.');
+        return;
+    }
+    impressao.setAttribute('aria-hidden', 'false');
+    tituloAntesImpressao = document.title;
+    document.title = `${nomeBase()}_planta_memorial`;
+    document.body.classList.add('poligonos-imprimindo');
+    window.print();
+}
+
 // ---------------------------------------------------------------------------
 // Início
 // ---------------------------------------------------------------------------
@@ -767,7 +927,7 @@ export function iniciarPoligonos() {
     });
 
     elemento('poligonos-desfazer').addEventListener('click', () => {
-        rascunho.anel.pop();
+        if (rascunho.anel.length) removerVertice(rascunho.anel.length - 1);
         atualizarTudo();
     });
     elemento('poligonos-limpar').addEventListener('click', limparRascunho);
@@ -778,6 +938,32 @@ export function iniciarPoligonos() {
     elemento('poligonos-exportar-geojson').addEventListener('click', exportarGeoJson);
     elemento('poligonos-exportar-kml').addEventListener('click', exportarKml);
     elemento('poligonos-exportar-memorial').addEventListener('click', exportarMemorial);
+    elemento('poligonos-exportar-planta-memorial').addEventListener('click', exportarPlantaMemorial);
+    elemento('poligonos-memorial-lados').addEventListener('input', evento => {
+        const confrontante = evento.target.closest('[data-memorial-confrontante]');
+        if (confrontante) {
+            rascunho.memorialLados[Number(confrontante.dataset.memorialConfrontante)].confrontante = confrontante.value;
+        }
+    });
+    elemento('poligonos-memorial-lados').addEventListener('change', evento => {
+        const posicao = evento.target.closest('[data-memorial-posicao]');
+        if (!posicao) return;
+        const indice = Number(posicao.dataset.memorialPosicao);
+        rascunho.memorialLados[indice].posicao = posicao.value;
+        if (posicao.value === 'FRENTE') {
+            rascunho.memorialLados.forEach((lado, i) => {
+                if (i !== indice && lado.posicao === 'FRENTE') lado.posicao = 'OUTRO';
+            });
+            atualizarTabelaMemorial();
+        }
+    });
+    window.addEventListener('afterprint', () => {
+        document.body.classList.remove('poligonos-imprimindo');
+        if (tituloAntesImpressao !== null) document.title = tituloAntesImpressao;
+        tituloAntesImpressao = null;
+        elemento('poligonos-impressao').replaceChildren();
+        elemento('poligonos-impressao').setAttribute('aria-hidden', 'true');
+    });
     elemento('poligonos-mais').addEventListener('click', () => mapa.aproximar(1));
     elemento('poligonos-menos').addEventListener('click', () => mapa.aproximar(-1));
 

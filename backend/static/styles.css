@@ -3564,6 +3564,204 @@ body.modo-incorporado .layout { padding-top:28px; }
 /* O lado de fechamento resulta dos demais e não se edita. */
 .poligonos-lado-fechamento td { color: var(--text-muted); font-style: italic; }
 
+.poligonos-subtitulo {
+  margin: 15px 0 4px;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+.poligonos-memorial-tabela-wrap { max-height: 260px; overflow: auto; }
+.poligonos-memorial-tabela { min-width: 330px; table-layout: fixed; }
+.poligonos-memorial-tabela th:first-child { width: 88px; }
+.poligonos-memorial-tabela th:nth-child(2) { width: 104px; }
+.poligonos-memorial-tabela td { padding: 4px; vertical-align: middle; }
+.poligonos-memorial-tabela input,
+.poligonos-memorial-tabela select {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 6px;
+  font-size: 0.72rem;
+}
+.poligonos-checkbox {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px !important;
+  color: var(--text-soft) !important;
+}
+.poligonos-checkbox input { width: auto; margin: 0; }
+
+#poligonos-impressao { display: none; }
+
+@page { size: A4 portrait; margin: 0; }
+@media print {
+  body.poligonos-imprimindo > * { display: none !important; }
+  body.poligonos-imprimindo > #poligonos-impressao {
+    display: block !important;
+    width: 210mm;
+    margin: 0;
+    padding: 0;
+    color: #182433;
+    background: #fff;
+    font-family: Arial, sans-serif;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  body.poligonos-imprimindo .poligonos-folha {
+    box-sizing: border-box;
+    width: 210mm;
+    min-height: 297mm;
+    padding: 10mm;
+    background: #fff;
+    color: #182433;
+    font-size: 8.5pt;
+    page-break-after: always;
+    break-after: page;
+  }
+  body.poligonos-imprimindo .poligonos-folha:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  body.poligonos-imprimindo .poligonos-print-cabecalho {
+    margin: 0 0 5mm;
+    padding-bottom: 3mm;
+    border-bottom: 1px solid #cbd5e1;
+  }
+  body.poligonos-imprimindo .poligonos-print-cabecalho > span {
+    color: #526174;
+    font-size: 7pt;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+  }
+  body.poligonos-imprimindo .poligonos-print-cabecalho h1 {
+    margin: 1.5mm 0;
+    color: #102b4e;
+    font-size: 17pt;
+    overflow-wrap: anywhere;
+  }
+  body.poligonos-imprimindo .poligonos-print-cabecalho p {
+    margin: 1mm 0 0;
+    color: #526174;
+    font-size: 8pt;
+  }
+  body.poligonos-imprimindo .poligonos-print-resumo {
+    display: grid;
+    grid-template-columns: 1fr 0.75fr 1.1fr;
+    gap: 3mm;
+    margin-bottom: 3mm;
+  }
+  body.poligonos-imprimindo .poligonos-print-resumo > div {
+    min-width: 0;
+    padding: 2.5mm;
+    border: 1px solid #d7dee8;
+    border-radius: 2mm;
+  }
+  body.poligonos-imprimindo .poligonos-print-resumo span,
+  body.poligonos-imprimindo .poligonos-print-resumo small {
+    display: block;
+    color: #526174;
+    font-size: 7pt;
+  }
+  body.poligonos-imprimindo .poligonos-print-resumo strong {
+    display: block;
+    margin: 1mm 0;
+    overflow-wrap: anywhere;
+    color: #182433;
+    font-size: 9pt;
+  }
+  body.poligonos-imprimindo .poligonos-planta-svg {
+    display: block;
+    width: 180mm;
+    height: auto;
+    max-width: 100%;
+    max-height: 185mm;
+    margin: 0 auto;
+  }
+  body.poligonos-imprimindo .poligonos-print-rodape {
+    margin-top: 2mm;
+    color: #526174;
+    font-size: 7pt;
+    line-height: 1.35;
+  }
+  body.poligonos-imprimindo .poligonos-folha-memorial h2 {
+    margin: 4mm 0 1.5mm;
+    color: #102b4e;
+    font-size: 10pt;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  body.poligonos-imprimindo .poligonos-print-identificacao,
+  body.poligonos-imprimindo .poligonos-print-tabela table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 7.2pt;
+  }
+  body.poligonos-imprimindo .poligonos-print-identificacao th,
+  body.poligonos-imprimindo .poligonos-print-identificacao td,
+  body.poligonos-imprimindo .poligonos-print-tabela th,
+  body.poligonos-imprimindo .poligonos-print-tabela td {
+    padding: 1.5mm 1.7mm;
+    border: 1px solid #cbd5e1;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+  body.poligonos-imprimindo .poligonos-print-identificacao th,
+  body.poligonos-imprimindo .poligonos-print-tabela th {
+    background: #eef2f7;
+    color: #334155;
+    font-weight: 700;
+  }
+  body.poligonos-imprimindo .poligonos-texto-legal {
+    margin: 0;
+    font-size: 8pt;
+    line-height: 1.5;
+    text-align: justify;
+    overflow-wrap: anywhere;
+  }
+  body.poligonos-imprimindo .poligonos-aviso-print {
+    margin: 2mm 0;
+    padding: 2mm;
+    border: 1px solid #d97706;
+    background: #fff7ed;
+    color: #7c2d12;
+    font-size: 7.5pt;
+  }
+  body.poligonos-imprimindo .poligonos-print-tabela tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  body.poligonos-imprimindo .poligonos-ressalva {
+    margin: 3mm 0;
+    padding: 2mm;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 7pt;
+    line-height: 1.4;
+  }
+  body.poligonos-imprimindo .poligonos-assinaturas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(60mm, 1fr));
+    gap: 12mm;
+    margin-top: 13mm;
+    text-align: center;
+  }
+  body.poligonos-imprimindo .poligonos-assinaturas > div { min-width: 0; }
+  body.poligonos-imprimindo .poligonos-assinaturas span {
+    display: block;
+    margin-bottom: 2mm;
+    border-top: 1px solid #475569;
+  }
+  body.poligonos-imprimindo .poligonos-assinaturas strong,
+  body.poligonos-imprimindo .poligonos-assinaturas small { display: block; }
+  body.poligonos-imprimindo .poligonos-assinaturas strong { font-size: 8pt; }
+  body.poligonos-imprimindo .poligonos-assinaturas small {
+    margin-top: 1mm;
+    color: #526174;
+    font-size: 7pt;
+  }
+}
+
 /* A senha temporária era entregue por window.prompt, que o Chrome bloqueia
    em iframe de outra origem -- e o AERI roda dentro do SYNC. O
    administrador não via senha nenhuma. Agora ela aparece na própria
