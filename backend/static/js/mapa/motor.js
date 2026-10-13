@@ -40,37 +40,12 @@ export const CAMADAS = {
         creditos: 'Imagens © Google',
         zoomMaximo: 22,
     },
-    topografia: {
-        rotulo: 'Topográfico',
-        // Banco de Dados Geográficos do Exército. Cartas do Sistema
-        // Cartográfico Nacional -- relevo, hidrografia e estradas, útil
-        // para imóvel rural. Não é foto e não substitui satélite.
-        //
-        // É WMS, e só aceita EPSG:4326: pedir em 3857 devolve 400. O
-        // recorte de cada tile é convertido para graus antes de pedir.
-        tipo: 'wms',
-        url: 'https://bdgex.eb.mil.br/mapcache',
-        camadas: 'ctm250,ctm100,ctm50,ctm25',
-        creditos: 'Cartas topográficas — Exército Brasileiro (BDGEx)',
-        zoomMaximo: 19,
-    },
-    satelite: {
-        rotulo: 'Satélite',
-        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        creditos: 'Esri, Maxar, Earthstar Geographics',
-        // 18, e não 19. Medido sobre Morrinhos: do zoom 19 em diante a
-        // Esri devolve sempre o mesmo arquivo de 2.521 bytes, aquele
-        // cinza escrito "Map data not yet available". Ele é uma imagem
-        // 256x256 legítima -- carrega sem erro e não dá para distinguir
-        // pelo navegador -- então o único jeito é não pedir esse nível.
-        // Acima daqui o mapa amplia o zoom 18 por CSS: borra, mas o
-        // desenho vetorial continua nítido, que é o que se confere.
-        zoomMaximo: 18,
-    },
     ruas: {
         rotulo: 'Ruas',
         url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        creditos: '© OpenStreetMap',
+        creditos: '© OpenStreetMap contributors',
+        creditosUrl: 'https://www.openstreetmap.org/copyright',
+        referrerPolicy: 'strict-origin',
         zoomMaximo: 19,
     },
 };
@@ -162,7 +137,7 @@ export function criarMapa(elemento, opcoes = {}) {
     const estado = {
         centro: opcoes.centro || { lon: -49.1003, lat: -17.7305 }, // Morrinhos-GO
         zoom: opcoes.zoom ?? 14,
-        camada: opcoes.camada || 'satelite',
+        camada: CAMADAS[opcoes.camada] ? opcoes.camada : 'google',
         largura: 0,
         altura: 0,
     };
@@ -177,6 +152,23 @@ export function criarMapa(elemento, opcoes = {}) {
     const creditos = document.createElement('div');
     creditos.className = 'mapa-creditos';
     elemento.append(camadaTiles, camadaVetor, creditos);
+
+    function atualizarCreditos(definicao) {
+        creditos.replaceChildren();
+        if (definicao.creditosUrl) {
+            const link = document.createElement('a');
+            link.href = definicao.creditosUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = definicao.creditos;
+            creditos.appendChild(link);
+        } else {
+            creditos.textContent = definicao.creditos;
+        }
+        if (estado.ampliacaoDaImagem > 1.05) {
+            creditos.append(document.createTextNode(` — imagem ampliada ${estado.ampliacaoDaImagem.toFixed(1)}×`));
+        }
+    }
 
     const ouvintes = { mudou: [], clicou: [], moveu: [] };
     const tilesVivos = new Map();
@@ -266,10 +258,11 @@ export function criarMapa(elemento, opcoes = {}) {
                     img.alt = '';
                     img.decoding = 'async';
                     img.loading = 'eager';
-                    // Sem referrer: não vaza a URL interna do AERI (que
-                    // carrega token de sessão na query em alguns fluxos)
-                    // para o servidor de tiles.
-                    img.referrerPolicy = 'no-referrer';
+                    // O OSM exige um Referer válido. strict-origin envia
+                    // somente a origem, sem caminho nem query (e portanto
+                    // sem qualquer token eventualmente presente na URL).
+                    // As demais camadas mantêm a política restritiva.
+                    img.referrerPolicy = definicao.referrerPolicy || 'no-referrer';
                     img.src = urlDoTile(definicao, zoomTile, txCiclico, ty);
                     tilesVivos.set(chave, img);
                     camadaTiles.appendChild(img);
@@ -294,9 +287,7 @@ export function criarMapa(elemento, opcoes = {}) {
         // aproximar mais não traz informação nova, só precisão falsa.
         estado.ampliacaoDaImagem = zoomTile < Math.round(estado.zoom)
             ? Math.pow(2, estado.zoom - zoomTile) : 1;
-        creditos.textContent = estado.ampliacaoDaImagem > 1.05
-            ? `${definicao.creditos} — imagem ampliada ${estado.ampliacaoDaImagem.toFixed(1)}×`
-            : definicao.creditos;
+        atualizarCreditos(definicao);
     }
 
     function redesenhar() {

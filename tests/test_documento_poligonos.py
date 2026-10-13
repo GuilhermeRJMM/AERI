@@ -97,6 +97,14 @@ class TesteDocumentoPoligonos(unittest.TestCase):
             self.assertRegex(leste, r"^-?\d+\.\d{3}$")
             self.assertRegex(norte, r"^-?\d+\.\d{3}$")
 
+    def test_documento_nao_exibe_ressalvas_internas_mantem_referencia_das_coordenadas(self):
+        html = self._gerar(_dados())
+
+        self.assertNotIn('coordenadas convertidas a partir do WGS84 armazenado no AERI', html)
+        self.assertNotIn('Minuta gerada a partir das coordenadas', html)
+        self.assertNotIn('antes de assinar ou apresentar', html)
+        self.assertIn('WGS84 / UTM fuso 22S', html)
+
 
 if __name__ == "__main__":
     unittest.main()

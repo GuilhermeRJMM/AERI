@@ -226,7 +226,9 @@ export function montarDocumentoPoligonos(dados) {
     const area = areaM2(anel);
     const perimetro = perimetroM(anel, true);
     const hemisferio = anel[0][1] < 0 ? 'S' : 'N';
-    const sistema = `UTM fuso ${dados.utm.fuso}${hemisferio} · coordenadas convertidas a partir do WGS84 armazenado no AERI`;
+    // Mantém a referência geodésica necessária para interpretar Este/Norte,
+    // sem expor a origem interna dos dados nem acrescentar ressalvas editoriais.
+    const sistema = `WGS84 / UTM fuso ${dados.utm.fuso}${hemisferio}`;
     const titulo = escapar(dados.nome || 'Imóvel sem nome');
     const identificacao = [
         dados.matricula ? `Matrícula ${escapar(dados.matricula)}` : '',
@@ -264,7 +266,7 @@ export function montarDocumentoPoligonos(dados) {
             <div><span>Localidade</span><strong>${localidade || 'Não informada'}</strong><small>${endereco || 'Endereço não informado'}</small></div>
         </div>
         ${montarSvgPlanta(verticesUtm, lados, memorial)}
-        <footer class="poligonos-print-rodape">${sistema}. Medidas de lados e azimutes calculados sobre o elipsoide WGS84.</footer>
+        <footer class="poligonos-print-rodape">${sistema}</footer>
     </article>
     <article class="poligonos-folha poligonos-folha-memorial">
         <header class="poligonos-print-cabecalho"><span>DOCUMENTO PARA CONFERÊNCIA</span>
@@ -284,7 +286,6 @@ export function montarDocumentoPoligonos(dados) {
         <h2>Quadro de lados e confrontações</h2>
         <div class="poligonos-print-tabela"><table><thead><tr><th>Trecho</th><th>Posição</th><th>Distância</th><th>Azimute</th><th>Confrontante</th></tr></thead>
             <tbody>${tabelaLados(lados, memorial)}</tbody></table></div>
-        <p class="poligonos-ressalva">Minuta gerada a partir das coordenadas e informações inseridas no AERI. Confira o levantamento, datum, fuso, medidas, confrontações e demais exigências técnicas antes de assinar ou apresentar. Esta prévia não substitui levantamento, certificação ou responsabilidade técnica.</p>
         <div class="poligonos-assinaturas">
             <div><span></span><strong>${nomeResponsavel || 'Responsável técnico'}</strong>
                 <small>${[tituloResponsavel, registro, memorial.art ? `ART/RRT ${escapar(memorial.art)}` : ''].filter(Boolean).join(' · ')}</small>

@@ -30,13 +30,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # exfiltração -- basta montar a URL de uma imagem com o dado dentro.
 # Nenhum deles entra em script-src ou connect-src.
 SERVIDORES_DE_TILE = " ".join((
-    "https://server.arcgisonline.com",      # Esri World Imagery (satélite)
-    "https://services.arcgisonline.com",    # espelho do mesmo serviço
     "https://mt0.google.com",               # Google (satélite HD)
     "https://mt1.google.com",
     "https://mt2.google.com",
     "https://mt3.google.com",
-    "https://bdgex.eb.mil.br",              # Exército Brasileiro (topográfico)
     "https://tile.openstreetmap.org",       # OpenStreetMap (ruas)
 ))
 

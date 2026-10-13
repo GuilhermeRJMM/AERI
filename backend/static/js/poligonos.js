@@ -7,14 +7,14 @@
  */
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {escaparHtml} from './util.js';
-import {CAMADAS, criarMapa} from './mapa/motor.js?v=20260819-poligonos-v13';
+import {CAMADAS, criarMapa} from './mapa/motor.js?v=20261013-camadas-v2';
 import {
     areaM2, azimuteGraus, centroide, descricaoLados, destinoGeodesico,
     distanciaM, formatarArea, formatarDistancia, formatarGms, ladosDoAnel,
     perimetroM,
 } from './mapa/geometria.js?v=20261008-poligonos-v14';
 import {montarKml} from './mapa/kml.js?v=20261008-poligonos-v14';
-import {montarDocumentoPoligonos} from './mapa/documento.js?v=20261010-planta-memorial-v1';
+import {montarDocumentoPoligonos} from './mapa/documento.js?v=20261013-documento-enxuto-v1';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -23,6 +23,10 @@ let permitido = false;
 let salvos = [];
 let sobreposicoes = new Map();
 let tituloAntesImpressao = null;
+let temporizadorPreview = null;
+let versaoPreview = 0;
+let observadorPreview = null;
+let controladorPreview = null;
 
 const rascunho = {
     ferramenta: 'navegar',   // navegar | poligono | linha | ponto
@@ -165,19 +169,15 @@ function atualizarMedidas() {
 
     const lados = ladosDoAnel(anel, fechado);
     tabela.innerHTML = lados.map((lado, i) => {
-        // O último lado volta ao primeiro vértice. Ele não é editável:
-        // mudá-lo exigiria mover o ponto de partida, e é justamente a
-        // comparação entre ele e o memorial que revela o erro de
-        // fechamento do caminhamento.
         const fechamento = fechado && i === lados.length - 1;
-        const campo = (eixo, valor, casas) => (fechamento
-            ? `${valor.toLocaleString('pt-BR', {minimumFractionDigits: casas, maximumFractionDigits: casas})}`
-            : `<input class="poligonos-lado-campo" data-lado="${i}" data-grandeza="${eixo}"
+        const campo = (eixo, valor, casas) =>
+            `<input class="poligonos-lado-campo" data-lado="${i}" data-grandeza="${eixo}"
                 inputmode="decimal" value="${valor.toFixed(casas)}"
-                aria-label="${eixo === 'd' ? 'Distância' : 'Azimute'} do lado ${lado.de} para ${lado.para}">`);
+                aria-label="${eixo === 'd' ? 'Distância' : 'Azimute'} do lado ${lado.de} para ${lado.para}"
+                ${fechamento ? 'title="Ao ajustar o fechamento, o vértice final fica fixo; os anteriores se deslocam juntos e o lado anterior é recalculado."' : ''}>`;
         return `
         <tr class="${fechamento ? 'poligonos-lado-fechamento' : ''}">
-            <td>${lado.de} &rarr; ${lado.para}${fechamento ? ' <span title="Lado de fechamento: resulta dos demais">&#9679;</span>' : ''}</td>
+            <td>${lado.de} &rarr; ${lado.para}${fechamento ? ' <span title="Lado de fechamento editável">&#9679;</span>' : ''}</td>
             <td>${campo('d', lado.distancia, 2)}</td>
             <td>${campo('a', lado.azimute, 4)}</td>
         </tr>`;
@@ -196,7 +196,10 @@ function aplicarEdicaoDeLado(campo) {
     const indice = Number(campo.dataset.lado);
     const grandeza = campo.dataset.grandeza;
     const de = rascunho.anel[indice];
-    const para = rascunho.anel[indice + 1];
+    const fechamento = rascunho.tipo === 'POLIGONO'
+        && indice === rascunho.anel.length - 1;
+    const indiceChegada = fechamento ? 0 : indice + 1;
+    const para = rascunho.anel[indiceChegada];
     if (!de || !para) return;
 
     const valor = numeroDigitado(campo.value);
@@ -217,7 +220,14 @@ function aplicarEdicaoDeLado(campo) {
     const novo = destinoGeodesico(de, azimute, distancia);
 
     const deslocamento = [novo[0] - para[0], novo[1] - para[1]];
-    for (let i = indice + 1; i < rascunho.anel.length; i += 1) {
+    // No lado de fechamento, o destino é o vértice 1. Para manter intactos
+    // os lados internos do caminhamento, deslocamos juntos os vértices 1..n-1
+    // e mantemos o último fixo. Assim, o lado imediatamente anterior é
+    // recalculado, como acontece com os demais lados ao editar um trecho.
+    const verticesDeslocados = fechamento
+        ? Array.from({length: rascunho.anel.length - 1}, (_, i) => i)
+        : Array.from({length: rascunho.anel.length - indice - 1}, (_, i) => indice + 1 + i);
+    for (const i of verticesDeslocados) {
         rascunho.anel[i] = [
             rascunho.anel[i][0] + deslocamento[0],
             rascunho.anel[i][1] + deslocamento[1],
@@ -232,6 +242,11 @@ function aplicarEdicaoDeLado(campo) {
         rascunho.tipo === 'POLIGONO' ? areaM2(rascunho.anel) : 0);
     elemento('poligonos-perimetro').textContent = formatarDistancia(
         perimetroM(rascunho.anel, rascunho.tipo === 'POLIGONO'));
+    if (fechamento) {
+        elemento('poligonos-status').textContent =
+            'Fechamento ajustado. O último vértice ficou fixo e o lado anterior foi recalculado.';
+    }
+    agendarAtualizacaoPreview();
 }
 
 function ligarEdicaoDeLados() {
@@ -489,6 +504,85 @@ function atualizarTudo() {
     atualizarCoordenadas();
     atualizarPontoCentral();
     atualizarTabelaMemorial();
+    agendarAtualizacaoPreview();
+}
+
+function ajustarEscalaPreview() {
+    const area = elemento('poligonos-preview');
+    if (!area) return;
+    const larguraFolhaPx = 210 * 96 / 25.4;
+    const escala = Math.min(1, area.clientWidth / larguraFolhaPx);
+    area.style.setProperty('--poligonos-preview-escala', String(escala));
+}
+
+function mostrarEstadoPreview(mensagem, vazio = false) {
+    const status = elemento('poligonos-preview-status');
+    const area = elemento('poligonos-preview');
+    if (status) status.textContent = mensagem;
+    if (vazio && area) {
+        area.innerHTML = '<div class="poligonos-preview-vazio">A prévia aparece quando o polígono tiver pelo menos três vértices.</div>';
+    }
+}
+
+async function renderizarPreview(versao) {
+    if (rascunho.tipo !== 'POLIGONO' || rascunho.anel.length < 3) {
+        mostrarEstadoPreview('Feche um polígono para visualizar.', true);
+        return;
+    }
+    const controlador = new AbortController();
+    controladorPreview = controlador;
+    try {
+        const utm = await requisicaoAeri('/api/poligonos/utm', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({anel: rascunho.anel}),
+            signal: controlador.signal,
+        });
+        if (versao !== versaoPreview) return;
+
+        const nome = elemento('poligonos-nome').value.trim() || 'Imóvel sem nome';
+        const modelo = document.createElement('template');
+        modelo.innerHTML = montarDocumentoPoligonos({
+            nome,
+            matricula: elemento('poligonos-matricula').value.trim(),
+            anel: rascunho.anel,
+            utm,
+            dadosMapa: lerDadosMapa(),
+        });
+        const paginas = [...modelo.content.querySelectorAll('.poligonos-folha')];
+        const area = elemento('poligonos-preview');
+        const fragmento = document.createDocumentFragment();
+        paginas.forEach((pagina, indice) => {
+            const moldura = document.createElement('div');
+            moldura.className = 'poligonos-preview-pagina';
+            moldura.setAttribute('aria-label', indice === 0 ? 'Prévia da planta' : 'Prévia do memorial');
+            moldura.appendChild(pagina);
+            fragmento.appendChild(moldura);
+        });
+        area.replaceChildren(fragmento);
+        ajustarEscalaPreview();
+        mostrarEstadoPreview('Atualizada agora');
+    } catch (falha) {
+        if (versao !== versaoPreview) return;
+        if (falha.name === 'AbortError') return;
+        mostrarEstadoPreview(falha.message || 'Não foi possível atualizar a prévia.');
+    } finally {
+        if (controladorPreview === controlador) controladorPreview = null;
+    }
+}
+
+function agendarAtualizacaoPreview(atraso = 220) {
+    const versao = ++versaoPreview;
+    window.clearTimeout(temporizadorPreview);
+    controladorPreview?.abort();
+    controladorPreview = null;
+    if (rascunho.tipo !== 'POLIGONO' || rascunho.anel.length < 3) {
+        mostrarEstadoPreview('Feche um polígono para visualizar.', true);
+        return;
+    }
+    const status = elemento('poligonos-preview-status');
+    if (status) status.textContent = 'Atualizando…';
+    temporizadorPreview = window.setTimeout(() => renderizarPreview(versao), atraso);
 }
 
 // ---------------------------------------------------------------------------
@@ -504,6 +598,7 @@ function definirFerramenta(nome) {
         botao.classList.toggle('ativo', botao.dataset.ferramenta === nome);
     });
     elemento('poligonos-mapa').dataset.ferramenta = nome;
+    agendarAtualizacaoPreview();
 }
 
 function limparRascunho() {
@@ -904,6 +999,20 @@ export function iniciarPoligonos() {
     ligarArrasteDeVertices();
     ligarEdicaoDeLados();
 
+    const paginaPoligonos = elemento('page-poligonos');
+    ['input', 'change'].forEach(tipoEvento => {
+        paginaPoligonos.addEventListener(tipoEvento, evento => {
+            if (evento.target.matches('input, textarea, select')) agendarAtualizacaoPreview();
+        });
+    });
+    const areaPreview = elemento('poligonos-preview');
+    if (window.ResizeObserver) {
+        observadorPreview = new ResizeObserver(ajustarEscalaPreview);
+        observadorPreview.observe(areaPreview);
+    } else {
+        window.addEventListener('resize', ajustarEscalaPreview);
+    }
+
     document.querySelectorAll('[data-ferramenta]').forEach(botao => {
         botao.addEventListener('click', () => definirFerramenta(botao.dataset.ferramenta));
     });
@@ -944,6 +1053,7 @@ export function iniciarPoligonos() {
         if (confrontante) {
             rascunho.memorialLados[Number(confrontante.dataset.memorialConfrontante)].confrontante = confrontante.value;
         }
+        agendarAtualizacaoPreview();
     });
     elemento('poligonos-memorial-lados').addEventListener('change', evento => {
         const posicao = evento.target.closest('[data-memorial-posicao]');
@@ -956,6 +1066,7 @@ export function iniciarPoligonos() {
             });
             atualizarTabelaMemorial();
         }
+        agendarAtualizacaoPreview();
     });
     window.addEventListener('afterprint', () => {
         document.body.classList.remove('poligonos-imprimindo');
