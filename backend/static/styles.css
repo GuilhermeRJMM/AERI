@@ -3309,6 +3309,8 @@ body.modo-incorporado .layout { padding-top:28px; }
 
 .poligonos-grupo button:hover { background: rgba(255, 255, 255, 0.07); color: var(--text-main); }
 .poligonos-grupo button.ativo { background: var(--primary-color); color: #06231a; font-weight: 600; }
+.poligonos-acoes-rapidas button.perigo { color: #fecaca; border: 1px solid rgba(248, 113, 113, 0.45); }
+.poligonos-acoes-rapidas button.perigo:hover { background: rgba(220, 38, 38, 0.18); color: #fff; }
 .poligonos-cores button {
   width: 26px;
   height: 26px;

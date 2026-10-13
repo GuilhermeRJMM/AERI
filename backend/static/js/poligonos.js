@@ -14,7 +14,7 @@ import {
     perimetroM,
 } from './mapa/geometria.js?v=20261008-poligonos-v14';
 import {montarKml} from './mapa/kml.js?v=20261008-poligonos-v14';
-import {montarDocumentoPoligonos} from './mapa/documento.js?v=20261013-documento-enxuto-v1';
+import {montarDocumentoPoligonos} from './mapa/documento.js?v=20261013-confrontantes-na-planta-v1';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -646,6 +646,7 @@ function limparRascunho() {
     escreverDadosMapa({});
     rascunho.memorialLados = [];
     elemento('poligonos-excluir').hidden = true;
+    elemento('poligonos-sair-desenho').hidden = true;
     atualizarTudo();
 }
 
@@ -719,6 +720,7 @@ async function carregarSalvos() {
 
 function renderizarLista() {
     const lista = elemento('poligonos-lista');
+    elemento('poligonos-atalho-salvos').textContent = `Desenhos salvos (${salvos.length})`;
     if (!salvos.length) {
         lista.innerHTML = '<li class="poligonos-vazio">Nenhum desenho salvo ainda.</li>';
         return;
@@ -783,6 +785,7 @@ function abrirSalvo(id) {
     elemento('poligonos-observacao').value = item.observacao || '';
     escreverDadosMapa(item.dadosMapa);
     elemento('poligonos-excluir').hidden = false;
+    elemento('poligonos-sair-desenho').hidden = false;
     definirFerramenta(item.tipo === 'LINHA' ? 'linha' : item.tipo === 'PONTO' ? 'ponto' : 'poligono');
     mapa.ajustarPara(item.anel);
     conferirSobreposicoes(item.id);
@@ -842,6 +845,21 @@ async function excluir() {
     limparRascunho();
 }
 
+function sairDoDesenho() {
+    if (!rascunho.editandoId) return;
+    if (!confirm('Sair deste desenho? As alterações não salvas serão descartadas; o desenho salvo continuará na lista.')) return;
+    sobreposicoes = new Map();
+    elemento('poligonos-sobreposicao').hidden = true;
+    limparRascunho();
+    elemento('poligonos-status').textContent = 'Edição encerrada. O desenho salvo continua disponível na lista.';
+}
+
+function irParaDesenhosSalvos() {
+    const bloco = elemento('poligonos-salvos-bloco');
+    bloco.scrollIntoView({behavior: 'smooth', block: 'start'});
+    bloco.focus({preventScroll: true});
+}
+
 // ---------------------------------------------------------------------------
 // Importar e exportar
 // ---------------------------------------------------------------------------
@@ -858,6 +876,8 @@ async function importarTexto() {
         rascunho.anel = resultado.anel;
         rascunho.memorialLados = [];
         rascunho.editandoId = null;
+        elemento('poligonos-excluir').hidden = true;
+        elemento('poligonos-sair-desenho').hidden = true;
         mapa.ajustarPara(rascunho.anel);
         atualizarTudo();
         elemento('poligonos-status').textContent =
@@ -1083,6 +1103,8 @@ export function iniciarPoligonos() {
     elemento('poligonos-limpar').addEventListener('click', limparRascunho);
     elemento('poligonos-salvar').addEventListener('click', salvar);
     elemento('poligonos-excluir').addEventListener('click', excluir);
+    elemento('poligonos-sair-desenho').addEventListener('click', sairDoDesenho);
+    elemento('poligonos-atalho-salvos').addEventListener('click', irParaDesenhosSalvos);
     elemento('poligonos-importar').addEventListener('click', importarTexto);
     elemento('poligonos-copiar-coordenadas').addEventListener('click', copiarCoordenadas);
     elemento('poligonos-exportar-geojson').addEventListener('click', exportarGeoJson);
@@ -1162,4 +1184,6 @@ export function limparPoligonos() {
     sobreposicoes = new Map();
     rascunho.anel = [];
     rascunho.editandoId = null;
+    elemento('poligonos-excluir').hidden = true;
+    elemento('poligonos-sair-desenho').hidden = true;
 }

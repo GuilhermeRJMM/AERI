@@ -71,9 +71,17 @@ class TesteDocumentoPoligonos(unittest.TestCase):
         self.assertIn('class="rosa-ventos"', html)
         self.assertIn('>Norte da</text>', html)
         self.assertIn('>quadrícula</text>', html)
+        self.assertIn('class="confrontante-rua"', html)
+        self.assertIn('class="confrontante-area"', html)
+        self.assertIn('>Rua A</text>', html)
+        self.assertIn('>Lote 7</text>', html)
+        self.assertIn('Entorno ilustrativo conforme aos confrontantes informados', html)
         self.assertIn('do vértice P-01 ao vértice P-02', html)
         self.assertIn('confrontando com Rua A', html)
         self.assertIn('metros pela frente', html)
+        self.assertIn('<td>Frente</td>', html)
+        self.assertIn('<td>Lado direito</td>', html)
+        self.assertIn('<td>Fundos</td>', html)
         self.assertIn('Quadro de vértices', html)
         self.assertIn('1:', html)
 
@@ -86,6 +94,14 @@ class TesteDocumentoPoligonos(unittest.TestCase):
         self.assertIn('&lt;script&gt;', html)
         self.assertIn('Conferir confrontantes', html)
         self.assertIn('P-01–P-02', html)
+
+    def test_confrontante_informado_e_escapado_na_planta(self):
+        dados = _dados()
+        dados["dadosMapa"]["memorial"]["lados"][0]["confrontante"] = "Rua <teste> & vizinha"
+        html = self._gerar(dados)
+
+        self.assertIn('Rua &lt;teste&gt; &amp; vizinha', html)
+        self.assertNotIn('Rua <teste> & vizinha', html)
 
     def test_coordenadas_svg_usam_ponto_decimal(self):
         html = self._gerar(_dados())

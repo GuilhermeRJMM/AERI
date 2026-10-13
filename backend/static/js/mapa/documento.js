@@ -4,12 +4,12 @@ import {
 } from './geometria.js?v=20261008-poligonos-v14';
 
 const POSICOES = {
-    FRENTE: 'frente',
-    CHANFRO: 'chanfro',
-    FUNDOS: 'fundos',
-    DIREITO: 'lado direito',
-    ESQUERDO: 'lado esquerdo',
-    OUTRO: 'outro lado',
+    FRENTE: 'Frente',
+    CHANFRO: 'Chanfro',
+    FUNDOS: 'Fundos',
+    DIREITO: 'Lado direito',
+    ESQUERDO: 'Lado esquerdo',
+    OUTRO: 'Outro lado',
 };
 
 function escapar(valor) {
@@ -127,6 +127,27 @@ function textoMapa(texto, limite = 30) {
     return limpo.length > limite ? `${limpo.slice(0, limite - 1)}…` : limpo;
 }
 
+function ehViaPublica(texto) {
+    return /\b(rua|avenida|av\.?|rodovia|estrada|travessa|alameda|praça|praca|logradouro|via pública|via publica)\b/i.test(texto);
+}
+
+function faixaConfrontante(a, b, normalX, normalY, largura) {
+    const externoA = [a[0] + normalX * largura, a[1] + normalY * largura];
+    const externoB = [b[0] + normalX * largura, b[1] + normalY * largura];
+    const pontos = [a, b, externoB, externoA]
+        .map(p => `${svgNumero(p[0])},${svgNumero(p[1])}`).join(' ');
+    return {pontos, externoA, externoB};
+}
+
+function legendaConfrontante(texto, x, y, angulo, classe, larguraMaxima = 27) {
+    const rotulo = textoMapa(texto, larguraMaxima);
+    return `<g class="rotulo-confrontante ${classe}" transform="translate(${svgNumero(x)} ${svgNumero(y)}) rotate(${svgNumero(angulo)})">
+        <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+            font-size="2.5" font-weight="600" paint-order="stroke" stroke="#fff" stroke-width="1.1"
+            stroke-linejoin="round">${escapar(rotulo)}</text>
+    </g>`;
+}
+
 function montarSvgPlanta(verticesUtm, lados, memorial) {
     const larguraSvg = 180;
     const alturaSvg = 185;
@@ -156,6 +177,8 @@ function montarSvgPlanta(verticesUtm, lados, memorial) {
         return soma + p[0] * q[1] - q[0] * p[1];
     }, 0);
     const poligono = pontos.map(p => `${svgNumero(p[0])},${svgNumero(p[1])}`).join(' ');
+    const fora = areaSinal >= 0 ? 1 : -1;
+    const contextos = [];
     const medidas = lados.map((lado, indice) => {
         const a = pontos[lado.de - 1]; const b = pontos[lado.para - 1];
         const dx = b[0] - a[0]; const dy = b[1] - a[1];
@@ -164,14 +187,33 @@ function montarSvgPlanta(verticesUtm, lados, memorial) {
         let angulo = Math.atan2(dy, dx) * 180 / Math.PI;
         if (angulo > 90 || angulo < -90) angulo += 180;
         const larguraTexto = Math.min(27, Math.max(12, numero(lado.distancia).length * 1.7));
-        const fora = areaSinal >= 0 ? 1 : -1;
         const normalX = (dy / comprimento) * fora;
         const normalY = (-dx / comprimento) * fora;
-        const confrontante = textoMapa(confrontanteDo(memorial, indice), 27);
+        const confrontante = confrontanteDo(memorial, indice);
+        let rotulo = '';
+        if (confrontante) {
+            const via = ehViaPublica(confrontante);
+            const larguraContexto = via ? 8 : 6.5;
+            const faixa = faixaConfrontante(a, b, normalX, normalY, larguraContexto);
+            const nomeClasse = via ? 'confrontante-rua' : 'confrontante-area';
+            contextos.push(`<g class="${nomeClasse}">
+                <polygon points="${faixa.pontos}" fill="${via ? '#e2e8f0' : '#e8f0e4'}"
+                    stroke="#94a3b8" stroke-width="0.35" stroke-linejoin="round"/>
+                ${via ? `<path d="M ${svgNumero(a[0] + normalX * larguraContexto / 2)} ${svgNumero(a[1] + normalY * larguraContexto / 2)} L ${svgNumero(b[0] + normalX * larguraContexto / 2)} ${svgNumero(b[1] + normalY * larguraContexto / 2)}"
+                    fill="none" stroke="#fff" stroke-width="0.45" stroke-dasharray="1.4 1.2"/>` : ''}
+            </g>`);
+            // Mantém o nome fora da cota do lote e do miolo da faixa vizinha.
+            const deslocamentoRotulo = larguraContexto + 2;
+            rotulo = legendaConfrontante(confrontante,
+                meioX + normalX * deslocamentoRotulo,
+                meioY + normalY * deslocamentoRotulo,
+                angulo,
+                nomeClasse);
+        }
         return `<g class="medida-planta" transform="translate(${svgNumero(meioX)} ${svgNumero(meioY)}) rotate(${svgNumero(angulo)})">
             <rect x="${svgNumero(-larguraTexto / 2)}" y="-2.2" width="${svgNumero(larguraTexto)}" height="3" rx="0.6" fill="#fff"/>
             <text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="2.5">${numero(lado.distancia)} m</text>
-        </g>${confrontante ? `<text class="confrontante-planta" x="${svgNumero(meioX + normalX * 5.2)}" y="${svgNumero(meioY + normalY * 5.2)}" text-anchor="middle" dominant-baseline="central" font-size="2.5">${escapar(confrontante)}</text>` : ''}`;
+        </g>${rotulo}`;
     }).join('');
     const marcadores = pontos.map((p, indice) => `<g class="vertice-planta">
         <circle cx="${svgNumero(p[0])}" cy="${svgNumero(p[1])}" r="1.05" fill="#102b4e" stroke="#fff" stroke-width="0.45"/>
@@ -180,8 +222,10 @@ function montarSvgPlanta(verticesUtm, lados, memorial) {
 
     return `<svg class="poligonos-planta-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${larguraSvg} ${alturaSvg}" role="img" aria-label="Planta esquemática com rosa dos ventos">
         <rect x="0.3" y="0.3" width="${larguraSvg - 0.6}" height="${alturaSvg - 0.6}" fill="#fff" stroke="#9aa4b2" stroke-width="0.3"/>
+        ${contextos.join('')}
         <polygon points="${poligono}" fill="#f8fafc" stroke="#102b4e" stroke-width="0.8" stroke-linejoin="round"/>
         ${medidas}${marcadores}${rosaDosVentos(163, 25)}${barraEscala(escala)}
+        <text x="90" y="158" text-anchor="middle" font-size="2.2" fill="#64748b">Entorno ilustrativo conforme aos confrontantes informados</text>
         <text x="162" y="60" text-anchor="middle" font-size="2.5">Norte da</text>
         <text x="162" y="64" text-anchor="middle" font-size="2.5">quadrícula</text>
         <text x="162" y="174" text-anchor="middle" font-size="2.7">Escala</text>

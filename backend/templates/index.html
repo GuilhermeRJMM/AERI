@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20261013-preview-legivel-v5">
+    <link rel="stylesheet" href="/static/styles.css?v=20261013-acoes-desenho-v1">
     <link rel="stylesheet" href="/static/painel.css?v=20260904-barra">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -480,6 +480,11 @@
                                     <button type="button" id="poligonos-menos" title="Afastar">&minus;</button>
                                     <button type="button" id="poligonos-mais" title="Aproximar">+</button>
                                 </div>
+                                <div class="poligonos-grupo poligonos-acoes-rapidas" role="group" aria-label="Ações do desenho">
+                                    <button type="button" id="poligonos-atalho-salvos" title="Ir para a lista de desenhos salvos" aria-controls="poligonos-salvos-bloco">Desenhos salvos (0)</button>
+                                    <button type="button" id="poligonos-excluir" class="perigo" hidden>Excluir</button>
+                                    <button type="button" id="poligonos-sair-desenho" hidden>Sair do desenho</button>
+                                </div>
                             </div>
 
                             <div id="poligonos-mapa" class="poligonos-mapa" role="application" aria-label="Mapa para desenho de polígonos"></div>
@@ -532,7 +537,6 @@
                                 <textarea id="poligonos-observacao" rows="2" maxlength="2000" placeholder="Anotação de conferência"></textarea>
                                 <div class="poligonos-acoes">
                                     <button type="button" id="poligonos-salvar" class="btn btn-primary">Salvar</button>
-                                    <button type="button" id="poligonos-excluir" class="btn perigo" hidden>Excluir</button>
                                 </div>
                                 <p id="poligonos-status" class="poligonos-status" role="status" aria-live="polite"></p>
                             </section>
@@ -647,7 +651,7 @@
                                 <p class="poligonos-nota">Abre a impressão do navegador; selecione “Salvar como PDF” para gerar o arquivo.</p>
                             </section>
 
-                            <section class="poligonos-bloco">
+                            <section id="poligonos-salvos-bloco" class="poligonos-bloco" tabindex="-1">
                                 <h2>Desenhos salvos</h2>
                                 <ul id="poligonos-lista" class="poligonos-lista"></ul>
                             </section>
@@ -1240,6 +1244,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261013-preview-legivel-v5"></script>
+    <script type="module" src="/static/js/app.js?v=20261013-planta-contexto-v2"></script>
 </body>
 </html>
