@@ -27,6 +27,7 @@ let temporizadorPreview = null;
 let versaoPreview = 0;
 let observadorPreview = null;
 let controladorPreview = null;
+let paginaPreviewAmpliada = 0;
 
 const rascunho = {
     ferramenta: 'navegar',   // navegar | poligono | linha | ponto
@@ -515,6 +516,38 @@ function ajustarEscalaPreview() {
     area.style.setProperty('--poligonos-preview-escala', String(escala));
 }
 
+function atualizarPreviewAmpliado(indice = paginaPreviewAmpliada) {
+    const dialogo = elemento('poligonos-preview-dialog');
+    const conteudo = elemento('poligonos-preview-dialog-conteudo');
+    const fonte = elemento('poligonos-preview');
+    if (!dialogo || !conteudo || !fonte) return;
+
+    const paginas = [...fonte.querySelectorAll('.poligonos-preview-pagina')];
+    if (!paginas.length) {
+        if (dialogo.open) dialogo.close();
+        return;
+    }
+
+    paginaPreviewAmpliada = Math.max(0, Math.min(indice, paginas.length - 1));
+    const ampliada = paginas[paginaPreviewAmpliada].cloneNode(true);
+    ampliada.style.setProperty('--poligonos-preview-escala', '1');
+    conteudo.replaceChildren(ampliada);
+    dialogo.querySelectorAll('[data-preview-pagina]').forEach(botao => {
+        const numero = Number(botao.dataset.previewPagina);
+        botao.disabled = numero >= paginas.length;
+        botao.setAttribute('aria-pressed', String(numero === paginaPreviewAmpliada));
+    });
+    const titulo = elemento('poligonos-preview-dialog-titulo');
+    if (titulo) titulo.textContent = paginaPreviewAmpliada === 0 ? 'Planta — leitura ampliada' : 'Memorial — leitura ampliada';
+}
+
+function abrirPreviewAmpliado(indice = 0) {
+    const dialogo = elemento('poligonos-preview-dialog');
+    if (!dialogo || !elemento('poligonos-preview')?.querySelector('.poligonos-preview-pagina')) return;
+    atualizarPreviewAmpliado(indice);
+    if (!dialogo.open) dialogo.showModal();
+}
+
 function mostrarEstadoPreview(mensagem, vazio = false) {
     const status = elemento('poligonos-preview-status');
     const area = elemento('poligonos-preview');
@@ -522,6 +555,9 @@ function mostrarEstadoPreview(mensagem, vazio = false) {
     if (vazio && area) {
         area.innerHTML = '<div class="poligonos-preview-vazio">A prévia aparece quando o polígono tiver pelo menos três vértices.</div>';
     }
+    const ampliar = elemento('poligonos-preview-ampliar');
+    if (ampliar) ampliar.disabled = !area?.querySelector('.poligonos-preview-pagina');
+    if (elemento('poligonos-preview-dialog')?.open) atualizarPreviewAmpliado();
 }
 
 async function renderizarPreview(versao) {
@@ -1012,6 +1048,11 @@ export function iniciarPoligonos() {
     } else {
         window.addEventListener('resize', ajustarEscalaPreview);
     }
+    elemento('poligonos-preview-ampliar').addEventListener('click', () => abrirPreviewAmpliado());
+    elemento('poligonos-preview-fechar').addEventListener('click', () => elemento('poligonos-preview-dialog').close());
+    elemento('poligonos-preview-dialog').querySelectorAll('[data-preview-pagina]').forEach(botao => {
+        botao.addEventListener('click', () => atualizarPreviewAmpliado(Number(botao.dataset.previewPagina)));
+    });
 
     document.querySelectorAll('[data-ferramenta]').forEach(botao => {
         botao.addEventListener('click', () => definirFerramenta(botao.dataset.ferramenta));
