@@ -78,11 +78,13 @@ def _validar_entrada(dados: dict) -> dict:
 
 
 @router.get("")
-def listar_poligonos(_usuario: str = Depends(exigir_permissao("acessar_poligonos"))):
+def listar_poligonos(usuario: str = Depends(exigir_permissao("acessar_poligonos"))):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
-                "SELECT * FROM poligonos_aeri ORDER BY criado_em DESC LIMIT 500")
+                "SELECT * FROM poligonos_aeri WHERE criado_por=%s ORDER BY criado_em DESC LIMIT 500",
+                (usuario,),
+            )
             return [poligono_json(item) for item in cursor.fetchall()]
 
 
@@ -130,12 +132,12 @@ def atualizar_poligono(
             cursor.execute(
                 """UPDATE poligonos_aeri SET nome=%s, matricula=%s, tipo=%s,
                 anel=%s, area_m2=%s, perimetro_m=%s, cor=%s, observacao=%s,
-                dados_mapa=%s, atualizado_em=NOW() WHERE id=%s RETURNING *""",
+                dados_mapa=%s, atualizado_em=NOW() WHERE id=%s AND criado_por=%s RETURNING *""",
                 (
                     campos["nome"], campos["matricula"], campos["tipo"],
                     Jsonb(campos["anel"]), campos["area_m2"], campos["perimetro_m"],
                     campos["cor"], campos["observacao"],
-                    Jsonb(campos["dados_mapa"]), identificador,
+                    Jsonb(campos["dados_mapa"]), identificador, usuario,
                 ),
             )
             item = cursor.fetchone()
@@ -157,7 +159,10 @@ def excluir_poligono(
 ):
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            cursor.execute("DELETE FROM poligonos_aeri WHERE id=%s", (identificador,))
+            cursor.execute(
+                "DELETE FROM poligonos_aeri WHERE id=%s AND criado_por=%s",
+                (identificador, usuario),
+            )
             removidos = cursor.rowcount
             if removidos:
                 registrar_auditoria_cursor(
@@ -221,7 +226,7 @@ def _tem_recorte(cursor) -> bool:
     return bool(cursor.fetchone()["tem"])
 
 
-def _sobreposicoes_com_recorte(cursor, identificador: UUID) -> list:
+def _sobreposicoes_com_recorte(cursor, identificador: UUID, usuario: str) -> list:
     """Sobreposições com a área invadida, calculada pelo PostGIS.
 
     A interseção é recortada no plano e medida como geography, que é o
@@ -234,7 +239,7 @@ def _sobreposicoes_com_recorte(cursor, identificador: UUID) -> list:
         WITH alvo AS (
             SELECT aeri_anel_para_geometria(anel) AS forma
             FROM poligonos_aeri
-            WHERE id = %(id)s AND tipo = 'POLIGONO'
+            WHERE id = %(id)s AND criado_por = %(usuario)s AND tipo = 'POLIGONO'
         )
         SELECT p.id, p.nome, p.matricula, p.cor,
                -- CollectionExtract(..., 3) fica só com as partes que têm
@@ -251,12 +256,13 @@ def _sobreposicoes_com_recorte(cursor, identificador: UUID) -> list:
                ) AS area_invadida
         FROM poligonos_aeri p CROSS JOIN alvo
         WHERE p.id <> %(id)s
+          AND p.criado_por = %(usuario)s
           AND p.tipo = 'POLIGONO'
           AND ST_Intersects(alvo.forma, aeri_anel_para_geometria(p.anel))
         ORDER BY area_invadida DESC NULLS LAST
         LIMIT 500
         """,
-        {"id": identificador},
+        {"id": identificador, "usuario": usuario},
     )
     return [
         {
@@ -269,9 +275,12 @@ def _sobreposicoes_com_recorte(cursor, identificador: UUID) -> list:
     ]
 
 
-def _sobreposicoes_sem_recorte(cursor, identificador: UUID) -> list:
+def _sobreposicoes_sem_recorte(cursor, identificador: UUID, usuario: str) -> list:
     """Só quem se sobrepõe, sem quanto -- usado quando não há PostGIS."""
-    cursor.execute("SELECT COUNT(*) AS total FROM poligonos_aeri WHERE tipo='POLIGONO'")
+    cursor.execute(
+        "SELECT COUNT(*) AS total FROM poligonos_aeri WHERE criado_por=%s AND tipo='POLIGONO'",
+        (usuario,),
+    )
     if cursor.fetchone()["total"] > 500:
         raise HTTPException(
             status_code=503,
@@ -280,7 +289,10 @@ def _sobreposicoes_sem_recorte(cursor, identificador: UUID) -> list:
                 "500 polígonos. Ative a extensão para não receber um resultado incompleto."
             ),
         )
-    cursor.execute("SELECT * FROM poligonos_aeri WHERE tipo='POLIGONO' LIMIT 500")
+    cursor.execute(
+        "SELECT * FROM poligonos_aeri WHERE criado_por=%s AND tipo='POLIGONO' LIMIT 500",
+        (usuario,),
+    )
     todos = cursor.fetchall()
 
     alvo = next((p for p in todos if str(p["id"]) == str(identificador)), None)
@@ -302,7 +314,7 @@ def _sobreposicoes_sem_recorte(cursor, identificador: UUID) -> list:
 @router.get("/{identificador}/sobreposicoes")
 def listar_sobreposicoes(
     identificador: UUID,
-    _usuario: str = Depends(exigir_permissao("acessar_poligonos")),
+    usuario: str = Depends(exigir_permissao("acessar_poligonos")),
 ):
     """Quais outros desenhos invadem ou encostam neste.
 
@@ -313,17 +325,19 @@ def listar_sobreposicoes(
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             if _tem_recorte(cursor):
-                achados = _sobreposicoes_com_recorte(cursor, identificador)
+                achados = _sobreposicoes_com_recorte(cursor, identificador, usuario)
                 if achados:
                     return achados
                 # Lista vazia pode ser "não há invasão" ou "o id não
                 # existe"; a consulta com CROSS JOIN não distingue os dois.
                 cursor.execute(
-                    "SELECT 1 FROM poligonos_aeri WHERE id=%s", (identificador,))
+                    "SELECT 1 FROM poligonos_aeri WHERE id=%s AND criado_por=%s",
+                    (identificador, usuario),
+                )
                 if not cursor.fetchone():
                     raise HTTPException(status_code=404, detail="Polígono não encontrado.")
                 return []
-            return _sobreposicoes_sem_recorte(cursor, identificador)
+            return _sobreposicoes_sem_recorte(cursor, identificador, usuario)
 
 
 @router.post("/utm")

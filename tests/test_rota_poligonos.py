@@ -51,12 +51,30 @@ class TesteDeteccaoDoRecorte(unittest.TestCase):
 class TesteSemPostgis(unittest.TestCase):
     """Sem a extensão, responde quem se sobrepõe, sem medir."""
 
+    def test_busca_de_sobreposicoes_fica_limitada_ao_usuario(self):
+        cursor = MagicMock()
+        cursor.fetchone.side_effect = [{"tem": False}, {"total": 1}]
+        cursor.fetchall.return_value = [
+            {"id": ALVO, "nome": "Gleba A", "matricula": 1,
+             "cor": "#f97316", "anel": _quadrado(0, 0), "tipo": "POLIGONO"},
+        ]
+        with patch.object(R, "conectar", return_value=_conexao(cursor)):
+            self.assertEqual(
+                R.listar_sobreposicoes(ALVO, usuario="PREFEITURA"), [])
+
+        consulta_contagem = cursor.execute.call_args_list[1].args
+        consulta_desenhos = cursor.execute.call_args_list[2].args
+        self.assertIn("criado_por=%s", consulta_contagem[0])
+        self.assertEqual(consulta_contagem[1], ("PREFEITURA",))
+        self.assertIn("criado_por=%s", consulta_desenhos[0])
+        self.assertEqual(consulta_desenhos[1], ("PREFEITURA",))
+
     def _executar(self, linhas):
         cursor = MagicMock()
         cursor.fetchone.side_effect = [{"tem": False}, {"total": len(linhas)}]
         cursor.fetchall.return_value = linhas
         with patch.object(R, "conectar", return_value=_conexao(cursor)):
-            return R.listar_sobreposicoes(ALVO, _usuario="TESTE")
+            return R.listar_sobreposicoes(ALVO, usuario="TESTE")
 
     def test_vizinho_que_invade_aparece_sem_medida(self):
         achados = self._executar([
@@ -96,7 +114,7 @@ class TesteComPostgis(unittest.TestCase):
         cursor.fetchone.side_effect = [{"tem": True}, {"?column?": 1} if existe_alvo else None]
         cursor.fetchall.return_value = linhas
         with patch.object(R, "conectar", return_value=_conexao(cursor)):
-            return R.listar_sobreposicoes(ALVO, _usuario="TESTE"), cursor
+            return R.listar_sobreposicoes(ALVO, usuario="TESTE"), cursor
 
     def test_area_invadida_vem_do_banco(self):
         achados, _ = self._executar([
@@ -146,6 +164,8 @@ class TesteComPostgis(unittest.TestCase):
         sql = cursor.execute.call_args_list[1].args[0]
         self.assertIn("aeri_anel_para_geometria", sql)
         self.assertIn("ST_Intersects", sql)
+        self.assertIn("p.criado_por = %(usuario)s", sql)
+        self.assertIn("criado_por = %(usuario)s", sql)
         # Sem CollectionExtract, uma interseção que devolve linha ou
         # coleção quebraria a medição de área.
         self.assertIn("ST_CollectionExtract", sql)
@@ -214,6 +234,43 @@ class TesteValidacaoDeEntrada(unittest.TestCase):
         validado = R.validar_dados_memorial(
             {"assinarProprietario": "false"}, 3)
         self.assertFalse(validado["assinarProprietario"])
+
+
+class TesteIsolamentoPorUsuario(unittest.TestCase):
+    def test_listagem_filtra_pelo_usuario_autenticado(self):
+        cursor = MagicMock()
+        cursor.fetchall.return_value = []
+        with patch.object(R, "conectar", return_value=_conexao(cursor)):
+            self.assertEqual(R.listar_poligonos(usuario="PREFEITURA"), [])
+
+        sql, parametros = cursor.execute.call_args.args
+        self.assertIn("WHERE criado_por=%s", sql)
+        self.assertEqual(parametros, ("PREFEITURA",))
+
+    def test_edicao_nao_encontra_poligono_de_outro_usuario(self):
+        cursor = MagicMock()
+        cursor.fetchone.return_value = None
+        dados = {"nome": "Desenho", "anel": _quadrado(0, 0)}
+        with patch.object(R, "conectar", return_value=_conexao(cursor)):
+            with self.assertRaises(HTTPException) as erro:
+                R.atualizar_poligono(ALVO, dados, MagicMock(), usuario="PREFEITURA")
+
+        self.assertEqual(erro.exception.status_code, 404)
+        sql, parametros = cursor.execute.call_args.args
+        self.assertIn("WHERE id=%s AND criado_por=%s", sql)
+        self.assertEqual(parametros[-2:], (ALVO, "PREFEITURA"))
+
+    def test_exclusao_nao_remove_poligono_de_outro_usuario(self):
+        cursor = MagicMock()
+        cursor.rowcount = 0
+        with patch.object(R, "conectar", return_value=_conexao(cursor)):
+            with self.assertRaises(HTTPException) as erro:
+                R.excluir_poligono(ALVO, MagicMock(), usuario="PREFEITURA")
+
+        self.assertEqual(erro.exception.status_code, 404)
+        sql, parametros = cursor.execute.call_args.args
+        self.assertIn("WHERE id=%s AND criado_por=%s", sql)
+        self.assertEqual(parametros, (ALVO, "PREFEITURA"))
 
 
 if __name__ == "__main__":
