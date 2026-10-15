@@ -25,6 +25,7 @@ let indiceFilaRtdSeparada = 0;
 let filaRtdFinalizada = false;
 let uploadRtdAtual = null;
 let uploadRtdController = null;
+let arquivoRtdPendente = null;
 const LIMITE_PDF_RTD = 25 * 1024 * 1024;
 
 function opcoesJsonRtd(dados, signal) {
@@ -413,6 +414,8 @@ function abrirEnvioRtd(id, paresRtd = null, dadosCredor = null) {
     extracaoRtdEmCurso = false;
     document.getElementById('form-rtd-notificacao').reset();
     document.getElementById('rtd-arquivo-notificacao').disabled = false;
+    arquivoRtdPendente = null;
+    document.getElementById('btn-repetir-envio-pdf-rtd').hidden = true;
     document.getElementById('rtd-extracao-status').textContent = '';
     document.getElementById('rtd-envio-intimacao-id').value = id;
     document.getElementById('rtd-envio-operacao-id').value = novaChaveOperacaoRtd();
@@ -448,9 +451,9 @@ function fecharEnvioRtd() {
     document.getElementById('modal-rtd-notificacao').classList.remove('aberta');
 }
 
-async function extrairDocumentoRtdSelecionado() {
+async function extrairDocumentoRtdSelecionado(arquivoForcado = null) {
     const arquivoInput = document.getElementById('rtd-arquivo-notificacao');
-    const arquivo = arquivoInput.files?.[0];
+    const arquivo = arquivoForcado instanceof File ? arquivoForcado : arquivoInput.files?.[0];
     const status = document.getElementById('rtd-envio-status');
     const statusExtracao = document.getElementById('rtd-extracao-status');
     const mostrarStatus = mensagem => { status.textContent = mensagem; statusExtracao.textContent = mensagem; };
@@ -462,6 +465,7 @@ async function extrairDocumentoRtdSelecionado() {
     uploadRtdController = controlador;
     const uploadAnterior = uploadRtdAtual;
     uploadRtdAtual = null;
+    document.getElementById('btn-repetir-envio-pdf-rtd').hidden = true;
     if (arquivo.name.toLocaleLowerCase('pt-BR') !== 'documentos rtd.pdf' || arquivo.size > LIMITE_PDF_RTD) {
         mostrarStatus('Selecione Documentos RTD.pdf da pasta deste IN, com até 25 MB.');
         arquivoInput.value = '';
@@ -492,6 +496,7 @@ async function extrairDocumentoRtdSelecionado() {
         });
         if (!respostaUpload.ok) throw new Error('O armazenamento não confirmou o envio. Tente selecionar o PDF novamente.');
         uploadConcluido = true;
+        arquivoRtdPendente = null;
         if (versao !== versaoExtracaoRtd || document.getElementById('rtd-envio-intimacao-id').value !== id
             || arquivoInput.files?.[0] !== arquivo) return;
         if (filaRtdDosOriginais) {
@@ -522,7 +527,7 @@ async function extrairDocumentoRtdSelecionado() {
                 Cidade:endereco.cidade, UF:endereco.uf},
         })));
         if (!pares.length || pares.length > 20) {
-            mostrarStatus('O PDF não forneceu uma combinação válida de devedor e endereço de Morrinhos. Revise o documento e preencha manualmente.');
+            mostrarStatus('O PDF foi guardado e será anexado à notificação ao RTD. Não consegui identificar uma combinação válida de devedor e endereço de Morrinhos; confira o documento e preencha esses campos manualmente antes de enviar.');
             return;
         }
         if (dados.cnpjCredor) document.getElementById('rtd-credor-cnpj').value = dados.cnpjCredor;
@@ -540,15 +545,19 @@ async function extrairDocumentoRtdSelecionado() {
             const uploadFalhou = uploadRtdAtual;
             uploadRtdAtual = null;
             void removerUploadRtd(uploadFalhou);
-            arquivoInput.value = '';
         }
         if (versao === versaoExtracaoRtd && erro.name !== 'AbortError') {
             const falhaDeRede = erro instanceof TypeError
                 && /failed to fetch|networkerror|load failed/i.test(erro.message || '');
-            const mensagem = falhaDeRede
-                ? `A conexão falhou ao ${etapaExtracao}. A leitura não foi concluída; nenhum envio ao RTD foi feito.`
-                : erro.message;
-            mostrarStatus(`${mensagem} Os campos continuam disponíveis para preenchimento manual.`);
+            if (!uploadConcluido) {
+                arquivoRtdPendente = arquivo;
+                document.getElementById('btn-repetir-envio-pdf-rtd').hidden = false;
+                const motivo = falhaDeRede ? `A conexão falhou ao ${etapaExtracao}.` : erro.message;
+                mostrarStatus(`${motivo} O PDF ainda não foi guardado; por isso não pode ser anexado nem enviado ao RTD. Mantive o arquivo selecionado. Tente enviar o PDF novamente.`);
+            } else {
+                const motivo = falhaDeRede ? `A conexão falhou ao ${etapaExtracao}.` : erro.message;
+                mostrarStatus(`${motivo} O PDF já foi guardado e será anexado quando você confirmar o envio ao RTD. A leitura automática não terminou; confira e preencha os campos manualmente. A notificação ainda não foi enviada.`);
+            }
         }
     } finally {
         if (versao === versaoExtracaoRtd) {
@@ -1305,7 +1314,14 @@ export function iniciarIntimacoes() {
         if (evento.target.id === 'modal-rtd-notificacao') fecharEnvioRtd();
     });
     document.getElementById('btn-buscar-cartorios-rtd').addEventListener('click', buscarCartoriosRtd);
-    document.getElementById('rtd-arquivo-notificacao').addEventListener('change', extrairDocumentoRtdSelecionado);
+    document.getElementById('rtd-arquivo-notificacao').addEventListener('change', () => {
+        arquivoRtdPendente = null;
+        document.getElementById('btn-repetir-envio-pdf-rtd').hidden = true;
+        void extrairDocumentoRtdSelecionado();
+    });
+    document.getElementById('btn-repetir-envio-pdf-rtd').addEventListener('click', () => {
+        if (arquivoRtdPendente) void extrairDocumentoRtdSelecionado(arquivoRtdPendente);
+    });
     document.getElementById('btn-adicionar-notificado-rtd').addEventListener('click', novoCampoNotificado);
     document.getElementById('btn-adicionar-endereco-rtd').addEventListener('click', () => novoCampoNotificado({copiarPessoa:true}));
     document.getElementById('btn-abrir-pasta-rtd').addEventListener('click', () => {

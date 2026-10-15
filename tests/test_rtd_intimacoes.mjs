@@ -52,5 +52,8 @@ assert.ok(!detalhesRtd(malicioso).includes('<img>'));
 assert.match(telaIntimacoes, /method:'PUT', body:arquivo, signal:controlador\.signal/);
 assert.doesNotMatch(telaIntimacoes, /method:'PUT', headers:\s*\{\s*'Content-Type':'application\/pdf'/);
 assert.ok(telaIntimacoes.includes('A conexão falhou ao ${etapaExtracao}.'));
+assert.ok(telaIntimacoes.includes('O PDF já foi guardado e será anexado quando você confirmar o envio ao RTD.'));
+assert.ok(telaIntimacoes.includes('btn-repetir-envio-pdf-rtd'));
+assert.doesNotMatch(telaIntimacoes, /arquivoInput\.value\s*=\s*'';\s*\}\s*if\s*\(versao\s*===\s*versaoExtracaoRtd/);
 
 console.log('RTD frontend: verificações de destaque, separação e comparação aprovadas.');

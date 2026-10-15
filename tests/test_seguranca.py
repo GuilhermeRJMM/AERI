@@ -365,6 +365,10 @@ class TesteSeguranca(unittest.TestCase):
             "http://localhost:3031",
             cabecalhos["content-security-policy"],
         )
+        self.assertIn(
+            "connect-src 'self' https://vercel.com https://*.private.blob.vercel-storage.com",
+            cabecalhos["content-security-policy"],
+        )
 
     def test_ip_cliente_usa_o_ultimo_salto_do_x_forwarded_for(self):
         # O último salto é escrito pelo proxy confiável (Vercel); os
