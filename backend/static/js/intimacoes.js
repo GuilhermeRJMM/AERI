@@ -14,6 +14,8 @@ let filtroSituacao = 'TODAS';
 let exibindoLixeira = false;
 let statusRtd = null;
 let statusRtdConsultado = 0;
+let filtroFila = 'PENDENTES';
+let intimacaoSelecionadaId = null;
 const enviosRtdPorIntimacao = new Map();
 const enviosRtdCarregando = new Set();
 let envioRtdEmCurso = false;
@@ -124,6 +126,96 @@ function acoesIntimacao(item, incluirDetalhes = false) {
         cargoAdministrativo() ? `<button class="perigo" data-acao="excluir" data-id="${item.id}" title="Excluir">Excluir</button>` : '',
     ].filter(Boolean).join('');
     return disponiveis ? `<div class="rotina-row-actions">${disponiveis}</div>` : '<span class="rotina-total">Somente leitura</span>';
+}
+
+function rotuloFaseIntimacao(fase) {
+    return ({INTIMACAO:'Intimação', EDITAL:'Edital', CONSOLIDACAO:'Consolidação'})[fase] || 'Intimação';
+}
+
+function proximaAcaoIntimacao(item) {
+    if (temNovidadeRtd(item)) return {
+        titulo:'Confira a atualização recebida no RTD',
+        texto:'Compare a situação e os documentos do RTD com o andamento registrado no AERI. Depois, abra os detalhes para marcar a atualização como vista e registrar a conferência diária, se aplicável.',
+        botao:'Revisar RTD e documentos', acao:'detalhes',
+    };
+    const situacao = situacaoIntimacao(item);
+    if (situacao.classe !== 'verde' && pode('conferir_intimacoes')) return {
+        titulo:'Faça a conferência diária deste IN',
+        texto:'Consulte este protocolo no Ofício Eletrônico. Se houver andamento novo, registre-o no AERI; se não houver, confirme que o andamento atual permanece.',
+        botao:'Conferir agora', acao:'conferir',
+    };
+    if (situacao.classe !== 'verde') return {
+        titulo:'Conferência diária pendente',
+        texto:'Este protocolo ainda precisa ser conferido por alguém com permissão para registrar a rotina. Consulte os detalhes para acompanhar a situação.',
+        botao:'Ver detalhes', acao:'detalhes',
+    };
+    return {
+        titulo:'Conferência de hoje concluída',
+        texto:'Acompanhe novas movimentações do RTD e retome a conferência na próxima rotina diária.',
+        botao:'Abrir detalhes', acao:'detalhes',
+    };
+}
+
+function renderizarCartaoFila(item) {
+    const situacao = situacaoIntimacao(item);
+    const novidade = temNovidadeRtd(item);
+    const selecionado = item.id === intimacaoSelecionadaId;
+    return `<article class="rotina-fila-cartao ${selecionado ? 'selecionado' : ''} ${situacao.classe}">
+        <button type="button" class="rotina-fila-selecionar" data-selecionar-intimacao="${escaparHtml(item.id)}" aria-pressed="${selecionado}">
+            <span class="rotina-fila-conteudo">
+                <span class="rotina-fila-linha"><strong>${escaparHtml(item.protocolo)}</strong><span class="rotina-fila-situacao ${novidade ? 'rtd' : situacao.classe}">${novidade ? 'Nova movimentação RTD' : escaparHtml(situacao.rotulo)}</span></span>
+                <span class="rotina-fila-partes">${escaparHtml(item.credor)} <i>·</i> ${escaparHtml(item.devedor)}</span>
+                <span class="rotina-fila-andamento">${escaparHtml(item.nomeAndamento || 'Andamento não informado')}</span>
+                <span class="rotina-fila-data">${formatarDataRotina(item.ultimoAndamento)}${item.ultimaConferencia ? ` · Conferida em ${formatarDataRotina(item.ultimaConferencia)}` : ' · Ainda sem conferência'}</span>
+            </span>
+            <span class="rotina-fila-chevron" aria-hidden="true">›</span>
+        </button>
+    </article>`;
+}
+
+function renderizarFocoIntimacao(item, totalFila) {
+    const foco = document.getElementById('rotina-foco');
+    if (!foco) return;
+    if (!item) {
+        foco.innerHTML = '<div class="rotina-foco-vazio"><span class="rotina-foco-icone">✓</span><h2>Nada nesta fila</h2><p>Não há protocolos que correspondam aos filtros selecionados. Escolha outra fase ou consulte todos os protocolos.</p></div>';
+        return;
+    }
+    const situacao = situacaoIntimacao(item);
+    const acao = proximaAcaoIntimacao(item);
+    const fases = [{id:'INTIMACAO', nome:'Intimação'}, {id:'EDITAL', nome:'Edital'}, {id:'CONSOLIDACAO', nome:'Consolidação'}];
+    const faseAtual = Math.max(0, fases.findIndex(fase => fase.id === item.fase));
+    const trilha = fases.map((fase, indice) => `<div class="rotina-foco-etapa ${indice < faseAtual ? 'concluida' : indice === faseAtual ? 'atual' : ''}"><i aria-hidden="true"></i><span>${fase.nome}</span></div>`).join('');
+    const novidade = temNovidadeRtd(item);
+    foco.innerHTML = `<div class="rotina-foco-cabecalho">
+        <div><span class="eyebrow">EM FOCO · ${escaparHtml(rotuloFaseIntimacao(item.fase).toUpperCase())}</span><h2>${escaparHtml(item.protocolo)}</h2></div>
+        <span class="rotina-foco-badge ${novidade ? 'rtd' : situacao.classe}"><i></i>${novidade ? 'Novidade RTD' : escaparHtml(situacao.rotulo)}</span>
+    </div>
+    <div class="rotina-foco-metadados"><div><span>Credor</span><strong>${escaparHtml(item.credor)}</strong></div><div><span>Devedor</span><strong>${escaparHtml(item.devedor)}</strong></div></div>
+    <div class="rotina-foco-trilha" aria-label="Etapa atual do procedimento">${trilha}</div>
+    <section class="rotina-foco-andamento"><div><span>Último andamento registrado</span><strong>${escaparHtml(item.nomeAndamento || 'Não informado')}</strong></div><time>${formatarDataRotina(item.ultimoAndamento)}</time></section>
+    ${novidade ? `<section class="rotina-foco-rtd" aria-label="Novidade do RTD"><strong>Atualização detectada na consulta ao RTD</strong>${resumoRtd(item)}<p>Abra os detalhes para conferir o histórico e os documentos antes de marcar como vista.</p></section>` : ''}
+    <section class="rotina-proxima-acao ${novidade ? 'prioritaria' : ''}"><span class="eyebrow">PRÓXIMO PASSO</span><h3>${acao.titulo}</h3><p>${acao.texto}</p><button type="button" class="rotina-acao-principal" data-acao="${acao.acao}" data-id="${escaparHtml(item.id)}">${acao.botao}<span aria-hidden="true">→</span></button></section>
+    <div class="rotina-foco-rodape"><span>${totalFila} ${totalFila === 1 ? 'protocolo na fila' : 'protocolos na fila'}</span><details><summary>Mais ações</summary><div class="rotina-foco-mais-acoes">${botaoPastaIntimacao(item)}${acoesIntimacao(item, false)}</div></details></div>
+    ${detalhesAbertos.has(item.id) ? `<div class="rotina-foco-detalhes">${detalhesFaseInicial(item)}</div>` : ''}`;
+}
+
+function renderizarCentralAcao(filtradas) {
+    const lista = document.getElementById('rotina-fila');
+    const contador = document.getElementById('rotina-total-fila');
+    if (!lista) return;
+    let fila = filtradas;
+    if (filtroFila === 'PENDENTES') fila = fila.filter(item => situacaoIntimacao(item).classe !== 'verde');
+    if (filtroFila === 'RTD') fila = fila.filter(temNovidadeRtd);
+    if (!fila.some(item => item.id === intimacaoSelecionadaId)) intimacaoSelecionadaId = fila[0]?.id || null;
+    const selecionada = fila.find(item => item.id === intimacaoSelecionadaId) || null;
+    lista.innerHTML = fila.map(renderizarCartaoFila).join('') || '<div class="rotina-fila-vazia">Nenhum protocolo nesta fila.</div>';
+    if (contador) contador.textContent = `${fila.length} ${fila.length === 1 ? 'protocolo' : 'protocolos'}`;
+    document.querySelectorAll('[data-fila-filtro]').forEach(botao => {
+        const ativo = botao.dataset.filaFiltro === filtroFila;
+        botao.classList.toggle('ativa', ativo);
+        botao.setAttribute('aria-pressed', String(ativo));
+    });
+    renderizarFocoIntimacao(selecionada, fila.length);
 }
 
 function campoCard(rotulo, valor, classe = '') {
@@ -570,12 +662,15 @@ function renderizarIntimacoes() {
         if (!detalhesAbertos.has(item.id)) return linha;
         return `${linha}<tr class="rotina-detalhes-row"><td colspan="9">${detalhesFaseInicial(item)}</td></tr>`;
     }).join('') || '<tr><td colspan="9" class="rotina-vazio">Nenhuma intimação cadastrada. Use “Nova intimação” ou importe sua planilha em CSV.</td></tr>';
+    renderizarCentralAcao(filtradas);
 
     const contagens = {verde:0, amarelo:0, vermelho:0, cinza:0};
     daFase.forEach(item => contagens[situacaoIntimacao(item).classe]++);
+    const novidadesRtd = daFase.filter(temNovidadeRtd).length;
+    const pendentes = daFase.filter(item => situacaoIntimacao(item).classe !== 'verde').length;
     document.getElementById('rotina-resumo').innerHTML = [
-        ['verde','Conferidas hoje',contagens.verde], ['amarelo','Vencem hoje',contagens.amarelo],
-        ['vermelho','Atrasadas',contagens.vermelho], ['cinza','Sem atividade',contagens.cinza],
+        ['azul','Na fase selecionada',daFase.length], ['amarelo','Ações pendentes',pendentes],
+        ['rtd','Novidades do RTD',novidadesRtd], ['verde','Conferidas hoje',contagens.verde],
     ].map(([classe, rotulo, valor]) => `<div class="rotina-resumo-card ${classe}"><span>${rotulo}</span><strong>${valor}</strong></div>`).join('');
     FASES_INTIMACAO.forEach(fase => {
         const total = intimacoes.filter(item => item.fase === fase).length;
@@ -1021,21 +1116,21 @@ async function tratarAcaoTabela(evento) {
 export function iniciarIntimacoes() {
     iniciarDocumentosIntimacao((id, pares, credor) => abrirEnvioRtd(id, pares, credor));
     if (!document.getElementById('rtd-estilos')) {
-        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261015-anexos-v2'; document.head.appendChild(css);
+        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261015-central-acao-v1'; document.head.appendChild(css);
         const painel = document.createElement('section'); painel.id='rtd-painel'; painel.className='rtd-painel'; painel.setAttribute('aria-label','Acompanhamento das diligências RTD');
         document.getElementById('rotina-resumo').before(painel);
         painel.addEventListener('click', async evento => {
             if (!evento.target.closest('[data-rtd-novidades]')) return;
-            faseAtiva='TODAS'; filtroSituacao='RTD'; exibindoLixeira=false;
+            faseAtiva='TODAS'; filtroSituacao='RTD'; filtroFila='RTD'; exibindoLixeira=false;
             document.getElementById('busca-intimacao').value='';
             document.getElementById('filtro-situacao-intimacao').value='RTD';
             await carregarIntimacoes();
-            document.querySelector('.rotina-table-wrap')?.scrollIntoView({behavior:'smooth', block:'start'});
+            document.querySelector('.rotina-fila-filtros')?.scrollIntoView({behavior:'smooth', block:'start'});
         });
     }
     window.addEventListener('aeri:abrir-alerta', async evento => {
         if (evento.detail.modulo !== 'rotina') return;
-        faseAtiva='TODAS'; filtroSituacao='PENDENTES'; exibindoLixeira=false;
+        faseAtiva='TODAS'; filtroSituacao='PENDENTES'; filtroFila='PENDENTES'; exibindoLixeira=false;
         document.getElementById('filtro-situacao-intimacao').value='PENDENTES';
         await carregarIntimacoes();
     });
@@ -1096,6 +1191,21 @@ export function iniciarIntimacoes() {
         evento.target.value = evento.target.value.replace(/\D/g, '').slice(0, 17);
     });
     document.getElementById('rotina-tbody').addEventListener('click', tratarAcaoTabela);
+    document.getElementById('rotina-central-acao').addEventListener('click', async evento => {
+        const filtro = evento.target.closest('[data-fila-filtro]');
+        if (filtro) {
+            filtroFila = filtro.dataset.filaFiltro;
+            renderizarIntimacoes();
+            return;
+        }
+        const selecao = evento.target.closest('[data-selecionar-intimacao]');
+        if (selecao) {
+            intimacaoSelecionadaId = selecao.dataset.selecionarIntimacao;
+            renderizarIntimacoes();
+            return;
+        }
+        await tratarAcaoTabela(evento);
+    });
     document.getElementById('importar-intimacoes').addEventListener('change', importarIntimacoesCsv);
     document.getElementById('btn-exportar-intimacoes').addEventListener('click', exportarIntimacoesCsv);
     document.getElementById('btn-fechar-rtd-notificacao').addEventListener('click', fecharEnvioRtd);

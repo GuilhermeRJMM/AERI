@@ -130,3 +130,105 @@
   .rtd-envio-endereco { grid-template-columns:repeat(2,minmax(100px,1fr)); }
   .rtd-envio-endereco label:nth-child(2) { grid-column:span 1; }
 }
+
+/* Central da próxima ação: fila priorizada ligada aos dados reais. */
+.rotina-table-wrap[hidden] { display:none !important; }
+.rotina-fila-filtros { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:0 16px 14px; }
+.rotina-fila-filtros button { border:1px solid #33415c; border-radius:999px; background:#141d30; color:#9eacc4; padding:8px 12px; font-family:inherit; font-size:.72rem; font-weight:600; line-height:1.2; cursor:pointer; transition:all .16s ease; }
+.rotina-fila-filtros button:hover { border-color:#4b647f; color:#edf4ff; }
+.rotina-fila-filtros button.ativa { border-color:#3b9475; background:#15342d; color:#76e0b6; }
+.rotina-central-acao { display:grid; grid-template-columns:minmax(0,1.03fr) minmax(350px,.97fr); gap:14px; padding:0 14px 14px; align-items:start; }
+.rotina-fila-painel,.rotina-foco { min-width:0; overflow:hidden; border:1px solid #2a3852; border-radius:16px; background:linear-gradient(155deg,#172238,#111a2b 70%); }
+.rotina-fila-titulo { display:flex; align-items:flex-end; justify-content:space-between; gap:10px; padding:16px 17px 12px; border-bottom:1px solid #26334b; }
+.rotina-fila-titulo h2 { margin:4px 0 0; color:#edf2fd; font-size:1.05rem; letter-spacing:-.025em; }
+.rotina-fila-titulo .eyebrow { color:#61d7a8; font-size:.62rem; font-weight:800; letter-spacing:.12em; }
+.rotina-fila-lista { display:grid; gap:8px; max-height:690px; overflow:auto; padding:10px; scrollbar-color:#42516c transparent; }
+.rotina-fila-cartao { position:relative; overflow:hidden; border:1px solid #293750; border-radius:12px; background:#151f32; transition:border-color .15s ease,background .15s ease,transform .15s ease; }
+.rotina-fila-cartao:hover { border-color:#445878; transform:translateY(-1px); }
+.rotina-fila-cartao.selecionado { border-color:#48c99a; background:linear-gradient(105deg,#17352f,#18243a 70%); box-shadow:0 0 0 1px #48c99a20; }
+.rotina-fila-cartao:before { content:""; position:absolute; inset:0 auto 0 0; width:3px; background:#73829b; }
+.rotina-fila-cartao.verde:before { background:#40cb98; }
+.rotina-fila-cartao.amarelo:before { background:#f2bd52; }
+.rotina-fila-cartao.vermelho:before { background:#f07878; }
+.rotina-fila-cartao.cinza:before { background:#7b879b; }
+.rotina-fila-selecionar { display:grid; grid-template-columns:1fr auto; width:100%; gap:8px; padding:12px 12px 12px 15px; border:0; background:transparent; color:inherit; text-align:left; cursor:pointer; }
+.rotina-fila-conteudo { display:grid; min-width:0; gap:5px; }
+.rotina-fila-linha { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.rotina-fila-linha strong { color:#f0f4ff; font-size:.83rem; letter-spacing:.015em; }
+.rotina-fila-situacao { max-width:58%; overflow:hidden; border:1px solid #35435d; border-radius:99px; background:#202c43; color:#bdc9dd; padding:4px 8px; font-size:.62rem; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+.rotina-fila-situacao.verde { border-color:#27634f; background:#16382e; color:#79dfb5; }
+.rotina-fila-situacao.amarelo { border-color:#68552c; background:#392f1d; color:#f1ce7d; }
+.rotina-fila-situacao.vermelho { border-color:#67363b; background:#3a242c; color:#ff9b9b; }
+.rotina-fila-situacao.cinza { border-color:#3b465a; background:#242d3e; color:#b6c0d1; }
+.rotina-fila-situacao.rtd { border-color:#51477c; background:#302b4e; color:#c1b4ff; }
+.rotina-fila-partes,.rotina-fila-andamento,.rotina-fila-data { display:block; overflow:hidden; color:#aab7cd; font-size:.69rem; text-overflow:ellipsis; white-space:nowrap; }
+.rotina-fila-partes i { padding:0 3px; color:#64738d; font-style:normal; }
+.rotina-fila-andamento { color:#e0e7f3; font-size:.73rem; font-weight:600; }
+.rotina-fila-data { color:#8796af; font-size:.64rem; }
+.rotina-fila-chevron { align-self:center; color:#7384a0; font-size:1.5rem; }
+.rotina-fila-vazia { padding:28px 16px; color:#aab7cd; font-size:.82rem; text-align:center; }
+.rotina-foco { position:sticky; top:14px; padding:17px; }
+.rotina-foco-cabecalho { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.rotina-foco-cabecalho .eyebrow { color:#65d9ad; font-size:.61rem; font-weight:800; letter-spacing:.12em; }
+.rotina-foco-cabecalho h2 { margin:5px 0 0; color:#f1f5ff; font-size:1.3rem; letter-spacing:-.04em; }
+.rotina-foco-badge { display:inline-flex; align-items:center; gap:6px; flex:none; border:1px solid #3b465b; border-radius:99px; background:#202b40; color:#c4cfdf; padding:6px 9px; font-size:.63rem; font-weight:700; }
+.rotina-foco-badge i { width:7px; height:7px; border-radius:50%; background:#8b98ab; }
+.rotina-foco-badge.verde i { background:#42d19b; }
+.rotina-foco-badge.amarelo i { background:#f0bf58; }
+.rotina-foco-badge.vermelho i { background:#f0777b; }
+.rotina-foco-badge.rtd { border-color:#504779; background:#302c4a; color:#c5baff; }
+.rotina-foco-badge.rtd i { background:#a393ff; box-shadow:0 0 10px #a393ff88; }
+.rotina-foco-metadados { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:15px 0 13px; border-bottom:1px solid #29354d; }
+.rotina-foco-metadados div { min-width:0; }
+.rotina-foco-metadados span,.rotina-foco-andamento span { display:block; margin-bottom:5px; color:#8695ae; font-size:.63rem; }
+.rotina-foco-metadados strong { display:block; overflow:hidden; color:#e2e9f5; font-size:.72rem; text-overflow:ellipsis; white-space:nowrap; }
+.rotina-foco-trilha { display:grid; grid-template-columns:repeat(3,1fr); padding:15px 0 13px; }
+.rotina-foco-etapa { position:relative; display:grid; justify-items:center; gap:6px; color:#7f8da5; font-size:.6rem; text-align:center; }
+.rotina-foco-etapa:not(:last-child):after { content:""; position:absolute; top:6px; left:calc(50% + 10px); width:calc(100% - 20px); height:2px; background:#34425a; }
+.rotina-foco-etapa i { z-index:1; width:13px; height:13px; border:2px solid #52617a; border-radius:50%; background:#202c42; }
+.rotina-foco-etapa.concluida i { border-color:#42c996; background:#42c996; box-shadow:0 0 10px #42c99655; }
+.rotina-foco-etapa.atual { color:#dce8f6; font-weight:700; }
+.rotina-foco-etapa.atual i { border-color:#f0c260; background:#43381f; box-shadow:0 0 0 3px #f0c26018; }
+.rotina-foco-andamento { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:12px; border:1px solid #2c3952; border-radius:10px; background:#131e31; }
+.rotina-foco-andamento strong { display:block; color:#edf2fc; font-size:.77rem; line-height:1.4; }
+.rotina-foco-andamento time { flex:none; color:#9eacc3; font-size:.67rem; }
+.rotina-foco-rtd { display:grid; gap:5px; margin-top:10px; padding:11px 12px; border:1px solid #504779; border-radius:10px; background:#25233b; }
+.rotina-foco-rtd>strong { color:#d4cbff; font-size:.72rem; }
+.rotina-foco-rtd .rtd-resumo { margin:0; color:#c2b8ff; font-size:.65rem; }
+.rotina-foco-rtd p { margin:2px 0 0; color:#abb3c8; font-size:.66rem; line-height:1.45; }
+.rotina-proxima-acao { margin-top:11px; padding:13px; border:1px solid #315847; border-radius:12px; background:linear-gradient(140deg,#142d28,#172538); }
+.rotina-proxima-acao.prioritaria { border-color:#544a7d; background:linear-gradient(140deg,#282440,#172538); }
+.rotina-proxima-acao .eyebrow { color:#75ddb3; font-size:.59rem; font-weight:800; letter-spacing:.12em; }
+.rotina-proxima-acao.prioritaria .eyebrow { color:#c1b4ff; }
+.rotina-proxima-acao h3 { margin:5px 0; color:#eaf4f0; font-size:.84rem; }
+.rotina-proxima-acao p { margin:0; color:#aebfbe; font-size:.69rem; line-height:1.5; }
+.rotina-acao-principal { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; margin-top:11px; padding:10px 12px; border:0; border-radius:9px; background:linear-gradient(110deg,#36b887,#51d4a1); color:#06231a; font-family:inherit; font-size:.72rem; font-weight:750; line-height:1.2; cursor:pointer; }
+.rotina-acao-principal:hover { filter:brightness(1.08); }
+.rotina-acao-principal span { font-size:1rem; }
+.rotina-foco-rodape { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:12px; color:#8594aa; font-size:.64rem; }
+.rotina-foco-rodape details { position:relative; }
+.rotina-foco-rodape summary { color:#aebbd0; cursor:pointer; font-weight:700; }
+.rotina-foco-mais-acoes { display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-top:9px; }
+.rotina-foco-mais-acoes .rotina-row-actions { display:flex; flex-wrap:wrap; gap:6px; }
+.rotina-foco-detalhes { margin-top:14px; padding-top:12px; border-top:1px solid #2b3850; }
+.rotina-foco-detalhes .rotina-intimacao-detalhes { padding:0; }
+.rotina-foco-vazio { display:grid; min-height:450px; align-content:center; justify-items:center; padding:24px; text-align:center; }
+.rotina-foco-icone { display:grid; width:42px; height:42px; place-items:center; border:1px solid #28644f; border-radius:50%; background:#16352d; color:#71ddb1; font-size:1.2rem; }
+.rotina-foco-vazio h2 { margin:13px 0 4px; color:#edf2fd; font-size:1.05rem; }
+.rotina-foco-vazio p { max-width:270px; color:#9ba9bf; font-size:.75rem; line-height:1.5; }
+.rotina-resumo-card.azul:before { background:linear-gradient(180deg,#7c8bff,#5965d7); }
+.rotina-resumo-card.rtd:before { background:linear-gradient(180deg,#b6a7ff,#7668d9); }
+@media(max-width:950px) {
+    .rotina-central-acao { grid-template-columns:minmax(0,1fr); }
+    .rotina-foco { position:static; }
+    .rotina-fila-lista { max-height:460px; }
+}
+@media(max-width:600px) {
+    .rotina-fila-filtros { padding:0 10px 12px; }
+    .rotina-fila-filtros button { flex:1 1 auto; }
+    .rotina-central-acao { gap:10px; padding:0 9px 10px; }
+    .rotina-foco { padding:13px; }
+    .rotina-foco-metadados { grid-template-columns:1fr; }
+    .rotina-fila-linha { align-items:flex-start; flex-direction:column; }
+    .rotina-fila-situacao { max-width:100%; }
+}
