@@ -133,6 +133,38 @@
 
 /* Central da próxima ação: fila priorizada ligada aos dados reais. */
 .rotina-table-wrap[hidden] { display:none !important; }
+.rotina-agenda { margin:14px 14px 16px; padding:18px; border:1px solid #2e3c57; border-radius:16px; background:radial-gradient(ellipse at 5% 0%,rgba(55,116,105,.16),transparent 48%),linear-gradient(145deg,#19243a,#121b2e 72%); color:#edf2fd; }
+.rotina-agenda-cabecalho { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.rotina-agenda-cabecalho .eyebrow { color:#68ddb1; font-size:.62rem; font-weight:800; letter-spacing:.12em; }
+.rotina-agenda-cabecalho h2 { margin:5px 0 3px; color:#f1f5ff; font-size:1.08rem; letter-spacing:-.025em; }
+.rotina-agenda-cabecalho p { max-width:720px; margin:0; color:#aab7cd; font-size:.72rem; line-height:1.5; }
+.rotina-agenda-controles { display:flex; flex:none; align-items:center; gap:7px; }
+.rotina-agenda-controles strong { min-width:145px; color:#dce5f3; font-size:.7rem; text-align:center; }
+.rotina-agenda-controles button { min-width:32px; min-height:32px; border:1px solid #34425c; border-radius:8px; background:#141e31; color:#dce5f3; font:700 .78rem "Outfit",sans-serif; cursor:pointer; }
+.rotina-agenda-controles button:hover { border-color:#4fbd91; color:#7ae2b9; }
+.rotina-agenda-controles button[data-agenda-hoje] { padding:0 10px; color:#74dfb5; }
+.rotina-agenda-metricas { display:flex; flex-wrap:wrap; gap:7px; margin:14px 0 10px; }
+.rotina-agenda-metrica { display:inline-flex; align-items:center; gap:5px; padding:6px 9px; border:1px solid #2d3a53; border-radius:8px; background:rgba(10,17,31,.34); color:#9eacc4; font-size:.65rem; }
+.rotina-agenda-metrica strong { color:#e9effa; font-size:.72rem; }
+.rotina-agenda-metrica.alerta { border-color:#68444a; background:rgba(93,38,48,.2); color:#e6a2a5; }
+.rotina-agenda-metrica.alerta strong { color:#ffb4b7; }
+.rotina-agenda-dias { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:7px; overflow-x:auto; padding:1px 1px 5px; }
+.rotina-agenda-dia { display:flex; min-width:116px; min-height:112px; flex-direction:column; gap:7px; padding:9px; border:1px solid #2b3850; border-radius:10px; background:rgba(13,21,36,.56); }
+.rotina-agenda-dia.hoje { border-color:#328968; background:linear-gradient(150deg,rgba(32,105,78,.25),rgba(13,21,36,.7)); box-shadow:inset 0 0 0 1px rgba(72,201,154,.12); }
+.rotina-agenda-dia-cabecalho { display:flex; align-items:baseline; gap:5px; color:#94a3ba; font-size:.63rem; }
+.rotina-agenda-dia-cabecalho strong { color:#e7edf8; font-size:.95rem; }
+.rotina-agenda-dia.hoje .rotina-agenda-dia-cabecalho strong,.rotina-agenda-dia.hoje .rotina-agenda-dia-cabecalho span { color:#73dfb5; }
+.rotina-agenda-dia-cabecalho small { color:#7787a0; font-size:.58rem; }
+.rotina-agenda-dia-itens { display:grid; max-height:132px; align-content:start; gap:4px; overflow:auto; scrollbar-color:#42516c transparent; scrollbar-width:thin; }
+.rotina-agenda-in { overflow:hidden; width:100%; padding:4px 6px; border:1px solid rgba(72,201,154,.24); border-radius:6px; background:rgba(28,102,76,.2); color:#b9f1d8; font:600 .62rem "Outfit",sans-serif; text-align:left; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+.rotina-agenda-in:hover { border-color:#4bc798; background:rgba(28,102,76,.38); }
+.rotina-agenda-sem-prazo { padding:5px 1px; color:#77859a; font-size:.62rem; }
+.rotina-agenda-mais,.rotina-agenda-contagem { color:#97a7bf; font-size:.58rem; }
+.rotina-agenda-vazia { grid-column:1/-1; margin:0; padding:18px; border:1px dashed #39465e; border-radius:9px; color:#aab7cd; font-size:.75rem; text-align:center; }
+.rotina-layout .rotina-busca { box-sizing:border-box; width:min(680px,100%); }
+.rotina-layout .rotina-busca input { min-width:0; }
+#filtro-situacao-intimacao { flex:0 0 210px; width:210px; min-width:0; min-height:34px; padding:6px 8px; border:1px solid rgba(139,152,178,.2); border-radius:7px; background:#111a2c; color:var(--text-main); font:500 .7rem "Outfit",sans-serif; }
+#filtro-situacao-intimacao:focus { border-color:var(--accent-green); outline:none; box-shadow:0 0 0 2px rgba(16,185,129,.18); }
 .rotina-fila-filtros { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:0 16px 14px; }
 .rotina-fila-filtros button { border:1px solid #33415c; border-radius:999px; background:#141d30; color:#9eacc4; padding:8px 12px; font-family:inherit; font-size:.72rem; font-weight:600; line-height:1.2; cursor:pointer; transition:all .16s ease; }
 .rotina-fila-filtros button:hover { border-color:#4b647f; color:#edf4ff; }
@@ -155,6 +187,10 @@
 .rotina-fila-conteudo { display:grid; min-width:0; gap:5px; }
 .rotina-fila-linha { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .rotina-fila-linha strong { color:#f0f4ff; font-size:.83rem; letter-spacing:.015em; }
+.rotina-fila-etiquetas { display:flex; align-items:center; justify-content:flex-end; gap:5px; }
+.rotina-fila-fase { flex:none; border:1px solid #394765; border-radius:99px; background:#202c43; color:#aebbd0; padding:4px 7px; font-size:.6rem; font-weight:700; white-space:nowrap; }
+.rotina-fila-fase.fase-edital { border-color:#66552e; background:#332d20; color:#e7cb83; }
+.rotina-fila-fase.fase-consolidacao { border-color:#4c4574; background:#292641; color:#c0b7fa; }
 .rotina-fila-situacao { max-width:58%; overflow:hidden; border:1px solid #35435d; border-radius:99px; background:#202c43; color:#bdc9dd; padding:4px 8px; font-size:.62rem; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
 .rotina-fila-situacao.verde { border-color:#27634f; background:#16382e; color:#79dfb5; }
 .rotina-fila-situacao.amarelo { border-color:#68552c; background:#392f1d; color:#f1ce7d; }
@@ -229,11 +265,21 @@
     .rotina-fila-lista { max-height:460px; }
 }
 @media(max-width:600px) {
+    .rotina-agenda { margin:10px 9px 13px; padding:13px; }
+    .rotina-agenda-cabecalho { flex-direction:column; }
+    .rotina-agenda-controles { width:100%; justify-content:space-between; }
+    .rotina-agenda-controles strong { flex:1; min-width:0; }
+    .rotina-agenda-metricas { gap:5px; }
+    .rotina-agenda-metrica { flex:1 1 44%; }
+    .rotina-agenda-dias { grid-template-columns:repeat(7,minmax(116px,1fr)); }
+    .rotina-layout .rotina-busca { flex-wrap:wrap; }
+    #filtro-situacao-intimacao { flex:1 1 180px; width:auto; }
     .rotina-fila-filtros { padding:0 10px 12px; }
     .rotina-fila-filtros button { flex:1 1 auto; }
     .rotina-central-acao { gap:10px; padding:0 9px 10px; }
     .rotina-foco { padding:13px; }
     .rotina-foco-metadados { grid-template-columns:1fr; }
     .rotina-fila-linha { align-items:flex-start; flex-direction:column; }
+    .rotina-fila-etiquetas { justify-content:flex-start; flex-wrap:wrap; }
     .rotina-fila-situacao { max-width:100%; }
 }

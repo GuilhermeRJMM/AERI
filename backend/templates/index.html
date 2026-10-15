@@ -873,11 +873,28 @@
                     <section class="rotina-resumo" id="rotina-resumo"></section>
 
                     <section class="rotina-painel">
+                        <section class="rotina-agenda" aria-labelledby="rotina-agenda-titulo">
+                            <div class="rotina-agenda-cabecalho">
+                                <div>
+                                    <span class="eyebrow">AGENDA + CONFERÊNCIA</span>
+                                    <h2 id="rotina-agenda-titulo">Prazos e rotina diária</h2>
+                                    <p>Os prazos abaixo usam as datas registradas no AERI. A conferência diária inclui todos os INs ativos, em qualquer fase, com ou sem prazo calculado.</p>
+                                </div>
+                                <div class="rotina-agenda-controles" aria-label="Navegação da agenda">
+                                    <button type="button" data-agenda-semana="-1" aria-label="Semana anterior">‹</button>
+                                    <strong id="rotina-agenda-periodo"></strong>
+                                    <button type="button" data-agenda-semana="1" aria-label="Próxima semana">›</button>
+                                    <button type="button" data-agenda-hoje>Hoje</button>
+                                </div>
+                            </div>
+                            <div id="rotina-agenda-metricas" class="rotina-agenda-metricas" aria-live="polite"></div>
+                            <div id="rotina-agenda-dias" class="rotina-agenda-dias" aria-label="Prazos de certificação na semana"></div>
+                        </section>
                         <div class="rotina-fases" id="rotina-fases" role="tablist" aria-label="Fases das intimações">
-                            <button type="button" class="rotina-fase-btn" data-fase="TODAS" role="tab" aria-selected="false">
+                            <button type="button" class="rotina-fase-btn ativa" data-fase="TODAS" role="tab" aria-selected="true">
                                 <span>Todas as fases</span><strong data-total-fase="TODAS">0</strong>
                             </button>
-                            <button type="button" class="rotina-fase-btn ativa" data-fase="INTIMACAO" role="tab" aria-selected="true">
+                            <button type="button" class="rotina-fase-btn" data-fase="INTIMACAO" role="tab" aria-selected="false">
                                 <span>Fase Inicial - Intimação</span><strong data-total-fase="INTIMACAO">0</strong>
                             </button>
                             <button type="button" class="rotina-fase-btn" data-fase="EDITAL" role="tab" aria-selected="false">
@@ -890,18 +907,18 @@
                         <div class="rotina-toolbar">
                             <div class="rotina-busca">
                                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                                <input id="busca-intimacao" type="search" placeholder="Buscar protocolo, credor, devedor ou andamento">
+                                <input id="busca-intimacao" type="search" aria-label="Buscar intimação por número do IN, banco ou credor, devedor, RTD ou andamento" placeholder="Buscar por IN, banco/credor, devedor ou andamento">
                             </div>
                             <span id="rotina-total" class="rotina-total"></span>
                         </div>
                         <div class="rotina-fila-filtros" id="rotina-fila-filtros" role="toolbar" aria-label="Filtrar fila de intimações">
-                            <button type="button" data-fila-filtro="PENDENTES" class="ativa" aria-pressed="true">Precisam de conferência</button>
+                            <button type="button" data-fila-filtro="PENDENTES" aria-pressed="false">Precisam de conferência</button>
                             <button type="button" data-fila-filtro="RTD" aria-pressed="false">Novidades do RTD</button>
-                            <button type="button" data-fila-filtro="TODAS" aria-pressed="false">Todos os protocolos</button>
+                            <button type="button" data-fila-filtro="TODAS" class="ativa" aria-pressed="true">Todos os protocolos</button>
                         </div>
                         <div class="rotina-central-acao" id="rotina-central-acao">
                             <section class="rotina-fila-painel" aria-label="Fila de acompanhamento">
-                                <div class="rotina-fila-titulo"><div><span class="eyebrow">ACOMPANHAMENTO</span><h2>Fila de trabalho</h2></div><span id="rotina-total-fila" class="rotina-total"></span></div>
+                                <div class="rotina-fila-titulo"><div><span class="eyebrow">CONFERÊNCIA DIÁRIA COMPLETA</span><h2>Todos os INs ativos</h2></div><span id="rotina-total-fila" class="rotina-total"></span></div>
                                 <div class="rotina-fila-lista" id="rotina-fila" aria-live="polite"></div>
                             </section>
                             <aside class="rotina-foco" id="rotina-foco" aria-label="Próxima ação do protocolo selecionado" aria-live="polite"></aside>
@@ -1260,6 +1277,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261015-intimacoes-fases-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20261015-agenda-conferencia-v1"></script>
 </body>
 </html>

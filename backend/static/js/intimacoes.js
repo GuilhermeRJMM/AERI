@@ -8,12 +8,13 @@ const intimacoesPendentes = new Set();
 const detalhesAbertos = new Set();
 const historicosOperacionais = new Map();
 let intimacaoCheckId = null;
-let faseAtiva = 'INTIMACAO';
+let faseAtiva = 'TODAS';
 const FASES_INTIMACAO = ['INTIMACAO', 'EDITAL', 'CONSOLIDACAO'];
 let filtroSituacao = 'TODAS';
 let exibindoLixeira = false;
-let filtroFila = 'PENDENTES';
+let filtroFila = 'TODAS';
 let intimacaoSelecionadaId = null;
+let deslocamentoSemanaAgenda = 0;
 const enviosRtdPorIntimacao = new Map();
 const enviosRtdCarregando = new Set();
 let envioRtdEmCurso = false;
@@ -84,6 +85,81 @@ function fasePorAndamento(nomeAndamento, faseAtual = 'INTIMACAO') {
 function formatarDataRotina(data) {
     if (!data) return '—';
     return new Intl.DateTimeFormat('pt-BR').format(new Date(`${data}T12:00:00`));
+}
+
+function normalizarBuscaIntimacao(valor) {
+    return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+function dataIsoLocal(data) {
+    return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`;
+}
+
+function inicioSemanaAgenda() {
+    const hoje = new Date(`${hojeLocal()}T12:00:00`);
+    hoje.setDate(hoje.getDate() - ((hoje.getDay() + 6) % 7) + deslocamentoSemanaAgenda * 7);
+    return hoje;
+}
+
+function renderizarAgendaIntimacoes() {
+    const periodo = document.getElementById('rotina-agenda-periodo');
+    const metricas = document.getElementById('rotina-agenda-metricas');
+    const dias = document.getElementById('rotina-agenda-dias');
+    if (!periodo || !metricas || !dias) return;
+    if (exibindoLixeira) {
+        periodo.textContent = 'Intimações ativas';
+        metricas.innerHTML = '<span class="rotina-agenda-metrica">A agenda não inclui itens enviados à lixeira.</span>';
+        dias.innerHTML = '<p class="rotina-agenda-vazia">Volte às intimações ativas para consultar os prazos.</p>';
+        return;
+    }
+
+    const hoje = hojeLocal();
+    const comPrazo = intimacoes.filter(item => /^\d{4}-\d{2}-\d{2}$/.test(item.dataCertificacao || ''));
+    const inicio = inicioSemanaAgenda();
+    const fim = new Date(inicio);
+    fim.setDate(fim.getDate() + 6);
+    periodo.textContent = `${formatarDataRotina(dataIsoLocal(inicio))} – ${formatarDataRotina(dataIsoLocal(fim))}`;
+    const semana = comPrazo.filter(item => item.dataCertificacao >= dataIsoLocal(inicio) && item.dataCertificacao <= dataIsoLocal(fim));
+    const atrasados = comPrazo.filter(item => item.dataCertificacao < hoje).length;
+    const semPrazo = intimacoes.length - comPrazo.length;
+    metricas.innerHTML = [
+        `<span class="rotina-agenda-metrica"><strong>${intimacoes.length}</strong> INs ativos na conferência diária</span>`,
+        `<span class="rotina-agenda-metrica"><strong>${semana.length}</strong> prazos nesta semana</span>`,
+        `<span class="rotina-agenda-metrica alerta"><strong>${atrasados}</strong> com data anterior a hoje</span>`,
+        `<span class="rotina-agenda-metrica"><strong>${semPrazo}</strong> sem prazo calculado</span>`,
+    ].join('');
+
+    const nomesDias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    dias.innerHTML = nomesDias.map((nome, indice) => {
+        const data = new Date(inicio);
+        data.setDate(data.getDate() + indice);
+        const iso = dataIsoLocal(data);
+        const compromissos = comPrazo.filter(item => item.dataCertificacao === iso)
+            .sort((a, b) => a.protocolo.localeCompare(b.protocolo));
+        const lista = compromissos.length
+            ? compromissos.map(item => `<button type="button" class="rotina-agenda-in" data-agenda-intimacao="${escaparHtml(item.id)}" title="Abrir ${escaparHtml(item.protocolo)}">${escaparHtml(item.protocolo)}</button>`).join('')
+            : '<span class="rotina-agenda-sem-prazo">Sem prazo</span>';
+        return `<article class="rotina-agenda-dia ${iso === hoje ? 'hoje' : ''} ${compromissos.length ? 'com-itens' : ''}">
+            <div class="rotina-agenda-dia-cabecalho"><span>${nome}</span><strong>${String(data.getDate()).padStart(2, '0')}</strong><small>${new Intl.DateTimeFormat('pt-BR', {month:'short'}).format(data).replace('.', '')}</small></div>
+            <div class="rotina-agenda-dia-itens">${lista}</div>
+            ${compromissos.length ? `<span class="rotina-agenda-contagem">${compromissos.length} ${compromissos.length === 1 ? 'prazo' : 'prazos'}</span>` : ''}
+        </article>`;
+    }).join('');
+}
+
+function correspondeBuscaIntimacao(item, termo) {
+    if (!termo) return true;
+    const valores = [
+        item.protocolo, item.credor, item.devedor, item.nomeAndamento, item.certidaoDecursoPrazo,
+        ...(item.fase === 'INTIMACAO' ? [item.protocoloRtd, item.numeroOsTri7, item.protocoloTri7,
+            ...(item.rtd || []).flatMap(p => [p.protocolo, p.situacao])] : []),
+    ];
+    const alvo = normalizarBuscaIntimacao(termo);
+    const alvoCompacto = alvo.replace(/[^a-z0-9]/g, '');
+    return valores.some(valor => {
+        const campo = normalizarBuscaIntimacao(valor);
+        return campo.includes(alvo) || (alvoCompacto && campo.replace(/[^a-z0-9]/g, '').includes(alvoCompacto));
+    });
 }
 
 function formatarMoeda(valor) {
@@ -182,7 +258,7 @@ function renderizarCartaoFila(item) {
     return `<article class="rotina-fila-cartao ${selecionado ? 'selecionado' : ''} ${situacao.classe}">
         <button type="button" class="rotina-fila-selecionar" data-selecionar-intimacao="${escaparHtml(item.id)}" aria-pressed="${selecionado}">
             <span class="rotina-fila-conteudo">
-                <span class="rotina-fila-linha"><strong>${escaparHtml(item.protocolo)}</strong><span class="rotina-fila-situacao ${novidade ? 'rtd' : situacao.classe}">${novidade ? 'Nova movimentação RTD' : escaparHtml(situacao.rotulo)}</span></span>
+                <span class="rotina-fila-linha"><strong>${escaparHtml(item.protocolo)}</strong><span class="rotina-fila-etiquetas"><span class="rotina-fila-fase fase-${String(item.fase || '').toLowerCase()}">${escaparHtml(rotuloFaseIntimacao(item.fase))}</span><span class="rotina-fila-situacao ${novidade ? 'rtd' : situacao.classe}">${novidade ? 'Nova movimentação RTD' : escaparHtml(situacao.rotulo)}</span></span></span>
                 <span class="rotina-fila-partes">${escaparHtml(item.credor)} <i>·</i> ${escaparHtml(item.devedor)}</span>
                 <span class="rotina-fila-andamento">${escaparHtml(item.nomeAndamento || 'Andamento não informado')}</span>
                 <span class="rotina-fila-data">${formatarDataRotina(item.ultimoAndamento)}${item.ultimaConferencia ? ` · Conferida em ${formatarDataRotina(item.ultimaConferencia)}` : ' · Ainda sem conferência'}</span>
@@ -738,17 +814,13 @@ function renderizarIntimacoes() {
     renderizarCabecalho();
     document.querySelector('label[for="importar-intimacoes"]').hidden = !(pode('criar_intimacoes') && pode('alterar_intimacoes'));
     document.getElementById('btn-nova-intimacao').hidden = !pode('criar_intimacoes');
-    const termo = document.getElementById('busca-intimacao').value.toLowerCase().trim();
+    const termo = document.getElementById('busca-intimacao').value.trim();
     const daFase = intimacoes.filter(item => faseAtiva === 'TODAS' || item.fase === faseAtiva);
-    const filtradas = daFase.filter(item => [
-        item.protocolo, item.credor, item.devedor, item.nomeAndamento, item.certidaoDecursoPrazo,
-        ...(item.fase === 'INTIMACAO' ? [item.protocoloRtd, item.numeroOsTri7, item.protocoloTri7,
-            ...(item.rtd || []).flatMap(p => [p.protocolo,p.situacao])] : []),
-    ]
-        .some(valor => String(valor || '').toLowerCase().includes(termo)))
+    const filtradas = daFase.filter(item => correspondeBuscaIntimacao(item, termo))
         .filter(item => filtroSituacao === 'TODAS' || (filtroSituacao === 'RTD' ? temNovidadeRtd(item) : filtroSituacao === 'PENDENTES' ? ['vermelho','cinza'].includes(situacaoIntimacao(item).classe) : situacaoIntimacao(item).classe === filtroSituacao))
         .sort((a, b) => ordenarNovidadesRtd(a,b) || situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo));
 
+    renderizarAgendaIntimacoes();
     tbody.innerHTML = filtradas.map(item => {
         const situacao = situacaoIntimacao(item);
         const acoes = acoesIntimacao(item, true);
@@ -773,7 +845,7 @@ function renderizarIntimacoes() {
     const novidadesRtd = intimacoes.filter(temNovidadeRtd).length;
     const pendentes = daFase.filter(item => situacaoIntimacao(item).classe !== 'verde').length;
     document.getElementById('rotina-resumo').innerHTML = [
-        ['azul','Na fase selecionada',daFase.length], ['amarelo','Ações pendentes',pendentes],
+        ['azul','Protocolos no escopo',daFase.length], ['amarelo','Ações pendentes',pendentes],
         ['rtd','Novidades do RTD',novidadesRtd], ['verde','Conferidas hoje',contagens.verde],
     ].map(([classe, rotulo, valor]) => `<div class="rotina-resumo-card ${classe}"><span>${rotulo}</span><strong>${valor}</strong></div>`).join('');
     [...FASES_INTIMACAO, 'TODAS'].forEach(fase => {
@@ -785,7 +857,7 @@ function renderizarIntimacoes() {
         botao.classList.toggle('ativa', ativa);
         botao.setAttribute('aria-selected', String(ativa));
     });
-    document.getElementById('rotina-total').textContent = `${filtradas.length} de ${daFase.length} nesta fase`;
+    document.getElementById('rotina-total').textContent = `${filtradas.length} de ${daFase.length} protocolos no escopo`;
 }
 
 export async function carregarIntimacoes(opcoes = {}) {
@@ -1223,7 +1295,7 @@ async function tratarAcaoTabela(evento) {
 export function iniciarIntimacoes() {
     iniciarDocumentosIntimacao((id, pares, credor) => abrirEnvioRtd(id, pares, credor));
     if (!document.getElementById('rtd-estilos')) {
-        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261015-central-acao-v2'; document.head.appendChild(css);
+        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261015-agenda-conferencia-v1'; document.head.appendChild(css);
     }
     window.addEventListener('aeri:abrir-alerta', async evento => {
         if (evento.detail.modulo !== 'rotina') return;
@@ -1305,6 +1377,24 @@ export function iniciarIntimacoes() {
             return;
         }
         await tratarAcaoTabela(evento);
+    });
+    document.getElementById('rotina-agenda-dias').addEventListener('click', evento => {
+        const protocolo = evento.target.closest('[data-agenda-intimacao]');
+        if (!protocolo) return;
+        intimacaoSelecionadaId = protocolo.dataset.agendaIntimacao;
+        faseAtiva = 'TODAS';
+        filtroSituacao = 'TODAS';
+        filtroFila = 'TODAS';
+        document.getElementById('filtro-situacao-intimacao').value = 'TODAS';
+        renderizarIntimacoes();
+        document.querySelector('.rotina-fila-cartao.selecionado')?.scrollIntoView({block:'nearest', behavior:'smooth'});
+    });
+    document.querySelector('.rotina-agenda-controles').addEventListener('click', evento => {
+        const deslocamento = evento.target.closest('[data-agenda-semana]');
+        if (deslocamento) deslocamentoSemanaAgenda += Number(deslocamento.dataset.agendaSemana);
+        else if (evento.target.closest('[data-agenda-hoje]')) deslocamentoSemanaAgenda = 0;
+        else return;
+        renderizarAgendaIntimacoes();
     });
     document.getElementById('importar-intimacoes').addEventListener('change', importarIntimacoesCsv);
     document.getElementById('btn-exportar-intimacoes').addEventListener('click', exportarIntimacoesCsv);
