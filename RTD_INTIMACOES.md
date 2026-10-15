@@ -15,6 +15,9 @@ Integração de cliente ONRTDPJ para consulta de andamentos e, quando solicitado
 - Orçamento, situação, resultado/data da diligência e histórico RTD ficam separados do andamento, fase e finanças internos.
 - Novidades aparecem primeiro na lista; o botão **Marcar atualização como conferida** vale apenas para o usuário e a versão exibida. Uma alteração concorrente permanece destacada.
 - Documentos protegidos, digitalizados sem texto, grandes ou sem IN identificável ficam pendentes de revisão. Esta integração não executa OCR.
+- Nos detalhes de cada protocolo RTD vinculado, **Buscar documentos** consulta os anexos que a Central disponibiliza no pedido e nas notas devolutivas. É possível baixar o arquivo enviado, o documento registrado, a certidão, anexos de exigências/respostas e arquivos de registro quando houver link na API.
+- A lista não persiste PDFs nem URLs assinadas. Cada download revalida o vínculo com uma intimação ativa, busca o link novamente na Central e transmite o arquivo sem cache, com limite de 25 MB. Apenas usuários com acesso ao módulo de intimações podem consultar e baixar.
+- Os links privados não são enviados ao navegador e o token RTD permanece no backend. O download aceita somente HTTPS do host RTD configurado; não segue redirecionamentos com credencial. A rota responde como anexo para evitar execução de conteúdo no navegador.
 
 ## Enviar uma notificação pelo AERI
 

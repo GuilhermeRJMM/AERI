@@ -5,6 +5,7 @@ import json
 import os
 import re
 import time
+from email.message import Message
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -16,6 +17,12 @@ BASES = {
 BASE = BASES['producao']
 MAX_PDF = 25 * 1024 * 1024
 MAX_ARQUIVO_ENVIO = 4_300_000
+MAX_DOCUMENTO_DOWNLOAD = 25 * 1024 * 1024
+TIPOS_DOCUMENTO_DOWNLOAD = {
+    'application/pdf', 'application/octet-stream', 'image/jpeg',
+    'image/png', 'image/tiff',
+}
+TIPOS_DOCUMENTO_BLOQUEADOS = {'text/html', 'application/json', 'text/javascript', 'image/svg+xml'}
 
 
 class ErroRTD(Exception):
@@ -118,6 +125,98 @@ def retrato(dados):
 
 def hash_resumo(dados):
     return hashlib.sha256(json.dumps(retrato(dados), sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def catalogar_documentos(protocolo, pedido, notas=None):
+    """Retorna descrições e referências privadas dos anexos do pedido RTD."""
+    protocolo = protocolo_valido(protocolo)
+    documentos = []
+    urls_vistas = set()
+
+    def adicionar(identificador, titulo, url):
+        if not isinstance(url, str) or not url.strip():
+            return
+        url = url.strip()
+        partes = urlsplit(url)
+        hosts_rtd = {urlsplit(base).hostname for base in BASES.values()}
+        try:
+            porta = partes.port
+        except ValueError:
+            return
+        if (partes.scheme != 'https' or partes.hostname not in hosts_rtd
+                or porta not in (None, 443) or partes.username or partes.password):
+            return
+        # As URLs podem ser assinadas. Deduplica sem devolver nem registrar o segredo.
+        marca = hashlib.sha256(url.encode('utf-8')).digest()
+        if marca in urls_vistas:
+            return
+        urls_vistas.add(marca)
+        documentos.append({
+            'id': identificador,
+            'titulo': str(titulo)[:160],
+            'url': url,
+        })
+
+    def adicionar_grupo(prefixo, grupo, indice, descricao=''):
+        if not isinstance(grupo, dict):
+            return
+        complemento = f' · {str(descricao)[:70]}' if descricao else ''
+        campos = (
+            ('LinkArquivo', f'Anexo da exigência {indice}{complemento}'),
+            ('LinkArquivoResposta', f'Anexo da resposta {indice}{complemento}'),
+            ('LinkArquivoRegistro', f'Documento do registro {indice}{complemento}'),
+            ('LinkArquivoDiligencia', f'Documento da diligência {indice}{complemento}'),
+            ('LinkArquivoMontagem', f'Documento da montagem {indice}{complemento}'),
+            ('LinkRequerimento', f'Requerimento {indice}{complemento}'),
+        )
+        for campo, titulo in campos:
+            adicionar(f'{prefixo}_{indice}_{campo.lower()}', titulo, grupo.get(campo))
+        for campo, titulo in (
+            ('LinksArquivos', f'Anexo da exigência {indice}{complemento}'),
+            ('LinksArquivosResposta', f'Anexo da resposta {indice}{complemento}'),
+            ('DocumentosExtras', f'Documento complementar {indice}{complemento}'),
+        ):
+            links = grupo.get(campo)
+            if isinstance(links, list):
+                for numero, link in enumerate(links, 1):
+                    adicionar(f'{prefixo}_{indice}_{campo.lower()}_{numero}', f'{titulo} {numero}', link)
+
+    if not isinstance(pedido, dict):
+        raise ErroRTD('RTD_JSON: detalhes do pedido inválidos.')
+
+    for campo, titulo in (
+        ('UrlArquivoEnviado', 'Documento enviado à Central'),
+        ('UrlArquivoRegistrado', 'Documento registrado'),
+        ('UrlCertidao', 'Certidão emitida'),
+        ('LinkArquivoEnviado', 'Documento enviado à Central'),
+        ('LinkArquivoRegistrado', 'Documento registrado'),
+        ('LinkArquivoDiligencia', 'Documento da diligência'),
+        ('LinkArquivoMontagem', 'Documento da montagem'),
+        ('LinkRequerimento', 'Requerimento do pedido'),
+    ):
+        adicionar(f'pedido_{campo.lower()}', titulo, pedido.get(campo))
+
+    links_extras = pedido.get('DocumentosExtras')
+    if isinstance(links_extras, list):
+        for indice, link in enumerate(links_extras, 1):
+            adicionar(f'pedido_documentosextras_{indice}', f'Documento complementar do pedido {indice}', link)
+
+    for grupo, campo, prefixo in (
+        (pedido, 'Exigencias', 'exigencia'),
+        (pedido, 'Registros', 'registro'),
+    ):
+        itens = grupo.get(campo)
+        if isinstance(itens, list):
+            for indice, item in enumerate(itens, 1):
+                descricao = item.get('Descricao', '') if isinstance(item, dict) else ''
+                adicionar_grupo(prefixo, item, indice, descricao)
+
+    if isinstance(notas, list):
+        for indice, nota in enumerate(notas, 1):
+            descricao = nota.get('Descricao', '') if isinstance(nota, dict) else ''
+            adicionar_grupo('nota', nota, indice, descricao)
+
+    return documentos
 
 
 class ClienteRTD:
@@ -245,6 +344,59 @@ class ClienteRTD:
             raise ErroRTD('RTD_IDENTIDADE: resposta não corresponde ao pedido solicitado.')
         retrato(dados)
         return dados
+
+    def notas_devolutivas(self, protocolo):
+        dados = self.json('/api/notadevolutiva/' + protocolo_valido(protocolo))
+        if not isinstance(dados, list) or any(not isinstance(item, dict) for item in dados):
+            raise ErroRTD('RTD_NOTAS: resposta de notas devolutivas inválida.')
+        return dados
+
+    def baixar_documento(self, url, limite=MAX_DOCUMENTO_DOWNLOAD):
+        """Baixa um anexo somente do host RTD do ambiente, com limite de tamanho."""
+        validar_url(url, urlsplit(self.base).hostname)
+        try:
+            req = Request(url, headers={
+                'Authorization': f'Bearer {self.token}',
+                'Accept': ', '.join(sorted(TIPOS_DOCUMENTO_DOWNLOAD)),
+            })
+            with self.opener.open(req, timeout=25) as resposta:
+                tipo = resposta.headers.get_content_type().lower()
+                if tipo in TIPOS_DOCUMENTO_BLOQUEADOS:
+                    raise ErroRTD('RTD_DOCUMENTO_FORMATO: a Central retornou uma resposta que não é um arquivo.')
+                if tipo not in TIPOS_DOCUMENTO_DOWNLOAD:
+                    tipo = 'application/octet-stream'
+                tamanho = resposta.headers.get('Content-Length')
+                if tamanho:
+                    try:
+                        if int(tamanho) > limite:
+                            raise ErroRTD('RTD_LIMITE: o documento excede o limite de download.')
+                    except ValueError:
+                        pass
+                partes, total, inicio = [], 0, time.monotonic()
+                while True:
+                    parte = resposta.read(min(65536, limite + 1 - total))
+                    if not parte:
+                        break
+                    partes.append(parte)
+                    total += len(parte)
+                    if total > limite or time.monotonic() - inicio > 45:
+                        raise ErroRTD('RTD_LIMITE: o documento excedeu o limite de tamanho ou tempo.')
+                cabecalho = Message()
+                cabecalho['content-disposition'] = resposta.headers.get('Content-Disposition', '')
+                nome = cabecalho.get_filename()
+                if nome:
+                    nome = re.split(r'[/\\]', str(nome))[-1]
+                    nome = re.sub(r'[\x00-\x1f\x7f<>:"|?*]', '_', nome).strip(' .')[:140]
+                conteudo = b''.join(partes)
+                if tipo == 'application/pdf' and not conteudo.startswith(b'%PDF'):
+                    raise ErroRTD('RTD_DOCUMENTO_FORMATO: o arquivo recebido não é um PDF válido.')
+                return {'conteudo': conteudo, 'tipo': tipo, 'nome': nome or ''}
+        except ErroRTD:
+            raise
+        except HTTPError as exc:
+            raise ErroRTD(f'RTD_HTTP_{exc.code}: não foi possível baixar o documento da Central.') from None
+        except (URLError, TimeoutError, OSError):
+            raise ErroRTD('RTD_REDE: falha ao baixar o documento da Central.') from None
 
     def atualizacoes(self, desde, pagina):
         # A API em produção rejeita datas contendo horário. Páginas começam em 1.

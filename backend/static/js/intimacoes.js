@@ -1,6 +1,6 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
-import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd} from './rtd_intimacoes.js?v=20261006-fluxo-v2';
+import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd, carregarDocumentosRtd} from './rtd_intimacoes.js?v=20261015-anexos-v1';
 import {abrirDocumentosIntimacao, iniciarDocumentosIntimacao} from './intimacao_documentos.js?v=20261009-v1';
 
 let intimacoes = [];
@@ -988,6 +988,13 @@ async function tratarAcaoTabela(evento) {
         finally { botao.disabled = false; }
         return;
     }
+    if (botao.dataset.acao === 'rtd-documentos') {
+        const protocolo = botao.dataset.rtd;
+        botao.disabled = true;
+        await carregarDocumentosRtd(protocolo);
+        renderizarIntimacoes();
+        return;
+    }
     if (botao.dataset.acao === 'abrir-pasta') abrirPastaIntimacao(botao.dataset.protocolo);
     if (botao.dataset.acao === 'gerar-desistencia') gerarNotaDesistencia(botao.dataset.protocolo);
     if (botao.dataset.acao === 'detalhes') {
@@ -1014,7 +1021,7 @@ async function tratarAcaoTabela(evento) {
 export function iniciarIntimacoes() {
     iniciarDocumentosIntimacao((id, pares, credor) => abrirEnvioRtd(id, pares, credor));
     if (!document.getElementById('rtd-estilos')) {
-        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261009-rtd-procedimento-v1'; document.head.appendChild(css);
+        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261015-anexos-v1'; document.head.appendChild(css);
         const painel = document.createElement('section'); painel.id='rtd-painel'; painel.className='rtd-painel'; painel.setAttribute('aria-label','Acompanhamento das diligências RTD');
         document.getElementById('rotina-resumo').before(painel);
         painel.addEventListener('click', async evento => {

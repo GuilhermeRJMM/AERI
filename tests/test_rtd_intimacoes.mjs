@@ -30,6 +30,8 @@ assert.ok(detalhesRtd(novo).includes('Orçamento'));
 assert.ok(detalhesRtd(novo).includes('Aguardando pagamento'));
 assert.ok(detalhesRtd(novo).includes('data-versao="2"'));
 assert.ok(detalhesRtd(novo).includes('não altera a fase'));
+assert.ok(detalhesRtd(novo).includes('Buscar documentos'));
+assert.ok(detalhesRtd(novo).includes('data-acao="rtd-documentos"'));
 assert.equal(detalhesRtd({}), '');
 assert.ok(resumoRtd({}).includes('Sem protocolo RTD vinculado'));
 const malicioso = {rtd:[{novo:true,protocolo:'<script>',situacao:'<img>',versao:1,eventos:[]}]};

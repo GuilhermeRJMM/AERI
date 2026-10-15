@@ -1,4 +1,40 @@
 import {escaparHtml} from './util.js';
+import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
+
+const documentosRtdPorProtocolo = new Map();
+const documentosRtdEmBusca = new Set();
+const errosDocumentosRtd = new Map();
+
+export async function carregarDocumentosRtd(protocolo) {
+    if (documentosRtdEmBusca.has(protocolo)) return;
+    documentosRtdEmBusca.add(protocolo);
+    errosDocumentosRtd.delete(protocolo);
+    try {
+        const resposta = await requisicaoAeri(`/api/rtd-intimacoes/${encodeURIComponent(protocolo)}/documentos`);
+        documentosRtdPorProtocolo.set(protocolo, Array.isArray(resposta.documentos) ? resposta.documentos : []);
+    } catch (erro) {
+        errosDocumentosRtd.set(protocolo, erro?.message || 'Não foi possível consultar os documentos na Central RTD.');
+    } finally {
+        documentosRtdEmBusca.delete(protocolo);
+    }
+}
+
+function secaoDocumentosRtd(protocolo) {
+    const documentos = documentosRtdPorProtocolo.get(protocolo);
+    const buscando = documentosRtdEmBusca.has(protocolo);
+    const erro = errosDocumentosRtd.get(protocolo);
+    const conteudo = documentos === undefined
+        ? ''
+        : documentos.length
+            ? `<ul>${documentos.map(documento => `<li><span>${escaparHtml(documento.titulo)}</span><a href="/api/rtd-intimacoes/${encodeURIComponent(protocolo)}/documentos/${encodeURIComponent(documento.id)}" rel="noreferrer">Baixar</a></li>`).join('')}</ul>`
+            : '<p class="rtd-documentos-vazio">A Central RTD não disponibilizou anexos para este pedido.</p>';
+    return `<section class="rtd-documentos">
+        <div class="rtd-documentos-cabecalho"><div><h4>Documentos e anexos do pedido</h4><p>Arquivos consultados diretamente na Central RTD; os links privados não são expostos.</p></div>
+            <button type="button" data-acao="rtd-documentos" data-rtd="${escaparHtml(protocolo)}" ${buscando ? 'disabled' : ''}>${buscando ? 'Buscando…' : documentos === undefined ? 'Buscar documentos' : 'Atualizar lista'}</button></div>
+        ${erro ? `<p class="rtd-documentos-erro" role="alert">${escaparHtml(erro)}</p>` : ''}
+        ${conteudo}
+    </section>`;
+}
 
 const CAMPOS = [
     ['Situacao', 'Situação'],
@@ -113,6 +149,7 @@ export function detalhesRtd(item) {
                 ${p.erro ? `<p class="rtd-alerta" role="alert">${escaparHtml(p.erro)}</p>` : ''}
                 ${['CONFLITO', 'IN_AMBIGUO'].includes(p.vinculo) ? '<p class="rtd-alerta" role="alert">O protocolo ou documento precisa de revisão. O vínculo anterior foi preservado.</p>' : ''}
                 ${p.novo ? `<button type="button" data-acao="rtd-lido" data-rtd="${escaparHtml(p.protocolo)}" data-versao="${p.versao}">Marcar atualização como conferida</button>` : ''}
+                ${secaoDocumentosRtd(p.protocolo)}
                 <details><summary>Ver histórico de atualizações</summary><ol class="rtd-historico">${(p.eventos || []).map(evento => `<li><time>${dataCurta(evento.criado_em)}</time>${listaDiferencas(evento, true)}</li>`).join('') || '<li>Não há atualizações anteriores registradas.</li>'}</ol></details>
             </article>`;
         }).join('')}

@@ -1,12 +1,14 @@
 import io
 import unittest
 from datetime import date
-from unittest.mock import Mock, patch
+from email.message import Message
+from unittest.mock import MagicMock, Mock, patch
 from urllib.error import HTTPError
 
 from pypdf import PdfWriter
 from backend.app.servicos.rtd_cliente import (
-    ClienteRTD, ErroRTD, validar_url, identificar_ins, identificar_destinatarios, extrair_ins_pdf, retrato, hash_resumo,
+    ClienteRTD, ErroRTD, validar_url, identificar_ins, identificar_destinatarios,
+    extrair_ins_pdf, retrato, hash_resumo, catalogar_documentos,
 )
 from backend.app.servicos.rtd_sincronizacao import decidir_vinculo, salvar_pedido, executar_passo_rtd
 
@@ -77,6 +79,112 @@ class TesteRTD(unittest.TestCase):
                     'https://apicentral.rtdbrasil.org.br:8000/a'):
             with self.subTest(url=url), self.assertRaises(ErroRTD):
                 validar_url(url)
+
+    def test_catalogo_inclui_documentos_enviados_exigencias_e_notas_sem_url_externa(self):
+        enviado = 'https://apicentral.rtdbrasil.org.br/arquivo/privado?token=nao-expor'
+        exigencia = 'https://apicentral.rtdbrasil.org.br/arquivo/exigencia'
+        resposta = 'https://apicentral.rtdbrasil.org.br/arquivo/resposta'
+        nota = 'https://apicentral.rtdbrasil.org.br/arquivo/nota'
+        documentos = catalogar_documentos(PROTOCOLO, {
+            'Protocolo': PROTOCOLO,
+            'UrlArquivoEnviado': enviado,
+            'Exigencias': [{'Descricao': 'Comprovar o recolhimento', 'LinkArquivo': exigencia,
+                            'LinksArquivosResposta': [resposta]}],
+            'Registros': [{'LinkArquivoRegistro': 'https://apicentral.rtdbrasil.org.br/arquivo/registro'}],
+            'DocumentosExtras': ['http://apicentral.rtdbrasil.org.br/arquivo/inseguro'],
+        }, [{'Descricao': 'Nota de devolução', 'LinkArquivo': nota}])
+        urls = [item['url'] for item in documentos]
+        self.assertIn(enviado, urls)
+        self.assertIn(exigencia, urls)
+        self.assertIn(resposta, urls)
+        self.assertIn(nota, urls)
+        self.assertEqual(len(urls), len(set(urls)))
+        self.assertTrue(any('exigência' in item['titulo'] for item in documentos))
+
+    def test_download_usa_bearer_restrito_e_preserva_nome_seguro(self):
+        class Resposta(io.BytesIO):
+            def __init__(self, conteudo):
+                super().__init__(conteudo)
+                self.headers = Message()
+                self.headers['Content-Type'] = 'application/pdf'
+                self.headers['Content-Length'] = str(len(conteudo))
+                self.headers['Content-Disposition'] = 'attachment; filename="certidao.pdf"'
+            def __enter__(self): return self
+            def __exit__(self, *_args): self.close()
+
+        cliente = ClienteRTD('TOKEN-TESTE')
+        resposta = Resposta(b'%PDF-1.7 arquivo')
+        cliente.opener.open = Mock(return_value=resposta)
+        resultado = cliente.baixar_documento('https://apicentral.rtdbrasil.org.br/arquivo/1')
+        chamada = cliente.opener.open.call_args
+        self.assertEqual(chamada.args[0].get_header('Authorization'), 'Bearer TOKEN-TESTE')
+        self.assertEqual(resultado['nome'], 'certidao.pdf')
+        self.assertEqual(resultado['tipo'], 'application/pdf')
+        self.assertEqual(resultado['conteudo'], b'%PDF-1.7 arquivo')
+
+    def test_download_nao_envia_token_para_host_externo(self):
+        cliente = ClienteRTD('TOKEN-TESTE')
+        cliente.opener.open = Mock()
+        with self.assertRaises(ErroRTD):
+            cliente.baixar_documento('https://exemplo.com/arquivo.pdf')
+        cliente.opener.open.assert_not_called()
+
+    def test_rotas_documentos_exigem_login(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from backend.app.rotas.rtd_intimacoes import router
+        from backend.app.database import preparar_banco
+        app = FastAPI(); app.include_router(router)
+        app.dependency_overrides[preparar_banco] = lambda: None
+        with TestClient(app) as client:
+            resposta = client.get(f'/api/rtd-intimacoes/{PROTOCOLO}/documentos')
+            self.assertEqual(resposta.status_code, 401)
+            resposta = client.get(f'/api/rtd-intimacoes/{PROTOCOLO}/documentos/arquivo')
+            self.assertEqual(resposta.status_code, 401)
+
+    def test_listagem_de_anexos_nao_expoe_url_assinada(self):
+        from backend.app.rotas import rtd_intimacoes
+        conexao = MagicMock()
+        cursor = conexao.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = {'protocolo': PROTOCOLO}
+        cliente = Mock()
+        cliente.pedido.return_value = {
+            'Protocolo': PROTOCOLO, 'Situacao': 'Orçamento',
+            'UrlArquivoEnviado': 'https://apicentral.rtdbrasil.org.br/arquivo/segredo?token=privado',
+        }
+        cliente.notas_devolutivas.return_value = []
+        with patch.object(rtd_intimacoes, 'conectar', return_value=conexao), \
+                patch.object(rtd_intimacoes, 'ClienteRTD', return_value=cliente), \
+                patch.object(rtd_intimacoes, 'registrar_auditoria_cursor'):
+            resultado = rtd_intimacoes.listar_documentos_rtd(PROTOCOLO, None, usuario='TESTE')
+        self.assertEqual(len(resultado['documentos']), 1)
+        self.assertEqual(resultado['documentos'][0]['titulo'], 'Documento enviado à Central')
+        self.assertNotIn('url', resultado['documentos'][0])
+        self.assertNotIn('privado', str(resultado))
+
+    def test_rota_baixa_anexo_como_arquivo_e_sem_cache(self):
+        import asyncio
+        from backend.app.rotas import rtd_intimacoes
+        cliente = Mock()
+        cliente.baixar_documento.return_value = {
+            'conteudo': b'%PDF-1.7 arquivo', 'tipo': 'application/pdf', 'nome': 'certidao.pdf',
+        }
+        documento_id = 'pedido_urlarquivoenviado'
+        with patch.object(rtd_intimacoes, '_consultar_documentos_pedido', return_value=(cliente, [
+                {'id': documento_id, 'titulo': 'Documento enviado',
+                 'url': 'https://apicentral.rtdbrasil.org.br/arquivo/privado?token=secreto'},
+        ])), patch.object(rtd_intimacoes, 'conectar'), \
+                patch.object(rtd_intimacoes, 'registrar_auditoria_cursor'):
+            resposta = rtd_intimacoes.baixar_documento_rtd(PROTOCOLO, documento_id, None, usuario='TESTE')
+
+        async def ler_corpo():
+            return b''.join([parte async for parte in resposta.body_iterator])
+
+        self.assertEqual(asyncio.run(ler_corpo()), b'%PDF-1.7 arquivo')
+        self.assertEqual(resposta.media_type, 'application/pdf')
+        self.assertIn('attachment;', resposta.headers['content-disposition'])
+        self.assertIn('no-store', resposta.headers['cache-control'])
+        self.assertNotIn('secreto', resposta.headers['content-disposition'])
 
     def test_pdf_invalido_e_sem_texto(self):
         with self.assertRaises(ErroRTD):

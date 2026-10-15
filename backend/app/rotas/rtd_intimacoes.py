@@ -6,12 +6,15 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
+from starlette.responses import StreamingResponse
+from urllib.parse import quote
 
 from backend.app.autenticacao import exigir_permissao, proteger_csrf
 from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria_cursor
 from backend.app.servicos.rtd_cliente import (
-    MAX_ARQUIVO_ENVIO, ClienteRTD, ErroRTD, protocolo_valido, hash_resumo,
+    MAX_ARQUIVO_ENVIO, ClienteRTD, ErroRTD, catalogar_documentos,
+    protocolo_valido, hash_resumo,
 )
 
 router = APIRouter(prefix='/api/rtd-intimacoes', tags=['RTD'], dependencies=[Depends(preparar_banco)])
@@ -23,6 +26,86 @@ def _ambiente_envio_rtd():
     if ambiente not in ('producao', 'homologacao'):
         raise ErroRTD('RTD_CONFIG: ambiente de envio inválido.')
     return ambiente
+
+
+def _consultar_documentos_pedido(protocolo):
+    try:
+        protocolo = protocolo_valido(protocolo)
+    except ErroRTD as exc:
+        raise HTTPException(422, str(exc)) from None
+
+    with conectar() as con, con.cursor() as cur:
+        cur.execute('''SELECT p.protocolo FROM rtd_pedidos_aeri p
+            JOIN intimacoes_aeri i ON i.id=p.intimacao_id
+            WHERE p.protocolo=%s AND i.excluida_em IS NULL''', (protocolo,))
+        vinculo = cur.fetchone()
+    if not vinculo:
+        raise HTTPException(404, 'Pedido RTD não vinculado a uma intimação ativa do AERI.')
+
+    try:
+        cliente = ClienteRTD(ambiente='producao')
+        pedido = cliente.pedido(protocolo)
+        try:
+            notas = cliente.notas_devolutivas(protocolo)
+        except ErroRTD as exc:
+            # Um protocolo pode ainda não ter nota devolutiva; mantém os demais anexos disponíveis.
+            if 'RTD_HTTP_404' in str(exc):
+                notas = []
+            else:
+                raise
+        documentos = catalogar_documentos(protocolo, pedido, notas)
+    except ErroRTD as exc:
+        raise HTTPException(502, str(exc)) from None
+    return cliente, documentos
+
+
+@router.get('/{protocolo}/documentos')
+def listar_documentos_rtd(protocolo: str, request: Request,
+                          usuario=Depends(exigir_permissao('ver_intimacoes'))):
+    _, documentos = _consultar_documentos_pedido(protocolo)
+    with conectar() as con, con.cursor() as cur:
+        registrar_auditoria_cursor(cur, request, 'rtd_documentos_consultados', 'sucesso', usuario,
+                                   protocolo, {'quantidade': len(documentos)})
+        con.commit()
+    # As URLs da Central podem ser assinadas; nunca são expostas ao navegador.
+    return {'protocolo': protocolo, 'documentos': [
+        {'id': item['id'], 'titulo': item['titulo']} for item in documentos
+    ]}
+
+
+@router.get('/{protocolo}/documentos/{documento_id}')
+def baixar_documento_rtd(protocolo: str, documento_id: str, request: Request,
+                         usuario=Depends(exigir_permissao('ver_intimacoes'))):
+    cliente, documentos = _consultar_documentos_pedido(protocolo)
+    documento = next((item for item in documentos if item['id'] == documento_id), None)
+    if not documento:
+        raise HTTPException(404, 'O documento não está mais disponível na Central RTD.')
+
+    try:
+        arquivo = cliente.baixar_documento(documento['url'])
+    except ErroRTD as exc:
+        raise HTTPException(502, str(exc)) from None
+
+    extensoes = {
+        'application/pdf': '.pdf', 'image/jpeg': '.jpg', 'image/png': '.png',
+        'image/tiff': '.tif', 'application/octet-stream': '.bin',
+    }
+    nome = arquivo['nome'] or f"RTD-{protocolo}-{documento_id}{extensoes[arquivo['tipo']]}"
+    if '.' not in nome.rsplit('/', 1)[-1]:
+        nome += extensoes[arquivo['tipo']]
+    nome_ascii = ''.join(caractere if caractere.isascii() and (caractere.isalnum() or caractere in '._-') else '_'
+                         for caractere in nome)[:140] or f'RTD-{protocolo}.bin'
+    disposicao = f"attachment; filename=\"{nome_ascii}\"; filename*=UTF-8''{quote(nome, safe='')}"
+    with conectar() as con, con.cursor() as cur:
+        registrar_auditoria_cursor(cur, request, 'rtd_documento_baixado', 'sucesso', usuario,
+                                   protocolo, {'documento': documento_id})
+        con.commit()
+
+    return StreamingResponse(iter((arquivo['conteudo'],)), media_type=arquivo['tipo'], headers={
+        'Content-Disposition': disposicao,
+        'Content-Length': str(len(arquivo['conteudo'])),
+        'Cache-Control': 'private, no-store',
+    })
 
 
 @router.get('/status')
