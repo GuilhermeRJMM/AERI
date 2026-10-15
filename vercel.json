@@ -5,6 +5,14 @@
       "use": "@vercel/python"
     },
     {
+      "src": "api/rtd-upload-url.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/rtd-upload-cleanup.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "backend/static/**",
       "use": "@vercel/static"
     }
@@ -17,7 +25,7 @@
         { "key": "Referrer-Policy", "value": "no-referrer" },
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" },
         { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' http://baseti.cri.local:3031 http://localhost:3031; object-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com" }
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' http://baseti.cri.local:3031 http://localhost:3031; object-src 'none'; script-src 'self'; connect-src 'self' https://*.private.blob.vercel-storage.com; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com" }
       ]
     },
     {
@@ -41,6 +49,14 @@
   ],
   "routes": [
     {
+      "src": "/api/rtd-intimacoes/uploads/signed-url",
+      "dest": "/api/rtd-upload-url.js"
+    },
+    {
+      "src": "/api/rtd-intimacoes/uploads/limpeza",
+      "dest": "/api/rtd-upload-cleanup.js"
+    },
+    {
       "src": "/static/(.*)",
       "dest": "/backend/static/$1"
     },
@@ -57,6 +73,14 @@
     {
       "path": "/api/buscas/cron",
       "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/rtd-intimacoes/uploads/limpeza",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/rtd-intimacoes/uploads/limpar-metadados",
+      "schedule": "15 7 * * *"
     }
   ]
 }

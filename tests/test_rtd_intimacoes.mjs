@@ -7,7 +7,7 @@ const evento = {
     atual:{Situacao:'Aguardando pagamento', ValorOrcamento:125, DataSituacao:'2026-10-02'},
     criado_em:'2026-10-02T12:30:00Z',
 };
-const novo = {id:'1',rtd:[{
+const novo = {id:'1',fase:'INTIMACAO',rtd:[{
     novo:true,
     alteradoEm:'2026-10-02T12:30:00Z',
     consultadoEm:'2026-10-02T12:31:00Z',
@@ -20,6 +20,12 @@ const novo = {id:'1',rtd:[{
 
 assert.equal(temNovidadeRtd(novo), true);
 assert.equal(temNovidadeRtd({}), false);
+const editalComAtualizacao = {...novo, fase:'EDITAL'};
+const consolidacaoComAtualizacao = {...novo, fase:'CONSOLIDACAO'};
+assert.equal(temNovidadeRtd(editalComAtualizacao), false);
+assert.equal(temNovidadeRtd(consolidacaoComAtualizacao), false);
+assert.equal(resumoRtd(editalComAtualizacao), '');
+assert.equal(detalhesRtd(consolidacaoComAtualizacao), '');
 assert.ok(ordenarNovidadesRtd(novo,antigo)<0);
 assert.ok(ordenarNovidadesRtd(novo,{rtd:[{novo:true,alteradoEm:'2026-10-01T08:00:00Z'}]})<0);
 assert.ok(resumoRtd(novo).includes('Atualização para conferir'));

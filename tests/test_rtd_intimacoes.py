@@ -10,12 +10,19 @@ from backend.app.servicos.rtd_cliente import (
     ClienteRTD, ErroRTD, validar_url, identificar_ins, identificar_destinatarios,
     extrair_ins_pdf, retrato, hash_resumo, catalogar_documentos,
 )
-from backend.app.servicos.rtd_sincronizacao import decidir_vinculo, salvar_pedido, executar_passo_rtd
+from backend.app.servicos.rtd_sincronizacao import decidir_vinculo, salvar_pedido, executar_passo_rtd, anexar_rtd
 
 PROTOCOLO = '20260924145692380'
 
 
 class TesteRTD(unittest.TestCase):
+    def test_nao_consulta_nem_anexa_rtd_em_fases_posteriores(self):
+        cursor = Mock()
+        itens = [{'id':'a', 'fase':'EDITAL'}, {'id':'b', 'fase':'CONSOLIDACAO'}]
+        self.assertEqual(anexar_rtd(cursor, itens, 'teste'), itens)
+        self.assertEqual([item['rtd'] for item in itens], [[], []])
+        cursor.execute.assert_not_called()
+
     def test_rotas_exigem_login_e_csrf(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient

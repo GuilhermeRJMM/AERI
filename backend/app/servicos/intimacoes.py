@@ -63,13 +63,14 @@ def intimacao_json(registro: dict) -> dict:
     valor_usado_registro = registro.get("valor_usado")
     valor_pago = Decimal(str(registro.get("total_creditos", VALOR_INICIAL_ONR if valor_pago_registro is None else valor_pago_registro)))
     valor_usado = Decimal(str(registro.get("total_repasses", 0 if valor_usado_registro is None else valor_usado_registro)))
+    rtd_disponivel = registro.get("fase") == "INTIMACAO"
     return {
         "situacaoConferencia": situacao_conferencia(registro),
         "id": str(registro["id"]),
         "protocolo": registro["protocolo"],
         "credor": registro["credor"],
         "devedor": registro["devedor"],
-        "devedorFonte": "RTD" if registro.get("devedor_rtd_valor") == registro["devedor"] else None,
+        "devedorFonte": "RTD" if rtd_disponivel and registro.get("devedor_rtd_valor") == registro["devedor"] else None,
         "nomeAndamento": registro["nome_andamento"],
         "ultimoAndamento": registro["ultimo_andamento"].isoformat(),
         "ultimaConferencia": (

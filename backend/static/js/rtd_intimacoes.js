@@ -57,7 +57,7 @@ const CAMPOS = [
 ];
 
 export function temNovidadeRtd(item) {
-    return (item.rtd || []).some(p => p.novo);
+    return item?.fase === 'INTIMACAO' && (item.rtd || []).some(p => p.novo);
 }
 
 export function ordenarNovidadesRtd(a, b) {
@@ -122,6 +122,7 @@ function dataCurta(valor) {
 }
 
 export function resumoRtd(item) {
+    if (item?.fase && item.fase !== 'INTIMACAO') return '';
     if (!(item.rtd || []).length) return '<span class="rtd-sem-vinculo">Sem protocolo RTD vinculado</span>';
     return item.rtd.map(p => {
         const atualizacao = p.eventos?.[0];
@@ -137,6 +138,7 @@ export function resumoRtd(item) {
 }
 
 export function detalhesRtd(item) {
+    if (item?.fase && item.fase !== 'INTIMACAO') return '';
     if (!(item.rtd || []).length) return '';
     return `<section class="rtd-detalhes" aria-label="Acompanhamento externo da Central RTD">
         <div class="rtd-detalhes-cabecalho"><div><span class="rtd-origem">CENTRAL RTD · DADO EXTERNO</span><h3>Acompanhamento RTD</h3></div><p>Este andamento vem da Central RTD e não altera a fase nem as conferências internas do AERI.</p></div>

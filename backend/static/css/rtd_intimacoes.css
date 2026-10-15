@@ -205,6 +205,11 @@
 .rotina-acao-principal { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; margin-top:11px; padding:10px 12px; border:0; border-radius:9px; background:linear-gradient(110deg,#36b887,#51d4a1); color:#06231a; font-family:inherit; font-size:.72rem; font-weight:750; line-height:1.2; cursor:pointer; }
 .rotina-acao-principal:hover { filter:brightness(1.08); }
 .rotina-acao-principal span { font-size:1rem; }
+.rotina-acao-rtd { display:flex; flex-direction:column; gap:4px; width:100%; margin-top:8px; padding:10px 12px; border:1px solid rgba(72,220,173,.28); border-radius:9px; background:rgba(23,77,65,.16); color:#aebbd0; text-align:left; font:inherit; cursor:pointer; transition:border-color .16s ease,background .16s ease; }
+.rotina-acao-rtd:hover { border-color:rgba(72,220,173,.6); background:rgba(23,77,65,.32); }
+.rotina-acao-rtd span { font-size:.64rem; }
+.rotina-acao-rtd strong { display:flex; justify-content:space-between; color:#72efc7; font-size:.76rem; }
+.rotina-acao-rtd i { font-style:normal; font-size:1rem; }
 .rotina-foco-rodape { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:12px; color:#8594aa; font-size:.64rem; }
 .rotina-foco-rodape details { position:relative; }
 .rotina-foco-rodape summary { color:#aebbd0; cursor:pointer; font-weight:700; }

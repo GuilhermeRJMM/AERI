@@ -26,6 +26,7 @@ class TesteRtdPostgres(unittest.TestCase):
                 c.execute('CREATE TEMP TABLE usuarios_aeri(usuario VARCHAR(80) PRIMARY KEY)')
                 c.execute('''CREATE TEMP TABLE intimacoes_aeri(id UUID PRIMARY KEY,protocolo TEXT,
                     protocolo_rtd TEXT,excluida_em TIMESTAMPTZ,devedor TEXT,
+                    fase TEXT NOT NULL DEFAULT 'INTIMACAO',
                     devedor_rtd_valor TEXT,atualizado_em TIMESTAMPTZ)''')
                 sql = (Path(__file__).parents[1] / 'backend/app/migrations/050_rtd_intimacoes.sql').read_text(encoding='utf8')
                 c.execute(sql.replace('CREATE TABLE IF NOT EXISTS', 'CREATE TEMP TABLE'))
@@ -54,7 +55,7 @@ class TesteRtdPostgres(unittest.TestCase):
                 r = sync.executar_passo_rtd(cliente)
                 self.assertEqual(r['vinculados'],2)
                 with con.cursor() as c:
-                    itens = sync.anexar_rtd(c,[{'id':str(alvo)}],'teste1')
+                    itens = sync.anexar_rtd(c,[{'id':str(alvo),'fase':'INTIMACAO'}],'teste1')
                     self.assertEqual(len(itens[0]['rtd']),2)
                     self.assertTrue(all(x['novo'] for x in itens[0]['rtd']))
                     c.execute('SELECT COUNT(*) AS n FROM rtd_eventos_aeri')
@@ -72,13 +73,13 @@ class TesteRtdPostgres(unittest.TestCase):
                 sync.executar_passo_rtd(cliente)
                 marcar_lido(p1,Leitura(versao=1),None,'teste1')
                 with con.cursor() as c:
-                    pedidos = sync.anexar_rtd(c,[{'id':str(alvo)}],'teste1')[0]['rtd']
+                    pedidos = sync.anexar_rtd(c,[{'id':str(alvo),'fase':'INTIMACAO'}],'teste1')[0]['rtd']
                     self.assertTrue(next(p for p in pedidos if p['protocolo']==p1)['novo'])
                 marcar_lido(p1,Leitura(versao=2),None,'teste1')
                 with con.cursor() as c:
-                    pedidos = sync.anexar_rtd(c,[{'id':str(alvo)}],'teste1')[0]['rtd']
+                    pedidos = sync.anexar_rtd(c,[{'id':str(alvo),'fase':'INTIMACAO'}],'teste1')[0]['rtd']
                     self.assertFalse(next(p for p in pedidos if p['protocolo']==p1)['novo'])
-                    pedidos = sync.anexar_rtd(c,[{'id':str(alvo)}],'teste2')[0]['rtd']
+                    pedidos = sync.anexar_rtd(c,[{'id':str(alvo),'fase':'INTIMACAO'}],'teste2')[0]['rtd']
                     self.assertTrue(next(p for p in pedidos if p['protocolo']==p1)['novo'])
                     # Falha de rede mantém checkpoint, registra falha e remarca tentativa.
                     c.execute('UPDATE rtd_sincronizacao_aeri SET proxima_consulta=NOW()')

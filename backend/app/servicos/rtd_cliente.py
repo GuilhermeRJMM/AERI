@@ -16,7 +16,7 @@ BASES = {
 }
 BASE = BASES['producao']
 MAX_PDF = 25 * 1024 * 1024
-MAX_ARQUIVO_ENVIO = 4_300_000
+MAX_ARQUIVO_ENVIO = 25 * 1024 * 1024
 MAX_DOCUMENTO_DOWNLOAD = 25 * 1024 * 1024
 TIPOS_DOCUMENTO_DOWNLOAD = {
     'application/pdf', 'application/octet-stream', 'image/jpeg',
@@ -306,7 +306,7 @@ class ClienteRTD:
             nome_seguro = 'documento.pdf'
         limite = MAX_ARQUIVO_ENVIO
         if not conteudo or len(conteudo) > limite or not conteudo.startswith(b'%PDF'):
-            raise ErroRTD('RTD_PDF: selecione um PDF válido de até 4 MB.')
+            raise ErroRTD('RTD_PDF: selecione um PDF válido de até 25 MB.')
         boundary = '----AERIForm' + os.urandom(16).hex()
         corpo = (
             f'--{boundary}\r\n'

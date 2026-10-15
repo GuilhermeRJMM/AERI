@@ -6,7 +6,6 @@ from uuid import uuid4
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 from starlette.requests import Request
-from fastapi import UploadFile
 
 from pydantic import ValidationError
 
@@ -49,9 +48,11 @@ class RespostaFake:
 
 
 class CursorEnvioFake:
-    def __init__(self):
+    def __init__(self, upload_id=None, tamanho=10):
         self.comandos = []
         self.resultado = None
+        self.upload_id = upload_id
+        self.tamanho = tamanho
 
     def __enter__(self):
         return self
@@ -61,8 +62,18 @@ class CursorEnvioFake:
 
     def execute(self, sql, parametros=None):
         self.comandos.append(sql)
-        if 'SELECT protocolo,fase FROM intimacoes_aeri' in sql:
+        if 'WHERE chave_operacao=%s' in sql:
+            self.resultado = None
+        elif 'SELECT pathname,nome_arquivo,tamanho_declarado,estado' in sql:
+            self.resultado = {
+                'pathname':f'rtd-intimacoes/temporarios/{self.upload_id}.pdf',
+                'nome_arquivo':'Documentos RTD.pdf', 'tamanho_declarado':self.tamanho,
+                'estado':'AGUARDANDO_UPLOAD',
+            }
+        elif 'SELECT protocolo,fase FROM intimacoes_aeri' in sql:
             self.resultado = {'protocolo':'IN0123456789C', 'fase':'INTIMACAO'}
+        elif 'SELECT intimacao_id FROM rtd_pedidos_aeri' in sql:
+            self.resultado = None
         elif 'RETURNING id,chave_operacao,intimacao_id,usuario' in sql:
             agora = datetime.now(timezone.utc)
             self.resultado = {
@@ -92,6 +103,26 @@ class ConexaoEnvioFake:
 
     def commit(self):
         pass
+
+
+def request_json(payload):
+    bruto = json.dumps(payload).encode('utf-8')
+    entregue = False
+
+    async def receber():
+        nonlocal entregue
+        if entregue:
+            return {'type':'http.request', 'body':b'', 'more_body':False}
+        entregue = True
+        return {'type':'http.request', 'body':bruto, 'more_body':False}
+
+    return Request({
+        'type':'http', 'http_version':'1.1', 'method':'POST',
+        'scheme':'http', 'path':'/api/rtd-intimacoes/notificacoes',
+        'raw_path':b'/api/rtd-intimacoes/notificacoes', 'query_string':b'',
+        'headers':[(b'content-type', b'application/json')], 'client':('127.0.0.1',1234),
+        'server':('127.0.0.1',80),
+    }, receive=receber)
 
 
 class TesteEnvioNotificacaoRTD(unittest.TestCase):
@@ -175,6 +206,13 @@ class TesteEnvioNotificacaoRTD(unittest.TestCase):
         self.assertLessEqual(len(pdf), MAX_ARQUIVO_ENVIO)
         self.assertEqual(cliente.enviar_arquivo('Documentos RTD.pdf', pdf), 42)
 
+    def test_upload_rtd_aceita_pdf_de_25_mb(self):
+        cliente = ClienteRTD('segredo')
+        cliente.opener.open = Mock(return_value=RespostaFake(b'{"id":42}'))
+        pdf = b'%PDF-' + b'x' * (25 * 1024 * 1024 - 5)
+        self.assertEqual(len(pdf), MAX_ARQUIVO_ENVIO)
+        self.assertEqual(cliente.enviar_arquivo('Documentos RTD.pdf', pdf), 42)
+
     def test_criacao_envia_json_com_arquivo_id_e_retorna_protocolo(self):
         cliente = ClienteRTD('segredo')
         cliente.opener.open = Mock(return_value=RespostaFake(b'{"Protocolo":"20260924145692380","CartorioId":123}'))
@@ -221,7 +259,8 @@ class TesteEnvioNotificacaoRTD(unittest.TestCase):
         self.assertEqual(requisicao.get_header('Authorization'), 'Bearer token-hml')
 
     def test_envio_homologacao_nao_vincula_pedido_na_fila_de_producao(self):
-        cursor = CursorEnvioFake()
+        id_upload = uuid4()
+        cursor = CursorEnvioFake(id_upload, len(b'%PDF-teste'))
         conexao = ConexaoEnvioFake(cursor)
         cliente = Mock()
         cliente.cartorios.return_value = [{'id':123, 'nome':'Cartório de Teste'}]
@@ -229,21 +268,18 @@ class TesteEnvioNotificacaoRTD(unittest.TestCase):
         cliente.criar_notificacao.return_value = {
             'protocolo':'20261007000000001', 'cartorio_id':123,
         }
-        request = Request({
-            'type':'http', 'http_version':'1.1', 'method':'POST',
-            'scheme':'http', 'path':'/api/rtd-intimacoes/notificacoes',
-            'raw_path':b'/api/rtd-intimacoes/notificacoes', 'query_string':b'',
-            'headers':[], 'client':('127.0.0.1',1234), 'server':('127.0.0.1',80),
+        request = request_json({
+            'intimacao_id':str(uuid4()), 'chave_operacao':str(uuid4()),
+            'upload_id':str(id_upload), 'url_assinada':'https://store_abc.private.blob.vercel-storage.com/rtd-intimacoes/temporarios/x.pdf?token=one-time',
+            'pedido':pedido_valido(),
         })
-        dados = json.dumps(pedido_valido())
         with patch.dict('os.environ', {'AERI_RTD_NOTIFICACAO_AMBIENTE':'homologacao'}, clear=True), \
                 patch.object(rotas_rtd, 'conectar', return_value=conexao), \
                 patch.object(rotas_rtd, 'registrar_auditoria_cursor'), \
+                patch.object(rotas_rtd, 'baixar_pdf_assinado', return_value=b'%PDF-teste'), \
                 patch.object(rotas_rtd, 'ClienteRTD', return_value=cliente):
             resultado = __import__('asyncio').run(rotas_rtd.enviar_notificacao_rtd(
-                request, str(uuid4()), str(uuid4()), dados,
-                UploadFile(filename='Documentos RTD.pdf', file=BytesIO(b'%PDF-teste')),
-                'usuario-teste',
+                request, 'usuario-teste',
             ))
         self.assertTrue(resultado['ok'])
         self.assertEqual(resultado['estado'], 'HOMOLOGACAO_OK')
@@ -253,7 +289,8 @@ class TesteEnvioNotificacaoRTD(unittest.TestCase):
         self.assertFalse(any('INSERT INTO rtd_pedidos_aeri' in sql for sql in cursor.comandos))
 
     def test_envio_producao_vincula_protocolo_a_fila_de_acompanhamento(self):
-        cursor = CursorEnvioFake()
+        id_upload = uuid4()
+        cursor = CursorEnvioFake(id_upload, len(b'%PDF-teste'))
         conexao = ConexaoEnvioFake(cursor)
         cliente = Mock()
         cliente.cartorios.return_value = [{'id':123, 'nome':'Cartório de Teste'}]
@@ -261,20 +298,18 @@ class TesteEnvioNotificacaoRTD(unittest.TestCase):
         cliente.criar_notificacao.return_value = {
             'protocolo':'20261007000000001', 'cartorio_id':123,
         }
-        request = Request({
-            'type':'http', 'http_version':'1.1', 'method':'POST',
-            'scheme':'http', 'path':'/api/rtd-intimacoes/notificacoes',
-            'raw_path':b'/api/rtd-intimacoes/notificacoes', 'query_string':b'',
-            'headers':[], 'client':('127.0.0.1',1234), 'server':('127.0.0.1',80),
+        request = request_json({
+            'intimacao_id':str(uuid4()), 'chave_operacao':str(uuid4()),
+            'upload_id':str(id_upload), 'url_assinada':'https://store_abc.private.blob.vercel-storage.com/rtd-intimacoes/temporarios/x.pdf?token=one-time',
+            'pedido':pedido_valido(),
         })
         with patch.dict('os.environ', {'AERI_RTD_NOTIFICACAO_AMBIENTE':'producao'}, clear=True), \
                 patch.object(rotas_rtd, 'conectar', return_value=conexao), \
                 patch.object(rotas_rtd, 'registrar_auditoria_cursor'), \
+                patch.object(rotas_rtd, 'baixar_pdf_assinado', return_value=b'%PDF-teste'), \
                 patch.object(rotas_rtd, 'ClienteRTD', return_value=cliente):
             resultado = __import__('asyncio').run(rotas_rtd.enviar_notificacao_rtd(
-                request, str(uuid4()), str(uuid4()), json.dumps(pedido_valido()),
-                UploadFile(filename='Documentos RTD.pdf', file=BytesIO(b'%PDF-teste')),
-                'usuario-teste',
+                request, 'usuario-teste',
             ))
 
         self.assertEqual(resultado['estado'], 'CRIADO')

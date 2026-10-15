@@ -243,6 +243,32 @@ def test_pdf_unico_rtd_extrai_dois_devedores_e_dois_enderecos():
     assert dados["enderecos"][1]["numero"] == "S/N"
 
 
+def test_pdf_rtd_reconstroi_endereco_quebrado_abaixo_da_contra_fe():
+    texto = """Ofício INT/2026/043 - IN01689373C
+    Ao Ilmo Sr. ANA PEREIRA (CPF: 111.111.111-11).
+    Assinado Digitalmente
+    CONTRA-FÉ
+    Página: 3 de 3
+    Endereço para notificação:
+    1) Rua 01, nº 165, Lote 02 Quadra 01, Setor Vinicius Cândido, com a área construída de 126,83m².,
+    Morrinhos-GO, CEP: 75650-680,
+    OBSERVAÇÕES:
+    Assinado Digitalmente
+    """
+    with patch("backend.app.servicos.documentos_intimacao._ler_pdf", return_value=texto):
+        dados = extrair_dados_documento_rtd(b"%PDF combinado", "IN01689373C")
+    assert len(dados["devedores"]) == 1
+    assert len(dados["enderecos"]) == 1
+    endereco = dados["enderecos"][0]
+    assert endereco["cep"] == "75650680"
+    assert endereco["cidade"] == "Morrinhos"
+    assert endereco["uf"] == "GO"
+    assert endereco["logradouro"] == "Rua 01"
+    assert endereco["numero"] == "165"
+    assert endereco["bairro"] == "Setor Vinicius Cândido"
+    assert "área construída" not in endereco["bairro"].lower()
+
+
 def test_pdf_rtd_aceita_mesmo_cpf_com_nome_apenas_sem_acento():
     texto = """Ofício INT/2026/043 - IN01688738C
     Ao Ilmo Sr. ROGÉRIO CARLOS MACHADO (CPF: 944.390.951-00).

@@ -140,6 +140,47 @@ def _extrair_matricula(texto: str) -> str:
     return re.split(r"\s{2,}|\s+Endere[cç]o\b", valor, maxsplit=1, flags=re.IGNORECASE)[0].strip(" ,;.")
 
 
+def _enderecos_numerados_multilinha(bloco: str) -> list[str]:
+    """Reconstrói endereços numerados que o PDF quebrou em linhas visuais."""
+    enderecos: list[str] = []
+    partes: list[str] = []
+
+    def concluir():
+        if partes:
+            valor = _corrigir_indicador_numero(re.sub(r"\s+", " ", " ".join(partes)))
+            valor = re.sub(r"\s+([,.;])", r"\1", valor).strip(" ,;.")
+            if valor and valor not in enderecos:
+                enderecos.append(valor)
+            partes.clear()
+
+    for linha in bloco.splitlines():
+        texto_linha = linha.strip()
+        if not texto_linha:
+            continue
+        item = re.match(r"^\s*\d+[.)-]\s*(.+?)\s*$", linha)
+        if item:
+            concluir()
+            partes.append(item.group(1).strip())
+        elif partes:
+            # Linhas seguintes ao item numerado ainda pertencem ao endereço,
+            # por exemplo cidade/UF e CEP, frequentemente quebrados pelo PDF.
+            partes.append(texto_linha)
+    concluir()
+    return enderecos
+
+
+def _remover_area_construida_do_endereco(endereco: str) -> str:
+    """A área construída não é logradouro/bairro; não a use como componente."""
+    valor = re.sub(
+        r",?\s*(?:com\s+)?a?\s*(?:área|area)\s+constru[ií]da\s+(?:de\s+)?"
+        r"\d[\d.,]*\s*m(?:²|2)\.?",
+        "",
+        endereco,
+        flags=re.IGNORECASE,
+    )
+    return re.sub(r"\s*,\s*,+\s*", ", ", valor).strip(" ,;.")
+
+
 def _extrair_contrato(texto: str) -> dict:
     match = re.search(
         r"Contrato\s*:\s*([^,\r\n]+),?\s*(?:firmado\s+em\s*:?\s*(\d{2}/\d{2}/\d{4}))?",
@@ -290,10 +331,7 @@ def extrair_dados_documento_rtd(conteudo: bytes, protocolo_in: str) -> dict:
         texto,
     )
     if bloco:
-        for match in re.finditer(r"(?m)^\s*\d+[.)-]\s*([^\r\n]+)", bloco.group(1)):
-            endereco = _corrigir_indicador_numero(match.group(1).strip())
-            if endereco and endereco not in enderecos:
-                enderecos.append(endereco)
+        enderecos = _enderecos_numerados_multilinha(bloco.group(1))
     if not enderecos:
         bloco_credor = re.search(
             r"(?is)devedor\(es\)\s+fiduciante\(s\)\s+pode\(m\)\s+ser\s+encontrado\(s\)\s+nos\s+seguintes\s+endere[cç]os\s*:\s*(.*?)(?=\n\s*\d+\.\s|\Z)",
@@ -311,7 +349,10 @@ def extrair_dados_documento_rtd(conteudo: bytes, protocolo_in: str) -> dict:
         raise ErroDocumentoIntimacao(
             "Não foi possível identificar com segurança devedores e endereços no PDF. Preencha-os manualmente ou use a leitura dos PDFs originais."
         )
-    estruturados = [estruturar_endereco(item) for item in enderecos]
+    estruturados = [
+        estruturar_endereco(_remover_area_construida_do_endereco(item))
+        for item in enderecos
+    ]
     for endereco in estruturados:
         # O ofício confeccionado pode omitir "S/N", embora o requerimento do
         # credor o informe. Só completamos quando o mesmo logradouro o traz.

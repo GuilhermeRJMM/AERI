@@ -1,6 +1,6 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
-import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd, carregarDocumentosRtd} from './rtd_intimacoes.js?v=20261015-anexos-v1';
+import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd, carregarDocumentosRtd} from './rtd_intimacoes.js?v=20261015-fases-v1';
 import {abrirDocumentosIntimacao, iniciarDocumentosIntimacao} from './intimacao_documentos.js?v=20261009-v1';
 
 let intimacoes = [];
@@ -12,8 +12,6 @@ let faseAtiva = 'INTIMACAO';
 const FASES_INTIMACAO = ['INTIMACAO', 'EDITAL', 'CONSOLIDACAO'];
 let filtroSituacao = 'TODAS';
 let exibindoLixeira = false;
-let statusRtd = null;
-let statusRtdConsultado = 0;
 let filtroFila = 'PENDENTES';
 let intimacaoSelecionadaId = null;
 const enviosRtdPorIntimacao = new Map();
@@ -25,6 +23,28 @@ let filaRtdSeparada = null;
 let filaRtdDosOriginais = false;
 let indiceFilaRtdSeparada = 0;
 let filaRtdFinalizada = false;
+let uploadRtdAtual = null;
+let uploadRtdController = null;
+const LIMITE_PDF_RTD = 25 * 1024 * 1024;
+
+function opcoesJsonRtd(dados, signal) {
+    return {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados), signal};
+}
+
+async function urlTemporariaRtd(uploadId, operacao, signal) {
+    return requisicaoAeri('/api/rtd-intimacoes/uploads/signed-url',
+        opcoesJsonRtd({upload_id:uploadId, operacao}, signal));
+}
+
+async function removerUploadRtd(upload = uploadRtdAtual) {
+    if (!upload?.id) return;
+    if (uploadRtdAtual?.id === upload.id) uploadRtdAtual = null;
+    try {
+        await urlTemporariaRtd(upload.id, 'delete');
+    } catch (_erro) {
+        // O varredor diário elimina uploads abandonados se a janela fechar sem rede.
+    }
+}
 
 function novaChaveOperacaoRtd() {
     return globalThis.crypto?.randomUUID?.()
@@ -32,26 +52,6 @@ function novaChaveOperacaoRtd() {
             const numero = Math.random() * 16 | 0;
             return (letra === 'x' ? numero : (numero & 0x3 | 0x8)).toString(16);
         });
-}
-
-function renderizarPainelRtd() {
-    const painel = document.getElementById('rtd-painel');
-    if (!painel) return;
-    const pedidosNovos = intimacoes.flatMap(item => item.rtd || []).filter(pedido => pedido.novo).length;
-    const sync = statusRtd?.sincronizacao;
-    const contagens = statusRtd?.contagens;
-    const ultima = sync?.ultimo_sucesso;
-    const atrasado = ultima && Date.now() - Date.parse(ultima) > 10 * 60000;
-    const horario = ultima ? new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(ultima)) : null;
-    painel.innerHTML = `<div class="rtd-painel-cabecalho"><div><span class="rtd-origem">ACOMPANHAMENTO EXTERNO</span><strong>Central RTD</strong></div>
-        <span class="rtd-contador ${pedidosNovos ? 'com-novidade' : ''}">${pedidosNovos ? `${pedidosNovos} ${pedidosNovos === 1 ? 'pedido atualizado' : 'pedidos atualizados'}` : 'Sem novidades para conferir'}</span></div>
-        <p>${horario ? `Última consulta concluída com sucesso: ${horario}.` : 'Aguardando a primeira sincronização do executor.'} A Central é consultada automaticamente a cada 5 minutos.</p>
-        <p class="rtd-separacao">O andamento da Central RTD é independente da fase, do último andamento e das conferências internas do AERI.</p>
-        ${atrasado ? '<p role="status">Atualização atrasada. Confira se o executor está ligado.</p>' : ''}
-        ${sync?.erro ? `<p role="alert">${escaparHtml(sync.erro)}</p>` : ''}
-        ${contagens ? `<div class="rtd-metricas"><span>${contagens.vinculados} vinculados</span><span>${contagens.fila} aguardando consulta</span><span>${contagens.falhas} com falha</span><span>${contagens.sem_vinculo} sem vínculo</span></div>` : ''}
-        ${pedidosNovos ? '<button type="button" data-rtd-novidades>Ver atualizações</button>' : ''}
-        ${statusRtd?.revisao?.length ? `<details><summary>Pedidos que precisam de revisão</summary><ul>${statusRtd.revisao.map(p => `<li>${escaparHtml(p.protocolo)} · ${escaparHtml(p.in_documento || '')} · ${escaparHtml(p.erro || ({SEM_IN:'IN não identificado no documento',IN_AMBIGUO:'Mais de um IN no documento',IN_NAO_CADASTRADO:'IN ainda não cadastrado',CONFLITO:'Vínculo divergente'})[p.vinculo] || p.vinculo)}</li>`).join('')}</ul></details>` : ''}`;
 }
 
 function pode(permissao) {
@@ -98,7 +98,7 @@ function valorOuTraco(valor) {
 function renderizarCabecalho() {
     const titulos = [
         'Situação AERI', 'Protocolo', 'Credor', 'Devedor', 'Andamento interno do AERI',
-        'Data do andamento AERI', 'Andamento da Central RTD', 'Pasta', 'Ações',
+        'Data do andamento AERI', 'RTD · somente fase inicial', 'Pasta', 'Ações',
     ];
     const tabela = document.querySelector('.rotina-table');
     tabela.classList.remove('rotina-table-fase-inicial');
@@ -139,6 +139,24 @@ function proximaAcaoIntimacao(item) {
         botao:'Revisar RTD e documentos', acao:'detalhes',
     };
     const situacao = situacaoIntimacao(item);
+    if (item.fase !== 'INTIMACAO') {
+        const etapa = item.fase === 'EDITAL' ? 'edital' : 'consolidação';
+        if (situacao.classe !== 'verde' && pode('conferir_intimacoes')) return {
+            titulo:`Confira o andamento da fase de ${etapa}`,
+            texto:`Verifique as providências e os prazos do protocolo conforme o manual de ${etapa}; depois, registre a conferência no AERI.`,
+            botao:'Conferir agora', acao:'conferir',
+        };
+        if (situacao.classe !== 'verde') return {
+            titulo:'Conferência interna pendente',
+            texto:`Este protocolo está na fase de ${etapa}. Consulte os detalhes e siga as providências e os prazos previstos no manual.`,
+            botao:'Ver detalhes', acao:'detalhes',
+        };
+        return {
+            titulo:`Acompanhe a fase de ${etapa}`,
+            texto:`Consulte os detalhes do protocolo e siga as providências e os prazos previstos no manual de ${etapa}.`,
+            botao:'Abrir detalhes', acao:'detalhes',
+        };
+    }
     if (situacao.classe !== 'verde' && pode('conferir_intimacoes')) return {
         titulo:'Faça a conferência diária deste IN',
         texto:'Consulte este protocolo no Ofício Eletrônico. Se houver andamento novo, registre-o no AERI; se não houver, confirme que o andamento atual permanece.',
@@ -151,7 +169,7 @@ function proximaAcaoIntimacao(item) {
     };
     return {
         titulo:'Conferência de hoje concluída',
-        texto:'Acompanhe novas movimentações do RTD e retome a conferência na próxima rotina diária.',
+        texto:'Acompanhe novas movimentações e retome a conferência na próxima rotina diária.',
         botao:'Abrir detalhes', acao:'detalhes',
     };
 }
@@ -195,6 +213,7 @@ function renderizarFocoIntimacao(item, totalFila) {
     <section class="rotina-foco-andamento"><div><span>Último andamento registrado</span><strong>${escaparHtml(item.nomeAndamento || 'Não informado')}</strong></div><time>${formatarDataRotina(item.ultimoAndamento)}</time></section>
     ${novidade ? `<section class="rotina-foco-rtd" aria-label="Novidade do RTD"><strong>Atualização detectada na consulta ao RTD</strong>${resumoRtd(item)}<p>Abra os detalhes para conferir o histórico e os documentos antes de marcar como vista.</p></section>` : ''}
     <section class="rotina-proxima-acao ${novidade ? 'prioritaria' : ''}"><span class="eyebrow">PRÓXIMO PASSO</span><h3>${acao.titulo}</h3><p>${acao.texto}</p><button type="button" class="rotina-acao-principal" data-acao="${acao.acao}" data-id="${escaparHtml(item.id)}">${acao.botao}<span aria-hidden="true">→</span></button></section>
+    ${pode('alterar_intimacoes') && item.fase === 'INTIMACAO' ? `<button type="button" class="rotina-acao-rtd" data-acao="novo-envio-rtd" data-id="${escaparHtml(item.id)}"><span>Precisa iniciar uma notificação?</span><strong>Preparar envio ao RTD <i aria-hidden="true">↗</i></strong></button>` : ''}
     <div class="rotina-foco-rodape"><span>${totalFila} ${totalFila === 1 ? 'protocolo na fila' : 'protocolos na fila'}</span><details><summary>Mais ações</summary><div class="rotina-foco-mais-acoes">${botaoPastaIntimacao(item)}${acoesIntimacao(item, false)}</div></details></div>
     ${detalhesAbertos.has(item.id) ? `<div class="rotina-foco-detalhes">${detalhesFaseInicial(item)}</div>` : ''}`;
 }
@@ -208,7 +227,12 @@ function renderizarCentralAcao(filtradas) {
     if (filtroFila === 'RTD') fila = fila.filter(temNovidadeRtd);
     if (!fila.some(item => item.id === intimacaoSelecionadaId)) intimacaoSelecionadaId = fila[0]?.id || null;
     const selecionada = fila.find(item => item.id === intimacaoSelecionadaId) || null;
-    lista.innerHTML = fila.map(renderizarCartaoFila).join('') || '<div class="rotina-fila-vazia">Nenhum protocolo nesta fila.</div>';
+    const vazio = filtroFila === 'RTD'
+        ? 'Nenhuma atualização nova do RTD nos protocolos que correspondem aos filtros.'
+        : filtroFila === 'PENDENTES'
+            ? 'Nenhum protocolo pendente de conferência nesta seleção.'
+            : 'Nenhum protocolo corresponde à busca atual.';
+    lista.innerHTML = fila.map(renderizarCartaoFila).join('') || `<div class="rotina-fila-vazia">${vazio}</div>`;
     if (contador) contador.textContent = `${fila.length} ${fila.length === 1 ? 'protocolo' : 'protocolos'}`;
     document.querySelectorAll('[data-fila-filtro]').forEach(botao => {
         const ativo = botao.dataset.filaFiltro === filtroFila;
@@ -245,7 +269,7 @@ function detalhesFaseInicial(item) {
         ${detalhesRtd(item)}
         <div class="rotina-detalhes-separador"><span>CONTROLE INTERNO DO AERI</span><h3>Fase e conferências internas</h3></div>
         <section class="rotina-card-grade rotina-card-identificacao">
-            ${campoCard('Protocolo RTD', valorOuTraco(item.protocoloRtd))}
+            ${item.fase === 'INTIMACAO' ? campoCard('Protocolo RTD', valorOuTraco(item.protocoloRtd)) : ''}
             ${campoCard('N.º OS Tri7', valorOuTraco(item.numeroOsTri7))}
             ${campoCard('Protocolo Tri7', valorOuTraco(item.protocoloTri7))}
             ${campoCard('Certidão de Decurso de Prazo', valorOuTraco(item.certidaoDecursoPrazo), 'rotina-card-campo-largo')}
@@ -283,13 +307,13 @@ function detalhesFaseInicial(item) {
             <div><h3>Autuação e documentos da intimação</h3><p>Leia o ofício e a projeção, confira os dados e prepare os textos para os modelos da aba “Texto” da Tri7.</p></div>
             <button type="button" class="rotina-gerar-desistencia" data-acao="preparar-documentos-intimacao" data-id="${item.id}">Preparar documentos</button>
         </section>` : ''}
-        <section class="rtd-envios-historico">
+        ${item.fase === 'INTIMACAO' ? `<section class="rtd-envios-historico">
             <div class="rtd-envio-cabecalho"><div><span class="rtd-origem">SOLICITAÇÕES ENVIADAS PELO AERI</span><h3>Histórico de envios</h3></div>
                 ${pode('alterar_intimacoes') && item.fase === 'INTIMACAO' ? `<button type="button" data-acao="novo-envio-rtd" data-id="${item.id}">Preparar notificação</button>` : ''}
             </div>
             ${listaEnvios}
             <p>Enviar uma notificação cria um novo pedido na Central RTD; isso não responde nem altera o andamento interno do AERI.</p>
-        </section>
+        </section>` : ''}
         <section class="rotina-historico-operacional">
             <h3>Histórico operacional</h3>
             <ul>${eventos || '<li><span>Nenhum evento registrado.</span></li>'}</ul>
@@ -307,6 +331,7 @@ async function carregarHistoricoOperacional(id) {
 }
 
 async function carregarEnviosRtd(id, forcar = false) {
+    if (intimacoes.find(registro => registro.id === id)?.fase !== 'INTIMACAO') return;
     if (!forcar && (enviosRtdPorIntimacao.has(id) || enviosRtdCarregando.has(id))) return;
     enviosRtdCarregando.add(id);
     try {
@@ -380,7 +405,10 @@ function atualizarFilaRtd() {
 
 function abrirEnvioRtd(id, paresRtd = null, dadosCredor = null) {
     const item = intimacoes.find(registro => registro.id === id);
-    if (!item || !pode('alterar_intimacoes')) return;
+    if (!item || item.fase !== 'INTIMACAO' || !pode('alterar_intimacoes')) return;
+    if (uploadRtdAtual) void removerUploadRtd();
+    uploadRtdController?.abort();
+    uploadRtdController = null;
     versaoExtracaoRtd += 1;
     extracaoRtdEmCurso = false;
     document.getElementById('form-rtd-notificacao').reset();
@@ -414,6 +442,9 @@ function abrirEnvioRtd(id, paresRtd = null, dadosCredor = null) {
 function fecharEnvioRtd() {
     if (envioRtdEmCurso) return;
     versaoExtracaoRtd += 1;
+    uploadRtdController?.abort();
+    uploadRtdController = null;
+    void removerUploadRtd();
     document.getElementById('modal-rtd-notificacao').classList.remove('aberta');
 }
 
@@ -425,28 +456,54 @@ async function extrairDocumentoRtdSelecionado() {
     const mostrarStatus = mensagem => { status.textContent = mensagem; statusExtracao.textContent = mensagem; };
     const id = document.getElementById('rtd-envio-intimacao-id').value;
     if (!arquivo || !id) return;
-    if (arquivo.name.toLocaleLowerCase('pt-BR') !== 'documentos rtd.pdf' || arquivo.size > 4_300_000) {
-        mostrarStatus('Selecione Documentos RTD.pdf da pasta deste IN, com até 4,3 MB.');
-        return;
-    }
-    if (filaRtdDosOriginais) {
-        mostrarStatus('Devedores e endereços já vieram dos PDFs originais. Confira-os com o Documentos RTD.pdf anexado antes de enviar.');
-        return;
-    }
-    filaRtdSeparada = null;
-    indiceFilaRtdSeparada = 0;
-    filaRtdFinalizada = false;
-    document.getElementById('rtd-notificados-lista').replaceChildren();
-    novoCampoNotificado();
-    atualizarFilaRtd();
     const versao = ++versaoExtracaoRtd;
+    uploadRtdController?.abort();
+    const controlador = new AbortController();
+    uploadRtdController = controlador;
+    const uploadAnterior = uploadRtdAtual;
+    uploadRtdAtual = null;
+    if (arquivo.name.toLocaleLowerCase('pt-BR') !== 'documentos rtd.pdf' || arquivo.size > LIMITE_PDF_RTD) {
+        mostrarStatus('Selecione Documentos RTD.pdf da pasta deste IN, com até 25 MB.');
+        arquivoInput.value = '';
+        extracaoRtdEmCurso = false;
+        document.getElementById('btn-confirmar-rtd-notificacao').disabled = true;
+        if (uploadAnterior) void removerUploadRtd(uploadAnterior);
+        uploadRtdController = null;
+        return;
+    }
     extracaoRtdEmCurso = true;
     document.getElementById('btn-confirmar-rtd-notificacao').disabled = true;
-    mostrarStatus('Lendo os devedores e endereços do PDF selecionado…');
+    mostrarStatus('Enviando o PDF com segurança para leitura e envio ao RTD…');
+    let uploadConcluido = false;
     try {
-        const corpo = new FormData();
-        corpo.set('arquivo', arquivo, arquivo.name);
-        const dados = await requisicaoAeri(`/api/intimacoes/${id}/extrair-documento-rtd`, {method:'POST', body:corpo});
+        if (uploadAnterior) await removerUploadRtd(uploadAnterior);
+        const sessao = await requisicaoAeri('/api/rtd-intimacoes/uploads', opcoesJsonRtd({
+            intimacao_id:id, nome_arquivo:arquivo.name, tamanho:arquivo.size,
+        }, controlador.signal));
+        const upload = {id:sessao.upload_id, arquivo};
+        uploadRtdAtual = upload;
+        const autorizacao = await urlTemporariaRtd(upload.id, 'put', controlador.signal);
+        const respostaUpload = await fetch(autorizacao.url, {
+            method:'PUT', headers:{'Content-Type':'application/pdf'}, body:arquivo, signal:controlador.signal,
+        });
+        if (!respostaUpload.ok) throw new Error('O armazenamento não confirmou o envio. Tente selecionar o PDF novamente.');
+        uploadConcluido = true;
+        if (versao !== versaoExtracaoRtd || document.getElementById('rtd-envio-intimacao-id').value !== id
+            || arquivoInput.files?.[0] !== arquivo) return;
+        if (filaRtdDosOriginais) {
+            mostrarStatus('PDF enviado com segurança. Os devedores e endereços vieram dos documentos originais; confira-os antes de enviar ao RTD.');
+            return;
+        }
+        filaRtdSeparada = null;
+        indiceFilaRtdSeparada = 0;
+        filaRtdFinalizada = false;
+        document.getElementById('rtd-notificados-lista').replaceChildren();
+        novoCampoNotificado();
+        atualizarFilaRtd();
+        mostrarStatus('PDF recebido. Lendo os devedores e endereços…');
+        const leitura = await urlTemporariaRtd(upload.id, 'get', controlador.signal);
+        const dados = await requisicaoAeri(`/api/intimacoes/${id}/extrair-documento-rtd`,
+            opcoesJsonRtd({upload_id:upload.id, url_assinada:leitura.url}, controlador.signal));
         if (versao !== versaoExtracaoRtd || document.getElementById('rtd-envio-intimacao-id').value !== id
             || arquivoInput.files?.[0] !== arquivo) return;
         const pessoas = dados.devedores || [];
@@ -473,12 +530,21 @@ async function extrairDocumentoRtdSelecionado() {
         }
         mostrarStatus(`${pessoas.length} devedor(es) e ${enderecos.length} endereço(s) de Morrinhos identificados: ${pares.length} notificação(ões) individual(is). ${dados.cnpjCredor ? 'CNPJ do credor preenchido a partir do PDF; confira se corresponde ao nome exibido.' : ''} ${(dados.avisos || []).join(' ')}`);
     } catch (erro) {
-        if (versao === versaoExtracaoRtd) mostrarStatus(`${erro.message} Os campos continuam disponíveis para preenchimento manual.`);
+        if (!uploadConcluido && uploadRtdAtual?.arquivo === arquivo) {
+            const uploadFalhou = uploadRtdAtual;
+            uploadRtdAtual = null;
+            void removerUploadRtd(uploadFalhou);
+            arquivoInput.value = '';
+        }
+        if (versao === versaoExtracaoRtd && erro.name !== 'AbortError') {
+            mostrarStatus(`${erro.message} Os campos continuam disponíveis para preenchimento manual.`);
+        }
     } finally {
         if (versao === versaoExtracaoRtd) {
             extracaoRtdEmCurso = false;
-            document.getElementById('btn-confirmar-rtd-notificacao').disabled = filaRtdFinalizada;
+            document.getElementById('btn-confirmar-rtd-notificacao').disabled = filaRtdFinalizada || !uploadRtdAtual;
         }
+        if (uploadRtdController === controlador) uploadRtdController = null;
     }
 }
 
@@ -544,15 +610,19 @@ async function enviarNotificacaoRtd(evento) {
     if (extracaoRtdEmCurso || !form.reportValidity() || envioRtdEmCurso || filaRtdFinalizada) return;
     const arquivo = document.getElementById('rtd-arquivo-notificacao').files?.[0];
     const status = document.getElementById('rtd-envio-status');
-    const pdfValido = arquivoItem => arquivoItem && arquivoItem.size <= 4_300_000
+    const pdfValido = arquivoItem => arquivoItem && arquivoItem.size <= LIMITE_PDF_RTD
         && arquivoItem.name.toLocaleLowerCase('pt-BR').endsWith('.pdf')
         && (!arquivoItem.type || arquivoItem.type === 'application/pdf');
     if (!pdfValido(arquivo)) {
-        status.textContent = 'Selecione o PDF Documentos RTD.pdf, com até 4,3 MB.';
+        status.textContent = 'Selecione o PDF Documentos RTD.pdf, com até 25 MB.';
         return;
     }
     if (arquivo.name.toLocaleLowerCase('pt-BR') !== 'documentos rtd.pdf') {
         status.textContent = 'Selecione o arquivo chamado exatamente “Documentos RTD.pdf” da pasta deste IN.';
+        return;
+    }
+    if (!uploadRtdAtual || uploadRtdAtual.arquivo !== arquivo) {
+        status.textContent = 'Aguarde o envio seguro do PDF terminar ou selecione-o novamente.';
         return;
     }
     const cartorioId = Number(document.getElementById('rtd-destino-cartorio').value);
@@ -580,18 +650,23 @@ async function enviarNotificacaoRtd(evento) {
         status.textContent = 'Esta sequência exige exatamente um destinatário e um endereço por pedido.';
         return;
     }
-    const dados = new FormData();
-    dados.set('intimacao_id', document.getElementById('rtd-envio-intimacao-id').value);
-    dados.set('chave_operacao', document.getElementById('rtd-envio-operacao-id').value);
-    dados.set('pedido', JSON.stringify(pedido));
-    dados.set('arquivo', arquivo, arquivo.name);
     envioRtdEmCurso = true;
     document.getElementById('btn-confirmar-rtd-notificacao').disabled = true;
     document.getElementById('btn-cancelar-rtd-notificacao').disabled = true;
     document.getElementById('btn-fechar-rtd-notificacao').disabled = true;
-    status.textContent = 'Enviando o documento e solicitando a notificação à Central. Não feche esta janela.';
+    status.textContent = 'Preparando o documento privado e solicitando a notificação à Central. Não feche esta janela.';
+    let removerAoFinal = false;
     try {
-        const resultado = await requisicaoAeri('/api/rtd-intimacoes/notificacoes', {method:'POST', body:dados});
+        const leitura = await urlTemporariaRtd(uploadRtdAtual.id, 'get');
+        status.textContent = 'Enviando o documento e solicitando a notificação à Central. Não feche esta janela.';
+        const dados = {
+            intimacao_id:document.getElementById('rtd-envio-intimacao-id').value,
+            chave_operacao:document.getElementById('rtd-envio-operacao-id').value,
+            pedido,
+            upload_id:uploadRtdAtual.id,
+            url_assinada:leitura.url,
+        };
+        const resultado = await requisicaoAeri('/api/rtd-intimacoes/notificacoes', opcoesJsonRtd(dados));
         if (resultado.estado === 'CRIADO') {
             status.textContent = `Notificação enviada à Central. Protocolo: ${resultado.protocolo}.`;
         } else if (resultado.estado === 'HOMOLOGACAO_OK') {
@@ -614,8 +689,16 @@ async function enviarNotificacaoRtd(evento) {
                 status.textContent += ` Próximo pedido: ${indiceFilaRtdSeparada + 1} de ${filaRtdSeparada.length}. Revise e confirme de novo; o próximo não será enviado automaticamente.`;
             } else {
                 filaRtdFinalizada = true;
+                removerAoFinal = true;
                 status.textContent += ` Sequência concluída: ${filaRtdSeparada.length} pedidos individuais.`;
             }
+        } else if (['CRIADO', 'HOMOLOGACAO_OK'].includes(resultado.estado)) {
+            removerAoFinal = true;
+        }
+        if (removerAoFinal) {
+            const upload = uploadRtdAtual;
+            document.getElementById('rtd-arquivo-notificacao').value = '';
+            await removerUploadRtd(upload);
         }
     } catch (erro) {
         status.textContent = erro.message;
@@ -638,8 +721,9 @@ function renderizarIntimacoes() {
     const termo = document.getElementById('busca-intimacao').value.toLowerCase().trim();
     const daFase = intimacoes.filter(item => faseAtiva === 'TODAS' || item.fase === faseAtiva);
     const filtradas = daFase.filter(item => [
-        item.protocolo, item.protocoloRtd, item.numeroOsTri7, item.protocoloTri7,
-        item.credor, item.devedor, item.nomeAndamento, item.certidaoDecursoPrazo, ...(item.rtd || []).flatMap(p => [p.protocolo,p.situacao]),
+        item.protocolo, item.credor, item.devedor, item.nomeAndamento, item.certidaoDecursoPrazo,
+        ...(item.fase === 'INTIMACAO' ? [item.protocoloRtd, item.numeroOsTri7, item.protocoloTri7,
+            ...(item.rtd || []).flatMap(p => [p.protocolo,p.situacao])] : []),
     ]
         .some(valor => String(valor || '').toLowerCase().includes(termo)))
         .filter(item => filtroSituacao === 'TODAS' || (filtroSituacao === 'RTD' ? temNovidadeRtd(item) : filtroSituacao === 'PENDENTES' ? ['vermelho','cinza'].includes(situacaoIntimacao(item).classe) : situacaoIntimacao(item).classe === filtroSituacao))
@@ -652,10 +736,10 @@ function renderizarIntimacoes() {
             <td><span class="rotina-status ${situacao.classe}"><i></i>${situacao.rotulo}</span><small>${situacao.detalhe}</small><small>Última conferência: ${item.ultimaConferencia ? formatarDataRotina(item.ultimaConferencia) : '—'}</small></td>
             <td><strong class="rotina-protocolo">${escaparHtml(item.protocolo)}</strong></td>
             <td>${escaparHtml(item.credor)}</td>
-            <td>${escaparHtml(item.devedor)}${item.devedorFonte === 'RTD' ? '<small>Identificado no documento RTD</small>' : ''}</td>
+            <td>${escaparHtml(item.devedor)}${item.fase === 'INTIMACAO' && item.devedorFonte === 'RTD' ? '<small>Identificado no documento RTD</small>' : ''}</td>
             <td>${escaparHtml(item.nomeAndamento || 'Não informado')}</td>
             <td>${formatarDataRotina(item.ultimoAndamento)}</td>
-            <td class="rtd-coluna">${resumoRtd(item)}</td>
+            <td class="rtd-coluna">${item.fase === 'INTIMACAO' ? resumoRtd(item) : '—'}</td>
             <td>${botaoPastaIntimacao(item)}</td>
             <td>${acoes}</td>
         </tr>`;
@@ -666,14 +750,14 @@ function renderizarIntimacoes() {
 
     const contagens = {verde:0, amarelo:0, vermelho:0, cinza:0};
     daFase.forEach(item => contagens[situacaoIntimacao(item).classe]++);
-    const novidadesRtd = daFase.filter(temNovidadeRtd).length;
+    const novidadesRtd = intimacoes.filter(temNovidadeRtd).length;
     const pendentes = daFase.filter(item => situacaoIntimacao(item).classe !== 'verde').length;
     document.getElementById('rotina-resumo').innerHTML = [
         ['azul','Na fase selecionada',daFase.length], ['amarelo','Ações pendentes',pendentes],
         ['rtd','Novidades do RTD',novidadesRtd], ['verde','Conferidas hoje',contagens.verde],
     ].map(([classe, rotulo, valor]) => `<div class="rotina-resumo-card ${classe}"><span>${rotulo}</span><strong>${valor}</strong></div>`).join('');
-    FASES_INTIMACAO.forEach(fase => {
-        const total = intimacoes.filter(item => item.fase === fase).length;
+    [...FASES_INTIMACAO, 'TODAS'].forEach(fase => {
+        const total = fase === 'TODAS' ? intimacoes.length : intimacoes.filter(item => item.fase === fase).length;
         document.querySelector(`[data-total-fase="${fase}"]`).textContent = total;
     });
     document.querySelectorAll('.rotina-fase-btn').forEach(botao => {
@@ -682,7 +766,6 @@ function renderizarIntimacoes() {
         botao.setAttribute('aria-selected', String(ativa));
     });
     document.getElementById('rotina-total').textContent = `${filtradas.length} de ${daFase.length} nesta fase`;
-    renderizarPainelRtd();
 }
 
 export async function carregarIntimacoes(opcoes = {}) {
@@ -703,11 +786,6 @@ export async function carregarIntimacoes(opcoes = {}) {
             if (atual && new Date(atual.atualizadoEm) > new Date(recebida.atualizadoEm)) return atual;
             return recebida;
         });
-        if (Date.now() - statusRtdConsultado > 60000) {
-            statusRtdConsultado = Date.now();
-            try { statusRtd = await requisicaoAeri('/api/rtd-intimacoes/status', {background:true}); }
-            catch (_) { statusRtd = {sincronizacao:{erro:'Não foi possível obter o estado da sincronização RTD.'}}; }
-        }
     } catch (falha) {
         console.error(falha);
         // Mantém a última lista conhecida em vez de zerar: uma falha
@@ -718,11 +796,16 @@ export async function carregarIntimacoes(opcoes = {}) {
 
 export function limparIntimacoes() {
     intimacoes = [];
-    statusRtd = null; statusRtdConsultado = 0;
     renderizarIntimacoes();
 }
 
 let edicaoIntimacaoAtualizadoEm = null;
+
+function atualizarCamposFaseIntimacao() {
+    const secao = document.getElementById('intimacao-campos-fase-inicial');
+    const fase = document.getElementById('intimacao-fase')?.value;
+    if (secao) secao.hidden = fase !== 'INTIMACAO';
+}
 
 function abrirFormularioIntimacao() {
     if (!pode('criar_intimacoes')) return;
@@ -731,7 +814,8 @@ function abrirFormularioIntimacao() {
     document.getElementById('intimacao-id').value = '';
     document.getElementById('titulo-form-intimacao').textContent = 'Nova intimação';
     document.getElementById('intimacao-andamento').value = hojeLocal();
-    document.getElementById('intimacao-fase').value = faseAtiva;
+    document.getElementById('intimacao-fase').value = FASES_INTIMACAO.includes(faseAtiva) ? faseAtiva : 'INTIMACAO';
+    atualizarCamposFaseIntimacao();
     document.getElementById('intimacao-valor-pago').value = '530.07';
     document.getElementById('intimacao-valor-usado').value = '0.00';
     atualizarSaldoFormulario();
@@ -813,6 +897,7 @@ function editarIntimacao(id) {
     document.getElementById('intimacao-nome-andamento').value = item.nomeAndamento || 'Não informado';
     document.getElementById('intimacao-andamento').value = item.ultimoAndamento;
     document.getElementById('intimacao-fase').value = item.fase || 'INTIMACAO';
+    atualizarCamposFaseIntimacao();
     document.getElementById('intimacao-protocolo-rtd').value = item.protocoloRtd || '';
     document.getElementById('intimacao-os-tri7').value = item.numeroOsTri7 || '';
     document.getElementById('intimacao-protocolo-tri7').value = item.protocoloTri7 || '';
@@ -1061,7 +1146,7 @@ function importarIntimacoesCsv(evento) {
 function exportarIntimacoesCsv() {
     const cabecalho = 'Protocolo ONR;Protocolo RTD;N.º OS Tri7;Saldo na OS;Protocolo Tri7;Certidão de Decurso de Prazo;Credor;Devedor;Fase;Último Andamento;Data do Último Andamento;Data da Intimação;Dias Úteis Certificação;Valor pago pelo Cliente na ONR;Valor Usado;Última Conferência';
     const linhas = intimacoes.map(item => [
-        item.protocolo, item.protocoloRtd || '', item.numeroOsTri7 || '', item.saldoOs ?? '',
+        item.protocolo, item.fase === 'INTIMACAO' ? item.protocoloRtd || '' : '', item.numeroOsTri7 || '', item.saldoOs ?? '',
         item.protocoloTri7 || '', item.certidaoDecursoPrazo || '', item.credor, item.devedor,
         item.fase || '', item.nomeAndamento || 'Não informado', item.ultimoAndamento,
         item.dataIntimacao || '', item.dataCertificacao || '', item.valorPagoOnr ?? '',
@@ -1096,7 +1181,9 @@ async function tratarAcaoTabela(evento) {
         if (detalhesAbertos.has(botao.dataset.id)) detalhesAbertos.delete(botao.dataset.id);
         else {
             detalhesAbertos.add(botao.dataset.id);
-            await Promise.all([carregarHistoricoOperacional(botao.dataset.id), carregarEnviosRtd(botao.dataset.id)]);
+            const item = intimacoes.find(registro => registro.id === botao.dataset.id);
+            await Promise.all([carregarHistoricoOperacional(botao.dataset.id),
+                ...(item?.fase === 'INTIMACAO' ? [carregarEnviosRtd(botao.dataset.id)] : [])]);
         }
         renderizarIntimacoes();
     }
@@ -1116,17 +1203,7 @@ async function tratarAcaoTabela(evento) {
 export function iniciarIntimacoes() {
     iniciarDocumentosIntimacao((id, pares, credor) => abrirEnvioRtd(id, pares, credor));
     if (!document.getElementById('rtd-estilos')) {
-        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261015-central-acao-v1'; document.head.appendChild(css);
-        const painel = document.createElement('section'); painel.id='rtd-painel'; painel.className='rtd-painel'; painel.setAttribute('aria-label','Acompanhamento das diligências RTD');
-        document.getElementById('rotina-resumo').before(painel);
-        painel.addEventListener('click', async evento => {
-            if (!evento.target.closest('[data-rtd-novidades]')) return;
-            faseAtiva='TODAS'; filtroSituacao='RTD'; filtroFila='RTD'; exibindoLixeira=false;
-            document.getElementById('busca-intimacao').value='';
-            document.getElementById('filtro-situacao-intimacao').value='RTD';
-            await carregarIntimacoes();
-            document.querySelector('.rotina-fila-filtros')?.scrollIntoView({behavior:'smooth', block:'start'});
-        });
+        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261015-central-acao-v2'; document.head.appendChild(css);
     }
     window.addEventListener('aeri:abrir-alerta', async evento => {
         if (evento.detail.modulo !== 'rotina') return;
@@ -1139,7 +1216,6 @@ export function iniciarIntimacoes() {
     seletor.id = 'filtro-situacao-intimacao';
     seletor.innerHTML = '<option value="TODAS">Todas as situações</option><option value="PENDENTES">Pendentes / atrasadas / sem atividade</option><option value="verde">Conferidas hoje</option><option value="amarelo">Vencem hoje</option><option value="vermelho">Atrasadas</option><option value="cinza">Sem atividade</option>';
     seletor.addEventListener('change', () => { filtroSituacao = seletor.value; renderizarIntimacoes(); });
-    seletor.insertAdjacentHTML('beforeend', '<option value="RTD">Novidades do RTD</option>');
     busca.parentElement.appendChild(seletor);
     if (cargoAdministrativo()) {
         const lixeira = document.createElement('button');
@@ -1185,6 +1261,7 @@ export function iniciarIntimacoes() {
         evento.target.value = evento.target.value.toUpperCase();
     });
     document.getElementById('form-intimacao').addEventListener('submit', salvarIntimacao);
+    document.getElementById('intimacao-fase').addEventListener('change', atualizarCamposFaseIntimacao);
     document.getElementById('intimacao-valor-pago').addEventListener('input', atualizarSaldoFormulario);
     document.getElementById('intimacao-valor-usado').addEventListener('input', atualizarSaldoFormulario);
     document.getElementById('intimacao-protocolo-rtd').addEventListener('input', evento => {
@@ -1195,6 +1272,9 @@ export function iniciarIntimacoes() {
         const filtro = evento.target.closest('[data-fila-filtro]');
         if (filtro) {
             filtroFila = filtro.dataset.filaFiltro;
+            filtroSituacao = 'TODAS';
+            document.getElementById('filtro-situacao-intimacao').value = 'TODAS';
+            if (['RTD', 'TODAS'].includes(filtroFila)) faseAtiva = 'TODAS';
             renderizarIntimacoes();
             return;
         }

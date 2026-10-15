@@ -9,7 +9,7 @@
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
     </style>
-    <link rel="stylesheet" href="/static/styles.css?v=20261013-acoes-desenho-v1">
+    <link rel="stylesheet" href="/static/styles.css?v=20261015-intimacoes-fases-v1">
     <link rel="stylesheet" href="/static/painel.css?v=20260904-barra">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -860,7 +860,7 @@
                         <div>
                             <span class="eyebrow">CONTROLE DIÁRIO</span>
                             <h1>Rotina - Intimação</h1>
-                            <p>Acompanhe as intimações do Ofício Eletrônico e registre cada conferência diária.</p>
+                            <p>Confira cada protocolo conforme a fase e registre as providências e conferências no AERI.</p>
                         </div>
                         <div class="rotina-header-actions">
                             <input id="importar-intimacoes" type="file" accept=".csv,text/csv" hidden>
@@ -874,6 +874,9 @@
 
                     <section class="rotina-painel">
                         <div class="rotina-fases" id="rotina-fases" role="tablist" aria-label="Fases das intimações">
+                            <button type="button" class="rotina-fase-btn" data-fase="TODAS" role="tab" aria-selected="false">
+                                <span>Todas as fases</span><strong data-total-fase="TODAS">0</strong>
+                            </button>
                             <button type="button" class="rotina-fase-btn ativa" data-fase="INTIMACAO" role="tab" aria-selected="true">
                                 <span>Fase Inicial - Intimação</span><strong data-total-fase="INTIMACAO">0</strong>
                             </button>
@@ -1007,7 +1010,7 @@
                     <option value="EDITAL">Fase de Edital</option>
                     <option value="CONSOLIDACAO">Fase de Consolidação</option>
                 </select></label>
-                <fieldset class="rotina-form-secao">
+                <fieldset id="intimacao-campos-fase-inicial" class="rotina-form-secao">
                     <legend>Dados da Fase Inicial - Intimação</legend>
                     <label><span>Protocolo RTD</span><input id="intimacao-protocolo-rtd" maxlength="17" inputmode="numeric" pattern="[0-9]{17}" placeholder="20260708155369985"></label>
                     <label><span>N.º OS Tri7</span><input id="intimacao-os-tri7" maxlength="40"></label>
@@ -1111,7 +1114,7 @@
                     <h3>Documento e preenchimento</h3>
                     <p class="rtd-envio-ajuda">Selecione o <strong>Documentos RTD.pdf</strong> deste IN. O AERI tentará preencher os devedores e os endereços do próprio arquivo; confira cada campo antes de enviar.</p>
                     <button type="button" class="rotina-btn-secondary rtd-abrir-pasta" id="btn-abrir-pasta-rtd">Abrir pasta deste IN</button>
-                    <label><span>Documentos RTD.pdf (PDF de até 4,3 MB)</span><input id="rtd-arquivo-notificacao" type="file" accept="application/pdf,.pdf" required></label>
+                    <label><span>Documentos RTD.pdf (PDF de até 25 MB)</span><input id="rtd-arquivo-notificacao" type="file" accept="application/pdf,.pdf" required></label>
                     <p id="rtd-extracao-status" class="rtd-envio-ajuda" role="status" aria-live="polite"></p>
                 </section>
                 <section class="rtd-envio-secao">
@@ -1256,6 +1259,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261015-central-acao-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20261015-intimacoes-fases-v1"></script>
 </body>
 </html>

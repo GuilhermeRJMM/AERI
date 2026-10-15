@@ -75,7 +75,7 @@ def salvar_pedido(cursor, anterior, dados, cliente):
             cursor.execute('''UPDATE intimacoes_aeri SET devedor=%s,devedor_rtd_valor=%s,atualizado_em=NOW()
                 WHERE id=%s AND (devedor IN ('Não informado no relatório','Aguardando identificação no documento RTD')
                    OR devedor=devedor_rtd_valor) AND devedor IS DISTINCT FROM %s
-                AND excluida_em IS NULL''', (devedor, devedor, alvo, devedor))
+                AND excluida_em IS NULL AND fase='INTIMACAO' ''', (devedor, devedor, alvo, devedor))
             if cursor.rowcount:
                 registrar_auditoria_cursor(cursor,None,'rtd_identificar_devedor','sucesso',recurso=str(alvo))
     return bool(alvo), mudou
@@ -161,14 +161,21 @@ def anexar_rtd(cursor, itens, usuario):
     por_id = {str(item['id']): item for item in itens}
     for item in itens:
         item['rtd'] = []
+    itens_fase_inicial = [item for item in itens if item.get('fase') == 'INTIMACAO']
+    if not itens_fase_inicial:
+        return itens
     cursor.execute('''SELECT p.*, COALESCE(l.versao,0) AS versao_lida,
         COALESCE((SELECT jsonb_agg(e) FROM (
           SELECT anterior,atual,criado_em FROM rtd_eventos_aeri e WHERE e.protocolo=p.protocolo
           ORDER BY versao DESC LIMIT 10) e),'[]'::jsonb) AS eventos
         FROM rtd_pedidos_aeri p LEFT JOIN rtd_leituras_aeri l ON l.protocolo=p.protocolo AND l.usuario=%s
-        WHERE p.intimacao_id=ANY(%s::uuid[]) ORDER BY p.alterado_em DESC''', (usuario, [item['id'] for item in itens]))
+        WHERE p.intimacao_id=ANY(%s::uuid[]) ORDER BY p.alterado_em DESC''',
+        (usuario, [item['id'] for item in itens_fase_inicial]))
     for p in cursor.fetchall():
-        por_id[str(p['intimacao_id'])]['rtd'].append({
+        destino = por_id.get(str(p['intimacao_id']))
+        if not destino or destino.get('fase') != 'INTIMACAO':
+            continue
+        destino['rtd'].append({
             'protocolo': p['protocolo'], 'situacao': p['dados'].get('Situacao', 'Aguardando consulta'),
             'dados': p['dados'], 'versao': p['versao'], 'novo': p['versao'] > p['versao_lida'],
             'vinculo': p['vinculo'], 'erro': p['erro'], 'eventos': p['eventos'],

@@ -28,6 +28,7 @@ from backend.app.servicos.documentos_intimacao import (
 )
 from backend.app.servicos.contratos import cifrador, decifrar
 from backend.app.servicos.preparacao_intimacao import complementar_tri7
+from backend.app.servicos.rtd_uploads import ErroUploadRTD, baixar_pdf_assinado
 
 
 router = APIRouter(
@@ -188,27 +189,47 @@ async def analisar_documentos_intimacao(
 async def extrair_documento_rtd(
     identificador: UUID,
     request: Request,
-    arquivo: UploadFile = File(...),
     usuario: str = Depends(exigir_permissao("alterar_intimacoes")),
 ):
     """Preenche o formulário a partir do PDF escolhido; não envia nada ao RTD."""
+    try:
+        corpo = await request.json()
+        id_upload = UUID(str(corpo.get("upload_id", "")))
+        url_assinada = str(corpo.get("url_assinada", ""))
+    except (ValueError, AttributeError):
+        raise HTTPException(422, "Selecione o PDF Documentos RTD.pdf novamente.") from None
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute("SELECT protocolo FROM intimacoes_aeri WHERE id=%s AND excluida_em IS NULL", (identificador,))
             item = cursor.fetchone()
     if not item:
         raise HTTPException(404, "Intimação não encontrada ou está na lixeira.")
-    if str(arquivo.filename or "").casefold() != "documentos rtd.pdf":
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute("""SELECT pathname,nome_arquivo,tamanho_declarado FROM rtd_uploads_temporarios_aeri
+                WHERE id=%s AND intimacao_id=%s AND usuario=%s
+                AND estado IN ('AGUARDANDO_UPLOAD','PRONTO') AND expira_em>NOW()""",
+                (id_upload, identificador, usuario))
+            upload = cursor.fetchone()
+    if not upload:
+        raise HTTPException(409, "O PDF temporário expirou ou não pertence a esta intimação. Selecione-o novamente.")
+    if upload["nome_arquivo"].casefold() != "documentos rtd.pdf":
         raise HTTPException(422, "Selecione o arquivo Documentos RTD.pdf da pasta deste IN.")
-    conteudo = await arquivo.read(4_300_001)
-    if len(conteudo) > 4_300_000:
-        raise HTTPException(413, "O PDF ultrapassa 4,3 MB.")
+    try:
+        conteudo = baixar_pdf_assinado(url_assinada, upload["pathname"])
+    except ErroUploadRTD as exc:
+        raise HTTPException(422, str(exc)) from None
+    if len(conteudo) != upload["tamanho_declarado"]:
+        raise HTTPException(422, "O PDF recebido não corresponde ao arquivo selecionado. Selecione-o novamente.")
     try:
         dados = extrair_dados_documento_rtd(conteudo, item["protocolo"])
     except ErroDocumentoIntimacao as exc:
         raise HTTPException(422, str(exc)) from None
     with conectar() as conexao:
         with conexao.cursor() as cursor:
+            cursor.execute("""UPDATE rtd_uploads_temporarios_aeri SET estado='PRONTO',tamanho_verificado=%s,
+                alterado_em=NOW() WHERE id=%s AND usuario=%s AND estado IN ('AGUARDANDO_UPLOAD','PRONTO')""",
+                (len(conteudo), id_upload, usuario))
             registrar_auditoria_cursor(cursor, request, "extrair_documento_rtd", "sucesso", usuario,
                 str(identificador), {"devedores": len(dados["devedores"]), "enderecos": len(dados["enderecos"])})
         conexao.commit()

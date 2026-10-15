@@ -1,8 +1,10 @@
 import os
 import re
+import hmac
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
@@ -16,8 +18,106 @@ from backend.app.servicos.rtd_cliente import (
     MAX_ARQUIVO_ENVIO, ClienteRTD, ErroRTD, catalogar_documentos,
     protocolo_valido, hash_resumo,
 )
+from backend.app.servicos.rtd_uploads import ErroUploadRTD, MAX_UPLOAD_RTD, baixar_pdf_assinado
 
 router = APIRouter(prefix='/api/rtd-intimacoes', tags=['RTD'], dependencies=[Depends(preparar_banco)])
+
+
+class UploadRtdNovo(BaseModel):
+    intimacao_id: UUID
+    nome_arquivo: str = Field(min_length=1, max_length=120)
+    tamanho: int = Field(gt=0, le=MAX_UPLOAD_RTD)
+
+
+class UploadRtdOperacao(BaseModel):
+    operacao: str
+
+
+@router.post('/uploads', status_code=201, dependencies=[Depends(proteger_csrf)])
+def criar_upload_rtd(dados: UploadRtdNovo, request: Request,
+                     usuario=Depends(exigir_permissao('alterar_intimacoes'))):
+    if dados.nome_arquivo.casefold() != 'documentos rtd.pdf':
+        raise HTTPException(422, 'Selecione o arquivo chamado exatamente “Documentos RTD.pdf”.')
+    identificador = uuid4()
+    pathname = f'rtd-intimacoes/temporarios/{identificador}.pdf'
+    with conectar() as con, con.cursor() as cur:
+        cur.execute('''SELECT protocolo,fase FROM intimacoes_aeri
+            WHERE id=%s AND excluida_em IS NULL''', (dados.intimacao_id,))
+        intimacao = cur.fetchone()
+        if not intimacao:
+            raise HTTPException(404, 'Intimação não encontrada ou está na lixeira.')
+        if intimacao['fase'] != 'INTIMACAO':
+            raise HTTPException(409, 'O envio de notificação está disponível apenas na fase inicial.')
+        cur.execute('''UPDATE rtd_uploads_temporarios_aeri SET estado='EXPIRADO',alterado_em=NOW()
+            WHERE estado IN ('AGUARDANDO_UPLOAD','PRONTO') AND expira_em<=NOW()''')
+        cur.execute('''SELECT COUNT(*) AS total FROM rtd_uploads_temporarios_aeri
+            WHERE usuario=%s AND estado IN ('AGUARDANDO_UPLOAD','PRONTO') AND expira_em>NOW()''', (usuario,))
+        if cur.fetchone()['total'] >= 5:
+            raise HTTPException(429, 'Há vários PDFs temporários pendentes. Feche envios anteriores e tente novamente.')
+        cur.execute('''INSERT INTO rtd_uploads_temporarios_aeri
+            (id,intimacao_id,usuario,pathname,nome_arquivo,tamanho_declarado)
+            VALUES (%s,%s,%s,%s,%s,%s)''',
+            (identificador, dados.intimacao_id, usuario, pathname, dados.nome_arquivo, dados.tamanho))
+        registrar_auditoria_cursor(cur, request, 'rtd_upload_temporario_criado', 'sucesso', usuario,
+                                   str(dados.intimacao_id), {'tamanho': dados.tamanho})
+        con.commit()
+    return {'upload_id': str(identificador), 'limite_bytes': MAX_UPLOAD_RTD}
+
+
+@router.post('/uploads/{identificador}/autorizar', dependencies=[Depends(proteger_csrf)])
+def autorizar_upload_rtd(identificador: UUID, dados: UploadRtdOperacao,
+                         usuario=Depends(exigir_permissao('alterar_intimacoes'))):
+    operacao = dados.operacao.strip().lower()
+    if operacao not in {'put', 'get', 'delete'}:
+        raise HTTPException(422, 'Operação de documento inválida.')
+    with conectar() as con, con.cursor() as cur:
+        cur.execute('''SELECT pathname,tamanho_declarado,estado,expira_em
+            FROM rtd_uploads_temporarios_aeri
+            WHERE id=%s AND usuario=%s''', (identificador, usuario))
+        upload = cur.fetchone()
+        if not upload:
+            raise HTTPException(404, 'O envio temporário não foi encontrado.')
+        expirou = upload['expira_em'] <= datetime.now(timezone.utc)
+        if operacao == 'put' and (upload['estado'] != 'AGUARDANDO_UPLOAD' or expirou):
+            raise HTTPException(409, 'Este envio temporário expirou. Selecione o PDF novamente.')
+        if operacao == 'get' and (upload['estado'] not in {'AGUARDANDO_UPLOAD', 'PRONTO'} or expirou):
+            raise HTTPException(409, 'Este PDF temporário já foi encerrado. Selecione-o novamente.')
+        if operacao == 'delete' and upload['estado'] == 'EXCLUIDO':
+            return {'pathname': upload['pathname'], 'tamanho': upload['tamanho_declarado'], 'removido': True}
+        if operacao == 'delete':
+            cur.execute('''UPDATE rtd_uploads_temporarios_aeri SET estado='EXPIRADO',alterado_em=NOW()
+                WHERE id=%s AND usuario=%s''', (identificador, usuario))
+        con.commit()
+    return {'pathname': upload['pathname'], 'tamanho': upload['tamanho_declarado']}
+
+
+@router.post('/uploads/{identificador}/remocao-confirmada', dependencies=[Depends(proteger_csrf)])
+def confirmar_remocao_upload_rtd(identificador: UUID,
+                                 usuario=Depends(exigir_permissao('alterar_intimacoes'))):
+    with conectar() as con, con.cursor() as cur:
+        cur.execute('''UPDATE rtd_uploads_temporarios_aeri SET estado='EXCLUIDO',alterado_em=NOW()
+            WHERE id=%s AND usuario=%s''', (identificador, usuario))
+        if cur.rowcount == 0:
+            raise HTTPException(404, 'O envio temporário não foi encontrado.')
+        con.commit()
+    return {'ok': True}
+
+
+@router.post('/uploads/limpar-metadados')
+def limpar_metadados_uploads_rtd(request: Request):
+    segredo = os.getenv('CRON_SECRET', '')
+    recebido = request.headers.get('authorization', '').removeprefix('Bearer ').strip()
+    if not segredo or not recebido or not hmac.compare_digest(recebido, segredo):
+        raise HTTPException(401, 'Não autorizado.')
+    with conectar() as con, con.cursor() as cur:
+        cur.execute('''UPDATE rtd_uploads_temporarios_aeri SET estado='EXPIRADO',alterado_em=NOW()
+            WHERE estado IN ('AGUARDANDO_UPLOAD','PRONTO') AND expira_em<=NOW()''')
+        expirados = cur.rowcount
+        cur.execute('''DELETE FROM rtd_uploads_temporarios_aeri
+            WHERE expira_em<NOW()-INTERVAL '7 days' ''')
+        removidos = cur.rowcount
+        con.commit()
+    return {'ok': True, 'expirados': expirados, 'metadadosRemovidos': removidos}
 
 
 def _ambiente_envio_rtd():
@@ -301,25 +401,52 @@ def listar_envios(identificador: UUID,
 @router.post('/notificacoes', status_code=201, dependencies=[Depends(proteger_csrf)])
 async def enviar_notificacao_rtd(
     request: Request,
-    intimacao_id: str = Form(...),
-    chave_operacao: str = Form(...),
-    pedido: str = Form(...),
-    arquivo: UploadFile = File(...),
     usuario: str = Depends(exigir_permissao('alterar_intimacoes')),
 ):
     try:
-        id_intimacao = UUID(intimacao_id)
-        id_operacao = UUID(chave_operacao)
-        dados = PedidoNotificacao.model_validate_json(pedido)
-    except (ValueError, ValidationError):
+        corpo = await request.json()
+        id_intimacao = UUID(str(corpo.get('intimacao_id', '')))
+        id_operacao = UUID(str(corpo.get('chave_operacao', '')))
+        id_upload = UUID(str(corpo.get('upload_id', '')))
+        url_assinada = str(corpo.get('url_assinada', ''))
+        dados = PedidoNotificacao.model_validate(corpo.get('pedido'))
+    except (ValueError, ValidationError, AttributeError):
         raise HTTPException(422, 'Revise os dados do remetente, destino e destinatários.') from None
 
-    nome_arquivo = str(arquivo.filename or 'documento.pdf')
-    if nome_arquivo.lower() != 'documentos rtd.pdf':
+    # A mesma chave pode ser reenviada após uma resposta perdida. Resolve a
+    # idempotência antes de exigir novamente o arquivo temporário.
+    with conectar() as con, con.cursor() as cur:
+        cur.execute('''SELECT id,chave_operacao,intimacao_id,usuario,estado,protocolo,
+            cartorio_id,ambiente,erro,criado_em,alterado_em FROM rtd_notificacao_envios_aeri
+            WHERE chave_operacao=%s''', (id_operacao,))
+        existente = cur.fetchone()
+    if existente:
+        if existente['estado'] in ('CRIADO', 'HOMOLOGACAO_OK'):
+            return {'ok': True, 'repetido': True, **_resumo_envio(existente)}
+        raise HTTPException(409, 'Este envio já está em processamento ou precisa ser conferido na Central.')
+
+    with conectar() as con, con.cursor() as cur:
+        cur.execute('''SELECT pathname,nome_arquivo,tamanho_declarado,estado
+            FROM rtd_uploads_temporarios_aeri WHERE id=%s AND intimacao_id=%s AND usuario=%s
+            AND estado IN ('AGUARDANDO_UPLOAD','PRONTO') AND expira_em>NOW()''',
+            (id_upload, id_intimacao, usuario))
+        upload = cur.fetchone()
+    if not upload:
+        raise HTTPException(409, 'O PDF temporário expirou ou não pertence a esta intimação. Selecione-o novamente.')
+    nome_arquivo = upload['nome_arquivo']
+    if nome_arquivo.casefold() != 'documentos rtd.pdf':
         raise HTTPException(422, 'O documento principal precisa ser “Documentos RTD.pdf”.')
-    conteudo = await arquivo.read(MAX_ARQUIVO_ENVIO + 1)
-    if not conteudo.startswith(b'%PDF') or len(conteudo) > MAX_ARQUIVO_ENVIO:
-        raise HTTPException(422, 'Selecione um PDF válido, com até 4,3 MB.')
+    try:
+        conteudo = baixar_pdf_assinado(url_assinada, upload['pathname'])
+    except ErroUploadRTD as exc:
+        raise HTTPException(422, str(exc)) from None
+    if len(conteudo) != upload['tamanho_declarado'] or len(conteudo) > MAX_ARQUIVO_ENVIO:
+        raise HTTPException(422, 'O PDF enviado não corresponde ao arquivo selecionado ou ultrapassa 25 MB.')
+    with conectar() as con, con.cursor() as cur:
+        cur.execute('''UPDATE rtd_uploads_temporarios_aeri SET estado='PRONTO',tamanho_verificado=%s,
+            alterado_em=NOW() WHERE id=%s AND usuario=%s AND estado IN ('AGUARDANDO_UPLOAD','PRONTO')''',
+            (len(conteudo), id_upload, usuario))
+        con.commit()
     try:
         ambiente = _ambiente_envio_rtd()
     except ErroRTD as exc:
