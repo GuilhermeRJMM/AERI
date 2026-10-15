@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd} from '../backend/static/js/rtd_intimacoes.js';
+
+const telaIntimacoes = readFileSync(new URL('../backend/static/js/intimacoes.js', import.meta.url), 'utf8');
 
 const antigo = {rtd:[{novo:false,alteradoEm:'2026-10-01T10:00:00Z'}]};
 const evento = {
@@ -46,5 +49,8 @@ const malicioso = {rtd:[{novo:true,protocolo:'<script>',situacao:'<img>',versao:
 assert.ok(resumoRtd(malicioso).includes('&lt;script&gt;'));
 assert.ok(!detalhesRtd(malicioso).includes('<script>'));
 assert.ok(!detalhesRtd(malicioso).includes('<img>'));
+assert.match(telaIntimacoes, /method:'PUT', body:arquivo, signal:controlador\.signal/);
+assert.doesNotMatch(telaIntimacoes, /method:'PUT', headers:\s*\{\s*'Content-Type':'application\/pdf'/);
+assert.ok(telaIntimacoes.includes('A conexão falhou ao ${etapaExtracao}.'));
 
 console.log('RTD frontend: verificações de destaque, separação e comparação aprovadas.');

@@ -475,16 +475,20 @@ async function extrairDocumentoRtdSelecionado() {
     document.getElementById('btn-confirmar-rtd-notificacao').disabled = true;
     mostrarStatus('Enviando o PDF com segurança para leitura e envio ao RTD…');
     let uploadConcluido = false;
+    let etapaExtracao = 'iniciar o envio seguro do PDF';
     try {
         if (uploadAnterior) await removerUploadRtd(uploadAnterior);
+        etapaExtracao = 'registrar o PDF temporário no AERI';
         const sessao = await requisicaoAeri('/api/rtd-intimacoes/uploads', opcoesJsonRtd({
             intimacao_id:id, nome_arquivo:arquivo.name, tamanho:arquivo.size,
         }, controlador.signal));
         const upload = {id:sessao.upload_id, arquivo};
         uploadRtdAtual = upload;
+        etapaExtracao = 'autorizar o envio ao armazenamento privado';
         const autorizacao = await urlTemporariaRtd(upload.id, 'put', controlador.signal);
+        etapaExtracao = 'enviar o PDF ao armazenamento privado';
         const respostaUpload = await fetch(autorizacao.url, {
-            method:'PUT', headers:{'Content-Type':'application/pdf'}, body:arquivo, signal:controlador.signal,
+            method:'PUT', body:arquivo, signal:controlador.signal,
         });
         if (!respostaUpload.ok) throw new Error('O armazenamento não confirmou o envio. Tente selecionar o PDF novamente.');
         uploadConcluido = true;
@@ -501,7 +505,9 @@ async function extrairDocumentoRtdSelecionado() {
         novoCampoNotificado();
         atualizarFilaRtd();
         mostrarStatus('PDF recebido. Lendo os devedores e endereços…');
+        etapaExtracao = 'autorizar a leitura do PDF temporário';
         const leitura = await urlTemporariaRtd(upload.id, 'get', controlador.signal);
+        etapaExtracao = 'extrair os devedores e endereços do PDF';
         const dados = await requisicaoAeri(`/api/intimacoes/${id}/extrair-documento-rtd`,
             opcoesJsonRtd({upload_id:upload.id, url_assinada:leitura.url}, controlador.signal));
         if (versao !== versaoExtracaoRtd || document.getElementById('rtd-envio-intimacao-id').value !== id
@@ -537,7 +543,12 @@ async function extrairDocumentoRtdSelecionado() {
             arquivoInput.value = '';
         }
         if (versao === versaoExtracaoRtd && erro.name !== 'AbortError') {
-            mostrarStatus(`${erro.message} Os campos continuam disponíveis para preenchimento manual.`);
+            const falhaDeRede = erro instanceof TypeError
+                && /failed to fetch|networkerror|load failed/i.test(erro.message || '');
+            const mensagem = falhaDeRede
+                ? `A conexão falhou ao ${etapaExtracao}. A leitura não foi concluída; nenhum envio ao RTD foi feito.`
+                : erro.message;
+            mostrarStatus(`${mensagem} Os campos continuam disponíveis para preenchimento manual.`);
         }
     } finally {
         if (versao === versaoExtracaoRtd) {
