@@ -1021,7 +1021,7 @@ async function tratarAcaoTabela(evento) {
 export function iniciarIntimacoes() {
     iniciarDocumentosIntimacao((id, pares, credor) => abrirEnvioRtd(id, pares, credor));
     if (!document.getElementById('rtd-estilos')) {
-        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261015-anexos-v1'; document.head.appendChild(css);
+        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261015-anexos-v2'; document.head.appendChild(css);
         const painel = document.createElement('section'); painel.id='rtd-painel'; painel.className='rtd-painel'; painel.setAttribute('aria-label','Acompanhamento das diligências RTD');
         document.getElementById('rotina-resumo').before(painel);
         painel.addEventListener('click', async evento => {

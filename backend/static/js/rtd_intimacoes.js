@@ -26,11 +26,15 @@ function secaoDocumentosRtd(protocolo) {
     const conteudo = documentos === undefined
         ? ''
         : documentos.length
-            ? `<ul>${documentos.map(documento => `<li><span>${escaparHtml(documento.titulo)}</span><a href="/api/rtd-intimacoes/${encodeURIComponent(protocolo)}/documentos/${encodeURIComponent(documento.id)}" rel="noreferrer">Baixar</a></li>`).join('')}</ul>`
-            : '<p class="rtd-documentos-vazio">A Central RTD não disponibilizou anexos para este pedido.</p>';
+            ? `<ul class="rtd-documentos-lista">${documentos.map(documento => `<li><span class="rtd-documento-titulo"><span class="rtd-documento-icone" aria-hidden="true">▤</span>${escaparHtml(documento.titulo)}</span><a href="/api/rtd-intimacoes/${encodeURIComponent(protocolo)}/documentos/${encodeURIComponent(documento.id)}" download rel="noreferrer">Baixar</a></li>`).join('')}</ul>`
+            : '<p class="rtd-documentos-vazio">Nenhum arquivo disponível para este pedido.</p>';
+    const resumo = documentos === undefined
+        ? 'Consulte os arquivos anexados ao pedido.'
+        : documentos.length === 1 ? '1 arquivo disponível para baixar.'
+            : `${documentos.length} arquivos disponíveis para baixar.`;
     return `<section class="rtd-documentos">
-        <div class="rtd-documentos-cabecalho"><div><h4>Documentos e anexos do pedido</h4><p>Arquivos consultados diretamente na Central RTD; os links privados não são expostos.</p></div>
-            <button type="button" data-acao="rtd-documentos" data-rtd="${escaparHtml(protocolo)}" ${buscando ? 'disabled' : ''}>${buscando ? 'Buscando…' : documentos === undefined ? 'Buscar documentos' : 'Atualizar lista'}</button></div>
+        <div class="rtd-documentos-cabecalho"><div><h4>Arquivos do RTD</h4><p>${resumo}</p></div>
+            <button type="button" data-acao="rtd-documentos" data-rtd="${escaparHtml(protocolo)}" ${buscando ? 'disabled' : ''}>${buscando ? 'Buscando…' : documentos === undefined ? 'Ver arquivos' : 'Atualizar'}</button></div>
         ${erro ? `<p class="rtd-documentos-erro" role="alert">${escaparHtml(erro)}</p>` : ''}
         ${conteudo}
     </section>`;
