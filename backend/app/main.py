@@ -107,7 +107,7 @@ async def seguranca_http(request: Request, call_next):
     resposta.headers["Content-Security-Policy"] = (
         "default-src 'self'; base-uri 'self'; form-action 'self'; "
         f"frame-ancestors {frame_ancestors}; "
-        "object-src 'none'; script-src 'self'; connect-src 'self' https://*.private.blob.vercel-storage.com; "
+        "object-src 'none'; script-src 'self'; connect-src 'self' https://vercel.com https://*.private.blob.vercel-storage.com; "
         f"img-src 'self' data: blob: {SERVIDORES_DE_TILE}; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com"

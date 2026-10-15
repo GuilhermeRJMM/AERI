@@ -423,6 +423,10 @@ class TesteSeguranca(unittest.TestCase):
             "frame-ancestors 'self' https://sync.cartorio.example;",
             resposta.headers["content-security-policy"],
         )
+        self.assertIn(
+            "connect-src 'self' https://vercel.com https://*.private.blob.vercel-storage.com;",
+            resposta.headers["content-security-policy"],
+        )
         self.assertNotIn("x-frame-options", resposta.headers)
 
 
