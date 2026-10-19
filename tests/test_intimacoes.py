@@ -211,6 +211,17 @@ class TesteIntimacoes(unittest.TestCase):
         self.assertIn("acoesIntimacao(item, true)", javascript)
         self.assertNotIn("if (!inicial || !detalhesAbertos.has(item.id))", javascript)
 
+    def test_filtros_da_fila_recebem_cliques_no_proprio_toolbar(self):
+        raiz = Path(__file__).parents[1]
+        template = (raiz / "backend/templates/index.html").read_text(encoding="utf-8")
+        javascript = (raiz / "backend/static/js/intimacoes.js").read_text(encoding="utf-8")
+
+        self.assertIn('id="rotina-fila-filtros"', template)
+        self.assertIn('data-fila-filtro="RTD"', template)
+        self.assertIn("getElementById('rotina-fila-filtros').addEventListener('click'", javascript)
+        self.assertIn("const filtro = evento.target.closest('[data-fila-filtro]')", javascript)
+        self.assertIn("if (['RTD', 'TODAS'].includes(filtroFila)) faseAtiva = 'TODAS';", javascript)
+
 
 if __name__ == "__main__":
     unittest.main()

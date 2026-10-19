@@ -1360,16 +1360,16 @@ export function iniciarIntimacoes() {
         evento.target.value = evento.target.value.replace(/\D/g, '').slice(0, 17);
     });
     document.getElementById('rotina-tbody').addEventListener('click', tratarAcaoTabela);
-    document.getElementById('rotina-central-acao').addEventListener('click', async evento => {
+    document.getElementById('rotina-fila-filtros').addEventListener('click', evento => {
         const filtro = evento.target.closest('[data-fila-filtro]');
-        if (filtro) {
-            filtroFila = filtro.dataset.filaFiltro;
-            filtroSituacao = 'TODAS';
-            document.getElementById('filtro-situacao-intimacao').value = 'TODAS';
-            if (['RTD', 'TODAS'].includes(filtroFila)) faseAtiva = 'TODAS';
-            renderizarIntimacoes();
-            return;
-        }
+        if (!filtro) return;
+        filtroFila = filtro.dataset.filaFiltro;
+        filtroSituacao = 'TODAS';
+        document.getElementById('filtro-situacao-intimacao').value = 'TODAS';
+        if (['RTD', 'TODAS'].includes(filtroFila)) faseAtiva = 'TODAS';
+        renderizarIntimacoes();
+    });
+    document.getElementById('rotina-central-acao').addEventListener('click', async evento => {
         const selecao = evento.target.closest('[data-selecionar-intimacao]');
         if (selecao) {
             intimacaoSelecionadaId = selecao.dataset.selecionarIntimacao;
