@@ -35,6 +35,8 @@ router = APIRouter(
     dependencies=[Depends(preparar_banco)],
 )
 LEASE_SINCRONIZACAO_SEGUNDOS = 300
+JANELA_SONDAGEM_NOVOS = 30
+INTERVALO_RECONSULTA_AUSENCIA_HORAS = 24
 
 # Concorrência deliberadamente conservadora: a Tri7 já demonstrou não tolerar
 # bem paralelismo sem controle (5 workers sem limite de taxa quebrou em
@@ -61,9 +63,12 @@ def _consultar_registro_auxiliar_tri7(
 
 
 def _consultar_lote_tri7(numeros: list[int]) -> tuple[list[dict], str | None]:
-    """Consulta a Tri7 com paralelismo limitado, preservando a semântica
-    serial: para na primeira falha fatal (autenticação/configuração) sem
-    processar nada além dela, mesmo que respostas cheguem fora de ordem."""
+    """Consulta a Tri7 com paralelismo limitado e mantém respostas concluídas.
+
+    Uma falha fatal cancela chamadas que ainda não começaram. As que já
+    estavam em trânsito podem terminar e são mantidas para não perder a
+    rastreabilidade dos números efetivamente consultados.
+    """
     if not numeros:
         return [], None
     cancelar = threading.Event()
@@ -81,10 +86,13 @@ def _consultar_lote_tri7(numeros: list[int]) -> tuple[list[dict], str | None]:
     falha = None
     for numero in numeros:
         resultado = por_numero.get(numero)
-        if resultado is None or resultado["status"] in ("CANCELADO", "FATAL"):
-            if resultado is not None and resultado["status"] == "FATAL":
-                falha = str(resultado["erro"])
-            break
+        if resultado is None or resultado["status"] == "CANCELADO":
+            continue
+        # As demais requisições do lote podem já estar em trânsito quando
+        # chega uma falha fatal. Persistir essas respostas evita perder a
+        # rastreabilidade; o cursor sequencial só avança pelo trecho contínuo.
+        if resultado["status"] == "FATAL" and falha is None:
+            falha = str(resultado["erro"])
         resultados.append(resultado)
     return resultados, falha
 
@@ -128,25 +136,154 @@ def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool]:
     )
     item = cursor.fetchone()
     _limpar_erro(cursor, numero)
+    _registrar_consulta_varredura(cursor, numero, "ENCONTRADO")
     item["alterado"] = alterado
     return item, anterior is None
 
 
 def _registrar_erro(cursor, numero: int, modo: str, erro: Exception) -> None:
     cursor.execute(
-        """INSERT INTO registros_auxiliares_erros_aeri (numero, modo, erro)
-        VALUES (%s, %s, %s)
+        """INSERT INTO registros_auxiliares_erros_aeri
+        (numero, modo, erro, proxima_tentativa_em)
+        VALUES (%s, %s, %s, NOW() + INTERVAL '15 minutes')
         ON CONFLICT (numero) DO UPDATE SET
             modo=EXCLUDED.modo,
             erro=EXCLUDED.erro,
             tentativas=registros_auxiliares_erros_aeri.tentativas + 1,
-            ultima_tentativa_em=NOW()""",
+            ultima_tentativa_em=NOW(),
+            proxima_tentativa_em=NOW() + make_interval(mins =>
+                LEAST(480, 15 * (1 << LEAST(registros_auxiliares_erros_aeri.tentativas, 5))))""",
         (numero, modo, str(erro)[:500]),
+    )
+    _registrar_consulta_varredura(cursor, numero, "ERRO")
+
+
+def _registrar_consulta_varredura(cursor, numero: int, resultado: str) -> None:
+    """Guarda inclusive 404/sem texto; ausência é rechecável, não terminal."""
+    if resultado == "ERRO":
+        cursor.execute(
+            """INSERT INTO registros_auxiliares_varredura_aeri
+            (numero, resultado, consultado_em, proxima_consulta_em, tentativas)
+            VALUES (%s, 'ERRO', NOW(), NOW() + INTERVAL '15 minutes', 1)
+            ON CONFLICT (numero) DO UPDATE SET
+                resultado='ERRO', consultado_em=NOW(),
+                tentativas=registros_auxiliares_varredura_aeri.tentativas + 1,
+                proxima_consulta_em=NOW() + make_interval(mins =>
+                    LEAST(480, 15 * (1 << LEAST(registros_auxiliares_varredura_aeri.tentativas, 5))))""",
+            (numero,),
+        )
+        return
+    if resultado == "AUSENTE":
+        cursor.execute(
+            """INSERT INTO registros_auxiliares_varredura_aeri
+            (numero, resultado, consultado_em, proxima_consulta_em, tentativas)
+            VALUES (%s, %s, NOW(), NOW() + make_interval(hours => %s), 1)
+            ON CONFLICT (numero) DO UPDATE SET
+                resultado=EXCLUDED.resultado, consultado_em=NOW(),
+                proxima_consulta_em=EXCLUDED.proxima_consulta_em,
+                tentativas=registros_auxiliares_varredura_aeri.tentativas + 1""",
+            (numero, resultado, INTERVALO_RECONSULTA_AUSENCIA_HORAS),
+        )
+        return
+    cursor.execute(
+        """INSERT INTO registros_auxiliares_varredura_aeri
+        (numero, resultado, consultado_em, proxima_consulta_em, tentativas)
+        VALUES (%s, %s, NOW(), NULL, 0)
+        ON CONFLICT (numero) DO UPDATE SET
+            resultado=EXCLUDED.resultado, consultado_em=NOW(),
+            proxima_consulta_em=NULL, tentativas=0""",
+        (numero, resultado),
     )
 
 
 def _limpar_erro(cursor, numero: int) -> None:
     cursor.execute("DELETE FROM registros_auxiliares_erros_aeri WHERE numero=%s", (numero,))
+
+
+def _salvar_ausencia(cursor, numero: int) -> None:
+    _limpar_erro(cursor, numero)
+    _registrar_consulta_varredura(cursor, numero, "AUSENTE")
+
+
+def _selecionar_numeros_novos(
+    cursor, ultimo_confirmado: int, tamanho: int,
+) -> tuple[list[int], int, int]:
+    """Sonda adiante do maior registro real e revisita ausências próximas.
+
+    O limite da janela é de sondagem, nunca é gravado como último registro
+    existente. Assim um cursor ou faixa vazia não consegue pular garantias.
+    """
+    tamanho = max(1, tamanho)
+    limite = ultimo_confirmado + JANELA_SONDAGEM_NOVOS
+    inicio = max(1, ultimo_confirmado - JANELA_SONDAGEM_NOVOS)
+    quantidade_reconsulta = max(1, (tamanho * 2 + 2) // 3)
+    cursor.execute(
+        """SELECT numero FROM registros_auxiliares_varredura_aeri
+        WHERE resultado='AUSENTE' AND proxima_consulta_em<=NOW()
+          AND numero BETWEEN %s AND %s
+        ORDER BY CASE WHEN numero > %s THEN 0 ELSE 1 END,
+                 consultado_em, numero LIMIT %s""",
+        (inicio, limite, ultimo_confirmado, quantidade_reconsulta),
+    )
+    reconsultados = [item["numero"] for item in cursor.fetchall()]
+    cursor.execute(
+        """SELECT COALESCE(MAX(numero), %s) AS maior
+        FROM registros_auxiliares_varredura_aeri
+        WHERE numero > %s AND numero <= %s""",
+        (ultimo_confirmado, ultimo_confirmado, limite),
+    )
+    maior_sondado = int(cursor.fetchone()["maior"] or ultimo_confirmado)
+    quantidade_exploracao = tamanho - len(reconsultados)
+    inicio_exploracao = max(ultimo_confirmado + 1, maior_sondado + 1)
+    fim_exploracao = min(inicio_exploracao + quantidade_exploracao - 1, limite)
+    explorados = (
+        list(range(inicio_exploracao, fim_exploracao + 1))
+        if quantidade_exploracao > 0 and inicio_exploracao <= fim_exploracao
+        else []
+    )
+    numeros = list(dict.fromkeys([*reconsultados, *explorados]))
+    if len(numeros) < tamanho:
+        cursor.execute(
+            """SELECT numero FROM registros_auxiliares_varredura_aeri
+            WHERE resultado='AUSENTE' AND proxima_consulta_em<=NOW()
+              AND numero BETWEEN %s AND %s
+            ORDER BY CASE WHEN numero > %s THEN 0 ELSE 1 END,
+                     consultado_em, numero LIMIT %s""",
+            (inicio, limite, ultimo_confirmado, tamanho),
+        )
+        numeros = list(dict.fromkeys([
+            *numeros, *(item["numero"] for item in cursor.fetchall()),
+        ]))[:tamanho]
+    return numeros, len(reconsultados), len(explorados)
+
+
+def _selecionar_numeros_lacunas(cursor, inicio: int, limite: int, tamanho: int) -> list[int]:
+    """Percorre em círculo todos os números sem texto indexado.
+
+    Números desconhecidos são tentados uma vez e ausências são revisitadas a
+    cada nova passagem pelo círculo. Falhas técnicas respeitam o prazo de
+    retentativa para evitar martelar a Tri7 quando há indisponibilidade.
+    """
+    if limite < 1:
+        return []
+    inicio = max(1, min(inicio, limite))
+    consulta = """SELECT faixa.numero
+        FROM generate_series(%s, %s) AS faixa(numero)
+        LEFT JOIN registros_auxiliares_aeri indice ON indice.numero=faixa.numero
+        LEFT JOIN registros_auxiliares_varredura_aeri varredura ON varredura.numero=faixa.numero
+        WHERE indice.numero IS NULL
+          AND (varredura.numero IS NULL
+               OR varredura.resultado='AUSENTE'
+               OR (varredura.resultado='ERRO'
+                   AND varredura.proxima_consulta_em<=NOW()))
+        ORDER BY faixa.numero LIMIT %s"""
+    cursor.execute(consulta, (inicio, limite, tamanho))
+    numeros = [item["numero"] for item in cursor.fetchall()]
+    restante = tamanho - len(numeros)
+    if restante and inicio > 1:
+        cursor.execute(consulta, (1, inicio - 1, restante))
+        numeros.extend(item["numero"] for item in cursor.fetchall())
+    return numeros
 
 
 def _estado_json(cursor) -> dict:
@@ -162,6 +299,11 @@ def _estado_json(cursor) -> dict:
         (HASH_DOCUMENTOS_VERSAO,),
     )
     hashes_pendentes = cursor.fetchone()["total"]
+    cursor.execute(
+        """SELECT COUNT(*) AS total FROM registros_auxiliares_varredura_aeri
+        WHERE resultado='AUSENTE'"""
+    )
+    ausencias_registradas = cursor.fetchone()["total"]
     limite = estado["limite_inicial"]
     concluidos = min(max(estado["proximo_inicial"] - 1, 0), limite)
     return {
@@ -169,7 +311,9 @@ def _estado_json(cursor) -> dict:
         "proximoInicial": estado["proximo_inicial"],
         "ultimoExistente": estado["ultimo_existente"],
         "proximoRevisao": estado["proximo_revisao"],
+        "proximoLacuna": estado.get("proximo_lacuna", 1),
         "totalIndexados": total,
+        "ausenciasRegistradas": ausencias_registradas,
         "errosPendentes": erros,
         "documentosPendentesReindexacao": hashes_pendentes,
         "progressoInicial": round((concluidos / limite) * 100, 2) if limite else 100,
@@ -330,9 +474,10 @@ def revisar_registro_auxiliar(
                 cursor.execute(
                     """UPDATE sincronizacao_registros_auxiliares_aeri
                     SET limite_inicial=GREATEST(limite_inicial,%s),
+                        ultimo_existente=GREATEST(ultimo_existente,%s),
                         ultima_sincronizacao=NOW(), atualizado_em=NOW()
                     WHERE id=1""",
-                    (numero,),
+                    (numero, numero),
                 )
                 registrar_auditoria_cursor(
                     cursor, request, "revisar_registro_auxiliar", "sucesso", usuario,
@@ -346,7 +491,7 @@ def revisar_registro_auxiliar(
                 }
 
             if resultado["status"] == "AUSENTE":
-                _limpar_erro(cursor, numero)
+                _salvar_ausencia(cursor, numero)
                 registrar_auditoria_cursor(
                     cursor, request, "revisar_registro_auxiliar", "ausente", usuario, detalhes={"numero": numero},
                 )
@@ -393,20 +538,34 @@ def _executar_sincronizacao(
                 if limite_informado > estado["limite_inicial"]:
                     cursor.execute(
                         """UPDATE sincronizacao_registros_auxiliares_aeri
-                        SET limite_inicial=%s, ultimo_existente=GREATEST(ultimo_existente,%s), atualizado_em=NOW()
+                        SET limite_inicial=%s, atualizado_em=NOW()
                         WHERE id=1""",
-                        (limite_informado, limite_informado),
+                        (limite_informado,),
                     )
                     estado["limite_inicial"] = limite_informado
-                    estado["ultimo_existente"] = max(estado["ultimo_existente"], limite_informado)
 
+                reconsultadas = exploradas = 0
                 if modo == "INICIAL":
                     inicio = estado["proximo_inicial"]
                     fim = min(inicio + tamanho - 1, estado["limite_inicial"])
                     numeros = list(range(inicio, fim + 1)) if inicio <= fim else []
                 elif modo == "NOVOS":
-                    inicio = estado["ultimo_existente"] + 1
-                    numeros = list(range(inicio, inicio + tamanho))
+                    cursor.execute("SELECT COALESCE(MAX(numero),0) AS maior FROM registros_auxiliares_aeri")
+                    ultimo_confirmado = int(cursor.fetchone()["maior"] or 0)
+                    estado["ultimo_existente"] = ultimo_confirmado
+                    numeros, reconsultadas, exploradas = _selecionar_numeros_novos(
+                        cursor, ultimo_confirmado, tamanho,
+                    )
+                elif modo == "LACUNAS":
+                    cursor.execute("SELECT COALESCE(MAX(numero),0) AS maior FROM registros_auxiliares_aeri")
+                    ultimo_confirmado = int(cursor.fetchone()["maior"] or 0)
+                    limite_lacunas = max(
+                        estado["limite_inicial"],
+                        ultimo_confirmado + JANELA_SONDAGEM_NOVOS,
+                    )
+                    numeros = _selecionar_numeros_lacunas(
+                        cursor, estado.get("proximo_lacuna", 1), limite_lacunas, tamanho,
+                    )
                 elif modo == "REVISAO":
                     cursor.execute(
                         """SELECT numero FROM registros_auxiliares_aeri
@@ -432,7 +591,8 @@ def _executar_sincronizacao(
                 else:
                     cursor.execute(
                         """SELECT numero FROM registros_auxiliares_erros_aeri
-                        ORDER BY ultima_tentativa_em ASC, numero ASC LIMIT %s""",
+                        WHERE proxima_tentativa_em<=NOW()
+                        ORDER BY proxima_tentativa_em ASC, ultima_tentativa_em ASC, numero ASC LIMIT %s""",
                         (tamanho,),
                     )
                     numeros = [item["numero"] for item in cursor.fetchall()]
@@ -461,7 +621,7 @@ def _executar_sincronizacao(
                         alterados += int(_item["alterado"])
                         maior_encontrado = max(maior_encontrado, numero)
                     elif resultado["status"] == "AUSENTE":
-                        _limpar_erro(cursor, numero)
+                        _salvar_ausencia(cursor, numero)
                         ausentes += 1
                     else:
                         erro = resultado["erro"]
@@ -472,19 +632,43 @@ def _executar_sincronizacao(
                     ultimo_processado = numero
 
                 if modo == "INICIAL" and ultimo_processado is not None:
+                    processados_por_numero = {item["numero"] for item in resultados}
+                    ultimo_contiguo = None
+                    for numero in numeros:
+                        if numero not in processados_por_numero:
+                            break
+                        ultimo_contiguo = numero
                     cursor.execute(
                         """UPDATE sincronizacao_registros_auxiliares_aeri
                         SET proximo_inicial=GREATEST(proximo_inicial,%s),
                             ultimo_existente=GREATEST(ultimo_existente,%s),
                             ultima_sincronizacao=NOW(), atualizado_em=NOW() WHERE id=1""",
-                        (ultimo_processado + 1, maior_encontrado),
+                        ((ultimo_contiguo + 1) if ultimo_contiguo is not None else estado["proximo_inicial"],
+                         maior_encontrado),
                     )
                 elif modo == "NOVOS" and ultimo_processado is not None:
+                    maior_real = max(
+                        (r["numero"] for r in resultados if r["status"] == "OK"),
+                        default=estado["ultimo_existente"],
+                    )
                     cursor.execute(
                         """UPDATE sincronizacao_registros_auxiliares_aeri
                         SET ultimo_existente=GREATEST(ultimo_existente,%s),
                             ultima_sincronizacao=NOW(), atualizado_em=NOW() WHERE id=1""",
-                        (maior_encontrado,),
+                        (maior_real,),
+                    )
+                elif modo == "LACUNAS" and ultimo_processado is not None:
+                    proximo_lacuna = 1 if ultimo_processado >= limite_lacunas else ultimo_processado + 1
+                    maior_real = max(
+                        (r["numero"] for r in resultados if r["status"] == "OK"),
+                        default=estado["ultimo_existente"],
+                    )
+                    cursor.execute(
+                        """UPDATE sincronizacao_registros_auxiliares_aeri
+                        SET ultimo_existente=GREATEST(ultimo_existente,%s), proximo_lacuna=%s,
+                            ultima_sincronizacao=NOW(), atualizado_em=NOW()
+                        WHERE id=1""",
+                        (maior_real, proximo_lacuna),
                     )
                 elif modo == "REVISAO" and ultimo_processado is not None:
                     cursor.execute(
@@ -522,6 +706,7 @@ def _executar_sincronizacao(
                 conexao.commit()
                 return {"modo": modo, "processados": processados, "encontrados": encontrados,
                         "novos": novos, "alterados": alterados, "ausentes": ausentes,
+                        "reconsultadas": reconsultadas, "exploradas": exploradas,
                         "numerosNovos": numeros_novos, "falhas": falhas, "erros": erros,
                         "falha": falha, "estado": estado_json,
                         "custasRevalidadas": custas_revalidadas,
@@ -541,7 +726,7 @@ def sincronizar_registros_auxiliares(
     usuario: str = Depends(exigir_permissao("sincronizar_registro_auxiliar")),
 ):
     modo = str(dados.get("modo", "INICIAL")).strip().upper()
-    if modo not in {"INICIAL", "NOVOS", "REVISAO", "ERROS"}:
+    if modo not in {"INICIAL", "NOVOS", "LACUNAS", "REVISAO", "ERROS"}:
         raise HTTPException(status_code=422, detail="Modo de sincronização inválido.")
     try:
         tamanho = max(1, min(int(dados.get("tamanho", 15)), 30))
@@ -552,14 +737,23 @@ def sincronizar_registros_auxiliares(
 
 
 def _proximo_modo_automatico(cursor) -> str | None:
-    cursor.execute("SELECT * FROM sincronizacao_registros_auxiliares_aeri WHERE id=1")
+    cursor.execute(
+        """UPDATE sincronizacao_registros_auxiliares_aeri
+        SET ciclo_automatico=ciclo_automatico+1 WHERE id=1 RETURNING *"""
+    )
     estado = cursor.fetchone()
     if estado["proximo_inicial"] <= estado["limite_inicial"]:
         return "INICIAL"
-    cursor.execute("SELECT COUNT(*) AS total FROM registros_auxiliares_erros_aeri")
-    if cursor.fetchone()["total"] > 0:
-        return "ERROS"
-    return "NOVOS"
+    ciclo = ("NOVOS", "LACUNAS", "REVISAO", "ERROS", "LACUNAS", "REVISAO")
+    modo = ciclo[(estado.get("ciclo_automatico", 1) - 1) % len(ciclo)]
+    if modo == "ERROS":
+        cursor.execute(
+            """SELECT COUNT(*) AS total FROM registros_auxiliares_erros_aeri
+            WHERE proxima_tentativa_em<=NOW()"""
+        )
+        if not cursor.fetchone()["total"]:
+            return "LACUNAS"
+    return modo
 
 
 def passo_automatico(request=None, usuario: str = "cron") -> dict:
@@ -575,15 +769,6 @@ def passo_automatico(request=None, usuario: str = "cron") -> dict:
             modo = _proximo_modo_automatico(cursor)
 
     resultado = _executar_sincronizacao(modo, tamanho=20, limite_informado=0, request=request, usuario=usuario)
-    if modo == "NOVOS":
-        with conectar() as conexao:
-            with conexao.cursor() as cursor:
-                cursor.execute("SELECT COUNT(*) AS total FROM registros_auxiliares_erros_aeri")
-                sem_erros = cursor.fetchone()["total"] == 0
-        if sem_erros:
-            resultado["revisao"] = _executar_sincronizacao(
-                "REVISAO", tamanho=20, limite_informado=0, request=request, usuario=usuario
-            )
     resultado["modo"] = modo
     return resultado
 

@@ -188,7 +188,8 @@ class TesteModoAutomaticoDoCron(unittest.TestCase):
         cursor = MagicMock()
         cursor.fetchone.side_effect = [
             {"proximo_inicial": 29539, "limite_inicial": 29538,
-             "ultimo_conhecido": 29538, "proximo_revisao": 1},
+             "ultimo_existente": 29538, "proximo_revisao": 1,
+             "ciclo_automatico": 4},
             {"total": 4},
         ]
 
@@ -198,11 +199,12 @@ class TesteModoAutomaticoDoCron(unittest.TestCase):
         cursor = MagicMock()
         cursor.fetchone.side_effect = [
             {"proximo_inicial": 29539, "limite_inicial": 29538,
-             "ultimo_conhecido": 29538, "proximo_revisao": 1},
+             "ultimo_existente": 29538, "proximo_revisao": 1,
+             "ciclo_automatico": 4},
             {"total": 0},
         ]
 
-        self.assertEqual(_proximo_modo_automatico(cursor), "NOVOS")
+        self.assertEqual(_proximo_modo_automatico(cursor), "LACUNAS")
 
 
 if __name__ == "__main__":
