@@ -215,6 +215,8 @@
 .rotina-fila-partes,.rotina-fila-andamento,.rotina-fila-data { display:block; overflow:hidden; color:#aab7cd; font-size:.69rem; text-overflow:ellipsis; white-space:nowrap; }
 .rotina-fila-partes i { padding:0 3px; color:#64738d; font-style:normal; }
 .rotina-fila-andamento { color:#e0e7f3; font-size:.73rem; font-weight:600; }
+.rotina-fila-protocolo-rtd { display:block; overflow-wrap:anywhere; color:#bfb4ff; font-size:.66rem; line-height:1.35; }
+.rotina-fila-protocolo-rtd strong { color:#d4cbff; }
 .rotina-fila-data { color:#8796af; font-size:.64rem; }
 .rotina-fila-chevron { align-self:center; color:#7384a0; font-size:1.5rem; }
 .rotina-fila-vazia { padding:28px 16px; color:#aab7cd; font-size:.82rem; text-align:center; }

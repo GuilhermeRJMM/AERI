@@ -123,8 +123,14 @@ function dataCurta(valor) {
 
 export function resumoRtd(item) {
     if (item?.fase && item.fase !== 'INTIMACAO') return '';
-    if (!(item.rtd || []).length) return '<span class="rtd-sem-vinculo">Sem protocolo RTD vinculado</span>';
-    return item.rtd.map(p => {
+    const pedidos = item?.rtd || [];
+    const protocoloCadastro = String(item?.protocoloRtd || '').trim();
+    const protocoloJaVinculado = pedidos.some(p => String(p.protocolo || '').trim() === protocoloCadastro);
+    const protocoloLegado = protocoloCadastro && !protocoloJaVinculado
+        ? `<div class="rtd-resumo-pedido rtd-legado"><span class="rtd-resumo-cabecalho"><strong>RTD ${escaparHtml(protocoloCadastro)}</strong></span><span>Protocolo informado no cadastro do IN</span></div>`
+        : '';
+    if (!pedidos.length && !protocoloLegado) return '<span class="rtd-sem-vinculo">Sem protocolo RTD vinculado</span>';
+    return [protocoloLegado, ...pedidos.map(p => {
         const atualizacao = p.eventos?.[0];
         const mudanca = atualizacao ? diferencas(atualizacao)[0] : null;
         const textoMudanca = mudanca ? `${mudanca.rotulo}: ${mudanca.anterior} → ${mudanca.atual}` : '';
@@ -134,7 +140,7 @@ export function resumoRtd(item) {
             ${textoMudanca ? `<small>${escaparHtml(textoMudanca)}</small>` : ''}
             <small>${p.erro ? 'Falha na atualização' : `Consultado: ${dataCurta(p.consultadoEm)}`}</small>
         </div>`;
-    }).join('');
+    })].filter(Boolean).join('');
 }
 
 export function detalhesRtd(item) {

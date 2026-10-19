@@ -1,6 +1,6 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
-import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd, carregarDocumentosRtd} from './rtd_intimacoes.js?v=20261015-fases-v1';
+import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd, carregarDocumentosRtd} from './rtd_intimacoes.js?v=20261019-protocolo-rtd-visivel-v1';
 import {abrirDocumentosIntimacao, iniciarDocumentosIntimacao} from './intimacao_documentos.js?v=20261009-v1';
 
 let intimacoes = [];
@@ -255,12 +255,16 @@ function renderizarCartaoFila(item) {
     const situacao = situacaoIntimacao(item);
     const novidade = temNovidadeRtd(item);
     const selecionado = item.id === intimacaoSelecionadaId;
+    const protocolosRtd = item.fase === 'INTIMACAO'
+        ? [...new Set([item.protocoloRtd, ...(item.rtd || []).map(pedido => pedido.protocolo)].map(valor => String(valor || '').trim()).filter(Boolean))]
+        : [];
     return `<article class="rotina-fila-cartao ${selecionado ? 'selecionado' : ''} ${situacao.classe}">
         <button type="button" class="rotina-fila-selecionar" data-selecionar-intimacao="${escaparHtml(item.id)}" aria-pressed="${selecionado}">
             <span class="rotina-fila-conteudo">
                 <span class="rotina-fila-linha"><strong>${escaparHtml(item.protocolo)}</strong><span class="rotina-fila-etiquetas"><span class="rotina-fila-fase fase-${String(item.fase || '').toLowerCase()}">${escaparHtml(rotuloFaseIntimacao(item.fase))}</span><span class="rotina-fila-situacao ${novidade ? 'rtd' : situacao.classe}">${novidade ? 'Nova movimentação RTD' : escaparHtml(situacao.rotulo)}</span></span></span>
                 <span class="rotina-fila-partes">${escaparHtml(item.credor)} <i>·</i> ${escaparHtml(item.devedor)}</span>
                 <span class="rotina-fila-andamento">${escaparHtml(item.nomeAndamento || 'Andamento não informado')}</span>
+                ${item.fase === 'INTIMACAO' ? `<span class="rotina-fila-protocolo-rtd"><strong>Protocolo${protocolosRtd.length === 1 ? '' : 's'} RTD:</strong> ${protocolosRtd.length ? protocolosRtd.map(escaparHtml).join(' · ') : 'não cadastrado'}</span>` : ''}
                 <span class="rotina-fila-data">${formatarDataRotina(item.ultimoAndamento)}${item.ultimaConferencia ? ` · Conferida em ${formatarDataRotina(item.ultimaConferencia)}` : ' · Ainda sem conferência'}</span>
             </span>
             <span class="rotina-fila-chevron" aria-hidden="true">›</span>
@@ -288,7 +292,7 @@ function renderizarFocoIntimacao(item, totalFila) {
     <div class="rotina-foco-metadados"><div><span>Credor</span><strong>${escaparHtml(item.credor)}</strong></div><div><span>Devedor</span><strong>${escaparHtml(item.devedor)}</strong></div></div>
     <div class="rotina-foco-trilha" aria-label="Etapa atual do procedimento">${trilha}</div>
     <section class="rotina-foco-andamento"><div><span>Último andamento registrado</span><strong>${escaparHtml(item.nomeAndamento || 'Não informado')}</strong></div><time>${formatarDataRotina(item.ultimoAndamento)}</time></section>
-    ${novidade ? `<section class="rotina-foco-rtd" aria-label="Novidade do RTD"><strong>Atualização detectada na consulta ao RTD</strong>${resumoRtd(item)}<p>Abra os detalhes para conferir o histórico e os documentos antes de marcar como vista.</p></section>` : ''}
+    ${item.fase === 'INTIMACAO' ? `<section class="rotina-foco-rtd${novidade ? ' prioritaria' : ''}" aria-label="Protocolos da Central RTD"><strong>${novidade ? 'Atualização detectada na consulta ao RTD' : 'Protocolos RTD vinculados a este IN'}</strong>${resumoRtd(item)}${novidade ? '<p>Abra os detalhes para conferir o histórico e os documentos antes de marcar como vista.</p>' : ''}</section>` : ''}
     <section class="rotina-proxima-acao ${novidade ? 'prioritaria' : ''}"><span class="eyebrow">PRÓXIMO PASSO</span><h3>${acao.titulo}</h3><p>${acao.texto}</p><button type="button" class="rotina-acao-principal" data-acao="${acao.acao}" data-id="${escaparHtml(item.id)}">${acao.botao}<span aria-hidden="true">→</span></button></section>
     ${pode('alterar_intimacoes') && item.fase === 'INTIMACAO' ? `<button type="button" class="rotina-acao-rtd" data-acao="novo-envio-rtd" data-id="${escaparHtml(item.id)}"><span>Precisa iniciar uma notificação?</span><strong>Preparar envio ao RTD <i aria-hidden="true">↗</i></strong></button>` : ''}
     <div class="rotina-foco-rodape"><span>${totalFila} ${totalFila === 1 ? 'protocolo na fila' : 'protocolos na fila'}</span><details><summary>Mais ações</summary><div class="rotina-foco-mais-acoes">${botaoPastaIntimacao(item)}${acoesIntimacao(item, false)}</div></details></div>
@@ -1342,7 +1346,7 @@ async function tratarAcaoTabela(evento) {
 export function iniciarIntimacoes() {
     iniciarDocumentosIntimacao((id, pares, credor) => abrirEnvioRtd(id, pares, credor));
     if (!document.getElementById('rtd-estilos')) {
-        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261019-agenda-conferencia-v2'; document.head.appendChild(css);
+        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261019-protocolo-rtd-visivel-v1'; document.head.appendChild(css);
     }
     window.addEventListener('aeri:abrir-alerta', async evento => {
         if (evento.detail.modulo !== 'rotina') return;
