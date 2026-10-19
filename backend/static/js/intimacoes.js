@@ -319,6 +319,52 @@ function renderizarCentralAcao(filtradas) {
     renderizarFocoIntimacao(selecionada, fila.length);
 }
 
+function renderizarCoberturaIntimacao() {
+    const painel = document.querySelector('.rotina-cobertura');
+    if (painel) painel.hidden = exibindoLixeira;
+    if (exibindoLixeira) return;
+    const total = intimacoes.length;
+    const conferidas = intimacoes.filter(item => situacaoIntimacao(item).classe === 'verde').length;
+    const restantes = Math.max(0, total - conferidas);
+    const percentual = total ? Math.round(conferidas / total * 100) : 0;
+    const progresso = document.querySelector('.rotina-cobertura-trilho');
+    const barra = document.getElementById('rotina-cobertura-barra');
+    const contagem = document.getElementById('rotina-cobertura-contagem');
+    const textoRestantes = document.getElementById('rotina-cobertura-restantes');
+    const proximo = document.getElementById('btn-proximo-in-pendente');
+    if (!progresso || !barra || !contagem || !textoRestantes || !proximo) return;
+    contagem.textContent = `${conferidas} de ${total} conferidos hoje · ${percentual}%`;
+    textoRestantes.textContent = restantes
+        ? `${restantes} ${restantes === 1 ? 'IN ainda precisa' : 'INs ainda precisam'} de conferência`
+        : total ? 'Conferência diária concluída para todos os INs ativos.' : 'Nenhum IN ativo na fila.';
+    barra.style.width = `${percentual}%`;
+    progresso.setAttribute('aria-valuenow', String(conferidas));
+    progresso.setAttribute('aria-valuemax', String(total));
+    proximo.disabled = !restantes;
+    proximo.querySelector('strong').textContent = restantes ? 'Revisar próximo IN pendente' : 'Todos conferidos por hoje';
+}
+
+async function abrirProximoInPendente() {
+    if (exibindoLixeira) {
+        exibindoLixeira = false;
+        const botaoLixeira = document.querySelector('[data-lixeira-intimacoes]');
+        if (botaoLixeira) botaoLixeira.textContent = 'Lixeira';
+        await carregarIntimacoes();
+    }
+    const pendente = intimacoes
+        .filter(item => situacaoIntimacao(item).classe !== 'verde')
+        .sort((a, b) => situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo))[0];
+    if (!pendente) return;
+    faseAtiva = 'TODAS';
+    filtroSituacao = 'TODAS';
+    filtroFila = 'PENDENTES';
+    document.getElementById('busca-intimacao').value = '';
+    document.getElementById('filtro-situacao-intimacao').value = 'TODAS';
+    intimacaoSelecionadaId = pendente.id;
+    renderizarIntimacoes();
+    document.getElementById('rotina-central-acao').scrollIntoView({block:'start', behavior:'smooth'});
+}
+
 function campoCard(rotulo, valor, classe = '') {
     return `<div class="rotina-card-campo ${classe}">
         <span>${rotulo}</span>
@@ -820,6 +866,7 @@ function renderizarIntimacoes() {
         .filter(item => filtroSituacao === 'TODAS' || (filtroSituacao === 'RTD' ? temNovidadeRtd(item) : filtroSituacao === 'PENDENTES' ? ['vermelho','cinza'].includes(situacaoIntimacao(item).classe) : situacaoIntimacao(item).classe === filtroSituacao))
         .sort((a, b) => ordenarNovidadesRtd(a,b) || situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo));
 
+    renderizarCoberturaIntimacao();
     renderizarAgendaIntimacoes();
     tbody.innerHTML = filtradas.map(item => {
         const situacao = situacaoIntimacao(item);
@@ -1295,7 +1342,7 @@ async function tratarAcaoTabela(evento) {
 export function iniciarIntimacoes() {
     iniciarDocumentosIntimacao((id, pares, credor) => abrirEnvioRtd(id, pares, credor));
     if (!document.getElementById('rtd-estilos')) {
-        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261015-agenda-conferencia-v1'; document.head.appendChild(css);
+        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261019-agenda-conferencia-v2'; document.head.appendChild(css);
     }
     window.addEventListener('aeri:abrir-alerta', async evento => {
         if (evento.detail.modulo !== 'rotina') return;
@@ -1312,6 +1359,7 @@ export function iniciarIntimacoes() {
     if (cargoAdministrativo()) {
         const lixeira = document.createElement('button');
         lixeira.type = 'button'; lixeira.className = 'rotina-btn-secondary'; lixeira.textContent = 'Lixeira';
+        lixeira.dataset.lixeiraIntimacoes = '';
         lixeira.addEventListener('click', async () => {
             exibindoLixeira = !exibindoLixeira;
             lixeira.textContent = exibindoLixeira ? 'Voltar às intimações' : 'Lixeira';
@@ -1360,6 +1408,7 @@ export function iniciarIntimacoes() {
         evento.target.value = evento.target.value.replace(/\D/g, '').slice(0, 17);
     });
     document.getElementById('rotina-tbody').addEventListener('click', tratarAcaoTabela);
+    document.getElementById('btn-proximo-in-pendente').addEventListener('click', abrirProximoInPendente);
     document.getElementById('rotina-fila-filtros').addEventListener('click', evento => {
         const filtro = evento.target.closest('[data-fila-filtro]');
         if (!filtro) return;

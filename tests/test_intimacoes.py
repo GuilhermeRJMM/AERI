@@ -222,6 +222,18 @@ class TesteIntimacoes(unittest.TestCase):
         self.assertIn("const filtro = evento.target.closest('[data-fila-filtro]')", javascript)
         self.assertIn("if (['RTD', 'TODAS'].includes(filtroFila)) faseAtiva = 'TODAS';", javascript)
 
+    def test_painel_de_cobertura_contabiliza_todos_os_ins_ativos(self):
+        raiz = Path(__file__).parents[1]
+        template = (raiz / "backend/templates/index.html").read_text(encoding="utf-8")
+        javascript = (raiz / "backend/static/js/intimacoes.js").read_text(encoding="utf-8")
+
+        self.assertIn('class="rotina-cobertura"', template)
+        self.assertIn('id="btn-proximo-in-pendente"', template)
+        self.assertIn("function renderizarCoberturaIntimacao()", javascript)
+        self.assertIn("const total = intimacoes.length;", javascript)
+        self.assertIn("classe === 'verde'", javascript)
+        self.assertIn("document.getElementById('btn-proximo-in-pendente').addEventListener('click', abrirProximoInPendente)", javascript)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -872,6 +872,21 @@
 
                     <section class="rotina-resumo" id="rotina-resumo"></section>
 
+                    <section class="rotina-cobertura" aria-labelledby="rotina-cobertura-titulo">
+                        <div class="rotina-cobertura-conteudo">
+                            <span class="eyebrow">CONFERÊNCIA DIÁRIA · TODAS AS FASES</span>
+                            <h2 id="rotina-cobertura-titulo">Nenhum IN fica para trás</h2>
+                            <p>A fila diária inclui todos os protocolos ativos, inclusive Edital e Consolidação. As novidades do RTD aparecem somente na fase de Intimação.</p>
+                            <div class="rotina-cobertura-trilho" role="progressbar" aria-label="Progresso da conferência diária" aria-valuenow="0" aria-valuemin="0" aria-valuemax="0">
+                                <span id="rotina-cobertura-barra"></span>
+                            </div>
+                            <div class="rotina-cobertura-legenda"><strong id="rotina-cobertura-contagem">0 de 0 conferidos</strong><span id="rotina-cobertura-restantes">Carregando fila completa…</span></div>
+                        </div>
+                        <button type="button" class="rotina-cobertura-proximo" id="btn-proximo-in-pendente">
+                            <span><small>SEGUIR A FILA</small><strong>Revisar próximo IN pendente</strong></span><i aria-hidden="true">→</i>
+                        </button>
+                    </section>
+
                     <section class="rotina-painel">
                         <section class="rotina-agenda" aria-labelledby="rotina-agenda-titulo">
                             <div class="rotina-agenda-cabecalho">
@@ -1277,6 +1292,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261019-filtro-novidades-rtd-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20261019-agenda-conferencia-v2"></script>
 </body>
 </html>
