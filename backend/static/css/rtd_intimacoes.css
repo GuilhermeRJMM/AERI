@@ -131,6 +131,133 @@
   .rtd-envio-endereco label:nth-child(2) { grid-column:span 1; }
 }
 
+/* Conferência simples: um IN por vez, com o número RTD junto do protocolo. */
+.rotina-resumo { display:none !important; }
+.rotina-cobertura {
+  display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:18px;
+  margin:0 14px 18px; padding:17px 19px; border:1px solid #2b3850; border-radius:14px;
+  background:#121b2d; color:#f1f5fc; box-shadow:none;
+}
+.rotina-cobertura .eyebrow { color:#aab6ca; font-size:.72rem; letter-spacing:0; }
+.rotina-cobertura h2 { margin:3px 0; font-size:1rem; }
+.rotina-cobertura p { margin:0; color:#aab6ca; font-size:.76rem; }
+.rotina-cobertura-trilho { height:8px; margin-top:12px; background:#27334a; border:0; }
+.rotina-cobertura-trilho span { background:#48c99a; box-shadow:none; }
+.rotina-cobertura-legenda { color:#aab6ca; }
+.rotina-cobertura-legenda strong { color:#f1f5fc; }
+.rotina-cobertura-proximo { min-width:190px; padding:11px 13px; border-color:#3a4962; border-radius:9px; background:#18243a; color:#f1f5fc; }
+.rotina-cobertura-proximo small { color:#aab6ca; }
+.rotina-cobertura-proximo i { color:#d2dbea; }
+.rotina-cobertura-proximo:hover:not(:disabled) { border-color:#70809a; filter:none; }
+.rotina-central-acao { display:flex; flex-direction:column; gap:14px; padding:0 14px 14px; }
+.rotina-foco { order:0; width:100%; padding:20px; border-color:#2b3850; border-radius:14px; background:#121b2d; color:#f1f5fc; }
+.rotina-fila-painel { order:1; width:100%; border-color:#2b3850; border-radius:14px; background:#121b2d; }
+.rotina-in-cartao { display:grid; gap:11px; }
+.rotina-in-cartao button, .rotina-in-cartao a { font-family:inherit; }
+.rotina-in-cabecalho { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.rotina-in-posicao { color:#48c99a; font-size:.67rem; font-weight:800; letter-spacing:.11em; }
+.rotina-in-cabecalho h2 { margin:4px 0 0; color:#f1f5fc; font-size:1.55rem; letter-spacing:-.04em; overflow-wrap:anywhere; }
+.rotina-in-estado { flex:none; padding:5px 9px; border-radius:99px; background:#3b321f; color:#f0c260; font-size:.68rem; font-weight:700; }
+.rotina-in-estado.verde { background:#15382f; color:#a9f0d3; }
+.rotina-in-estado.cinza { background:#242d3e; color:#b6c0d1; }
+.rotina-in-estado.vermelho { background:#3c252c; color:#f3aaaa; }
+.rotina-in-partes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.rotina-in-dado { min-width:0; padding:12px; border-radius:10px; background:#0c1424; }
+.rotina-in-dado span, .rotina-in-protocolo-rtd > span, .rotina-in-andamento > span { display:block; margin-bottom:4px; color:#aab6ca; font-size:.7rem; }
+.rotina-in-dado strong { display:block; color:#f1f5fc; font-size:.83rem; overflow-wrap:anywhere; }
+.rotina-in-protocolo-rtd { padding:12px; border:1px solid #49436e; border-radius:10px; background:#24213d; }
+.rotina-in-protocolo-rtd strong { display:block; color:#e2dbff; font-size:.9rem; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.rotina-in-protocolo-rtd .rotina-in-protocolo-item + .rotina-in-protocolo-item { margin-top:5px; }
+.rotina-in-andamento { padding:12px 14px; border-left:3px solid #7a89a3; border-radius:0 9px 9px 0; background:#182338; }
+.rotina-in-andamento strong { display:block; margin-top:4px; color:#f1f5fc; font-size:.85rem; }
+.rotina-in-aviso-rtd { padding:11px 13px; border:1px solid #6b592f; border-radius:9px; background:#3b321f; color:#f8df9d; font-size:.76rem; line-height:1.45; }
+.rotina-in-aviso-rtd button { margin-top:8px; padding:7px 9px; border:1px solid #76633a; border-radius:7px; background:#2d281e; color:#f8df9d; font-size:.72rem; font-weight:700; cursor:pointer; }
+.rotina-in-proxima-acao { padding:13px; border:1px solid #2b3850; border-radius:10px; background:#18243a; }
+.rotina-in-proxima-acao > strong { color:#f1f5fc; font-size:.82rem; }
+.rotina-in-proxima-acao p { margin:5px 0 0; color:#c1ccdc; font-size:.76rem; line-height:1.5; }
+.rotina-in-proxima-acao a, .rotina-in-proxima-acao button { display:inline-flex; min-height:40px; align-items:center; margin-top:10px; padding:9px 12px; border:1px solid #3a4962; border-radius:8px; background:#202c43; color:#f1f5fc; font-size:.75rem; font-weight:700; text-decoration:none; cursor:pointer; }
+.rotina-in-pergunta { margin:5px 0 0; color:#f1f5fc; font-size:.9rem; }
+.rotina-in-acoes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+.rotina-in-acoes button { min-height:46px; padding:10px 12px; border:1px solid #3b4b65; border-radius:9px; background:#1c293d; color:#f1f5fc; font-size:.76rem; font-weight:700; cursor:pointer; }
+.rotina-in-acoes button[data-conferencia="igual"] { background:#15382f; border-color:#28614d; color:#bcf5dd; }
+.rotina-in-acoes button[data-conferencia="mudou"] { background:#3b321f; border-color:#6b592f; color:#f8df9d; }
+.rotina-in-acoes button[data-conferencia="pular"] { grid-column:1/-1; min-height:38px; border-color:transparent; background:transparent; color:#aab6ca; font-weight:500; }
+.rotina-in-acoes button:disabled { opacity:.55; cursor:not-allowed; }
+.rotina-in-form-alteracao { display:grid; gap:9px; margin-top:10px; padding:12px; border:1px solid #2b3850; border-radius:9px; background:#0c1424; }
+.rotina-in-form-alteracao[hidden] { display:none; }
+.rotina-in-form-alteracao label { color:#d6deeb; font-size:.72rem; font-weight:700; }
+.rotina-in-form-alteracao input { width:100%; min-height:40px; padding:9px 10px; border:1px solid #35435c; border-radius:8px; background:#111b2d; color:#f1f5fc; font:inherit; }
+.rotina-in-form-alteracao button { min-height:42px; padding:9px 12px; border:0; border-radius:8px; background:#48c99a; color:#08110e; font-size:.75rem; font-weight:800; cursor:pointer; }
+.rotina-in-controles { display:flex; justify-content:space-between; gap:10px; padding-top:3px; }
+.rotina-in-controles button { min-height:40px; padding:8px 12px; border:1px solid #3b4b65; border-radius:8px; background:#202c43; color:#f1f5fc; font-size:.75rem; font-weight:700; cursor:pointer; }
+.rotina-in-mais-acoes { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding-top:4px; border-top:1px solid #263249; }
+.rotina-in-mais-acoes > summary { width:100%; color:#aab6ca; font-size:.72rem; cursor:pointer; }
+.rotina-fila-titulo { align-items:center; }
+.rotina-fila-painel > .rotina-fases { display:flex; flex-wrap:wrap; gap:7px; padding:12px 14px 5px; }
+.rotina-fila-painel > .rotina-fases .rotina-fase-btn { min-height:36px; padding:7px 10px; border:1px solid #34425a; border-radius:8px; background:#111a2a; color:#bdc8d9; font:inherit; font-size:.72rem; cursor:pointer; }
+.rotina-fila-painel > .rotina-fases .rotina-fase-btn.ativa { border-color:#28614d; background:#15382f; color:#a9f0d3; }
+.rotina-fila-painel > .rotina-fases .rotina-fase-btn strong { margin-left:4px; color:inherit; }
+.rotina-fila-painel > .rotina-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 14px; }
+.rotina-fila-painel .rotina-busca { box-sizing:border-box; flex:1 1 320px; width:auto; min-width:min(100%,260px); }
+.rotina-fila-painel .rotina-busca input { min-width:0; }
+.rotina-fila-painel .rotina-total { margin-left:auto; font-size:.7rem; }
+.rotina-fila-painel > .rotina-fila-filtros { padding:5px 14px 10px; }
+.rotina-fila-painel .rotina-fila-lista { max-height:460px; padding:0 12px 12px; }
+.rotina-fila-painel .rotina-fila-cartao { border-radius:9px; }
+.rotina-fila-painel .rotina-fila-selecionar { padding:11px 12px 11px 14px; }
+.rotina-fila-painel .rotina-fila-protocolo-rtd { color:#c1b8f7; font-size:.7rem; overflow-wrap:anywhere; }
+.rotina-fila-painel .rotina-fila-protocolo-rtd strong { color:#c1b8f7; }
+.rotina-agenda-expansivel { margin:0 14px 14px; border:1px solid #2b3850; border-radius:10px; background:#121b2d; color:#aab6ca; }
+.rotina-agenda-expansivel > summary { padding:12px 14px; cursor:pointer; font-size:.77rem; font-weight:700; }
+.rotina-agenda-expansivel .rotina-agenda { margin:0; border:0; border-top:1px solid #2b3850; border-radius:0 0 10px 10px; }
+.rotina-in-cartao button:focus-visible, .rotina-in-cartao a:focus-visible, .rotina-fila-painel button:focus-visible, .rotina-fila-painel input:focus-visible { outline:3px solid #8ce9c5; outline-offset:2px; }
+@media (max-width:760px) {
+  .rotina-cobertura { grid-template-columns:1fr; margin:0 9px 12px; padding:14px; }
+  .rotina-cobertura-proximo { width:100%; justify-self:stretch; }
+  .rotina-central-acao { gap:10px; padding:0 9px 10px; }
+  .rotina-foco { padding:15px; }
+  .rotina-in-partes { grid-template-columns:1fr; }
+  .rotina-in-cabecalho h2 { font-size:1.3rem; }
+  .rotina-in-acoes { grid-template-columns:1fr; }
+  .rotina-in-acoes button[data-conferencia="pular"] { grid-column:auto; }
+  .rotina-agenda-expansivel { margin:0 9px 10px; }
+}
+
+@media (max-width:760px) {
+  .rotina-layout,
+  .rotina-painel,
+  .rotina-central-acao,
+  .rotina-foco,
+  .rotina-fila-painel,
+  .rotina-agenda-expansivel { box-sizing:border-box; width:100%; min-width:0; max-width:100%; }
+  .rotina-layout { padding-inline:12px; }
+  .rotina-header { min-width:0; }
+  .rotina-header > div:first-child,
+  .rotina-header p { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+  .rotina-header-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; min-width:0; }
+  .rotina-header-actions > * { box-sizing:border-box; width:100%; min-width:0; text-align:center; }
+  .rotina-header-actions > :last-child { grid-column:1/-1; }
+  .rotina-central-acao { padding-inline:9px; }
+  .rotina-foco { padding:15px; }
+  .rotina-agenda-expansivel { width:auto; }
+  .rotina-in-cartao,
+  .rotina-in-cabecalho,
+  .rotina-in-partes,
+  .rotina-in-protocolo-rtd,
+  .rotina-in-andamento,
+  .rotina-in-proxima-acao { box-sizing:border-box; min-width:0; max-width:100%; }
+  .rotina-in-cabecalho { flex-wrap:wrap; }
+  .rotina-in-controles button { box-sizing:border-box; min-width:0; flex:1 1 0; }
+  .rotina-fila-titulo,
+  .rotina-fila-painel > .rotina-toolbar { min-width:0; }
+  .rotina-fila-titulo { align-items:flex-start; }
+  .rotina-fila-painel > .rotina-fases { padding-inline:10px; }
+  .rotina-fila-painel > .rotina-toolbar { padding-inline:10px; }
+  .rotina-fila-painel > .rotina-fila-filtros { padding-inline:10px; }
+  .rotina-fila-painel .rotina-fila-lista { padding-inline:8px; }
+  .rotina-fila-painel .rotina-fila-selecionar { box-sizing:border-box; min-width:0; }
+}
+
 /* Central da próxima ação: fila priorizada ligada aos dados reais. */
 .rotina-table-wrap[hidden] { display:none !important; }
 .rotina-cobertura { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:22px; margin:0 14px 14px; padding:19px 21px; border:1px solid #315847; border-radius:16px; background:radial-gradient(ellipse at 2% 0%,rgba(61,178,133,.17),transparent 48%),linear-gradient(125deg,#172c2c,#172238 68%,#151f32); color:#edf2fd; }
@@ -303,4 +430,31 @@
     .rotina-fila-linha { align-items:flex-start; flex-direction:column; }
     .rotina-fila-etiquetas { justify-content:flex-start; flex-wrap:wrap; }
     .rotina-fila-situacao { max-width:100%; }
+}
+
+/* Sobrescreve regras antigas da central em duas colunas. */
+.rotina-resumo { display:none !important; }
+.rotina-cobertura { grid-template-columns:minmax(0,1fr) auto; gap:18px; margin:0 14px 18px; padding:17px 19px; border:1px solid #2b3850; border-radius:14px; background:#121b2d; color:#f1f5fc; box-shadow:none; }
+.rotina-cobertura .eyebrow { color:#aab6ca; font-size:.72rem; letter-spacing:0; }
+.rotina-cobertura h2 { margin:3px 0; color:#f1f5fc; font-size:1rem; letter-spacing:normal; }
+.rotina-cobertura p { max-width:none; margin:0; color:#aab6ca; font-size:.76rem; }
+.rotina-cobertura-trilho { height:8px; margin-top:12px; border:0; background:#27334a; }
+.rotina-cobertura-trilho span { background:#48c99a; box-shadow:none; }
+.rotina-cobertura-legenda { color:#aab6ca; }
+.rotina-cobertura-legenda strong { color:#f1f5fc; }
+.rotina-cobertura-proximo { min-width:190px; padding:11px 13px; border-color:#3a4962; border-radius:9px; background:#18243a; color:#f1f5fc; }
+.rotina-cobertura-proximo small,.rotina-cobertura-proximo i { color:#d2dbea; }
+.rotina-cobertura-proximo:hover:not(:disabled) { border-color:#70809a; filter:none; }
+.rotina-central-acao { display:flex; flex-direction:column; gap:14px; padding:0 14px 14px; }
+.rotina-foco { position:static; display:block; order:0; width:100%; overflow:visible; padding:20px; border-color:#2b3850; border-radius:14px; background:#121b2d; color:#f1f5fc; }
+.rotina-fila-painel { order:1; width:100%; border-color:#2b3850; border-radius:14px; background:#121b2d; }
+@media (max-width:760px) {
+  .rotina-cobertura { grid-template-columns:1fr; margin:0 9px 12px; padding:14px; }
+  .rotina-cobertura-proximo { width:100%; justify-self:stretch; }
+  .rotina-central-acao { display:flex; gap:10px; padding:0 9px 10px; }
+  .rotina-foco { padding:15px; }
+  .rotina-in-partes { grid-template-columns:1fr; }
+  .rotina-in-cabecalho h2 { font-size:1.3rem; }
+  .rotina-in-acoes { grid-template-columns:1fr; }
+  .rotina-in-acoes button[data-conferencia="pular"] { grid-column:auto; }
 }

@@ -14,6 +14,7 @@ let filtroSituacao = 'TODAS';
 let exibindoLixeira = false;
 let filtroFila = 'TODAS';
 let intimacaoSelecionadaId = null;
+let mostrandoFormularioAndamentoId = null;
 let deslocamentoSemanaAgenda = 0;
 const enviosRtdPorIntimacao = new Map();
 const enviosRtdCarregando = new Set();
@@ -209,6 +210,14 @@ function rotuloFaseIntimacao(fase) {
     return ({INTIMACAO:'Intimação', EDITAL:'Edital', CONSOLIDACAO:'Consolidação'})[fase] || 'Intimação';
 }
 
+function protocolosRtdIntimacao(item) {
+    if (item?.fase !== 'INTIMACAO') return [];
+    const vinculados = Array.isArray(item.rtd) ? item.rtd.map(pedido => pedido?.protocolo) : [];
+    return [...new Set([item.protocoloRtd, ...vinculados]
+        .map(valor => String(valor || '').trim())
+        .filter(Boolean))];
+}
+
 function proximaAcaoIntimacao(item) {
     if (temNovidadeRtd(item)) return {
         titulo:'Confira a atualização recebida no RTD',
@@ -255,9 +264,7 @@ function renderizarCartaoFila(item) {
     const situacao = situacaoIntimacao(item);
     const novidade = temNovidadeRtd(item);
     const selecionado = item.id === intimacaoSelecionadaId;
-    const protocolosRtd = item.fase === 'INTIMACAO'
-        ? [...new Set([item.protocoloRtd, ...(item.rtd || []).map(pedido => pedido.protocolo)].map(valor => String(valor || '').trim()).filter(Boolean))]
-        : [];
+    const protocolosRtd = protocolosRtdIntimacao(item);
     return `<article class="rotina-fila-cartao ${selecionado ? 'selecionado' : ''} ${situacao.classe}">
         <button type="button" class="rotina-fila-selecionar" data-selecionar-intimacao="${escaparHtml(item.id)}" aria-pressed="${selecionado}">
             <span class="rotina-fila-conteudo">
@@ -272,31 +279,60 @@ function renderizarCartaoFila(item) {
     </article>`;
 }
 
-function renderizarFocoIntimacao(item, totalFila) {
+function renderizarFocoIntimacao(item, fila) {
     const foco = document.getElementById('rotina-foco');
     if (!foco) return;
     if (!item) {
-        foco.innerHTML = '<div class="rotina-foco-vazio"><span class="rotina-foco-icone">✓</span><h2>Nada nesta fila</h2><p>Não há protocolos que correspondam aos filtros selecionados. Escolha outra fase ou consulte todos os protocolos.</p></div>';
+        foco.innerHTML = '<div class="rotina-in-vazio"><h2>Nenhum IN encontrado</h2><p>Confira a busca ou os filtros de fase. A lista diária inclui todos os INs ativos.</p></div>';
         return;
     }
     const situacao = situacaoIntimacao(item);
-    const acao = proximaAcaoIntimacao(item);
-    const fases = [{id:'INTIMACAO', nome:'Intimação'}, {id:'EDITAL', nome:'Edital'}, {id:'CONSOLIDACAO', nome:'Consolidação'}];
-    const faseAtual = Math.max(0, fases.findIndex(fase => fase.id === item.fase));
-    const trilha = fases.map((fase, indice) => `<div class="rotina-foco-etapa ${indice < faseAtual ? 'concluida' : indice === faseAtual ? 'atual' : ''}"><i aria-hidden="true"></i><span>${fase.nome}</span></div>`).join('');
     const novidade = temNovidadeRtd(item);
-    foco.innerHTML = `<div class="rotina-foco-cabecalho">
-        <div><span class="eyebrow">EM FOCO · ${escaparHtml(rotuloFaseIntimacao(item.fase).toUpperCase())}</span><h2>${escaparHtml(item.protocolo)}</h2></div>
-        <span class="rotina-foco-badge ${novidade ? 'rtd' : situacao.classe}"><i></i>${novidade ? 'Novidade RTD' : escaparHtml(situacao.rotulo)}</span>
-    </div>
-    <div class="rotina-foco-metadados"><div><span>Credor</span><strong>${escaparHtml(item.credor)}</strong></div><div><span>Devedor</span><strong>${escaparHtml(item.devedor)}</strong></div></div>
-    <div class="rotina-foco-trilha" aria-label="Etapa atual do procedimento">${trilha}</div>
-    <section class="rotina-foco-andamento"><div><span>Último andamento registrado</span><strong>${escaparHtml(item.nomeAndamento || 'Não informado')}</strong></div><time>${formatarDataRotina(item.ultimoAndamento)}</time></section>
-    ${item.fase === 'INTIMACAO' ? `<section class="rotina-foco-rtd${novidade ? ' prioritaria' : ''}" aria-label="Protocolos da Central RTD"><strong>${novidade ? 'Atualização detectada na consulta ao RTD' : 'Protocolos RTD vinculados a este IN'}</strong>${resumoRtd(item)}${novidade ? '<p>Abra os detalhes para conferir o histórico e os documentos antes de marcar como vista.</p>' : ''}</section>` : ''}
-    <section class="rotina-proxima-acao ${novidade ? 'prioritaria' : ''}"><span class="eyebrow">PRÓXIMO PASSO</span><h3>${acao.titulo}</h3><p>${acao.texto}</p><button type="button" class="rotina-acao-principal" data-acao="${acao.acao}" data-id="${escaparHtml(item.id)}">${acao.botao}<span aria-hidden="true">→</span></button></section>
-    ${pode('alterar_intimacoes') && item.fase === 'INTIMACAO' ? `<button type="button" class="rotina-acao-rtd" data-acao="novo-envio-rtd" data-id="${escaparHtml(item.id)}"><span>Precisa iniciar uma notificação?</span><strong>Preparar envio ao RTD <i aria-hidden="true">↗</i></strong></button>` : ''}
-    <div class="rotina-foco-rodape"><span>${totalFila} ${totalFila === 1 ? 'protocolo na fila' : 'protocolos na fila'}</span><details><summary>Mais ações</summary><div class="rotina-foco-mais-acoes">${botaoPastaIntimacao(item)}${acoesIntimacao(item, false)}</div></details></div>
-    ${detalhesAbertos.has(item.id) ? `<div class="rotina-foco-detalhes">${detalhesFaseInicial(item)}</div>` : ''}`;
+    const protocolosRtd = protocolosRtdIntimacao(item);
+    const indice = Math.max(0, fila.findIndex(registro => registro.id === item.id)) + 1;
+    const total = fila.length;
+    const fase = item.fase || 'INTIMACAO';
+    const textoProximoPasso = fase === 'INTIMACAO'
+        ? 'Abra a intimação no Ofício Eletrônico e compare o andamento com o que está registrado aqui. Se houver mudança, informe o novo andamento.'
+        : fase === 'EDITAL'
+            ? 'Confira a publicação e o prazo do edital conforme o manual de intimações. Registre aqui se o andamento mudou.'
+            : 'Confira as providências da consolidação conforme o manual de intimações. Registre aqui se o andamento mudou.';
+    const status = novidade ? 'Novidade do RTD' : situacao.rotulo;
+    const classeStatus = novidade ? 'amarelo' : situacao.classe;
+    const conferidoHoje = situacao.classe === 'verde' && !novidade;
+    const desabilitarConferenciaIgual = intimacoesPendentes.has(item.id) || conferidoHoje;
+    const somenteLeitura = exibindoLixeira || !pode('conferir_intimacoes');
+    const avisoRtd = novidade ? `<div class="rotina-in-aviso-rtd"><strong>O AERI detectou uma novidade no RTD.</strong> Compare o andamento e consulte o histórico antes de concluir a conferência.<br><button type="button" data-acao="detalhes" data-id="${escaparHtml(item.id)}">Ver detalhes e documentos</button></div>` : '';
+    const dadosRtd = fase === 'INTIMACAO' ? `<section class="rotina-in-protocolo-rtd" aria-label="Número do protocolo RTD"><span>${protocolosRtd.length === 1 ? 'Número do protocolo RTD' : 'Protocolos RTD vinculados a este IN'}</span>${protocolosRtd.length ? protocolosRtd.map((protocolo, posicao) => `<strong class="rotina-in-protocolo-item">${escaparHtml(protocolo)}</strong>`).join('') : '<strong>Não informado no AERI</strong>'}</section>` : '';
+    const acaoRtd = fase === 'INTIMACAO'
+        ? '<a href="https://www.oficioeletronico.onr.org.br" target="_blank" rel="noopener noreferrer">Abrir Ofício Eletrônico ↗</a>'
+        : '';
+    const botoesConferencia = somenteLeitura
+        ? `<div class="rotina-in-aviso-rtd">${exibindoLixeira ? 'Este IN está na lixeira. Use “Mais ações” para restaurá-lo.' : 'Seu perfil permite consultar este IN, mas não registrar a conferência.'}</div>`
+        : `<h3 class="rotina-in-pergunta">${fase === 'INTIMACAO' ? 'O andamento continua igual?' : 'A situação continua igual?'}</h3>
+            <div class="rotina-in-acoes">
+                <button type="button" data-conferencia="igual" data-id="${escaparHtml(item.id)}" ${desabilitarConferenciaIgual ? 'disabled' : ''}>${intimacoesPendentes.has(item.id) ? 'Salvando…' : conferidoHoje ? 'Conferido hoje' : 'Sim, continua igual'}</button>
+                <button type="button" data-conferencia="mudou" data-id="${escaparHtml(item.id)}">Não, mudou</button>
+                <button type="button" data-conferencia="pular" data-id="${escaparHtml(item.id)}">Não consegui conferir agora</button>
+            </div>
+            <form class="rotina-in-form-alteracao" data-form-novo-andamento data-id="${escaparHtml(item.id)}" ${mostrandoFormularioAndamentoId === item.id ? '' : 'hidden'}>
+                <label for="rotina-in-novo-andamento">Qual andamento apareceu?</label>
+                <input id="rotina-in-novo-andamento" name="novoAndamento" maxlength="160" required placeholder="Digite o andamento como aparece no sistema">
+                <button type="submit">Registrar mudança e seguir</button>
+            </form>`;
+    const botoesNavegacao = total > 1 ? `<div class="rotina-in-controles"><button type="button" data-foco-navegar="-1">← IN anterior</button><button type="button" data-foco-navegar="1">Próximo IN →</button></div>` : '';
+    foco.innerHTML = `<article class="rotina-in-cartao">
+        <div class="rotina-in-cabecalho"><div><span class="rotina-in-posicao">${escaparHtml(rotuloFaseIntimacao(fase).toLocaleUpperCase('pt-BR'))} · IN ${indice} DE ${total}</span><h2>${escaparHtml(item.protocolo)}</h2></div><span class="rotina-in-estado ${classeStatus}">${escaparHtml(status || 'Falta conferir')}</span></div>
+        <div class="rotina-in-partes"><div class="rotina-in-dado"><span>Credor</span><strong>${escaparHtml(item.credor || 'Não informado')}</strong></div><div class="rotina-in-dado"><span>Devedor</span><strong>${escaparHtml(item.devedor || 'Não informado')}</strong></div></div>
+        ${dadosRtd}
+        <div class="rotina-in-andamento"><span>Último andamento registrado no AERI · ${formatarDataRotina(item.ultimoAndamento)}</span><strong>${escaparHtml(item.nomeAndamento || 'Não informado')}</strong></div>
+        ${avisoRtd}
+        <section class="rotina-in-proxima-acao"><strong>O que fazer agora</strong><p>${textoProximoPasso}</p>${acaoRtd}</section>
+        ${botoesConferencia}
+        ${botoesNavegacao}
+        <details class="rotina-in-mais-acoes"><summary>Mais ações</summary><div>${botaoPastaIntimacao(item)} <button type="button" data-acao="detalhes" data-id="${escaparHtml(item.id)}">${detalhesAbertos.has(item.id) ? 'Fechar detalhes' : 'Ver detalhes'}</button>${acoesIntimacao(item, false)}${pode('alterar_intimacoes') && fase === 'INTIMACAO' && !exibindoLixeira ? `<button type="button" data-acao="novo-envio-rtd" data-id="${escaparHtml(item.id)}">Preparar envio ao RTD</button>` : ''}</div></details>
+        ${detalhesAbertos.has(item.id) ? `<div class="rotina-foco-detalhes">${detalhesFaseInicial(item)}</div>` : ''}
+    </article>`;
 }
 
 function renderizarCentralAcao(filtradas) {
@@ -320,7 +356,7 @@ function renderizarCentralAcao(filtradas) {
         botao.classList.toggle('ativa', ativo);
         botao.setAttribute('aria-pressed', String(ativo));
     });
-    renderizarFocoIntimacao(selecionada, fila.length);
+    renderizarFocoIntimacao(selecionada, fila);
 }
 
 function renderizarCoberturaIntimacao() {
@@ -367,6 +403,17 @@ async function abrirProximoInPendente() {
     intimacaoSelecionadaId = pendente.id;
     renderizarIntimacoes();
     document.getElementById('rotina-central-acao').scrollIntoView({block:'start', behavior:'smooth'});
+}
+
+function navegarFocoIntimacao(direcao = 1) {
+    const ids = [...document.querySelectorAll('#rotina-fila [data-selecionar-intimacao]')]
+        .map(botao => botao.dataset.selecionarIntimacao);
+    if (!ids.length) return;
+    const atual = ids.indexOf(intimacaoSelecionadaId);
+    const proximo = atual < 0 ? 0 : (atual + direcao + ids.length) % ids.length;
+    intimacaoSelecionadaId = ids[proximo];
+    mostrandoFormularioAndamentoId = null;
+    renderizarIntimacoes();
 }
 
 function campoCard(rotulo, valor, classe = '') {
@@ -895,7 +942,8 @@ function renderizarIntimacoes() {
     daFase.forEach(item => contagens[situacaoIntimacao(item).classe]++);
     const novidadesRtd = intimacoes.filter(temNovidadeRtd).length;
     const pendentes = daFase.filter(item => situacaoIntimacao(item).classe !== 'verde').length;
-    document.getElementById('rotina-resumo').innerHTML = [
+    const resumo = document.getElementById('rotina-resumo');
+    if (resumo) resumo.innerHTML = [
         ['azul','Protocolos no escopo',daFase.length], ['amarelo','Ações pendentes',pendentes],
         ['rtd','Novidades do RTD',novidadesRtd], ['verde','Conferidas hoje',contagens.verde],
     ].map(([classe, rotulo, valor]) => `<div class="rotina-resumo-card ${classe}"><span>${rotulo}</span><strong>${valor}</strong></div>`).join('');
@@ -1110,6 +1158,25 @@ async function conferirIntimacao(id, novoAndamento = null) {
         const salvo = await requisicaoAeri(`/api/intimacoes/${id}/conferir`, opcoes);
         const indiceAtual = intimacoes.findIndex(item => item.id === id);
         if (indiceAtual >= 0) intimacoes[indiceAtual] = salvo;
+        mostrandoFormularioAndamentoId = null;
+        if (intimacaoSelecionadaId === id) {
+            const proximoPendente = intimacoes
+                .filter(item => item.id !== id && situacaoIntimacao(item).classe !== 'verde')
+                .sort((a, b) => situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo))[0];
+            faseAtiva = 'TODAS';
+            filtroSituacao = 'TODAS';
+            const busca = document.getElementById('busca-intimacao');
+            if (busca) busca.value = '';
+            const filtro = document.getElementById('filtro-situacao-intimacao');
+            if (filtro) filtro.value = 'TODAS';
+            if (proximoPendente) {
+                filtroFila = 'PENDENTES';
+                intimacaoSelecionadaId = proximoPendente.id;
+            } else {
+                filtroFila = 'TODAS';
+                intimacaoSelecionadaId = salvo.id;
+            }
+        }
     } catch (falha) {
         const indiceAtual = intimacoes.findIndex(item => item.id === id);
         if (indiceAtual >= 0) intimacoes[indiceAtual] = anterior;
@@ -1346,7 +1413,7 @@ async function tratarAcaoTabela(evento) {
 export function iniciarIntimacoes() {
     iniciarDocumentosIntimacao((id, pares, credor) => abrirEnvioRtd(id, pares, credor));
     if (!document.getElementById('rtd-estilos')) {
-        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261019-protocolo-rtd-visivel-v1'; document.head.appendChild(css);
+        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261020-intimacoes-cartao-in-v1'; document.head.appendChild(css);
     }
     window.addEventListener('aeri:abrir-alerta', async evento => {
         if (evento.detail.modulo !== 'rotina') return;
@@ -1426,10 +1493,39 @@ export function iniciarIntimacoes() {
         const selecao = evento.target.closest('[data-selecionar-intimacao]');
         if (selecao) {
             intimacaoSelecionadaId = selecao.dataset.selecionarIntimacao;
+            mostrandoFormularioAndamentoId = null;
             renderizarIntimacoes();
             return;
         }
+        const navegacao = evento.target.closest('[data-foco-navegar]');
+        if (navegacao) {
+            navegarFocoIntimacao(Number(navegacao.dataset.focoNavegar));
+            return;
+        }
+        const conferencia = evento.target.closest('[data-conferencia]');
+        if (conferencia) {
+            const id = conferencia.dataset.id;
+            if (conferencia.dataset.conferencia === 'igual') {
+                if (pode('conferir_intimacoes')) await conferirIntimacao(id);
+            } else if (conferencia.dataset.conferencia === 'mudou') {
+                if (!pode('conferir_intimacoes')) return;
+                mostrandoFormularioAndamentoId = id;
+                renderizarIntimacoes();
+                document.getElementById('rotina-in-novo-andamento')?.focus();
+            } else if (conferencia.dataset.conferencia === 'pular') {
+                navegarFocoIntimacao(1);
+            }
+            return;
+        }
         await tratarAcaoTabela(evento);
+    });
+    document.getElementById('rotina-central-acao').addEventListener('submit', async evento => {
+        const formulario = evento.target.closest('[data-form-novo-andamento]');
+        if (!formulario) return;
+        evento.preventDefault();
+        const id = formulario.dataset.id;
+        const andamento = new FormData(formulario).get('novoAndamento')?.toString().trim();
+        if (id && andamento && pode('conferir_intimacoes')) await conferirIntimacao(id, andamento);
     });
     document.getElementById('rotina-agenda-dias').addEventListener('click', evento => {
         const protocolo = evento.target.closest('[data-agenda-intimacao]');
