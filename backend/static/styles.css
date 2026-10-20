@@ -1742,11 +1742,7 @@ body::before {
 }
 
 .logo-text::before {
-  content: "▣";
-  margin-right: 9px;
-  color: var(--primary-hover);
-  font-size: 1rem;
-  vertical-align: 2px;
+  content: none;
 }
 
 .btn-sidebar,
@@ -1781,6 +1777,10 @@ body::before {
 .eyebrow {
   color: var(--primary-hover);
 }
+
+.navbar-saudacao strong { color: var(--text-soft); }
+.perfil-logado { display: none !important; }
+.status-onr i { display: none; }
 
 .perfil-logado {
   color: var(--accent-green);

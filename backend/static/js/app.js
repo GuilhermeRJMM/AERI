@@ -7,7 +7,7 @@ import {configurarAcessoGeradorNotas, iniciarGeradorNotas} from './gerador_notas
 import {configurarAcessoMapaOnr, iniciarMapaOnr, limparMapaOnr} from './mapa_onr.js?v=20260901-nativo-v1-api1';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20260902-pesquisa-na-importacao';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20261019-protocolo-rtd-visivel-v1';
-import {iniciarNavegacao} from './navegacao.js?v=20260831-setores-v1';
+import {iniciarNavegacao} from './navegacao.js?v=20261020-voltar-paginas-v1';
 import {carregarPainel, iniciarPainel, limparPainel} from './painel.js?v=20260831-setores-v1-api1';
 import {carregarSistema, iniciarSistema, limparSistema} from './sistema.js?v=20260831-setores-v1-api1';
 import {iniciarContratos, limparContratos} from './contratos.js?v=20260909-itbi-ged-v2';

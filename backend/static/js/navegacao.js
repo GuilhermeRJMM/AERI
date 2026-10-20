@@ -1,6 +1,20 @@
-export function mostrarPagina(pageId) {
+function sincronizarHistorico(pageId, registrarHistorico) {
+    const estadoAtual = history.state && typeof history.state === 'object'
+        ? history.state
+        : {};
+    if (!estadoAtual.aeriPagina) {
+        history.replaceState({...estadoAtual, aeriPagina:pageId}, '', location.href);
+        return;
+    }
+    if (registrarHistorico && estadoAtual.aeriPagina !== pageId) {
+        history.pushState({...estadoAtual, aeriPagina:pageId}, '', location.href);
+    }
+}
+
+export function mostrarPagina(pageId, {registrarHistorico = true} = {}) {
     const itemAlvo = document.querySelector(`.nav-item[data-page="${pageId}"]`);
     if (!itemAlvo || itemAlvo.hidden) return;
+    sincronizarHistorico(pageId, registrarHistorico);
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     itemAlvo.classList.add('active');
     document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
@@ -53,6 +67,12 @@ function alternarSidebar() {
 }
 
 export function iniciarNavegacao() {
+    window.addEventListener('popstate', evento => {
+        const pagina = evento.state?.aeriPagina;
+        if (!pagina) return;
+        const destino = document.querySelector(`.nav-item[data-page="${pagina}"]`);
+        mostrarPagina(destino && !destino.hidden ? pagina : 'inicio', {registrarHistorico:false});
+    });
     document.addEventListener('click', evento => {
         const item = evento.target.closest('[data-destino]');
         if (item) mostrarPagina(item.dataset.destino);

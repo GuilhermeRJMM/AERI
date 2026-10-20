@@ -1,5 +1,5 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
-import {mostrarPagina} from './navegacao.js?v=20260831-setores-v1';
+import {mostrarPagina} from './navegacao.js?v=20261020-voltar-paginas-v1';
 import {escaparHtml} from './util.js';
 
 let estadoAtual = null;
