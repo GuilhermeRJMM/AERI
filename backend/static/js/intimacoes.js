@@ -1554,6 +1554,10 @@ export function iniciarIntimacoes() {
     if (!document.getElementById('rtd-estilos')) {
         const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261021-rtd-modal-retomada-v2'; document.head.appendChild(css);
     }
+    // Esta folha é carregada depois da navegação e contém regras de tema próprias.
+    // Recolocamos o tema global no fim para manter a identidade do Sync também aqui.
+    const temaGlobal = document.getElementById('sync-theme');
+    if (temaGlobal) document.head.appendChild(temaGlobal);
     window.addEventListener('aeri:abrir-alerta', async evento => {
         if (evento.detail.modulo !== 'rotina') return;
         faseAtiva='TODAS'; filtroSituacao='PENDENTES'; filtroFila='PENDENTES'; exibindoLixeira=false;
@@ -1739,3 +1743,4 @@ export function iniciarIntimacoes() {
     });
     renderizarIntimacoes();
 }
+

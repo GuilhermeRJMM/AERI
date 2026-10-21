@@ -1,0 +1,929 @@
+/*
+ * Identidade visual AERI baseada na paleta do Sync.
+ * Navegação e autenticação em navy; área de trabalho clara; esmeralda para
+ * ações. Estados operacionais conservam cores próprias e contraste legível.
+ */
+:root {
+  --sync-verde: #10b981;
+  --sync-verde-destaque: #34d399;
+  --sync-verde-claro: #6ee7b7;
+  --sync-verde-hover: #059669;
+  --sync-verde-texto: #047857;
+  --sync-menu-fundo: #0f172a;
+  --sync-menu-hover: #1e293b;
+  --sync-menu-borda: #1e293b;
+  --sync-menu-texto: #94a3b8;
+  --sync-menu-ativo-fundo: rgba(16, 185, 129, .10);
+  --sync-menu-ativo-borda: rgba(16, 185, 129, .20);
+  --sync-fundo: #f8fafc;
+  --sync-superficie: #fff;
+  --sync-superficie-hover: #f1f5f9;
+  --sync-borda: #e2e8f0;
+  --sync-texto: #0f172a;
+  --sync-texto-secundario: #64748b;
+  --sync-sombra: 0 12px 32px rgba(2, 6, 23, .08);
+  --sync-sucesso: #047857;
+  --sync-sucesso-fundo: #ecfdf5;
+  --sync-aviso: #92400e;
+  --sync-aviso-fundo: #fffbeb;
+  --sync-erro: #be123c;
+  --sync-erro-fundo: #fff1f2;
+  --sync-informacao: #1d4ed8;
+  --sync-informacao-fundo: #eff6ff;
+
+  /* Compatibilidade com os tokens usados pelas telas existentes. */
+  --bg-gradient: #f8fafc;
+  --glass-bg: #0f172a;
+  --glass-border: #1e293b;
+  --glass-shadow: 0 12px 32px rgba(2, 6, 23, .08);
+  --primary-color: #10b981;
+  --primary-hover: #059669;
+  --accent-green: #10b981;
+  --accent-green-hover: #059669;
+  --accent-indigo: #047857;
+  --accent-blue: #047857;
+  --focus-blue: #047857;
+  --scrollbar-thumb: #cbd5e1;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-soft: #334155;
+  --sidebar-bg: #0f172a;
+  --surface-bg: #fff;
+  --surface-bg-strong: #fff;
+  --surface-bg-soft: #f8fafc;
+  --card-bg: #fff;
+}
+
+body.sync-tema {
+  color-scheme: light;
+  min-height: 100vh;
+  background: var(--sync-fundo);
+  color: var(--sync-texto);
+}
+body.sync-tema::before { content: none; }
+
+/* Barra superior navy com verde-esmeralda apenas nos destaques. */
+body.sync-tema > .navbar {
+  background: var(--sync-menu-fundo);
+  border-bottom: 1px solid #1e293b;
+  box-shadow: 0 4px 18px rgba(2, 6, 23, .12);
+}
+.navbar .logo-text { color: #fff; text-shadow: none; }
+.navbar .navbar-saudacao,
+.navbar .navbar-user { color: #cbd5e1; }
+.navbar .navbar-saudacao strong { color: #f1f5f9; }
+.navbar .navbar-user button { color: #6ee7b7; }
+.navbar .btn-sidebar,
+.navbar .navbar-user .status-onr,
+.navbar .perfil-logado,
+.navbar .cartorio-info {
+  color: #e2e8f0;
+  background: #1e293b;
+  border-color: #334155;
+}
+.navbar .btn-sidebar:hover,
+.navbar .navbar-user .status-onr:hover {
+  color: #fff;
+  background: #334155;
+  border-color: #475569;
+}
+.navbar .status-onr-operacional { color: #6ee7b7 !important; border-color: rgba(52, 211, 153, .45) !important; }
+.navbar .status-onr-atencao { color: #fcd34d !important; border-color: rgba(252, 211, 77, .45) !important; }
+.navbar .status-onr-indisponivel { color: #fda4af !important; border-color: rgba(253, 164, 175, .45) !important; }
+.sidebar {
+  background: #0f172a;
+  border-right: 1px solid #1e293b;
+  box-shadow: 16px 0 38px rgba(2, 6, 23, .18);
+}
+.sidebar-label { color: #64748b; }
+.nav-item { color: #94a3b8; }
+.nav-item:hover { color: #f1f5f9; background: #1e293b; }
+.nav-item.active { color: #6ee7b7; background: rgba(16, 185, 129, .10); border-color: rgba(16, 185, 129, .20); box-shadow: none; }
+.status-onr-painel {
+  color: #f1f5f9;
+  background: #0f172a;
+  border-color: #334155;
+  box-shadow: 0 18px 42px rgba(2, 6, 23, .28);
+}
+.status-onr-painel .status-onr-evento,
+.status-onr-painel ul,
+.status-onr-configuracao {
+  color: #e2e8f0;
+  background: #1e293b;
+  border-color: #334155;
+}
+
+/* Login e carregamento mantêm o padrão escuro do Sync. */
+.login-aeri,
+.splash-aeri {
+  background:
+    radial-gradient(circle at 50% 25%, rgba(16, 185, 129, .16), transparent 32%),
+    linear-gradient(145deg, #020617, #0f172a 72%);
+}
+.login-card {
+  color: #cbd5e1;
+  background: #0f172a;
+  border-color: #334155;
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(2, 6, 23, .42);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.login-card h1 { color: #f1f5f9; }
+.login-card > p,
+.login-card label span { color: #cbd5e1; }
+.login-card input {
+  color: #f1f5f9;
+  background: #020617;
+  border-color: #334155;
+}
+.login-card input:focus {
+  background: #020617;
+  border-color: #34d399;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, .22);
+}
+.splash-skip { color: #f1f5f9; background: #1e293b; border-color: #334155; }
+.splash-progress span { background: linear-gradient(90deg, #10b981, #34d399); }
+
+/* Área de trabalho clara e trilha de navegação limpa. */
+.page-content {
+  min-height: calc(100vh - 70px);
+  color: #0f172a;
+  background: #f8fafc;
+}
+.aeri-breadcrumb {
+  color: #64748b;
+  background: #fff;
+  border-bottom-color: #e2e8f0;
+}
+.aeri-breadcrumb button { color: #64748b; }
+.aeri-breadcrumb button:hover,
+.aeri-breadcrumb [aria-current] { color: #0f172a; }
+.aeri-breadcrumb button + button::before { color: #94a3b8; }
+.page-content .hero h1,
+.page-content .rotina-header h1,
+.page-content .auditoria-header h2,
+.page-content .page-placeholder h2,
+.page-content h1,
+.page-content h2,
+.page-content h3,
+.page-content h4,
+.page-content h5,
+.page-content h6,
+.page-content label,
+.page-content legend,
+.page-content summary,
+.page-content dt { color: #0f172a; }
+.page-content p,
+.page-content small,
+.page-content .rotina-header p,
+.page-content .hero p,
+.page-content .page-placeholder p,
+.page-content .rotina-form-header p,
+.page-content .aprendizado-acoes span { color: #64748b; }
+.page-content .eyebrow,
+.page-content .resultado-matricula { color: #047857; }
+.page-content a:not(.btn):not([class*="btn-"]) { color: #047857; }
+.page-content a:not(.btn):not([class*="btn-"]):hover { color: #059669; }
+
+/* Cartões e áreas de trabalho dos diferentes módulos. */
+.input-glass,
+.resultado,
+.page-placeholder,
+.incra-upload-card,
+.incra-resumo > div,
+.incra-toolbar,
+.incra-table-wrap,
+.rotina-resumo-card,
+.rotina-painel,
+.rotina-fila-painel,
+.perfis-resumo > div,
+.aprendizado-painel,
+.cadeia-texto-bloco,
+.buscas-resumo,
+.buscas-pesquisa-card,
+.buscas-resultados-card,
+.buscas-table-wrap,
+.buscas-log,
+.buscas-auditoria-resumo,
+.regaux-sincronizacao,
+.regaux-pesquisa-card,
+.regaux-resultados-card,
+.regaux-certidao-resumo > div,
+.regaux-table-wrap,
+.custas-resumo > div,
+.custas-toolbar,
+.custas-table-wrap,
+.custas-planilha,
+.custas-preview-wrap,
+.livroproto-consulta-card,
+.poligonos-painel,
+.poligonos-preview,
+.gerador-notas-pagina,
+.gerador-notas-artigo,
+.gerador-notas-previa,
+.gerador-notas-coluna,
+.gerador-notas-grupo,
+.contratos-card,
+.contratos-bancada-ficha,
+.contratos-bancada-minuta,
+.contratos-previas article,
+.sistema-card,
+.painel-alerta,
+.sistema-atalho,
+.setor-card,
+.ferramenta-card {
+  color: #0f172a;
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: var(--sync-sombra);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.input-glass,
+.resultado,
+.page-placeholder,
+.incra-upload-card,
+.incra-resumo > div,
+.incra-toolbar,
+.incra-table-wrap,
+.rotina-resumo-card,
+.rotina-painel,
+.perfis-resumo > div,
+.aprendizado-painel,
+.cadeia-texto-bloco,
+.buscas-pesquisa-card,
+.buscas-resultados-card,
+.regaux-pesquisa-card,
+.regaux-resultados-card,
+.custas-table-wrap,
+.livroproto-consulta-card,
+.contratos-card,
+.setor-card,
+.ferramenta-card { border-radius: 16px; }
+.input-glass::after,
+.resultado::after,
+.page-placeholder::after,
+.incra-upload-card::after,
+.incra-resumo > div::after,
+.rotina-resumo-card::after,
+.rotina-painel::after,
+.perfis-resumo > div::after,
+.aprendizado-painel::after,
+.card::after,
+.modal-box::after,
+.login-card::after { content: none; }
+.card {
+  color: #0f172a;
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, .06);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.card:hover,
+.setor-card:hover,
+.ferramenta-card:hover { border-color: #a7f3d0; box-shadow: 0 12px 28px rgba(15, 23, 42, .10); }
+.setor-card.certidao,
+.setor-card.rgi { background: #fff; }
+.setor-card h2,
+.ferramenta-card h3 { color: #0f172a; }
+.setor-card p,
+.ferramenta-card p,
+.card-grupo,
+.setor-card > span[id] { color: #64748b; }
+.setor-card strong,
+.setor-card.rgi strong,
+.card-abrir { color: #047857; }
+.setor-icone,
+.rgi .setor-icone { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.sistema-atalho { color: #0f172a; background: #fff; border-color: #e2e8f0; }
+.sistema-atalho span { color: #64748b; }
+.painel-alerta { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.painel-alerta.com-alerta { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+
+/* Formulários claros e consistentes; controles nativos continuam acessíveis. */
+.page-content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]),
+.page-content select,
+.page-content textarea,
+.page-content [contenteditable="true"] {
+  color: #0f172a;
+  background-color: #fff;
+  border-color: #cbd5e1;
+  caret-color: #047857;
+}
+.page-content input::placeholder,
+.page-content textarea::placeholder { color: #64748b; opacity: 1; }
+.page-content input:focus,
+.page-content select:focus,
+.page-content textarea:focus,
+.page-content [contenteditable="true"]:focus {
+  border-color: #047857;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, .16);
+}
+.page-content input:disabled,
+.page-content select:disabled,
+.page-content textarea:disabled { color: #64748b; background-color: #f1f5f9; }
+.page-content input[type="checkbox"],
+.page-content input[type="radio"] { accent-color: #059669; }
+.page-content .matricula-search-row input { background: transparent; }
+.page-content .matricula-search-row {
+  color: #047857;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+.page-content .matricula-search-row:focus-within { background: #fff; border-color: #047857; }
+.page-content .buscas-form > div > span {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+.page-content .buscas-form input:focus { border-color: #047857; box-shadow: 0 0 0 3px rgba(16, 185, 129, .16); }
+.page-content .buscas-identidade input[type="checkbox"] { accent-color: #059669; }
+.page-content .buscas-resultados-topo > strong,
+.page-content .buscas-resultados-acoes > strong { color: #047857; }
+.page-content .buscas-matricula { color: #047857 !important; }
+.page-content .buscas-situacao[data-situacao="ATIVA"] { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .buscas-situacao[data-situacao="ENCERRADA"] { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .buscas-proporcao,
+.page-content .buscas-correspondencia { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .buscas-correspondencia[data-tipo="NOME_PARCIAL"] { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .regaux-form label span,
+.page-content .intimacao-documentos-origem label span,
+.page-content .intimacao-documentos-campos label span { color: #475569; }
+
+/* MAPA-ONR e INCRA também usavam superfícies e acentos da identidade anterior. */
+.page-content .mapa-onr-consulta {
+  color: #0f172a;
+  background: linear-gradient(120deg, #ecfdf5, #fff 72%);
+  border-color: #a7f3d0;
+  box-shadow: var(--sync-sombra);
+}
+.page-content .mapa-onr-form > label { color: #334155; }
+.page-content .mapa-onr-form > div > span {
+  color: #047857;
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+.page-content .mapa-onr-form input { color: #0f172a; background: #fff; border-color: #cbd5e1; }
+.page-content .mapa-onr-form input:focus { border-color: #047857; box-shadow: 0 0 0 3px rgba(16, 185, 129, .16); }
+.page-content .mapa-onr-status[data-tipo="carregando"] { color: #1d4ed8; }
+.page-content .mapa-onr-status[data-tipo="sucesso"] { color: #047857; }
+.page-content .mapa-onr-status[data-tipo="erro"] { color: #be123c; }
+.page-content .mapa-onr-nativo {
+  --mapa-fundo: #fff;
+  --mapa-texto: #0f172a;
+  --mapa-borda: #e2e8f0;
+  --mapa-fraco: #64748b;
+  --mapa-painel: #f8fafc;
+  --mapa-acento: #059669;
+  --mapa-ok-fundo: #ecfdf5;
+  --mapa-ok-texto: #047857;
+  --mapa-erro-fundo: #fff1f2;
+  --mapa-erro-texto: #be123c;
+  --mapa-aviso: #92400e;
+  --mapa-aviso-fundo: #fffbeb;
+  border-color: #e2e8f0;
+  box-shadow: var(--sync-sombra);
+}
+.page-content .mapa-onr-abas { background: #f8fafc; }
+.page-content .mapa-onr-nativo button { color: #334155; background: #fff; }
+.page-content .mapa-onr-nativo button.ligado {
+  color: #052e16;
+  background: #10b981;
+  border-color: #10b981;
+  box-shadow: none;
+}
+.page-content .mapa-onr-nativo input[type="text"],
+.page-content .mapa-onr-nativo select,
+.page-content .mapa-onr-nativo textarea { color: #0f172a; background: #fff; }
+.page-content .mapa-onr-nativo input:focus,
+.page-content .mapa-onr-nativo select:focus,
+.page-content .mapa-onr-nativo textarea:focus { box-shadow: 0 0 0 3px rgba(16, 185, 129, .16); }
+.page-content .mapa-onr-nativo details.texto-ato pre,
+.page-content .mapa-onr-nativo pre.json {
+  color: #334155;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+.page-content .mapa-onr-nativo code { color: #047857; }
+.page-content .mapa-onr-nativo .aeri-revisao,
+.page-content .mapa-onr-nativo .aeri-revisao-item,
+.page-content .mapa-onr-nativo .aeri-revisao-mestre { border-color: #fde68a; }
+.page-content .mapa-onr-nativo .aeri-revisao.ok { border-color: #a7f3d0; }
+.page-content .incra-dropzone {
+  color: #334155;
+  border-color: #a7f3d0;
+  background: #f8fafc;
+}
+.page-content .incra-dropzone:hover,
+.page-content .incra-dropzone.com-arquivo { border-color: #10b981; background: #ecfdf5; }
+.page-content .incra-dropzone small { color: #64748b; }
+.page-content .incra-upload-icon { color: #047857; background: #ecfdf5; }
+
+/* Ações primárias e secundárias. */
+.page-content .btn-primary,
+.page-content #btn-nova-intimacao,
+.page-content #btn-login,
+.page-content .incra-processar,
+.page-content .sync-botao {
+  color: #020617;
+  background: #10b981;
+  border-color: #10b981;
+  border-radius: 10px;
+  box-shadow: none;
+  font-weight: 700;
+}
+.page-content .btn-primary:hover,
+.page-content #btn-nova-intimacao:hover,
+.page-content #btn-login:hover,
+.page-content .incra-processar:hover,
+.page-content .sync-botao:hover { color: #020617; background: #059669; border-color: #059669; }
+.page-content .btn-primary:disabled,
+.page-content button:disabled { opacity: .56; cursor: not-allowed; }
+.page-content .btn-clear,
+.page-content .rotina-btn-secondary,
+.page-content .incra-filtro,
+.page-content .incra-acoes button,
+.page-content .btn-copiar,
+.page-content .rotina-row-actions button,
+.page-content .rotina-folder-btn,
+.page-content .sistema-card button,
+.page-content .contratos-card button:not(.btn-primary),
+.page-content .regaux-resultados-acoes button {
+  color: #334155;
+  background: #fff;
+  border-color: #cbd5e1;
+}
+.page-content .btn-clear:hover,
+.page-content .rotina-btn-secondary:hover,
+.page-content .incra-filtro:hover,
+.page-content .incra-acoes button:hover,
+.page-content .btn-copiar:hover,
+.page-content .rotina-row-actions button:hover,
+.page-content .rotina-folder-btn:hover,
+.page-content .regaux-resultados-acoes button:hover { color: #047857; background: #f0fdf4; border-color: #86efac; }
+.page-content .tab-btn.active,
+.page-content .incra-filtro.active,
+.page-content .rotina-folder-btn.ativo { color: #047857; background: #ecfdf5; border-color: #a7f3d0; box-shadow: none; }
+.page-content .gerador-notas-abas { background: #f1f5f9; border-color: #e2e8f0; }
+.page-content .gerador-notas-abas button { color: #475569; }
+.page-content .gerador-notas-abas button.ativa { color: #052e16; background: #10b981; box-shadow: none; }
+.page-content .gerador-notas-abas button.ativa:hover { background: #059669; }
+.page-content .gerador-notas-explica { color: #334155; border-left-color: #10b981; background: #ecfdf5; }
+.page-content :focus-visible { outline-color: #047857; }
+
+/* Tabelas: cabeçalho neutro, linhas leves e hover discreto. */
+.page-content table { color: #334155; border-color: #e2e8f0; }
+.page-content table th { color: #475569; background: #f1f5f9; border-color: #e2e8f0; }
+.page-content table td { color: #334155; border-color: #e2e8f0; }
+.page-content table tbody tr:hover { background: #f0fdf4; }
+.page-content .rotina-table th,
+.page-content .incra-table th,
+.page-content .regaux-table th,
+.page-content .custas-table th,
+.page-content .custas-preview-table th { color: #475569; background: #f1f5f9; }
+.page-content .rotina-table td,
+.page-content .incra-table td,
+.page-content .regaux-table td { color: #334155; }
+.page-content .rotina-table th,
+.page-content .rotina-table td,
+.page-content .incra-table th,
+.page-content .incra-table td { border-color: #e2e8f0; }
+
+/* Estados mantêm semântica, agora com fundos suaves e contraste adequado. */
+.page-content .badge-green,
+.page-content .usuario-status.ativo,
+.page-content .contratos-compativeis,
+.page-content .contratos-confirmacao-ok,
+.page-content .contratos-sucesso { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .badge-orange,
+.page-content .aprendizado-status,
+.page-content .contratos-alertas-extracao,
+.page-content .contratos-confirmacoes p { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .badge-red,
+.page-content .erro,
+.page-content .incra-erro,
+.page-content .contratos-erro,
+.page-content .custas-toast.erro { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+.page-content .badge-blue { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+.page-content .badge-gray,
+.page-content .usuario-status.inativo { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+.page-content .aviso-status-onr-atencao { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .aviso-status-onr-indisponivel { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+.page-content .controle-qualidade-alerta,
+.page-content .intimacao-documentos-avisos { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .feedback-analise,
+.page-content .rotina-historico-operacional { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+.page-content .feedback-analise h3,
+.page-content .rotina-historico-operacional h3,
+.page-content .rotina-historico-operacional strong { color: #0f172a; }
+.page-content .feedback-analise p,
+.page-content .rotina-historico-operacional li { color: #64748b; }
+.page-content .rotina-documentos-acoes { color: #334155; background: #f0fdf4; border-color: #a7f3d0; }
+.page-content .rotina-documentos-acoes h3 { color: #0f172a; }
+.page-content .rotina-documentos-acoes p { color: #475569; }
+.page-content .rotina-gerar-desistencia { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+
+/* Intimações carrega seu CSS sob demanda; estes ajustes cobrem a fila diária,
+   o painel de foco, a agenda e as informações externas da Central RTD. */
+.page-content .rotina-cobertura {
+  color: #0f172a;
+  background: linear-gradient(115deg, #ecfdf5, #f0fdf4 65%, #fff);
+  border-color: #a7f3d0;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, .05);
+}
+.page-content .rotina-cobertura .eyebrow { color: #047857; }
+.page-content .rotina-cobertura h2,
+.page-content .rotina-cobertura-legenda strong { color: #0f172a; }
+.page-content .rotina-cobertura p,
+.page-content .rotina-cobertura-legenda { color: #64748b; }
+.page-content .rotina-cobertura-trilho { background: #d1fae5; border-color: #a7f3d0; }
+.page-content .rotina-cobertura-trilho span { background: linear-gradient(90deg, #10b981, #34d399); box-shadow: none; }
+.page-content .rotina-cobertura-proximo {
+  color: #020617;
+  background: #10b981;
+  border-color: #10b981;
+}
+.page-content .rotina-cobertura-proximo small,
+.page-content .rotina-cobertura-proximo i { color: #064e3b; }
+.page-content .rotina-cobertura-proximo:hover:not(:disabled) { background: #059669; border-color: #059669; }
+.page-content .rotina-central-acao { color: #0f172a; }
+.page-content .rotina-foco,
+.page-content .rotina-fila-painel,
+.page-content .rotina-agenda-expansivel,
+.page-content .rotina-agenda {
+  color: #0f172a;
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, .05);
+}
+.page-content .rotina-fila-titulo { border-color: #e2e8f0; }
+.page-content .rotina-fila-titulo h2,
+.page-content .rotina-foco-cabecalho h2,
+.page-content .rotina-foco-vazio h2,
+.page-content .rotina-agenda-cabecalho h2 { color: #0f172a; }
+.page-content .rotina-fila-titulo .eyebrow,
+.page-content .rotina-foco-cabecalho .eyebrow,
+.page-content .rotina-agenda-cabecalho .eyebrow { color: #047857; }
+.page-content .rotina-fila-cartao { background: #fff; border-color: #e2e8f0; }
+.page-content .rotina-fila-cartao:hover { background: #f8fafc; border-color: #cbd5e1; }
+.page-content .rotina-fila-cartao.selecionado { background: #ecfdf5; border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, .10); }
+.page-content .rotina-fila-linha strong { color: #0f172a; }
+.page-content .rotina-fila-partes,
+.page-content .rotina-fila-data,
+.page-content .rotina-fila-vazia { color: #64748b; }
+.page-content .rotina-fila-andamento { color: #334155; }
+.page-content .rotina-fila-protocolo-rtd,
+.page-content .rotina-fila-protocolo-rtd strong { color: #047857; }
+.page-content .rotina-fila-chevron { color: #64748b; }
+.page-content .rotina-fila-fase { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+.page-content .rotina-fila-fase.fase-edital { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .rotina-fila-fase.fase-consolidacao { color: #334155; background: #f1f5f9; border-color: #cbd5e1; }
+.page-content .rotina-fila-situacao { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+.page-content .rotina-fila-situacao.verde,
+.page-content .rotina-in-estado.verde,
+.page-content .rotina-foco-badge.verde { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rotina-fila-situacao.amarelo,
+.page-content .rotina-in-estado,
+.page-content .rotina-foco-badge.amarelo { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .rotina-fila-situacao.vermelho,
+.page-content .rotina-in-estado.vermelho,
+.page-content .rotina-foco-badge.vermelho { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+.page-content .rotina-fila-situacao.cinza,
+.page-content .rotina-in-estado.cinza,
+.page-content .rotina-foco-badge { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+.page-content .rotina-fila-situacao.rtd,
+.page-content .rotina-foco-badge.rtd { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rotina-in-dado,
+.page-content .rotina-foco-andamento,
+.page-content .rotina-agenda-dia,
+.page-content .rotina-foco-rtd { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+.page-content .rotina-in-dado span,
+.page-content .rotina-in-protocolo-rtd > span,
+.page-content .rotina-in-andamento > span,
+.page-content .rotina-foco-metadados span,
+.page-content .rotina-foco-andamento span { color: #64748b; }
+.page-content .rotina-in-dado strong,
+.page-content .rotina-in-andamento strong,
+.page-content .rotina-foco-metadados strong,
+.page-content .rotina-foco-andamento strong,
+.page-content .rotina-foco-andamento time { color: #0f172a; }
+.page-content .rotina-in-protocolo-rtd { color: #0f172a; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rotina-in-protocolo-rtd strong { color: #047857; }
+.page-content .rotina-in-andamento { color: #334155; background: #f8fafc; border-color: #cbd5e1; }
+.page-content .rotina-in-aviso-rtd { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .rotina-in-aviso-rtd button { color: #92400e; background: #fff; border-color: #fde68a; }
+.page-content .rotina-proxima-acao,
+.page-content .rotina-proxima-acao.prioritaria { color: #334155; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rotina-proxima-acao.prioritaria { background: #f8fafc; border-color: #cbd5e1; }
+.page-content .rotina-proxima-acao .eyebrow,
+.page-content .rotina-proxima-acao.prioritaria .eyebrow { color: #047857; }
+.page-content .rotina-proxima-acao h3 { color: #0f172a; }
+.page-content .rotina-proxima-acao p,
+.page-content .rotina-foco-rtd p { color: #475569; }
+.page-content .rotina-acao-principal { color: #020617; background: #10b981; }
+.page-content .rotina-acao-principal:hover { background: #059669; filter:none; }
+.page-content .rotina-acao-rtd { color: #334155; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rotina-acao-rtd strong { color: #047857; }
+.page-content .rotina-foco-rodape,
+.page-content .rotina-foco-rodape summary { color: #64748b; }
+.page-content .rotina-foco-detalhes { border-color: #e2e8f0; }
+.page-content .rotina-foco-icone { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rotina-foco-vazio p { color: #64748b; }
+.page-content .rotina-fases { border-color: #e2e8f0; }
+.page-content .rotina-fase-btn { color: #475569; background: #fff; border-color: #cbd5e1; }
+.page-content .rotina-fase-btn:hover { color: #047857; background: #f0fdf4; border-color: #a7f3d0; }
+.page-content .rotina-fase-btn.ativa { color: #047857; background: #ecfdf5; border-color: #a7f3d0; box-shadow:none; }
+.page-content .rotina-fila-filtros button { color: #475569; background: #fff; border-color: #cbd5e1; }
+.page-content .rotina-fila-filtros button:hover { color: #047857; background: #f0fdf4; border-color: #a7f3d0; }
+.page-content .rotina-fila-filtros button.ativa { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+#page-rotina .rotina-fila-painel > .rotina-fases .rotina-fase-btn { color: #475569; background: #fff; border-color: #cbd5e1; }
+#page-rotina .rotina-fila-painel > .rotina-fases .rotina-fase-btn:hover { color: #047857; background: #f0fdf4; border-color: #a7f3d0; }
+#page-rotina .rotina-fila-painel > .rotina-fases .rotina-fase-btn.ativa { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rotina-fila-filtros button,
+#page-rotina .rotina-fila-painel > .rotina-fases .rotina-fase-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 8px 13px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease;
+}
+.page-content .rotina-fila-filtros button.ativa,
+#page-rotina .rotina-fila-painel > .rotina-fases .rotina-fase-btn.ativa { border-color: #a7f3d0; }
+.page-content .rotina-toolbar { color: #334155; background: #fff; border-color: #e2e8f0; }
+.page-content .rotina-fila-painel .rotina-busca { color: #64748b; background: #fff; border-color: #cbd5e1; }
+.page-content .rotina-fila-painel .rotina-busca input { color: #0f172a; background: transparent; }
+.page-content #filtro-situacao-intimacao { color: #334155; background: #fff; border-color: #cbd5e1; }
+.page-content .rotina-table { background: #fff; }
+.page-content .rotina-table tbody tr { background: #fff; }
+.page-content .rotina-table tbody tr:hover { background: #f0fdf4; }
+.page-content .rotina-in-posicao { color: #047857; }
+.page-content .rotina-in-cabecalho h2 { color: #0f172a; }
+.page-content .rotina-in-dado { background: #f8fafc; }
+.page-content .rotina-in-protocolo-rtd { color: #334155; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rotina-in-protocolo-rtd > span { color: #475569; }
+.page-content .rotina-in-protocolo-rtd strong { color: #047857; }
+.page-content .rotina-in-andamento { background: #f8fafc; border-color: #cbd5e1; }
+.page-content .rotina-in-andamento > span { color: #64748b; }
+.page-content .rotina-in-andamento strong { color: #0f172a; }
+.page-content .rotina-in-aviso-rtd { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .rotina-in-aviso-rtd button { color: #92400e; background: #fff; border-color: #fde68a; }
+.page-content .rotina-in-proxima-acao { color: #334155; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rotina-in-proxima-acao > strong { color: #0f172a; }
+.page-content .rotina-in-proxima-acao p { color: #475569; }
+.page-content .rotina-in-proxima-acao a,
+.page-content .rotina-in-proxima-acao button { color: #020617; background: #10b981; border-color: #10b981; }
+.page-content .rotina-in-proxima-acao a:hover,
+.page-content .rotina-in-proxima-acao button:hover { color: #020617; background: #059669; }
+.page-content .rotina-in-pergunta { color: #0f172a; }
+.page-content .rotina-in-acoes button { color: #334155; background: #fff; border-color: #cbd5e1; }
+.page-content .rotina-in-acoes button[data-conferencia="igual"] { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rotina-in-acoes button[data-conferencia="mudou"] { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .rotina-in-acoes button[data-conferencia="pular"] { color: #64748b; background: transparent; border-color: transparent; }
+.page-content .rotina-in-controles button,
+.page-content .rotina-in-mais-acoes button { color: #334155; background: #fff; border: 1px solid #cbd5e1; }
+.page-content .rotina-in-mais-acoes summary { color: #475569; }
+.page-content .rotina-in-vazio h2 { color: #0f172a; }
+.page-content .rotina-in-vazio p { color: #64748b; }
+.page-content .rotina-agenda { background: #fff; }
+.page-content .rotina-agenda-cabecalho p,
+.page-content .rotina-agenda-metrica,
+.page-content .rotina-agenda-dia-cabecalho,
+.page-content .rotina-agenda-dia-cabecalho small,
+.page-content .rotina-agenda-sem-prazo,
+.page-content .rotina-agenda-mais,
+.page-content .rotina-agenda-contagem,
+.page-content .rotina-agenda-vazia { color: #64748b; }
+.page-content .rotina-agenda-controles strong,
+.page-content .rotina-agenda-dia-cabecalho strong { color: #0f172a; }
+.page-content .rotina-agenda-controles button { color: #334155; background: #fff; border-color: #cbd5e1; }
+.page-content .rotina-agenda-controles button:hover,
+.page-content .rotina-agenda-controles button[data-agenda-hoje] { color: #047857; background: #f0fdf4; border-color: #a7f3d0; }
+.page-content .rotina-agenda-metrica { color: #475569; background: #f8fafc; border-color: #e2e8f0; }
+.page-content .rotina-agenda-metrica strong { color: #0f172a; }
+.page-content .rotina-agenda-metrica.alerta { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+.page-content .rotina-agenda-metrica.alerta strong { color: #be123c; }
+.page-content .rotina-agenda-dia.hoje { background: #ecfdf5; border-color: #10b981; box-shadow: inset 0 0 0 1px rgba(16,185,129,.10); }
+.page-content .rotina-agenda-dia.hoje .rotina-agenda-dia-cabecalho strong,
+.page-content .rotina-agenda-dia.hoje .rotina-agenda-dia-cabecalho span { color: #047857; }
+.page-content .rotina-agenda-in { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rotina-agenda-in:hover { background: #d1fae5; border-color: #10b981; }
+.page-content .rotina-agenda-vazia { border-color: #cbd5e1; }
+
+/* RTD externo segue a mesma superfície clara, mantendo os avisos amarelos/vermelhos. */
+.page-content .rtd-painel,
+.page-content .rtd-detalhes,
+.page-content .rtd-pedido,
+.page-content .rtd-envios-historico {
+  color: #334155;
+  background: #fff;
+  border-color: #e2e8f0;
+}
+.page-content .rtd-painel p,
+.page-content .rtd-detalhes-cabecalho > p,
+.page-content .rtd-envios-historico > p,
+.page-content .rtd-documentos-cabecalho p,
+.page-content .rtd-documentos-vazio { color: #64748b; }
+.page-content .rtd-origem,
+.page-content .rtd-aviso-novo,
+.page-content .rtd-resumo-cabecalho em,
+.page-content .rtd-diferencas span { color: #047857; }
+.page-content .rtd-contador,
+.page-content .rtd-metricas span,
+.page-content .rtd-situacao-atual,
+.page-content .rtd-detalhes-cabecalho h3,
+.page-content .rtd-pedido,
+.page-content .rtd-pedido-titulo strong,
+.page-content .rtd-metadados,
+.page-content .rtd-metadados strong,
+.page-content .rtd-o-que-mudou,
+.page-content .rtd-o-que-mudou h4,
+.page-content .rtd-diferencas,
+.page-content .rtd-diferencas strong,
+.page-content .rtd-pedido details summary,
+.page-content .rtd-historico > li,
+.page-content .rtd-historico time,
+.page-content .rtd-documentos-cabecalho h4,
+.page-content .rtd-documentos li,
+.page-content .rtd-envio-cabecalho h3,
+.page-content .rtd-envio-secao h3 { color: #334155; }
+.page-content .rtd-separacao,
+.page-content .rtd-o-que-mudou,
+.page-content .rtd-envios-lista li,
+.page-content .rtd-documentos li { background: #f8fafc; }
+.page-content .rtd-resumo-pedido > span:not(.rtd-resumo-cabecalho),
+.page-content .rtd-resumo-pedido small,
+.page-content .rtd-sem-diferenca,
+.page-content .rtd-aviso-visto,
+.page-content .rtd-historico time,
+.page-content .rtd-envios-lista li time { color: #64748b !important; }
+.page-content .rtd-pedido .rtd-alerta,
+.page-content .rtd-documentos-erro,
+.page-content .rtd-envios-lista li small { color: #be123c; }
+.page-content .rtd-pedido.rtd-novo,
+.page-content .rtd-resumo-pedido.rtd-novo { background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rtd-situacao-atual,
+.page-content .rtd-contador { background: #f1f5f9; border-color: #e2e8f0; }
+.page-content .rtd-contador.com-novidade { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .rtd-envio-ambiente { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .rtd-envio-status.is-homologacao { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .rtd-documentos-cabecalho button,
+.page-content .rtd-documentos li a,
+.page-content .rtd-envio-cabecalho button,
+.page-content .rtd-envio-secao-titulo button,
+.page-content .rtd-painel button,
+.page-content .rtd-pedido button { color: #020617; background: #10b981; border-color: #10b981; }
+.page-content .rtd-documentos-cabecalho button:hover,
+.page-content .rtd-documentos li a:hover,
+.page-content .rtd-envio-cabecalho button:hover,
+.page-content .rtd-envio-secao-titulo button:hover,
+.page-content .rtd-painel button:hover,
+.page-content .rtd-pedido button:hover { color: #020617; background: #059669; border-color: #059669; }
+.page-content .rtd-envio-modal .rotina-form-header { background: #fff; }
+.page-content .rtd-envio-modal input:not([type="checkbox"]):not([type="file"]),
+.page-content .rtd-envio-modal select,
+.page-content .rtd-envio-modal textarea { color: #0f172a; background: #fff; border-color: #cbd5e1; }
+.page-content .rtd-envio-documentos-lista { color: #334155; background: #eff6ff; border-color: #bfdbfe; }
+.page-content .rtd-detalhes-cabecalho,
+.page-content .rtd-detalhes-cabecalho h3,
+.page-content .rtd-envio-cabecalho h3,
+.page-content .rtd-envio-secao h3 { border-color: #e2e8f0; }
+.page-content .rtd-situacao-atual { color: #475569; }
+.page-content .rtd-o-que-mudou { color: #334155; }
+.page-content .rtd-pedido details { border-color: #e2e8f0; }
+.page-content .rtd-envios-lista li { color: #334155; border-color: #e2e8f0; }
+.page-content .rtd-envios-lista li strong { color: #047857; }
+.page-content .rtd-documentos li { border-color: #e2e8f0; }
+.page-content .rtd-documento-icone { color: #047857; }
+.page-content .rtd-envio-secao { background: #f8fafc; border-color: #e2e8f0; }
+.page-content .rtd-envio-status { color: #475569; }
+.page-content .rtd-envio-status.is-homologacao { color: #92400e; }
+.page-content .rtd-remover-notificado { color: #be123c !important; border-color: #fecdd3 !important; background: #fff !important; }
+
+/* Painéis de sincronização dos índices e listas de busca. */
+.page-content .buscas-sincronizacao,
+.page-content .regaux-sincronizacao { color: #334155; background: linear-gradient(120deg, #ecfdf5, #fff); border-color: #a7f3d0; }
+.page-content .buscas-resumo article,
+.page-content .regaux-certidao-resumo > div { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+.page-content .buscas-resumo strong,
+.page-content .regaux-sync-resumo > div:first-child strong,
+.page-content .regaux-certidao-resumo strong { color: #0f172a; }
+.page-content .buscas-progresso > span strong,
+.page-content .regaux-sync-progresso > span strong { color: #047857; }
+.page-content .buscas-progresso > div,
+.page-content .regaux-sync-progresso > div { background: #e2e8f0; }
+.page-content .buscas-progresso i,
+.page-content .regaux-sync-progresso i { background: linear-gradient(90deg, #10b981, #34d399); }
+.page-content .buscas-log { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+.page-content .buscas-log > strong { color: #334155; }
+.page-content .buscas-log li[data-tipo="sucesso"] { color: #047857; }
+.page-content .buscas-log li[data-tipo="alerta"] { color: #92400e; }
+.page-content .buscas-log li[data-tipo="erro"] { color: #be123c; }
+.page-content .buscas-prioridade { color: #92400e; background: #fffbeb; }
+.page-content .buscas-prioridade[data-prioridade="P0-CRITICA"] { color: #be123c; background: #fff1f2; }
+.page-content .regaux-numero,
+.page-content .regaux-pessoa strong { color: #0f172a; }
+.page-content .regaux-modalidade { color: #334155; background: #f1f5f9; border-color: #cbd5e1; }
+.page-content .regaux-situacao { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content #regaux-certidao-resultado[data-resultado="POSITIVA"] { color: #047857; }
+.page-content #regaux-certidao-resultado[data-resultado="NEGATIVA"] { color: #92400e; }
+
+/* Informar Custas: mantém os marcadores de status por cor, mas clareia a grade. */
+.page-content .custas-planilha { color: #0f172a; background: #fff; border-color: #e2e8f0; }
+.page-content .custas-abas { background: #f8fafc; border-color: #e2e8f0; }
+.page-content .custas-aba { color: #475569; }
+.page-content .custas-resumo article { color: #334155; background: #fff; border-color: #e2e8f0; box-shadow: 0 4px 16px rgba(15, 23, 42, .06); }
+.page-content .custas-resumo article span,
+.page-content .custas-resumo article small { color: #64748b; }
+.page-content .custas-resumo article strong { color: #0f172a; }
+.page-content .custas-resumo article:nth-child(2)::before { background: #059669; }
+.page-content .custas-busca { color: #64748b; background: #fff; border-color: #cbd5e1; }
+.page-content .custas-busca input { color: #0f172a; background: transparent; border: 0; }
+.page-content .custas-legenda button[data-custas-status="CUSTAS_ERRADAS"] i { background: #be123c !important; }
+.page-content .custas-aba.ativa { color: #047857; border-bottom-color: #10b981; }
+.page-content .custas-aba.ativa strong { color: #047857; background: #ecfdf5; }
+.page-content .custas-legenda button,
+.page-content .custas-acoes button,
+.page-content .custas-acoes .concluir { color: #334155; background: #fff; border-color: #cbd5e1; }
+.page-content .custas-legenda button:hover,
+.page-content .custas-legenda button.ativo,
+.page-content .custas-acoes .concluir { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .custas-table { background: #fff; }
+.page-content .custas-table tr { --custas-cor: #e2e8f0; }
+.page-content .custas-pedido,
+.page-content .custas-nome { color: #0f172a !important; }
+.page-content .custas-modalidade,
+.page-content .custas-resultado,
+.page-content .custas-status { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+.page-content .custas-resultado.positiva { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.page-content .custas-resultado.negativa { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+.page-content .custas-toast { color: #047857; background: #ecfdf5; border-color: #a7f3d0; box-shadow: 0 10px 24px rgba(15, 23, 42, .14); }
+.page-content .custas-toast.processando { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+.page-content .custas-importacao-alerta { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.page-content .contratos-comparacao article,
+.page-content .contratos-dados-operacao,
+.page-content .contratos-bancada-ficha details { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+
+/* Diálogos claros; as prévias documentais permanecem em papel branco. */
+.modal-overlay { background: rgba(15, 23, 42, .58); backdrop-filter: blur(3px); }
+.modal-box,
+.modal-box.rotina-modal {
+  color: #0f172a;
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: 0 24px 64px rgba(2, 6, 23, .20);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.modal-box :is(h1,h2,h3,h4,h5,h6,label,legend,summary) { color: #0f172a; }
+.modal-box p,
+.modal-box small { color: #64748b; }
+.modal-fechar { color: #475569; background: #f8fafc; border-color: #e2e8f0; }
+.modal-fechar:hover { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+.contratos-previas article { color: #0f172a; background: #fff; border-color: #e2e8f0; }
+.contratos-previas h3,
+.contratos-previas h4 { color: #334155; border-color: #e2e8f0; }
+.contratos-previas pre { color: #0f172a; background: #fff; }
+.intimacao-documentos-previa article { color: #111827; background: #fff; }
+
+@media (max-width: 720px) {
+  .navbar-content { padding-inline: 14px; }
+  .navbar-saudacao { display: none; }
+  .page-content { min-height: calc(100vh - 62px); }
+}
+
+@media (max-width: 620px) {
+  #page-rotina .rotina-toolbar { align-items: stretch; }
+  #page-rotina .rotina-fila-painel .rotina-busca {
+    box-sizing: border-box;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    gap: 7px;
+  }
+  #page-rotina .rotina-fila-painel .rotina-busca input { flex: 1 1 160px; min-width: 100px; }
+  #page-rotina #filtro-situacao-intimacao { flex: 1 1 100%; width: 100%; min-width: 0; }
+  #page-rotina .rotina-fila-filtros { flex-wrap: wrap; }
+  #page-rotina .rotina-fila-filtros button { flex: 1 1 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.sync-tema *,
+  body.sync-tema *::before,
+  body.sync-tema *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; }
+}
+
+@media print {
+  .page-content { color: initial; background: transparent; }
+  .page-content table th,
+  .page-content table td { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+
