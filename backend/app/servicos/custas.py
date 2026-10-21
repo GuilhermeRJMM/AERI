@@ -95,10 +95,7 @@ def revalidar_negativas_custas(
             or pedido.get("safra") == "NÃO CONSTA"
         ):
             continue
-        ausencia_pode_ser_confirmada = confirmar_pendentes and (
-            resultado_anterior == "PENDENTE"
-            or (resultado_anterior == "NEGATIVA" and pedido.get("negativa_insegura"))
-        )
+        ausencia_pode_ser_confirmada = confirmar_pendentes and resultado_anterior == "PENDENTE"
         if not numeros and not ausencia_pode_ser_confirmada:
             continue
         status_anterior = pedido["status"]
@@ -387,7 +384,7 @@ def custas_json(item: dict) -> dict:
         "produto": item["produto"],
         "safra": item["safra"],
         "resultado": item["resultado"],
-        "negativaInsegura": bool(item.get("negativa_insegura", False)) and item["resultado"] == "NEGATIVA",
+        "negativaInsegura": False,
         "numeroRegistro": item["numero_registro"],
         "status": item["status"],
         "finalizado": item["finalizado"],

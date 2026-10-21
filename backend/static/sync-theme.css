@@ -863,7 +863,6 @@ body.sync-tema > .navbar {
 .page-content .custas-status { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
 .page-content .custas-resultado.positiva { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
 .page-content .custas-resultado.negativa { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
-.page-content .custas-resultado.negativa-insegura { color: #92400e; background: #fffbeb; border-color: #fcd34d; }
 .page-content .custas-toast { color: #047857; background: #ecfdf5; border-color: #a7f3d0; box-shadow: 0 10px 24px rgba(15, 23, 42, .14); }
 .page-content .custas-toast.processando { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
 .page-content .custas-importacao-alerta { color: #92400e; background: #fffbeb; border-color: #fde68a; }
