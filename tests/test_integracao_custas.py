@@ -10,6 +10,7 @@ from starlette.requests import Request
 
 from backend.app.rotas.integracoes import (
     confirmar_custas_informadas_integracao,
+    consultar_resultado_registro_auxiliar_integracao,
     exigir_token_integracao_custas,
     listar_custas_pendentes_integracao,
 )
@@ -39,13 +40,13 @@ class TesteIntegracaoCustas(unittest.TestCase):
                 exigir_token_integracao_custas(HTTPAuthorizationCredentials(scheme="Bearer", credentials="errado"))
             self.assertEqual(erro.exception.status_code, 401)
 
-    def test_pendentes_expoem_somente_pedido_e_tipo_da_certidao(self):
+    def test_pendentes_expoem_registros_auxiliares_apenas_nas_positivas(self):
         cursor = MagicMock()
         cursor.fetchall.return_value = [
-            {"pedido": "S26081052542D", "modalidade": "PENHOR", "resultado": "NEGATIVA"},
-            {"pedido": "S26081052543D", "modalidade": "ALIENACAO_FIDUCIARIA", "resultado": "POSITIVA"},
-            {"pedido": "S26081052544D", "modalidade": "PENHOR", "resultado": "POSITIVA"},
-            {"pedido": "S26081052545D", "modalidade": "ALIENACAO_FIDUCIARIA", "resultado": "NEGATIVA"},
+            {"pedido": "S26081052542D", "modalidade": "PENHOR", "resultado": "NEGATIVA", "numero_registro": ""},
+            {"pedido": "S26081052543D", "modalidade": "ALIENACAO_FIDUCIARIA", "resultado": "POSITIVA", "numero_registro": "12, 305"},
+            {"pedido": "S26081052544D", "modalidade": "PENHOR", "resultado": "POSITIVA", "numero_registro": "87"},
+            {"pedido": "S26081052545D", "modalidade": "ALIENACAO_FIDUCIARIA", "resultado": "NEGATIVA", "numero_registro": "999"},
         ]
         contexto, conexao = conexao_simulada(cursor)
         with patch("backend.app.rotas.integracoes.conectar", return_value=contexto), \
@@ -58,13 +59,50 @@ class TesteIntegracaoCustas(unittest.TestCase):
 
         corpo = json.loads(resposta.body)
         self.assertEqual(corpo["itens"], [
-            {"pedido": "S26081052542D", "tipoCertidao": "Penhor Negativo"},
-            {"pedido": "S26081052543D", "tipoCertidao": "Alienação Fiduciária Positiva"},
-            {"pedido": "S26081052544D", "tipoCertidao": "Penhor Positivo"},
-            {"pedido": "S26081052545D", "tipoCertidao": "Alienação Fiduciária Negativa"},
+            {"pedido": "S26081052542D", "tipoCertidao": "Penhor Negativo", "registrosAuxiliares": []},
+            {"pedido": "S26081052543D", "tipoCertidao": "Alienação Fiduciária Positiva", "registrosAuxiliares": ["12", "305"]},
+            {"pedido": "S26081052544D", "tipoCertidao": "Penhor Positivo", "registrosAuxiliares": ["87"]},
+            {"pedido": "S26081052545D", "tipoCertidao": "Alienação Fiduciária Negativa", "registrosAuxiliares": []},
         ])
         self.assertEqual(resposta.headers["cache-control"], "no-store")
         conexao.commit.assert_called_once()
+
+    def test_resultado_por_pedido_retorna_numeros_sem_dados_pessoais(self):
+        cursor = MagicMock()
+        cursor.fetchone.return_value = {
+            "pedido": "S26081052543D",
+            "resultado": "POSITIVA",
+            "numero_registro": "12, 305",
+        }
+        contexto, conexao = conexao_simulada(cursor)
+        with patch("backend.app.rotas.integracoes.conectar", return_value=contexto), \
+             patch("backend.app.rotas.integracoes.registrar_auditoria_cursor"):
+            resposta = consultar_resultado_registro_auxiliar_integracao(
+                "s26081052543d",
+                request("GET", "/api/integracoes/informar-custas/resultado/S26081052543D"),
+                usuario="INTEGRACAO_CUSTAS",
+            )
+
+        self.assertEqual(
+            json.loads(resposta.body),
+            {
+                "pedido": "S26081052543D",
+                "resultado": "POSITIVA",
+                "registrosAuxiliares": ["12", "305"],
+            },
+        )
+        self.assertIn("numero_registro", cursor.execute.call_args.args[0])
+        self.assertEqual(cursor.execute.call_args.args[1], ("S26081052543D",))
+        conexao.commit.assert_called_once()
+
+    def test_resultado_por_pedido_rejeita_protocolo_invalido(self):
+        with self.assertRaises(HTTPException) as erro:
+            consultar_resultado_registro_auxiliar_integracao(
+                "INVÁLIDO",
+                request("GET", "/api/integracoes/informar-custas/resultado/INVÁLIDO"),
+                usuario="INTEGRACAO_CUSTAS",
+            )
+        self.assertEqual(erro.exception.status_code, 422)
 
     def test_confirmacao_muda_somente_busca_realizada(self):
         ids = [uuid4(), uuid4()]

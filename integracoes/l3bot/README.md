@@ -63,6 +63,39 @@ Estados: `PROVA_PENDENTE` (conferir envio), `PENDENTE` (aguardando API),
 `REVISAR` (conflito ou evento recusado). Não apague o arquivo SQLite para
 resolver falhas de conexão; ele contém as confirmações ainda não entregues.
 
+## Consulta de pedidos e números do Registro Auxiliar
+
+`GET /api/integracoes/informar-custas/pendentes` usa a mesma credencial Bearer
+da integração. Além do pedido e do tipo de certidão, cada item inclui
+`registrosAuxiliares`: uma lista de números somente para resultado positivo;
+pedidos negativos recebem uma lista vazia. A rota continua limitada às buscas
+realizadas que ainda não foram finalizadas.
+
+Exemplo:
+
+```json
+{
+  "pedido": "S26081052543D",
+  "tipoCertidao": "Penhor Positivo",
+  "registrosAuxiliares": ["12", "305"]
+}
+```
+
+O L3BOT usa esses números apenas para informá-los no CMD; não altera o resultado
+nem os registros do AERI.
+
+O modo **Automático (apenas texto)** consulta o resultado pelo protocolo para
+também localizar pedidos já finalizados:
+
+```http
+GET /api/integracoes/informar-custas/resultado/S26081052543D
+Authorization: Bearer <mesma credencial da integração de custas>
+```
+
+O retorno contém somente `pedido`, `resultado` e `registrosAuxiliares`; nenhum
+dado pessoal é exposto. Pedido inexistente retorna 404 e protocolo inválido,
+422. Essa consulta é somente leitura.
+
 ## Contrato da API
 
 ```http

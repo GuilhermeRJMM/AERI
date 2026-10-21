@@ -152,7 +152,7 @@ def listar_custas_pendentes_integracao(
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
-                """SELECT pedido, modalidade, resultado
+                """SELECT pedido, modalidade, resultado, numero_registro
                 FROM custas_livro3_aeri
                 WHERE status='BUSCA_REALIZADA' AND finalizado=FALSE
                 AND resultado IN ('POSITIVA', 'NEGATIVA')
@@ -165,6 +165,7 @@ def listar_custas_pendentes_integracao(
                 {
                     "pedido": item["pedido"],
                     "tipoCertidao": rotulo_certidao_custas(item),
+                    "registrosAuxiliares": _registros_auxiliares_integracao(item),
                 }
                 for item in encontrados
             ]
@@ -181,6 +182,62 @@ def listar_custas_pendentes_integracao(
         {"itens": itens, "quantidade": len(itens)},
         headers={"Cache-Control": "no-store"},
     )
+
+
+@router.get("/resultado/{pedido}")
+def consultar_resultado_registro_auxiliar_integracao(
+    pedido: str,
+    request: Request,
+    usuario: str = Depends(exigir_token_integracao_custas),
+):
+    pedido = pedido.strip().upper()
+    if not re.fullmatch(r"S\d{11}D", pedido):
+        raise HTTPException(status_code=422, detail="Número do pedido inválido.")
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                """SELECT pedido, resultado, numero_registro
+                FROM custas_livro3_aeri WHERE pedido=%s""",
+                (pedido,),
+            )
+            item = cursor.fetchone()
+            if not item:
+                raise HTTPException(status_code=404, detail="Resultado não encontrado.")
+            resultado = str(item["resultado"] or "PENDENTE").upper()
+            registros = _registros_auxiliares_integracao(
+                {**item, "resultado": resultado}
+            )
+            registrar_auditoria_cursor(
+                cursor,
+                request,
+                "consultar_resultado_registro_auxiliar_integracao",
+                "sucesso",
+                usuario,
+                pedido,
+                detalhes={"resultado": resultado, "quantidadeRegistros": len(registros)},
+            )
+        conexao.commit()
+    return JSONResponse(
+        {
+            "pedido": pedido,
+            "resultado": resultado,
+            "registrosAuxiliares": registros,
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+def _registros_auxiliares_integracao(item: dict) -> list[str]:
+    """Return only the exact numeric record identifiers of positive results."""
+    if item.get("resultado") != "POSITIVA":
+        return []
+    valor = str(item.get("numero_registro") or "").strip()
+    if not valor:
+        return []
+    partes = [parte.strip() for parte in valor.split(",")]
+    if any(not re.fullmatch(r"\d{1,12}", parte) for parte in partes):
+        return []
+    return list(dict.fromkeys(partes))
 
 
 @router.post("/confirmar")
