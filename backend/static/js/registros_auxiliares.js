@@ -14,6 +14,12 @@ function formatarNumero(numero) {
     return new Intl.NumberFormat('pt-BR').format(Number(numero));
 }
 
+function formatarDataHora(valor) {
+    return valor
+        ? new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(valor))
+        : 'ainda não registrada';
+}
+
 function atualizarStatus(estado) {
     estadoAtual = estado;
     const progresso = Math.min(100, Number(estado.progressoInicial || 0));
@@ -21,20 +27,32 @@ function atualizarStatus(estado) {
     document.getElementById('regaux-progresso-texto').textContent = `${progresso.toLocaleString('pt-BR')}%`;
     document.getElementById('regaux-progresso-barra').style.width = `${progresso}%`;
     document.getElementById('regaux-proximo').textContent = estado.cargaInicialConcluida
-        ? 'Carga inicial concluída'
+        ? 'Carga inicial concluída; números novos e lacunas continuam em conferência'
         : `Próximo: ${formatarNumero(estado.proximoInicial)} de ${formatarNumero(estado.limiteInicial)}`;
     const hashesPendentes = Number(estado.documentosPendentesReindexacao || 0);
     if (hashesPendentes) {
         document.getElementById('regaux-proximo').textContent += ` · ${formatarNumero(hashesPendentes)} documento(s) aguardando reindexação segura`;
     }
     document.getElementById('regaux-limite').value = estado.limiteInicial;
-    document.getElementById('regaux-atualizado').textContent = estado.ultimaSincronizacao
-        ? `Última atualização: ${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(estado.ultimaSincronizacao))}`
-        : 'A sincronização ainda não foi iniciada.';
+    document.getElementById('regaux-atualizado').textContent =
+        `Último lote com consultas: ${formatarDataHora(estado.ultimaSincronizacao)} · Novos: ${formatarDataHora(estado.ultimaSondagemNovos)} · Lacunas: ${formatarDataHora(estado.ultimaVarreduraLacunas)}`;
     const pendencias = Number(estado.errosPendentes || 0);
-    if (pendencias) {
-        document.getElementById('regaux-lote-status').textContent = `${formatarNumero(pendencias)} registro(s) com falha aguardando nova tentativa.`;
+    const lacunas = Number(estado.lacunasRecentesNaoConsultadas || 0);
+    const alertas = [];
+    if (lacunas) alertas.push(`${formatarNumero(lacunas)} número(s) recente(s) ainda sem consulta`);
+    if (pendencias) alertas.push(`${formatarNumero(pendencias)} falha(s) aguardando nova tentativa`);
+    const limiteSemConferencia = Date.now() - (30 * 60 * 60 * 1000);
+    if (estado.cargaInicialConcluida && (!estado.ultimaSondagemNovos
+        || new Date(estado.ultimaSondagemNovos).getTime() < limiteSemConferencia)) {
+        alertas.push('sondagem de novos registros sem confirmação nas últimas 30 horas');
     }
+    if (estado.cargaInicialConcluida && (!estado.ultimaVarreduraLacunas
+        || new Date(estado.ultimaVarreduraLacunas).getTime() < limiteSemConferencia)) {
+        alertas.push('varredura de lacunas sem confirmação nas últimas 30 horas');
+    }
+    document.getElementById('regaux-pendencias').textContent = alertas.length
+        ? `${alertas.join(' · ')}. A carga inicial em 100% não significa índice atualizado.`
+        : 'A carga inicial não mede a atualização contínua de novos registros.';
     document.getElementById('btn-regaux-ver-erros').hidden = !pendencias;
     if (!pendencias) {
         document.getElementById('regaux-erros').hidden = true;
@@ -267,7 +285,7 @@ async function buscarNovos() {
     botao.textContent = 'Consultando…';
     const primeiroNumero = Number(estadoAtual?.ultimoExistente || 0) + 1;
     document.getElementById('regaux-lote-status').textContent = primeiroNumero > 1
-        ? `Consultando novos registros a partir do ${formatarNumero(primeiroNumero)}…`
+        ? `Consultando novos registros e lacunas próximas ao ${formatarNumero(primeiroNumero)}…`
         : 'Consultando novos Registros Auxiliares na Tri7…';
     try {
         let totalReprocessado = 0;
@@ -289,11 +307,17 @@ async function buscarNovos() {
             body:JSON.stringify({modo:'NOVOS', tamanho:30}),
         });
         atualizarStatus(resultado.estado);
+        const lacunas = await requisicaoAeri('/api/registros-auxiliares/sincronizar', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({modo:'LACUNAS', tamanho:30}),
+        });
+        atualizarStatus(lacunas.estado);
         const reprocessados = totalReprocessado ? ` ${totalReprocessado} falha(s) reprocessada(s).` : '';
-        const incluidos = (resultado.numerosNovos || []).length
-            ? ` Incluídos: ${(resultado.numerosNovos || []).map(formatarNumero).join(', ')}.`
+        const numerosNovos = [...new Set([...(resultado.numerosNovos || []), ...(lacunas.numerosNovos || [])])];
+        const incluidos = numerosNovos.length
+            ? ` Incluídos: ${numerosNovos.map(formatarNumero).join(', ')}.`
             : '';
-        document.getElementById('regaux-lote-status').textContent = `${resultado.novos} novo(s) Registro(s) Auxiliar(es) encontrado(s).${incluidos}${reprocessados}`;
+        document.getElementById('regaux-lote-status').textContent = `${numerosNovos.length} novo(s) Registro(s) Auxiliar(es) encontrado(s); ${lacunas.processados} lacuna(s) revisada(s).${incluidos}${reprocessados}`;
     } catch (erro) {
         document.getElementById('regaux-lote-status').textContent = erro.message;
     } finally {

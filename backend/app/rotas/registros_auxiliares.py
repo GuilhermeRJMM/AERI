@@ -36,6 +36,7 @@ router = APIRouter(
 )
 LEASE_SINCRONIZACAO_SEGUNDOS = 300
 JANELA_SONDAGEM_NOVOS = 30
+JANELA_LACUNAS_RECENTES = 300
 INTERVALO_RECONSULTA_AUSENCIA_HORAS = 24
 
 # Concorrência deliberadamente conservadora: a Tri7 já demonstrou não tolerar
@@ -215,14 +216,22 @@ def _selecionar_numeros_novos(
     """
     tamanho = max(1, tamanho)
     limite = ultimo_confirmado + JANELA_SONDAGEM_NOVOS
-    inicio = max(1, ultimo_confirmado - JANELA_SONDAGEM_NOVOS)
+    inicio = max(1, ultimo_confirmado - JANELA_LACUNAS_RECENTES)
     quantidade_reconsulta = max(1, (tamanho * 2 + 2) // 3)
+    # Uma ausência antiga pode ter sido disponibilizada depois. Também pode
+    # haver um número nunca consultado entre dois registros já indexados; a
+    # antiga seleção só enxergava ausências conhecidas e ignorava esse buraco.
     cursor.execute(
-        """SELECT numero FROM registros_auxiliares_varredura_aeri
-        WHERE resultado='AUSENTE' AND proxima_consulta_em<=NOW()
-          AND numero BETWEEN %s AND %s
-        ORDER BY CASE WHEN numero > %s THEN 0 ELSE 1 END,
-                 consultado_em, numero LIMIT %s""",
+        """SELECT faixa.numero FROM generate_series(%s, %s) AS faixa(numero)
+        LEFT JOIN registros_auxiliares_aeri indice ON indice.numero=faixa.numero
+        LEFT JOIN registros_auxiliares_varredura_aeri varredura ON varredura.numero=faixa.numero
+        WHERE indice.numero IS NULL
+          AND (varredura.numero IS NULL
+               OR (varredura.resultado='AUSENTE' AND varredura.proxima_consulta_em<=NOW())
+               OR (varredura.resultado='ERRO' AND varredura.proxima_consulta_em<=NOW()))
+        ORDER BY CASE WHEN faixa.numero <= %s THEN 0 ELSE 1 END,
+                 CASE WHEN varredura.numero IS NULL THEN 0 ELSE 1 END,
+                 varredura.consultado_em, faixa.numero LIMIT %s""",
         (inicio, limite, ultimo_confirmado, quantidade_reconsulta),
     )
     reconsultados = [item["numero"] for item in cursor.fetchall()]
@@ -244,12 +253,18 @@ def _selecionar_numeros_novos(
     numeros = list(dict.fromkeys([*reconsultados, *explorados]))
     if len(numeros) < tamanho:
         cursor.execute(
-            """SELECT numero FROM registros_auxiliares_varredura_aeri
-            WHERE resultado='AUSENTE' AND proxima_consulta_em<=NOW()
-              AND numero BETWEEN %s AND %s
-            ORDER BY CASE WHEN numero > %s THEN 0 ELSE 1 END,
-                     consultado_em, numero LIMIT %s""",
-            (inicio, limite, ultimo_confirmado, tamanho),
+            """SELECT faixa.numero FROM generate_series(%s, %s) AS faixa(numero)
+            LEFT JOIN registros_auxiliares_aeri indice ON indice.numero=faixa.numero
+            LEFT JOIN registros_auxiliares_varredura_aeri varredura ON varredura.numero=faixa.numero
+            WHERE indice.numero IS NULL
+              AND NOT (faixa.numero = ANY(%s))
+              AND (varredura.numero IS NULL
+                   OR (varredura.resultado='AUSENTE' AND varredura.proxima_consulta_em<=NOW())
+                   OR (varredura.resultado='ERRO' AND varredura.proxima_consulta_em<=NOW()))
+            ORDER BY CASE WHEN faixa.numero <= %s THEN 0 ELSE 1 END,
+                     CASE WHEN varredura.numero IS NULL THEN 0 ELSE 1 END,
+                     varredura.consultado_em, faixa.numero LIMIT %s""",
+            (inicio, limite, numeros, ultimo_confirmado, tamanho),
         )
         numeros = list(dict.fromkeys([
             *numeros, *(item["numero"] for item in cursor.fetchall()),
@@ -260,9 +275,9 @@ def _selecionar_numeros_novos(
 def _selecionar_numeros_lacunas(cursor, inicio: int, limite: int, tamanho: int) -> list[int]:
     """Percorre em círculo todos os números sem texto indexado.
 
-    Números desconhecidos são tentados uma vez e ausências são revisitadas a
-    cada nova passagem pelo círculo. Falhas técnicas respeitam o prazo de
-    retentativa para evitar martelar a Tri7 quando há indisponibilidade.
+    Números desconhecidos são tentados uma vez. Ausências e falhas técnicas
+    só voltam à fila depois do respectivo prazo de retentativa, para não
+    gastar toda a varredura circular nos mesmos números inexistentes.
     """
     if limite < 1:
         return []
@@ -273,7 +288,8 @@ def _selecionar_numeros_lacunas(cursor, inicio: int, limite: int, tamanho: int) 
         LEFT JOIN registros_auxiliares_varredura_aeri varredura ON varredura.numero=faixa.numero
         WHERE indice.numero IS NULL
           AND (varredura.numero IS NULL
-               OR varredura.resultado='AUSENTE'
+               OR (varredura.resultado='AUSENTE'
+                   AND varredura.proxima_consulta_em<=NOW())
                OR (varredura.resultado='ERRO'
                    AND varredura.proxima_consulta_em<=NOW()))
         ORDER BY faixa.numero LIMIT %s"""
@@ -304,6 +320,16 @@ def _estado_json(cursor) -> dict:
         WHERE resultado='AUSENTE'"""
     )
     ausencias_registradas = cursor.fetchone()["total"]
+    cursor.execute(
+        """SELECT COUNT(*) AS total
+        FROM generate_series(%s, %s) AS faixa(numero)
+        LEFT JOIN registros_auxiliares_aeri indice ON indice.numero=faixa.numero
+        LEFT JOIN registros_auxiliares_varredura_aeri varredura ON varredura.numero=faixa.numero
+        WHERE indice.numero IS NULL AND varredura.numero IS NULL""",
+        (max(1, estado["ultimo_existente"] - JANELA_LACUNAS_RECENTES),
+         max(1, estado["ultimo_existente"])),
+    )
+    lacunas_recentes_nao_consultadas = cursor.fetchone()["total"]
     limite = estado["limite_inicial"]
     concluidos = min(max(estado["proximo_inicial"] - 1, 0), limite)
     return {
@@ -314,6 +340,7 @@ def _estado_json(cursor) -> dict:
         "proximoLacuna": estado.get("proximo_lacuna", 1),
         "totalIndexados": total,
         "ausenciasRegistradas": ausencias_registradas,
+        "lacunasRecentesNaoConsultadas": lacunas_recentes_nao_consultadas,
         "errosPendentes": erros,
         "documentosPendentesReindexacao": hashes_pendentes,
         "progressoInicial": round((concluidos / limite) * 100, 2) if limite else 100,
@@ -321,6 +348,14 @@ def _estado_json(cursor) -> dict:
         "ultimaSincronizacao": (
             estado["ultima_sincronizacao"].isoformat()
             if estado["ultima_sincronizacao"] else None
+        ),
+        "ultimaSondagemNovos": (
+            estado["ultima_sondagem_novos_em"].isoformat()
+            if estado["ultima_sondagem_novos_em"] else None
+        ),
+        "ultimaVarreduraLacunas": (
+            estado["ultima_varredura_lacunas_em"].isoformat()
+            if estado["ultima_varredura_lacunas_em"] else None
         ),
     }
 
@@ -681,6 +716,15 @@ def _executar_sincronizacao(
                     cursor.execute(
                         """UPDATE sincronizacao_registros_auxiliares_aeri
                         SET ultima_sincronizacao=NOW(), atualizado_em=NOW() WHERE id=1"""
+                    )
+
+                if not falha and not falhas and modo in {"NOVOS", "LACUNAS"}:
+                    coluna = (
+                        "ultima_sondagem_novos_em" if modo == "NOVOS"
+                        else "ultima_varredura_lacunas_em"
+                    )
+                    cursor.execute(
+                        f"UPDATE sincronizacao_registros_auxiliares_aeri SET {coluna}=NOW() WHERE id=1"
                     )
 
                 fronteira_conferida = bool(

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from backend.app.rotas.registros_auxiliares import (
     _consultar_lote_tri7,
+    _estado_json,
     _registrar_erro,
     _proximo_modo_automatico,
     _registrar_consulta_varredura,
@@ -40,7 +41,27 @@ class TesteVarreduraRegistrosAuxiliares(unittest.TestCase):
         self.assertEqual(numeros, [29644, 29657, 29658])
         self.assertEqual(reconsultadas, 1)
         self.assertEqual(exploradas, 2)
-        self.assertIn("resultado='AUSENTE'", cursor.execute.call_args_list[0].args[0])
+        sql = cursor.execute.call_args_list[0].args[0]
+        self.assertIn("generate_series", sql)
+        self.assertIn("varredura.numero IS NULL", sql)
+        self.assertIn("varredura.resultado='AUSENTE'", sql)
+        self.assertEqual(cursor.execute.call_args_list[0].args[1][0], 29356)
+
+    def test_novos_inclui_lacuna_nunca_consultada_antes_do_maior_registro(self):
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [{"numero": 29644}]
+        cursor.fetchone.return_value = {"maior": 29667}
+
+        numeros, reconsultadas, exploradas = _selecionar_numeros_novos(
+            cursor, ultimo_confirmado=29667, tamanho=3,
+        )
+
+        self.assertEqual(numeros, [29644, 29668, 29669])
+        self.assertEqual(reconsultadas, 1)
+        self.assertEqual(exploradas, 2)
+        consulta = cursor.execute.call_args_list[0]
+        self.assertIn("varredura.numero IS NULL", consulta.args[0])
+        self.assertEqual(consulta.args[1][:2], (29367, 29697))
 
     def test_lacunas_faz_varredura_circular_sem_repetir_registro_indexado(self):
         cursor = MagicMock()
@@ -56,8 +77,27 @@ class TesteVarreduraRegistrosAuxiliares(unittest.TestCase):
         self.assertIn("generate_series", cursor.execute.call_args_list[0].args[0])
         self.assertIn("indice.numero IS NULL", cursor.execute.call_args_list[0].args[0])
         sql = cursor.execute.call_args_list[0].args[0]
-        self.assertIn("OR varredura.resultado='AUSENTE'", sql)
+        self.assertIn("varredura.resultado='AUSENTE'\n                   AND varredura.proxima_consulta_em<=NOW()", sql)
         self.assertIn("varredura.resultado='ERRO'\n                   AND varredura.proxima_consulta_em<=NOW()", sql)
+
+    def test_estado_separa_carga_inicial_de_lacunas_recentes(self):
+        cursor = MagicMock()
+        cursor.fetchone.side_effect = [
+            {"limite_inicial": 29667, "proximo_inicial": 29668,
+             "ultimo_existente": 29667, "proximo_revisao": 1,
+             "proximo_lacuna": 1, "ultima_sincronizacao": None,
+             "ultima_sondagem_novos_em": None,
+             "ultima_varredura_lacunas_em": None},
+            {"total": 26000}, {"total": 0}, {"total": 0},
+            {"total": 3000}, {"total": 1},
+        ]
+
+        estado = _estado_json(cursor)
+
+        self.assertEqual(estado["progressoInicial"], 100)
+        self.assertEqual(estado["lacunasRecentesNaoConsultadas"], 1)
+        self.assertIsNone(estado["ultimaSondagemNovos"])
+        self.assertIn("generate_series", cursor.execute.call_args_list[-1].args[0])
 
     def test_cada_ausencia_e_persistida_com_prazo_de_reconsulta(self):
         cursor = MagicMock()
