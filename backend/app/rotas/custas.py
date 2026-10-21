@@ -240,19 +240,26 @@ def incluir_busca_registro_auxiliar(
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             numeros = localizar_registros_custas(cursor, pedido_busca)
-            resultado = (
-                "POSITIVA" if numeros else ("NEGATIVA" if indice["confiavel"] else "PENDENTE")
+            resultado = "POSITIVA" if numeros else "NEGATIVA"
+            negativa_insegura = bool(
+                not numeros and (
+                    not indice["confiavel"]
+                    or pedido_busca["produto"] == "NÃO CONSTA"
+                    or pedido_busca["safra"] == "NÃO CONSTA"
+                    or ano_safrinha_custas(pedido_busca["safra"]) is not None
+                )
             )
-            status = "BUSCA_REALIZADA" if resultado != "PENDENTE" else "FAZER_PESQUISA"
+            status = "BUSCA_REALIZADA"
             identificador = uuid4()
             cursor.execute(
                 """INSERT INTO custas_livro3_aeri
-                (id, pedido, nome, documento, modalidade, produto, safra, resultado,
+                (id, pedido, nome, documento, modalidade, produto, safra, resultado, negativa_insegura,
                  numero_registro, status, criado_por, atualizado_por)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 ON CONFLICT (pedido) DO NOTHING RETURNING *""",
                 (identificador, pedido, nome, documento or "NÃO CONSTA", modalidade_custas,
-                 produto, safra, resultado, ", ".join(map(str, numeros)), status, usuario, usuario),
+                 produto, safra, resultado, negativa_insegura,
+                 ", ".join(map(str, numeros)), status, usuario, usuario),
             )
             item = cursor.fetchone()
             if not item:
@@ -260,7 +267,9 @@ def incluir_busca_registro_auxiliar(
             _registrar_evento(
                 cursor, identificador, pedido, "PESQUISA_REGISTRO_AUXILIAR", usuario,
                 {"origem": "REGISTRO_AUXILIAR", "registros": numeros, "resultado": resultado,
-                 "negativaConfirmada": bool(indice["confiavel"])},
+                 "negativaInsegura": negativa_insegura,
+                 "indiceConfiavel": bool(indice["confiavel"]),
+                 "indiceMotivo": indice.get("motivo")},
             )
             registrar_auditoria_cursor(
                 cursor, request, "enviar_registro_auxiliar_custas", "sucesso", usuario,
@@ -344,16 +353,16 @@ async def importar_relatorio(
                             cursor, identificador, item["pedido"], "IMPORTACAO", usuario,
                             {"campos_ausentes": [a["campos"] for a in resultado["alertas"] if a["pedido"] == item["pedido"]]},
                         )
-                        # A pesquisa entra na mesma transação e consulta o índice
-                        # recém-atualizado. Se não foi possível comprovar que a
-                        # atualização alcançou a fronteira da Tri7, uma ausência
-                        # fica pendente em vez de virar negativa.
+                        # A pesquisa consulta o índice recém-atualizado. Uma
+                        # ausência pode virar negativa insegura, com a incerteza
+                        # registrada no item/evento.
                         busca = _pesquisar_registros(
                             cursor,
                             novo_item,
                             usuario,
                             preco,
                             permitir_negativa=bool(indice["confiavel"]),
+                            motivo_indice=indice.get("motivo"),
                         )
                         itens_importados.append(busca["item"])
                         positivas += 1 if busca["resultado"] == "POSITIVA" else 0
@@ -447,7 +456,7 @@ def _preco_certidao_registro_auxiliar(cursor) -> Decimal:
 
 
 def _pesquisar_registros(
-    cursor, pedido, usuario, preco=None, *, permitir_negativa: bool = True
+    cursor, pedido, usuario, preco=None, *, permitir_negativa: bool = True, motivo_indice: str | None = None
 ) -> dict:
     """Procura o pedido no Registro Auxiliar e grava o resultado.
 
@@ -458,29 +467,35 @@ def _pesquisar_registros(
     if preco is None:
         preco = _preco_certidao_registro_auxiliar(cursor)
     numeros = localizar_registros_custas(cursor, pedido)
-    # Um pedido que diz apenas "safrinha 2026" não prova qual período
-    # agrícola o registro usa. Ausência local não autoriza certidão negativa.
-    negativa_segura = (
-        permitir_negativa
-        and ano_safrinha_custas(pedido.get("safra", "")) is None
-        and pedido.get("produto") != "NÃO CONSTA"
-        and pedido.get("safra") != "NÃO CONSTA"
+    # A pedido do responsável, uma ausência local pode ser registrada como
+    # negativa mesmo sem fronteira confirmada. A proveniência deixa explícito
+    # que ela não foi confirmada pela Tri7.
+    negativa_insegura = bool(
+        not numeros and (
+            not permitir_negativa
+            or ano_safrinha_custas(pedido.get("safra", "")) is not None
+            or pedido.get("produto") == "NÃO CONSTA"
+            or pedido.get("safra") == "NÃO CONSTA"
+        )
     )
-    resultado = "POSITIVA" if numeros else ("NEGATIVA" if negativa_segura else "PENDENTE")
-    status = "BUSCA_REALIZADA" if resultado != "PENDENTE" else "FAZER_PESQUISA"
+    resultado = "POSITIVA" if numeros else "NEGATIVA"
+    status = "BUSCA_REALIZADA"
     cursor.execute(
-        """UPDATE custas_livro3_aeri SET resultado=%s, numero_registro=%s,
+        """UPDATE custas_livro3_aeri SET resultado=%s, negativa_insegura=%s, numero_registro=%s,
         status=%s, atualizado_por=%s, atualizado_em=NOW()
         WHERE id=%s RETURNING *""",
-        (resultado, ", ".join(str(numero) for numero in numeros), status, usuario, pedido["id"]),
+        (resultado, negativa_insegura, ", ".join(str(numero) for numero in numeros), status, usuario, pedido["id"]),
     )
     atualizado = cursor.fetchone()
     valor = preco * max(1, len(numeros))
     _registrar_evento(cursor, pedido["id"], pedido["pedido"], "PESQUISA_REGISTRO_AUXILIAR", usuario,
                       {"registros": numeros, "valor": str(valor), "resultado": resultado,
-                       "negativaConfirmada": resultado == "NEGATIVA"})
+                       "negativaInsegura": negativa_insegura,
+                       "indiceConfiavel": bool(permitir_negativa),
+                       "indiceMotivo": motivo_indice})
     return {"item": custas_json(atualizado), "registros": numeros,
-            "valor": float(valor), "resultado": resultado}
+            "valor": float(valor), "resultado": resultado,
+            "negativaInsegura": negativa_insegura}
 
 
 @router.post("/{identificador}/pesquisar-registros", dependencies=[Depends(proteger_csrf)])
@@ -496,7 +511,8 @@ def pesquisar_registros_do_pedido(
             if not pedido:
                 raise HTTPException(status_code=404, detail="Pedido não encontrado.")
             saida = _pesquisar_registros(
-                cursor, pedido, usuario, permitir_negativa=bool(indice["confiavel"])
+                cursor, pedido, usuario, permitir_negativa=bool(indice["confiavel"]),
+                motivo_indice=indice.get("motivo"),
             )
             registrar_auditoria_cursor(cursor, request, "pesquisar_registros_custas", "sucesso", usuario,
                                        pedido["pedido"], {"quantidade": len(saida["registros"])})

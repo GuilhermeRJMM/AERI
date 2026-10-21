@@ -1,0 +1,2 @@
+ALTER TABLE custas_livro3_aeri
+    ADD COLUMN IF NOT EXISTS negativa_insegura BOOLEAN NOT NULL DEFAULT FALSE;

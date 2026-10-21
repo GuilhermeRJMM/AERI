@@ -95,7 +95,11 @@ def revalidar_negativas_custas(
             or pedido.get("safra") == "NÃO CONSTA"
         ):
             continue
-        if not numeros and not (resultado_anterior == "PENDENTE" and confirmar_pendentes):
+        ausencia_pode_ser_confirmada = confirmar_pendentes and (
+            resultado_anterior == "PENDENTE"
+            or (resultado_anterior == "NEGATIVA" and pedido.get("negativa_insegura"))
+        )
+        if not numeros and not ausencia_pode_ser_confirmada:
             continue
         status_anterior = pedido["status"]
         novo_resultado = "POSITIVA" if numeros else "NEGATIVA"
@@ -106,7 +110,7 @@ def revalidar_negativas_custas(
         numeros_texto = ", ".join(str(numero) for numero in numeros)
         cursor.execute(
             """UPDATE custas_livro3_aeri
-               SET resultado=%s, numero_registro=%s, status=%s,
+               SET resultado=%s, numero_registro=%s, status=%s, negativa_insegura=FALSE,
                    atualizado_por=NULL, atualizado_em=NOW()
                WHERE id=%s AND resultado=%s
                RETURNING pedido""",
@@ -383,6 +387,7 @@ def custas_json(item: dict) -> dict:
         "produto": item["produto"],
         "safra": item["safra"],
         "resultado": item["resultado"],
+        "negativaInsegura": bool(item.get("negativa_insegura", False)) and item["resultado"] == "NEGATIVA",
         "numeroRegistro": item["numero_registro"],
         "status": item["status"],
         "finalizado": item["finalizado"],

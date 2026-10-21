@@ -24,7 +24,8 @@ function rotuloModalidade(valor) {
     return valor === 'ALIENACAO_FIDUCIARIA' ? 'Alienação fiduciária' : 'Penhor';
 }
 
-function rotuloResultado(valor) {
+function rotuloResultado(valor, negativaInsegura = false) {
+    if (valor === 'NEGATIVA' && negativaInsegura) return 'Negativa insegura';
     return {PENDENTE:'Pendente', POSITIVA:'Positiva', NEGATIVA:'Negativa'}[valor] || valor;
 }
 
@@ -96,7 +97,7 @@ function renderizar() {
             <td data-label="CPF/CNPJ">${escaparHtml(item.documento)}</td>
             <td data-label="Modalidade"><span class="custas-modalidade">${escaparHtml(rotuloModalidade(item.modalidade))}</span></td>
             <td data-label="Produto">${escaparHtml(item.produto)}</td><td data-label="Safra">${escaparHtml(item.safra)}</td>
-            <td data-label="Resultado"><span class="custas-resultado ${item.resultado.toLowerCase()}">${escaparHtml(rotuloResultado(item.resultado))}</span></td>
+            <td data-label="Resultado"><span class="custas-resultado ${item.resultado.toLowerCase()} ${item.negativaInsegura ? 'negativa-insegura' : ''}" ${item.negativaInsegura ? 'title="Sem ocorrência no índice; não confirmada pela Tri7"' : ''}>${escaparHtml(rotuloResultado(item.resultado, item.negativaInsegura))}</span></td>
             <td data-label="Nº registro">${escaparHtml(item.numeroRegistro || '—')}</td>
             <td data-label="Situação"><span class="custas-status"><i></i>${escaparHtml(rotulo)}</span></td>
             <td data-label="Ações"><div class="custas-acoes"><button type="button" data-custas-acao="pesquisar" data-custas-id="${item.id}">Pesquisar registros</button><button type="button" data-custas-acao="historico" data-custas-id="${item.id}">Histórico</button><button type="button" data-custas-acao="editar" data-custas-id="${item.id}">Editar</button>${item.finalizado
@@ -330,6 +331,14 @@ async function acaoTabela(evento) {
             renderizar();
             if (resposta.resultado === 'PENDENTE') {
                 notificarCustas('A atualização da Tri7 não pôde ser confirmada. O AERI não emitiu uma negativa insegura.', 'erro', 6500);
+            } else if (resposta.negativaInsegura) {
+                const motivo = {
+                    tri7_indisponivel: 'A Tri7 não confirmou a atualização do índice.',
+                    falha_sincronizacao: 'A sincronização encontrou falhas.',
+                    indice_ainda_avancando: 'O índice ainda está avançando.',
+                    sincronizacao_em_andamento: 'Já havia uma sincronização em andamento.'
+                }[resposta.indiceMotivo] || 'A ausência não foi confirmada pela Tri7.';
+                notificarCustas(`NEGATIVA INSEGURA registrada: ${motivo} Revise antes de concluir.`, 'erro', 10000);
             } else {
                 notificarCustas(`${resposta.resultado}: ${resposta.registros.length} registro(s). Valor: ${emReais(resposta.valor)}.`);
             }
