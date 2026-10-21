@@ -96,8 +96,10 @@ def executar_passo_rtd(cliente=None):
             cur.execute('SELECT * FROM rtd_sincronizacao_aeri WHERE id=1')
             config = cur.fetchone()
             cur.execute('''INSERT INTO rtd_pedidos_aeri(protocolo)
-                SELECT DISTINCT protocolo_rtd FROM intimacoes_aeri
-                WHERE excluida_em IS NULL AND protocolo_rtd ~ '^[0-9]{17}$'
+                SELECT DISTINCT i.protocolo_rtd FROM intimacoes_aeri i
+                WHERE i.excluida_em IS NULL AND i.protocolo_rtd ~ '^[0-9]{17}$'
+                  AND NOT EXISTS (SELECT 1 FROM rtd_protocolos_excluidos_aeri x
+                                  WHERE x.protocolo=i.protocolo_rtd)
                 ON CONFLICT DO NOTHING''')
             if not config['proxima_consulta'] or config['proxima_consulta'] <= agora:
                 desde = config['desde']
@@ -109,12 +111,16 @@ def executar_passo_rtd(cliente=None):
                     pagina = cliente.atualizacoes(desde, config['pagina'])
                     for item in pagina['Data']:
                         cur.execute('''INSERT INTO rtd_pedidos_aeri(protocolo,resumo_hash)
-                            VALUES (%s,%s) ON CONFLICT(protocolo) DO UPDATE SET
+                            SELECT %s,%s WHERE NOT EXISTS (
+                                SELECT 1 FROM rtd_protocolos_excluidos_aeri
+                                WHERE protocolo=%s
+                            ) ON CONFLICT(protocolo) DO UPDATE SET
                             pendente=CASE WHEN rtd_pedidos_aeri.resumo_hash IS DISTINCT FROM EXCLUDED.resumo_hash
                                 OR rtd_pedidos_aeri.intimacao_id IS NULL THEN TRUE ELSE rtd_pedidos_aeri.pendente END,
                             tentar_em=CASE WHEN rtd_pedidos_aeri.resumo_hash IS DISTINCT FROM EXCLUDED.resumo_hash
                                 THEN NOW() ELSE rtd_pedidos_aeri.tentar_em END,
-                            resumo_hash=EXCLUDED.resumo_hash''', (str(item['Protocolo']), hash_resumo(item)))
+                            resumo_hash=EXCLUDED.resumo_hash''',
+                            (str(item['Protocolo']), hash_resumo(item), str(item['Protocolo'])))
                     terminou = config['pagina'] >= pagina['TotalPages']
                     # Sobreposição de um dia, deduplicação por protocolo/hash e fila persistente.
                     # O cursor só avança após a página inteira estar registrada.

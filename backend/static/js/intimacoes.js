@@ -30,6 +30,8 @@ let envioRtdConcluido = false;
 let uploadRtdAtual = null;
 let uploadRtdController = null;
 let arquivoRtdPendente = null;
+let exclusaoRtdIntimacaoId = null;
+let exclusaoRtdEmCurso = false;
 const LIMITE_PDF_RTD = 25 * 1024 * 1024;
 
 function opcoesJsonRtd(dados, signal) {
@@ -65,6 +67,10 @@ function pode(permissao) {
 
 function cargoAdministrativo() {
     return ['ADMIN', 'SUBSTITUTO'].includes(document.body.dataset.perfil);
+}
+
+function somenteAdm() {
+    return document.body.dataset.perfil === 'ADMIN';
 }
 
 function diasDesde(data) {
@@ -294,6 +300,8 @@ function renderizarFocoIntimacao(item, fila) {
     const indice = Math.max(0, fila.findIndex(registro => registro.id === item.id)) + 1;
     const total = fila.length;
     const fase = item.fase || 'INTIMACAO';
+    const podeExcluirProtocolosRtd = somenteAdm() && fase === 'INTIMACAO'
+        && (protocolosRtd.length > 0 || Boolean(item.protocoloRtd));
     const textoProximoPasso = fase === 'INTIMACAO'
         ? 'Abra a intimação no Ofício Eletrônico e compare o andamento com o que está registrado aqui. Se houver mudança, informe o novo andamento.'
         : fase === 'EDITAL'
@@ -332,7 +340,7 @@ function renderizarFocoIntimacao(item, fila) {
         <section class="rotina-in-proxima-acao"><strong>O que fazer agora</strong><p>${textoProximoPasso}</p>${acaoRtd}</section>
         ${botoesConferencia}
         ${botoesNavegacao}
-        <details class="rotina-in-mais-acoes"><summary>Mais ações</summary><div>${botaoPastaIntimacao(item)} <button type="button" data-acao="detalhes" data-id="${escaparHtml(item.id)}">${detalhesAbertos.has(item.id) ? 'Fechar detalhes' : 'Ver detalhes'}</button>${acoesIntimacao(item, false)}${pode('alterar_intimacoes') && fase === 'INTIMACAO' && !exibindoLixeira ? `<button type="button" data-acao="novo-envio-rtd" data-id="${escaparHtml(item.id)}">Preparar envio ao RTD</button>` : ''}</div></details>
+        <details class="rotina-in-mais-acoes"><summary>Mais ações</summary><div>${botaoPastaIntimacao(item)} <button type="button" data-acao="detalhes" data-id="${escaparHtml(item.id)}">${detalhesAbertos.has(item.id) ? 'Fechar detalhes' : 'Ver detalhes'}</button>${acoesIntimacao(item, false)}${pode('alterar_intimacoes') && fase === 'INTIMACAO' && !exibindoLixeira ? `<button type="button" data-acao="novo-envio-rtd" data-id="${escaparHtml(item.id)}">Preparar envio ao RTD</button>` : ''}${podeExcluirProtocolosRtd ? `<button type="button" class="rtd-exclusao-atalho" data-acao="excluir-protocolos-rtd" data-id="${escaparHtml(item.id)}">Remover protocolos RTD</button>` : ''}</div></details>
         ${detalhesAbertos.has(item.id) ? `<div class="rotina-foco-detalhes">${detalhesFaseInicial(item)}</div>` : ''}
     </article>`;
 }
@@ -598,6 +606,12 @@ function abrirEnvioRtd(id, paresRtd = null, dadosCredor = null) {
     if (!item || item.fase !== 'INTIMACAO' || !pode('alterar_intimacoes')) return;
 
     const modal = document.getElementById('modal-rtd-notificacao');
+    // Reabrir o mesmo IN sempre retoma a preparação desta aba, inclusive
+    // depois de um envio concluído. Uma nova remessa precisa ser explícita.
+    if (intimacaoEnvioRtdId === id && !paresRtd?.length) {
+        modal.classList.add('aberta');
+        return;
+    }
     if (intimacaoEnvioRtdId === id && !envioRtdConcluido) {
         modal.classList.add('aberta');
         return;
@@ -626,6 +640,7 @@ function abrirEnvioRtd(id, paresRtd = null, dadosCredor = null) {
     document.getElementById('rtd-envio-operacao-id').value = novaChaveOperacaoRtd();
     intimacaoEnvioRtdId = id;
     envioRtdConcluido = false;
+    document.getElementById('btn-nova-notificacao-rtd').hidden = true;
     document.getElementById('rtd-destino-uf').value = 'GO';
     document.getElementById('rtd-destino-cidade').value = 'Morrinhos';
     document.getElementById('rtd-entrega-destinatario').checked = true;
@@ -654,6 +669,28 @@ function fecharEnvioRtd() {
     document.getElementById('modal-rtd-notificacao').classList.remove('aberta');
     document.getElementById('rtd-envio-status').textContent =
         'Janela fechada; progresso mantido nesta aba. Reabra este IN para continuar sem repetir as notificações já confirmadas.';
+}
+
+function prepararProximoEnvioRtd() {
+    if (!envioRtdConcluido || envioRtdEmCurso || !intimacaoEnvioRtdId) return;
+    if (!confirm('O envio anterior permanece no histórico. Um novo envio criará outro protocolo no RTD. Revise os destinatários para evitar duplicidade. Continuar?')) return;
+
+    document.getElementById('rtd-arquivo-notificacao').value = '';
+    document.getElementById('rtd-arquivo-notificacao').disabled = false;
+    document.getElementById('btn-repetir-envio-pdf-rtd').hidden = true;
+    document.getElementById('rtd-confirmar-sem-duplicidade').checked = false;
+    document.getElementById('rtd-confirmar-envio').checked = false;
+    document.getElementById('rtd-envio-operacao-id').value = novaChaveOperacaoRtd();
+    document.getElementById('btn-confirmar-rtd-notificacao').disabled = true;
+    document.getElementById('btn-confirmar-rtd-notificacao').textContent = 'Enviar notificação';
+    document.getElementById('btn-nova-notificacao-rtd').hidden = true;
+    filaRtdSeparada = null;
+    filaRtdDosOriginais = false;
+    indiceFilaRtdSeparada = 0;
+    filaRtdFinalizada = false;
+    envioRtdConcluido = false;
+    document.getElementById('rtd-envio-status').textContent =
+        'Envio anterior preservado no histórico. Os dados preenchidos foram mantidos; selecione o PDF e revise os destinatários antes de enviar novamente.';
 }
 
 async function extrairDocumentoRtdSelecionado(arquivoForcado = null) {
@@ -925,6 +962,7 @@ async function enviarNotificacaoRtd(evento) {
             document.getElementById('rtd-arquivo-notificacao').value = '';
             await removerUploadRtd(upload);
             envioRtdConcluido = true;
+            document.getElementById('btn-nova-notificacao-rtd').hidden = false;
         }
     } catch (erro) {
         status.textContent = erro.message;
@@ -933,7 +971,7 @@ async function enviarNotificacaoRtd(evento) {
         renderizarIntimacoes();
     } finally {
         envioRtdEmCurso = false;
-        document.getElementById('btn-confirmar-rtd-notificacao').disabled = filaRtdFinalizada;
+        document.getElementById('btn-confirmar-rtd-notificacao').disabled = filaRtdFinalizada || envioRtdConcluido || !uploadRtdAtual;
         document.getElementById('btn-cancelar-rtd-notificacao').disabled = false;
         document.getElementById('btn-fechar-rtd-notificacao').disabled = false;
     }
@@ -1231,6 +1269,73 @@ async function excluirIntimacao(id) {
     }
 }
 
+function fecharExclusaoRtd() {
+    const modal = document.getElementById('modal-rtd-exclusao');
+    if (!modal) return;
+    modal.classList.remove('aberta');
+    modal.hidden = true;
+    document.getElementById('form-rtd-exclusao')?.reset();
+    document.getElementById('rtd-exclusao-status').textContent = '';
+    exclusaoRtdIntimacaoId = null;
+}
+
+function abrirExclusaoRtd(id) {
+    if (!somenteAdm()) return;
+    const item = intimacoes.find(registro => registro.id === id);
+    if (!item || item.fase !== 'INTIMACAO') return;
+    exclusaoRtdIntimacaoId = id;
+    document.getElementById('rtd-exclusao-intimacao-id').value = id;
+    document.getElementById('rtd-exclusao-protocolo').textContent = `IN selecionado: ${item.protocolo}`;
+    document.getElementById('rtd-exclusao-confirmacao').placeholder = item.protocolo;
+    document.getElementById('rtd-exclusao-senha').value = '';
+    document.getElementById('rtd-exclusao-status').textContent = '';
+    const modal = document.getElementById('modal-rtd-exclusao');
+    modal.hidden = false;
+    modal.classList.add('aberta');
+    document.getElementById('rtd-exclusao-confirmacao').focus();
+}
+
+async function confirmarExclusaoRtd(evento) {
+    evento.preventDefault();
+    if (!somenteAdm() || !exclusaoRtdIntimacaoId || exclusaoRtdEmCurso) return;
+    const item = intimacoes.find(registro => registro.id === exclusaoRtdIntimacaoId);
+    const confirmacao = document.getElementById('rtd-exclusao-confirmacao').value.trim().toUpperCase();
+    const senha = document.getElementById('rtd-exclusao-senha').value;
+    const status = document.getElementById('rtd-exclusao-status');
+    const botao = document.getElementById('btn-confirmar-rtd-exclusao');
+    if (!item || confirmacao !== item.protocolo.toUpperCase()) {
+        status.textContent = 'O número digitado não corresponde ao IN selecionado.';
+        document.getElementById('rtd-exclusao-confirmacao').focus();
+        return;
+    }
+    exclusaoRtdEmCurso = true;
+    botao.disabled = true;
+    status.textContent = 'Validando a senha e removendo os vínculos RTD somente do AERI…';
+    try {
+        const resultado = await requisicaoAeri(
+            `/api/rtd-intimacoes/intimacao/${encodeURIComponent(item.id)}/excluir-protocolos`,
+            {method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({senha, confirmacao})},
+        );
+        enviosRtdPorIntimacao.delete(item.id);
+        fecharExclusaoRtd();
+        await carregarIntimacoes();
+        const removidos = Number(resultado.pedidos_rtd || 0) + Number(resultado.envios_com_protocolo || 0);
+        alert(resultado.jaEstavaLimpo
+            ? `O IN ${item.protocolo} já estava sem protocolos RTD no AERI. A verificação foi registrada.`
+            : `Concluído: ${removidos} registro(s) RTD removido(s) do AERI para o ${item.protocolo}. A ação foi registrada; tentativas sem protocolo foram preservadas.`);
+    } catch (erro) {
+        status.textContent = erro.message;
+        if (erro.status === 401) {
+            document.getElementById('rtd-exclusao-senha').value = '';
+            document.getElementById('rtd-exclusao-senha').focus();
+        }
+    } finally {
+        exclusaoRtdEmCurso = false;
+        botao.disabled = false;
+    }
+}
+
 async function abrirPastaIntimacao(protocolo) {
     // O caminho de rede é resolvido pelo aplicativo local. Ele não fica
     // exposto nem codificado no JavaScript servido aos navegadores.
@@ -1431,6 +1536,7 @@ async function tratarAcaoTabela(evento) {
         renderizarIntimacoes();
     }
     if (botao.dataset.acao === 'novo-envio-rtd') abrirEnvioRtd(botao.dataset.id);
+    if (botao.dataset.acao === 'excluir-protocolos-rtd') abrirExclusaoRtd(botao.dataset.id);
     if (botao.dataset.acao === 'preparar-documentos-intimacao') {
         const item = intimacoes.find(registro => registro.id === botao.dataset.id);
         if (item && pode('alterar_intimacoes')) abrirDocumentosIntimacao(item);
@@ -1446,7 +1552,7 @@ async function tratarAcaoTabela(evento) {
 export function iniciarIntimacoes() {
     iniciarDocumentosIntimacao((id, pares, credor) => abrirEnvioRtd(id, pares, credor));
     if (!document.getElementById('rtd-estilos')) {
-        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261020-intimacoes-cartao-in-v1'; document.head.appendChild(css);
+        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261021-rtd-modal-retomada-v2'; document.head.appendChild(css);
     }
     window.addEventListener('aeri:abrir-alerta', async evento => {
         if (evento.detail.modulo !== 'rotina') return;
@@ -1582,6 +1688,18 @@ export function iniciarIntimacoes() {
     document.getElementById('btn-exportar-intimacoes').addEventListener('click', exportarIntimacoesCsv);
     document.getElementById('btn-fechar-rtd-notificacao').addEventListener('click', fecharEnvioRtd);
     document.getElementById('btn-cancelar-rtd-notificacao').addEventListener('click', fecharEnvioRtd);
+    document.getElementById('btn-nova-notificacao-rtd').addEventListener('click', prepararProximoEnvioRtd);
+    document.getElementById('modal-rtd-notificacao').addEventListener('click', evento => {
+        if (evento.target !== evento.currentTarget) return;
+        // Um clique/soltura do mouse fora do painel não fecha nem aciona a tela
+        // que está atrás do modal. O usuário fecha pelo botão explícito.
+        evento.preventDefault();
+        evento.stopPropagation();
+        if (!envioRtdEmCurso) {
+            document.getElementById('rtd-envio-status').textContent =
+                'A preparação continua aberta. Use “Fechar por agora” para sair sem perder o progresso.';
+        }
+    });
     document.getElementById('btn-buscar-cartorios-rtd').addEventListener('click', buscarCartoriosRtd);
     document.getElementById('rtd-arquivo-notificacao').addEventListener('change', () => {
         arquivoRtdPendente = null;
@@ -1609,5 +1727,15 @@ export function iniciarIntimacoes() {
         if (evento.target.matches('[data-endereco="UF"],#rtd-destino-uf')) evento.target.value = evento.target.value.toUpperCase();
     });
     document.getElementById('form-rtd-notificacao').addEventListener('submit', enviarNotificacaoRtd);
+    document.getElementById('btn-fechar-rtd-exclusao').addEventListener('click', fecharExclusaoRtd);
+    document.getElementById('btn-cancelar-rtd-exclusao').addEventListener('click', fecharExclusaoRtd);
+    document.getElementById('modal-rtd-exclusao').addEventListener('click', evento => {
+        if (evento.target.id === 'modal-rtd-exclusao' && !exclusaoRtdEmCurso) fecharExclusaoRtd();
+    });
+    document.getElementById('form-rtd-exclusao').addEventListener('submit', confirmarExclusaoRtd);
+    document.addEventListener('keydown', evento => {
+        if (evento.key === 'Escape' && !exclusaoRtdEmCurso
+            && document.getElementById('modal-rtd-exclusao').classList.contains('aberta')) fecharExclusaoRtd();
+    });
     renderizarIntimacoes();
 }

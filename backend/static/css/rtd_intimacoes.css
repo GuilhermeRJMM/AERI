@@ -448,6 +448,25 @@
 .rotina-central-acao { display:flex; flex-direction:column; gap:14px; padding:0 14px 14px; }
 .rotina-foco { position:static; display:block; order:0; width:100%; overflow:visible; padding:20px; border-color:#2b3850; border-radius:14px; background:#121b2d; color:#f1f5fc; }
 .rotina-fila-painel { order:1; width:100%; border-color:#2b3850; border-radius:14px; background:#121b2d; }
+.rtd-exclusao-atalho { border:1px solid rgba(248,113,113,.42); border-radius:8px; padding:7px 10px; background:rgba(127,29,29,.14); color:#fecaca; font:700 .72rem "Outfit",sans-serif; cursor:pointer; }
+.rtd-exclusao-atalho:hover { border-color:rgba(248,113,113,.72); background:rgba(127,29,29,.28); }
+.rtd-exclusao-modal { width:min(560px,96vw); border:1px solid #36445d; border-radius:16px; background:#151e30; color:#f1f5fc; }
+.rtd-exclusao-modal .rotina-form-header { border-color:#2b3850; }
+.rtd-exclusao-modal .rotina-form-header h2 { color:#f1f5fc; }
+.rtd-exclusao-modal .rotina-form-header p { color:#aab6ca; }
+.rtd-exclusao-aviso { display:grid; gap:5px; margin-top:17px; padding:13px 14px; border:1px solid rgba(248,113,113,.3); border-radius:10px; background:rgba(127,29,29,.13); color:#fecaca; font-size:.78rem; line-height:1.5; }
+.rtd-exclusao-aviso span { color:#d5dbea; }
+.rtd-exclusao-form { grid-template-columns:1fr; gap:13px; padding-top:17px; }
+.rtd-exclusao-form label { grid-column:1 !important; }
+.rtd-exclusao-form label span { color:#c3cee0; }
+.rtd-exclusao-form input { border-color:#34425b; background:#0d1422; color:#f1f5fc; }
+.rtd-exclusao-form input:focus { border-color:#f87171; box-shadow:0 0 0 3px rgba(248,113,113,.14); }
+.rtd-exclusao-form input::placeholder { color:#7f8da5; }
+.rtd-exclusao-status { min-height:1.2em; margin:0; color:#fecaca; font-size:.78rem; }
+.rtd-exclusao-form .rotina-form-actions { display:flex; justify-content:flex-end; gap:9px; }
+.rtd-exclusao-confirmar { min-height:40px; border:1px solid #b94d58; border-radius:8px; padding:8px 13px; background:#8f303e; color:#fff; font:700 .78rem "Outfit",sans-serif; cursor:pointer; }
+.rtd-exclusao-confirmar:hover:not(:disabled) { background:#a63b4a; }
+.rtd-exclusao-confirmar:disabled { opacity:.6; cursor:wait; }
 @media (max-width:760px) {
   .rotina-cobertura { grid-template-columns:1fr; margin:0 9px 12px; padding:14px; }
   .rotina-cobertura-proximo { width:100%; justify-self:stretch; }

@@ -11,14 +11,22 @@ from psycopg.types.json import Jsonb
 from starlette.responses import StreamingResponse
 from urllib.parse import quote
 
-from backend.app.autenticacao import exigir_permissao, proteger_csrf
+from backend.app.autenticacao import (
+    JANELA_TENTATIVAS_MINUTOS,
+    MAX_TENTATIVAS,
+    exigir_perfis,
+    exigir_permissao,
+    proteger_csrf,
+    verificar_senha,
+)
 from backend.app.database import conectar, preparar_banco
-from backend.app.seguranca_web import registrar_auditoria_cursor
+from backend.app.seguranca_web import ip_cliente, registrar_auditoria_cursor
 from backend.app.servicos.rtd_cliente import (
     MAX_ARQUIVO_ENVIO, ClienteRTD, ErroRTD, catalogar_documentos,
     protocolo_valido, hash_resumo,
 )
 from backend.app.servicos.rtd_uploads import ErroUploadRTD, MAX_UPLOAD_RTD, baixar_pdf_assinado
+from backend.app.servicos.rtd_sincronizacao import TRAVA as TRAVA_SINCRONIZACAO_RTD
 
 router = APIRouter(prefix='/api/rtd-intimacoes', tags=['RTD'], dependencies=[Depends(preparar_banco)])
 
@@ -31,6 +39,11 @@ class UploadRtdNovo(BaseModel):
 
 class UploadRtdOperacao(BaseModel):
     operacao: str
+
+
+class ExclusaoProtocolosRtd(BaseModel):
+    senha: str = Field(min_length=1, max_length=256)
+    confirmacao: str = Field(min_length=1, max_length=20)
 
 
 @router.post('/uploads', status_code=201, dependencies=[Depends(proteger_csrf)])
@@ -225,6 +238,213 @@ def status(_usuario=Depends(exigir_permissao('ver_intimacoes'))):
             ORDER BY alterado_em DESC LIMIT 30''')
         revisao = cur.fetchall()
     return {'sincronizacao': config, 'contagens': contagens, 'revisao': revisao, 'intervaloMinutos': 5}
+
+
+@router.post('/intimacao/{identificador}/excluir-protocolos', dependencies=[Depends(proteger_csrf)])
+def excluir_protocolos_rtd_intimacao(
+    identificador: UUID,
+    dados: ExclusaoProtocolosRtd,
+    request: Request,
+    usuario: str = Depends(exigir_perfis('ADMIN')),
+):
+    """Remove do AERI os protocolos RTD deste IN e registra uma supressÃ£o auditÃ¡vel.
+
+    NÃ£o envia cancelamento Ã  Central RTD. As supressÃµes ficam no banco para
+    impedir que a sincronizaÃ§Ã£o recrie protocolos que o cartÃ³rio removeu.
+    """
+    ip = ip_cliente(request)
+    with conectar() as conexao, conexao.cursor() as cursor:
+        # Serializa a exclusão com a sincronização. Sem a mesma trava, uma
+        # consulta já em andamento poderia reinserir o protocolo após a limpeza.
+        cursor.execute(
+            'SELECT pg_try_advisory_xact_lock(%s) AS obteve',
+            (TRAVA_SINCRONIZACAO_RTD,),
+        )
+        if not cursor.fetchone()['obteve']:
+            registrar_auditoria_cursor(
+                cursor, request, 'rtd_exclusao_protocolos', 'sincronizacao_em_andamento', usuario,
+                str(identificador), {'motivo': 'trava_sincronizacao_ocupada'},
+            )
+            conexao.commit()
+            raise HTTPException(
+                409,
+                'A sincronização RTD está em andamento. Aguarde alguns segundos e tente novamente.',
+            )
+
+        cursor.execute(
+            """SELECT COUNT(*) AS total FROM auditoria_aeri
+            WHERE acao='rtd_exclusao_senha' AND resultado='senha_invalida'
+              AND usuario=%s AND ip=%s
+              AND criada_em > NOW() - (%s * INTERVAL '1 minute')""",
+            (usuario, ip, JANELA_TENTATIVAS_MINUTOS),
+        )
+        tentativas = int(cursor.fetchone()['total'])
+        if tentativas >= MAX_TENTATIVAS:
+            registrar_auditoria_cursor(
+                cursor, request, 'rtd_exclusao_senha', 'bloqueado', usuario,
+                str(identificador), {'motivo': 'limite_de_tentativas'},
+            )
+            conexao.commit()
+            raise HTTPException(429, 'Muitas tentativas de senha. Aguarde 15 minutos e tente novamente.')
+
+        cursor.execute(
+            """SELECT senha_hash FROM usuarios_aeri
+            WHERE usuario=%s AND perfil='ADMIN' AND ativo=TRUE FOR SHARE""",
+            (usuario,),
+        )
+        conta = cursor.fetchone()
+        if not conta or not verificar_senha(dados.senha, conta['senha_hash']):
+            registrar_auditoria_cursor(
+                cursor, request, 'rtd_exclusao_senha', 'senha_invalida', usuario,
+                str(identificador), {'motivo': 'reautenticacao'},
+            )
+            conexao.commit()
+            raise HTTPException(401, 'Senha incorreta. Nenhum protocolo RTD foi removido.')
+
+        cursor.execute(
+            """SELECT id,protocolo,protocolo_rtd
+            FROM intimacoes_aeri WHERE id=%s FOR UPDATE""",
+            (identificador,),
+        )
+        intimacao = cursor.fetchone()
+        if not intimacao:
+            raise HTTPException(404, 'IN nÃ£o encontrado.')
+        if dados.confirmacao.strip().upper() != intimacao['protocolo'].upper():
+            registrar_auditoria_cursor(
+                cursor, request, 'rtd_exclusao_confirmacao', 'divergente', usuario,
+                intimacao['protocolo'], {'motivo': 'protocolo_nao_confere'},
+            )
+            conexao.commit()
+            raise HTTPException(422, 'O IN digitado nÃ£o confere. Nenhum protocolo RTD foi removido.')
+
+        cursor.execute(
+            """SELECT protocolo FROM rtd_pedidos_aeri
+            WHERE in_documento=%s AND intimacao_id IS NOT NULL AND intimacao_id<>%s
+            FOR UPDATE""",
+            (intimacao['protocolo'], identificador),
+        )
+        conflitos_por_in = cursor.fetchall()
+        if conflitos_por_in:
+            registrar_auditoria_cursor(
+                cursor, request, 'rtd_exclusao_protocolos', 'conflito_vinculo', usuario,
+                intimacao['protocolo'], {'quantidade_conflitos': len(conflitos_por_in)},
+            )
+            conexao.commit()
+            raise HTTPException(
+                409,
+                'HÃ¡ protocolo RTD do mesmo IN vinculado a outra intimaÃ§Ã£o. Corrija o vÃ­nculo antes de excluir.',
+            )
+
+        cursor.execute(
+            """SELECT protocolo FROM rtd_pedidos_aeri
+            WHERE intimacao_id=%s OR (intimacao_id IS NULL AND in_documento=%s)
+            FOR UPDATE""",
+            (identificador, intimacao['protocolo']),
+        )
+        pedidos = cursor.fetchall()
+        protocolos_pedidos = {str(item['protocolo']) for item in pedidos}
+        protocolos = set(protocolos_pedidos)
+
+        cursor.execute(
+            """SELECT id,protocolo FROM rtd_notificacao_envios_aeri
+            WHERE intimacao_id=%s AND protocolo IS NOT NULL FOR UPDATE""",
+            (identificador,),
+        )
+        envios = cursor.fetchall()
+        protocolos.update(str(item['protocolo']) for item in envios if item.get('protocolo'))
+        if intimacao.get('protocolo_rtd'):
+            protocolos.add(str(intimacao['protocolo_rtd']))
+
+        protocolos_validos = sorted(
+            protocolo for protocolo in protocolos
+            if re.fullmatch(r'[0-9]{17}', protocolo)
+        )
+        if protocolos_validos:
+            cursor.execute(
+                """SELECT protocolo FROM rtd_pedidos_aeri
+                WHERE protocolo=ANY(%s) AND intimacao_id IS NOT NULL AND intimacao_id<>%s
+                FOR UPDATE""",
+                (protocolos_validos, identificador),
+            )
+            conflitos = cursor.fetchall()
+            if conflitos:
+                registrar_auditoria_cursor(
+                    cursor, request, 'rtd_exclusao_protocolos', 'conflito_vinculo', usuario,
+                    intimacao['protocolo'], {'quantidade_conflitos': len(conflitos)},
+                )
+                conexao.commit()
+                raise HTTPException(
+                    409,
+                    'HÃ¡ protocolo RTD vinculado a outra intimaÃ§Ã£o. Corrija o vÃ­nculo antes de excluir.',
+                )
+        for protocolo in protocolos_validos:
+            cursor.execute(
+                """INSERT INTO rtd_protocolos_excluidos_aeri
+                (protocolo,in_protocolo,excluido_por)
+                VALUES (%s,%s,%s) ON CONFLICT(protocolo) DO NOTHING""",
+                (protocolo, intimacao['protocolo'], usuario),
+            )
+
+        lista_protocolos_pedidos = sorted(protocolos_pedidos)
+        if lista_protocolos_pedidos:
+            cursor.execute(
+                'DELETE FROM rtd_eventos_aeri WHERE protocolo=ANY(%s)',
+                (lista_protocolos_pedidos,),
+            )
+            eventos_removidos = cursor.rowcount
+            cursor.execute(
+                'DELETE FROM rtd_leituras_aeri WHERE protocolo=ANY(%s)',
+                (lista_protocolos_pedidos,),
+            )
+            leituras_removidas = cursor.rowcount
+            cursor.execute(
+                'DELETE FROM rtd_pedidos_aeri WHERE protocolo=ANY(%s)',
+                (lista_protocolos_pedidos,),
+            )
+            pedidos_removidos = cursor.rowcount
+        else:
+            eventos_removidos = leituras_removidas = pedidos_removidos = 0
+
+        if envios:
+            cursor.execute(
+                'DELETE FROM rtd_notificacao_envios_aeri WHERE intimacao_id=%s AND protocolo IS NOT NULL',
+                (identificador,),
+            )
+            envios_removidos = cursor.rowcount
+        else:
+            envios_removidos = 0
+
+        cursor.execute(
+            """UPDATE intimacoes_aeri SET protocolo_rtd=NULL,atualizado_em=NOW()
+            WHERE id=%s AND protocolo_rtd IS NOT NULL""",
+            (identificador,),
+        )
+        campo_removido = cursor.rowcount > 0
+        cursor.execute(
+            """SELECT COUNT(*) AS total FROM rtd_notificacao_envios_aeri
+            WHERE intimacao_id=%s AND protocolo IS NULL""",
+            (identificador,),
+        )
+        tentativas_preservadas = int(cursor.fetchone()['total'])
+
+        detalhes = {
+            'pedidos_rtd': pedidos_removidos,
+            'eventos_rtd': eventos_removidos,
+            'leituras_rtd': leituras_removidas,
+            'envios_com_protocolo': envios_removidos,
+            'campo_legado_removido': campo_removido,
+            'protocolos_suprimidos': len(protocolos_validos),
+            'tentativas_sem_protocolo_preservadas': tentativas_preservadas,
+        }
+        registrar_auditoria_cursor(
+            cursor, request, 'rtd_exclusao_protocolos', 'sucesso', usuario,
+            intimacao['protocolo'], detalhes,
+        )
+        conexao.commit()
+
+    return {'ok': True, **detalhes, 'jaEstavaLimpo': not any((
+        pedidos_removidos, envios_removidos, campo_removido,
+    ))}
 
 
 class Leitura(BaseModel):

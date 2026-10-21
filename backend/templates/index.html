@@ -1106,11 +1106,11 @@
     </div>
 
     <div id="modal-rtd-notificacao" class="modal-overlay">
-        <div class="modal-box rotina-modal rtd-envio-modal">
+        <div class="modal-box rotina-modal rtd-envio-modal" role="dialog" aria-modal="true" aria-labelledby="rtd-envio-titulo">
             <button class="modal-fechar" id="btn-fechar-rtd-notificacao" type="button" aria-label="Fechar">&times;</button>
             <div class="rotina-form-header">
                 <span class="eyebrow">ENVIO À CENTRAL</span>
-                <h2>Preparar notificação RTD</h2>
+                <h2 id="rtd-envio-titulo">Preparar notificação RTD</h2>
                 <p>Confira os dados e o PDF. O pedido só será enviado depois da confirmação final. Se fechar esta janela, a preparação fica guardada nesta aba.</p>
             </div>
             <p id="rtd-envio-ambiente-aviso" class="rtd-envio-status is-homologacao" role="status" aria-live="polite" hidden></p>
@@ -1189,10 +1189,42 @@
                 <p id="rtd-envio-status" class="rtd-envio-status" role="status" aria-live="polite"></p>
                 <div class="rotina-form-actions">
                     <button type="button" class="rotina-btn-secondary" id="btn-cancelar-rtd-notificacao">Fechar por agora</button>
+                    <button type="button" class="rotina-btn-secondary" id="btn-nova-notificacao-rtd" hidden>Preparar outro envio para este IN</button>
                     <button type="submit" class="btn btn-primary" id="btn-confirmar-rtd-notificacao">Enviar notificação</button>
                 </div>
             </form>
         </div>
+    </div>
+
+    <div id="modal-rtd-exclusao" class="modal-overlay" hidden>
+        <section class="modal-box rotina-modal rtd-exclusao-modal" role="dialog" aria-modal="true" aria-labelledby="rtd-exclusao-titulo">
+            <button class="modal-fechar" id="btn-fechar-rtd-exclusao" type="button" aria-label="Fechar">&times;</button>
+            <div class="rotina-form-header">
+                <span class="eyebrow">AÃ‡ÃƒO RESTRITA A ADM</span>
+                <h2 id="rtd-exclusao-titulo">Remover protocolos RTD do IN</h2>
+                <p id="rtd-exclusao-protocolo"></p>
+            </div>
+            <div class="rtd-exclusao-aviso">
+                <strong>Isso remove os vÃ­nculos RTD somente do AERI.</strong>
+                <span>NÃ£o cancela nem altera pedidos na Central RTD. A aÃ§Ã£o ficarÃ¡ registrada, e os protocolos removidos nÃ£o voltarÃ£o pela sincronizaÃ§Ã£o automÃ¡tica.</span>
+            </div>
+            <form id="form-rtd-exclusao" class="rotina-form rtd-exclusao-form">
+                <input id="rtd-exclusao-intimacao-id" type="hidden">
+                <label>
+                    <span>Digite o nÃºmero completo do IN para confirmar</span>
+                    <input id="rtd-exclusao-confirmacao" autocomplete="off" maxlength="20" required>
+                </label>
+                <label>
+                    <span>Confirme com sua senha de ADM</span>
+                    <input id="rtd-exclusao-senha" type="password" autocomplete="current-password" maxlength="256" required>
+                </label>
+                <p id="rtd-exclusao-status" class="rtd-exclusao-status" role="status" aria-live="polite"></p>
+                <div class="rotina-form-actions">
+                    <button type="button" class="rotina-btn-secondary" id="btn-cancelar-rtd-exclusao">Cancelar</button>
+                    <button type="submit" class="rtd-exclusao-confirmar" id="btn-confirmar-rtd-exclusao">Excluir do AERI</button>
+                </div>
+            </form>
+        </section>
     </div>
 
     <div id="modal-check-intimacao" class="modal-overlay">
@@ -1276,6 +1308,6 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261021-rtd-modal-retomada-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20261021-rtd-modal-retomada-v2"></script>
 </body>
 </html>
