@@ -25,6 +25,8 @@ let filaRtdSeparada = null;
 let filaRtdDosOriginais = false;
 let indiceFilaRtdSeparada = 0;
 let filaRtdFinalizada = false;
+let intimacaoEnvioRtdId = null;
+let envioRtdConcluido = false;
 let uploadRtdAtual = null;
 let uploadRtdController = null;
 let arquivoRtdPendente = null;
@@ -577,12 +579,42 @@ function atualizarFilaRtd() {
     }
 }
 
+function descartarPreparacaoEnvioRtd() {
+    versaoExtracaoRtd += 1;
+    uploadRtdController?.abort();
+    uploadRtdController = null;
+    if (uploadRtdAtual) void removerUploadRtd(uploadRtdAtual);
+    arquivoRtdPendente = null;
+    intimacaoEnvioRtdId = null;
+    envioRtdConcluido = false;
+    filaRtdSeparada = null;
+    filaRtdDosOriginais = false;
+    indiceFilaRtdSeparada = 0;
+    filaRtdFinalizada = false;
+}
+
 function abrirEnvioRtd(id, paresRtd = null, dadosCredor = null) {
     const item = intimacoes.find(registro => registro.id === id);
     if (!item || item.fase !== 'INTIMACAO' || !pode('alterar_intimacoes')) return;
-    if (uploadRtdAtual) void removerUploadRtd();
-    uploadRtdController?.abort();
-    uploadRtdController = null;
+
+    const modal = document.getElementById('modal-rtd-notificacao');
+    if (intimacaoEnvioRtdId === id && !envioRtdConcluido) {
+        modal.classList.add('aberta');
+        return;
+    }
+    if (intimacaoEnvioRtdId && !envioRtdConcluido) {
+        if (envioRtdEmCurso || extracaoRtdEmCurso) {
+            alert('Aguarde a etapa atual terminar antes de trocar de intimação.');
+            return;
+        }
+        const enviados = filaRtdSeparada ? indiceFilaRtdSeparada : 0;
+        const aviso = enviados
+            ? `${enviados} notificação(ões) já confirmada(s) continuam registradas. Somente a preparação ainda não enviada será descartada. Quer prosseguir?`
+            : 'A preparação desta notificação será descartada. Nenhum envio concluído será desfeito. Quer prosseguir?';
+        if (!confirm(aviso)) return;
+    }
+    if (intimacaoEnvioRtdId) descartarPreparacaoEnvioRtd();
+
     versaoExtracaoRtd += 1;
     extracaoRtdEmCurso = false;
     document.getElementById('form-rtd-notificacao').reset();
@@ -592,6 +624,8 @@ function abrirEnvioRtd(id, paresRtd = null, dadosCredor = null) {
     document.getElementById('rtd-extracao-status').textContent = '';
     document.getElementById('rtd-envio-intimacao-id').value = id;
     document.getElementById('rtd-envio-operacao-id').value = novaChaveOperacaoRtd();
+    intimacaoEnvioRtdId = id;
+    envioRtdConcluido = false;
     document.getElementById('rtd-destino-uf').value = 'GO';
     document.getElementById('rtd-destino-cidade').value = 'Morrinhos';
     document.getElementById('rtd-entrega-destinatario').checked = true;
@@ -612,16 +646,14 @@ function abrirEnvioRtd(id, paresRtd = null, dadosCredor = null) {
     filaRtdFinalizada = false;
     if (filaRtdSeparada) preencherParRtd(filaRtdSeparada[0]);
     atualizarFilaRtd();
-    document.getElementById('modal-rtd-notificacao').classList.add('aberta');
+    modal.classList.add('aberta');
 }
 
 function fecharEnvioRtd() {
     if (envioRtdEmCurso) return;
-    versaoExtracaoRtd += 1;
-    uploadRtdController?.abort();
-    uploadRtdController = null;
-    void removerUploadRtd();
     document.getElementById('modal-rtd-notificacao').classList.remove('aberta');
+    document.getElementById('rtd-envio-status').textContent =
+        'Janela fechada; progresso mantido nesta aba. Reabra este IN para continuar sem repetir as notificações já confirmadas.';
 }
 
 async function extrairDocumentoRtdSelecionado(arquivoForcado = null) {
@@ -892,6 +924,7 @@ async function enviarNotificacaoRtd(evento) {
             const upload = uploadRtdAtual;
             document.getElementById('rtd-arquivo-notificacao').value = '';
             await removerUploadRtd(upload);
+            envioRtdConcluido = true;
         }
     } catch (erro) {
         status.textContent = erro.message;
@@ -1549,9 +1582,6 @@ export function iniciarIntimacoes() {
     document.getElementById('btn-exportar-intimacoes').addEventListener('click', exportarIntimacoesCsv);
     document.getElementById('btn-fechar-rtd-notificacao').addEventListener('click', fecharEnvioRtd);
     document.getElementById('btn-cancelar-rtd-notificacao').addEventListener('click', fecharEnvioRtd);
-    document.getElementById('modal-rtd-notificacao').addEventListener('click', evento => {
-        if (evento.target.id === 'modal-rtd-notificacao') fecharEnvioRtd();
-    });
     document.getElementById('btn-buscar-cartorios-rtd').addEventListener('click', buscarCartoriosRtd);
     document.getElementById('rtd-arquivo-notificacao').addEventListener('change', () => {
         arquivoRtdPendente = null;

@@ -69,5 +69,10 @@ assert.ok(telaIntimacoes.includes('A conexão falhou ao ${etapaExtracao}.'));
 assert.ok(telaIntimacoes.includes('O PDF já foi guardado e será anexado quando você confirmar o envio ao RTD.'));
 assert.ok(telaIntimacoes.includes('btn-repetir-envio-pdf-rtd'));
 assert.doesNotMatch(telaIntimacoes, /arquivoInput\.value\s*=\s*'';\s*\}\s*if\s*\(versao\s*===\s*versaoExtracaoRtd/);
+assert.match(telaIntimacoes, /if \(intimacaoEnvioRtdId === id && !envioRtdConcluido\)/);
+assert.match(telaIntimacoes, /function descartarPreparacaoEnvioRtd\(\)/);
+assert.match(telaIntimacoes, /progresso mantido nesta aba/);
+assert.match(telaIntimacoes, /envioRtdConcluido = true/);
+assert.doesNotMatch(telaIntimacoes, /modal-rtd-notificacao'\)\.addEventListener\('click'/);
 
-console.log('RTD frontend: verificações de destaque, separação e comparação aprovadas.');
+console.log('RTD frontend: verificações de destaque, separação, idempotência e retomada aprovadas.');
