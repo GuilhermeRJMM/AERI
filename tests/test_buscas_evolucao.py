@@ -5,7 +5,7 @@ from backend.app.rotas import buscas_indexacao as indice
 from backend.app.servicos.buscas import texto_hash
 from backend.app.servicos.buscas_mencoes import extrair_mencoes, INDICE_BUSCA_VERSAO
 from backend.app.servicos.analise_matricula import analisar_matricula
-from backend.app.servicos.pesquisa_titularidade import filtros_identidade, _item
+from backend.app.servicos.pesquisa_titularidade import filtros_identidade, _item, pesquisar
 
 
 def test_hash_estavel_nao_reanalisa_nem_apaga_titulares():
@@ -83,3 +83,47 @@ def test_homonimo_com_documento_diferente_exige_conferencia():
     item=_item(row,'JOAO','pesquisado')
     assert item['correspondencia']=='DOCUMENTO_DIVERGENTE'
     assert item['revisaoPendente'] and item['confianca']=='BAIXA'
+
+
+def test_indice_de_mencoes_antigo_exige_revisao():
+    from datetime import datetime, timezone
+    row=dict(numero=2,nome='Ana Silva',nome_busca='ANA SILVA',documento_hash=None,
+        documento_mascarado='',tipo_documento='',proporcao='100%',origem='R.1',
+        situacao='ATIVA',confianca='ALTA',veredito_cadeia='OK',
+        indice_busca_versao=INDICE_BUSCA_VERSAO-1,consultado_em=datetime.now(timezone.utc))
+    assert _item(row,'ANA SILVA',None)['revisaoPendente']
+
+
+def test_pesquisa_ignora_mencoes_de_indice_antigo_ate_reindexar():
+    cur=MagicMock()
+    cur.fetchone.side_effect=[{'total':0},{'total':0,'matriculas':0},
+        {'sem_titular':0,'mencoes_pendentes':1,'mais_antiga':None}]
+    cur.fetchall.side_effect=[[],[]]
+    with patch.dict(os.environ,{'AERI_BUSCAS_HMAC_KEY':'chave-apenas-teste'}):
+        pesquisar(cur,documento='123.456.789-01',exportar=True)
+    consulta_mencoes=next(chamada for chamada in cur.execute.call_args_list if 'jsonb_agg' in chamada.args[0])
+    assert 'm.indice_busca_versao >= %s' in consulta_mencoes.args[0]
+    assert consulta_mencoes.args[1][-1]==INDICE_BUSCA_VERSAO
+
+
+def test_negativa_qualificada_e_gerada_com_lacunas_de_cobertura():
+    cur=MagicMock()
+    cur.fetchone.side_effect=[{'total':0},{'total':0,'matriculas':0},
+        {'sem_titular':2,'mencoes_pendentes':3,'mais_antiga':None}]
+    cur.fetchall.side_effect=[[],[]]
+    with patch.dict(os.environ,{'AERI_BUSCAS_HMAC_KEY':'chave-apenas-teste'}):
+        resultado=pesquisar(cur,documento='123.456.789-01',exportar=True)
+    assert resultado['quantidade']==0
+    assert resultado['cobertura']['negativa_segura'] is False
+    assert resultado['cobertura']['sem_titular']==2
+    assert resultado['cobertura']['mencoes_pendentes']==3
+
+
+def test_negativa_sem_ressalva_quando_cobertura_esta_completa():
+    cur=MagicMock()
+    cur.fetchone.side_effect=[{'total':0},{'total':0,'matriculas':0},
+        {'sem_titular':0,'mencoes_pendentes':0,'mais_antiga':None}]
+    cur.fetchall.side_effect=[[],[]]
+    with patch.dict(os.environ,{'AERI_BUSCAS_HMAC_KEY':'chave-apenas-teste'}):
+        resultado=pesquisar(cur,documento='123.456.789-01',exportar=True)
+    assert resultado['cobertura']['negativa_segura'] is True

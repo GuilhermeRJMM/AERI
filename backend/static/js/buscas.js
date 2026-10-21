@@ -328,7 +328,7 @@ async function prepararTextoPesquisa() {
     });
 }
 
-function montarTextoPesquisa(termo, itens) {
+function montarTextoPesquisa(termo, itens, cobertura = {}) {
     const soDigitos = !/[a-zA-ZÀ-ú]/.test(termo);
 
     // Só matrícula ATIVA é imóvel em propriedade da pessoa. Encerrada saiu
@@ -367,6 +367,9 @@ function montarTextoPesquisa(termo, itens) {
             + `(${porExtenso(matriculas.length)}) ${unico ? 'imóvel' : 'imóveis'} `
             + 'em propriedade da pessoa pesquisada.'
         : 'Não foram encontrados imóveis em propriedade da pessoa pesquisada.';
+    const ressalvaNegativa = !matriculas.length && cobertura.negativa_segura === false
+        ? `RESSALVA: o índice ainda tem ${formatarNumero(cobertura.sem_titular || 0)} matrícula(s) ativa(s) sem titular extraído e ${formatarNumero(cobertura.mencoes_pendentes || 0)} com menções pendentes. Esta busca não pode ser considerada uma negativa segura até a regularização dessas lacunas.`
+        : '';
     const rotuloMatriculas = unico ? 'Matrícula' : 'Matrículas';
 
     const linhas = [
@@ -377,6 +380,7 @@ function montarTextoPesquisa(termo, itens) {
         '2. Resultado:',
         resultado,
     ];
+    if (ressalvaNegativa) linhas.push(ressalvaNegativa);
     if (matriculas.length) linhas.push(`2.1 ${rotuloMatriculas}: ${listarComE(listadas)}.`);
 
     return {
@@ -384,6 +388,7 @@ function montarTextoPesquisa(termo, itens) {
         html: montarHtmlPesquisa({
             solicitados,
             resultado,
+            ressalvaNegativa,
             rotuloMatriculas,
             listadas: matriculas.length ? listarComE(listadas) : '',
         }),
@@ -409,7 +414,7 @@ function montarTextoPesquisa(termo, itens) {
 // Arial 12 declarado no <span> de cada trecho, e não só no parágrafo: ao
 // colar, o Word costuma herdar a fonte do estilo do destino quando ela não
 // vem no nível do texto -- foi assim que o tamanho mudou sozinho.
-function montarHtmlPesquisa({solicitados, resultado, rotuloMatriculas, listadas}) {
+function montarHtmlPesquisa({solicitados, resultado, ressalvaNegativa, rotuloMatriculas, listadas}) {
     const FONTE = 'font-family:Arial,sans-serif;font-size:12.0pt;';
     const P = `margin:0;padding:0;text-align:left;${FONTE}`;
 
@@ -429,6 +434,9 @@ function montarHtmlPesquisa({solicitados, resultado, rotuloMatriculas, listadas}
         `<p style="${P}">${trecho('2. Resultado:', true)}</p>`,
         `<p style="${P}">${trecho(resultado)}</p>`,
     ];
+    if (ressalvaNegativa) {
+        partes.push(`<p style="${P}color:#92400e;font-weight:bold;">${trecho(ressalvaNegativa, true)}</p>`);
+    }
     if (listadas) {
         partes.push(
             `<p style="${P}">${trecho(`2.1 ${rotuloMatriculas}:`, true)} ${trecho(`${listadas}.`)}</p>`,
@@ -534,7 +542,8 @@ async function gerarTextoPesquisa() {
                 if (geracao !== geracaoPesquisa) return;
                 renderizarResultados(atualizados);
             }
-            textoPreparado = {assinatura, ...montarTextoPesquisa(termo, dados.itens || [])};
+            textoPreparado = {assinatura, cobertura:dados.cobertura || {},
+                ...montarTextoPesquisa(termo, dados.itens || [], dados.cobertura || {})};
         }
         const {texto, html, documentoIncompleto, nomeIncompleto, matriculas, descartadas} =
             textoPreparado;
@@ -567,6 +576,9 @@ async function gerarTextoPesquisa() {
         }
         if (nomeIncompleto) {
             partes.push('Sem resultado, o nome saiu como NOME_DA_PESSOA — preencha antes de enviar.');
+        }
+        if (!matriculas.length && textoPreparado.cobertura?.negativa_segura === false) {
+            partes.push('A negativa foi gerada com ressalva técnica e não está certificada como segura; essa ressalva também foi incluída no texto copiado.');
         }
         aviso.textContent = partes.join(' ');
     } catch (erro) {

@@ -5,6 +5,7 @@ from math import ceil
 from fastapi import HTTPException
 
 from backend.app.servicos.buscas import hash_documento, normalizar_documento, normalizar_nome
+from backend.app.servicos.buscas_mencoes import INDICE_BUSCA_VERSAO
 
 
 PARTICULAS_NOME = {'DA', 'DE', 'DO', 'DAS', 'DOS', 'E'}
@@ -60,7 +61,7 @@ def _item(row, nome, documento_protegido):
         else 'NOME_EQUIVALENTE' if palavras_nome(nome) and palavras_nome(row['nome_busca']) == palavras_nome(nome)
         else 'VARIACAO_DE_NOME')
     pendente = bool(row.get('falha_consulta_em') or row.get('veredito_cadeia') != 'OK'
-        or row.get('indice_busca_versao', 0) < 2 or conflito
+        or row.get('indice_busca_versao', 0) < INDICE_BUSCA_VERSAO or conflito
         or documento_protegido and not doc_igual)
     return dict(matricula=row['numero'], nome=row['nome'], documento=row['documento_mascarado'],
         tipoDocumento=row['tipo_documento'], proporcao=row['proporcao'], origem=row['origem'],
@@ -117,11 +118,12 @@ def pesquisar(cursor, nome='', documento='', pagina=1, limite=50, somente_ativos
         FROM mencoes_matriculas_busca_aeri x JOIN matriculas_busca_aeri m ON m.numero=x.matricula_numero
         LEFT JOIN auditorias_matriculas_aeri a ON a.matricula_numero=m.numero
         WHERE {filtro_m} {estado}
+          AND m.indice_busca_versao >= %s
           AND NOT EXISTS(SELECT 1 FROM proprietarios_matriculas_busca_aeri p
             WHERE p.matricula_numero=x.matricula_numero
             AND (p.nome_busca=x.nome_busca OR p.documento_hash=x.documento_hash))
         GROUP BY m.numero,m.situacao,m.consultado_em
-        ORDER BY revisar DESC,m.numero LIMIT 51''', tuple(param_m))
+        ORDER BY revisar DESC,m.numero LIMIT 51''', (*param_m, INDICE_BUSCA_VERSAO))
     encontrados = cursor.fetchall()
     candidatos = [dict(matricula=r['numero'], situacao=r['situacao'], revisaoPendente=r['revisar'],
         consultadoEm=r['consultado_em'].isoformat(), mencoes=r['mencoes']) for r in encontrados[:50]]
@@ -132,17 +134,20 @@ def pesquisar(cursor, nome='', documento='', pagina=1, limite=50, somente_ativos
         if validar_exportacao and (any(i['revisaoPendente'] for i in itens) or any(c['revisaoPendente'] for c in candidatos) or len(encontrados)>50):
             raise HTTPException(409, 'Há correspondências que precisam de conferência. Revise a identificação e as matrículas indicadas antes de gerar o texto.')
     cursor.execute('''SELECT COUNT(*) FILTER(WHERE situacao='ATIVA' AND quantidade_proprietarios=0) AS sem_titular,
-        COUNT(*) FILTER(WHERE texto_hash IS NOT NULL AND indice_busca_versao<2) AS mencoes_pendentes,
+        COUNT(*) FILTER(WHERE texto_hash IS NOT NULL AND indice_busca_versao<%s) AS mencoes_pendentes,
         MIN(consultado_em) FILTER(WHERE situacao='ATIVA') AS mais_antiga
-        FROM matriculas_busca_aeri''')
+        FROM matriculas_busca_aeri''', (INDICE_BUSCA_VERSAO,))
     cobertura = dict(cursor.fetchone())
     cobertura['mais_antiga'] = cobertura['mais_antiga'].isoformat() if cobertura.get('mais_antiga') else None
+    # A lacuna de cobertura não deve bloquear o trabalho, mas uma negativa
+    # precisa carregar ressalva explícita e nunca ser apresentada como segura.
+    cobertura['negativa_segura'] = not bool(
+        cobertura.get('mencoes_pendentes') or cobertura.get('sem_titular')
+    )
     if exportar and validar_exportacao and not itens and nome:
         aproximada = pesquisar(cursor, nome, documento, limite=1)
         if aproximada['total']:
             raise HTTPException(409, 'A pesquisa encontrou nomes parciais ou diferentes. Informe o nome completo ou CPF/CNPJ antes de gerar o texto; esses resultados não significam uma negativa.')
-    if exportar and validar_exportacao and not itens and (cobertura['mencoes_pendentes'] or cobertura['sem_titular']):
-        raise HTTPException(409, 'Nenhum titular localizado, mas o índice ainda possui lacunas de extração. Conclua a conferência antes de gerar uma negativa.')
     return dict(termo=nome or documento, nomePesquisa=nome, tipoBusca='COMBINADA' if nome and documento else 'NOME' if nome else 'DOCUMENTO_EXATO',
         quantidade=len(itens), total=total, totalMatriculas=contagem['matriculas'], pagina=pagina, porPagina=limite,
         totalPaginas=ceil(total/limite), itens=itens, candidatos=candidatos, maisCandidatos=len(encontrados)>50,

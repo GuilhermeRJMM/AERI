@@ -892,6 +892,55 @@ body.sync-tema > .navbar {
 .contratos-previas pre { color: #0f172a; background: #fff; }
 .intimacao-documentos-previa article { color: #111827; background: #fff; }
 
+/* Informar Custas: controles do modal permanecem no tema claro do Sync.
+   A folha antiga deixava um fundo escuro translúcido, que sobre o modal branco virava cinza. */
+#modal-custas-edicao .modal-box.custas-modal {
+  color-scheme: light;
+  color: #0f172a;
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: 0 24px 64px rgba(2, 6, 23, .20);
+}
+#modal-custas-edicao .rotina-form-header {
+  background: linear-gradient(110deg, #ecfdf5, #f8fafc 76%);
+  border-color: #e2e8f0;
+}
+#modal-custas-edicao .rotina-form-header h2 { color: #0f172a; }
+#modal-custas-edicao .rotina-form-header p { color: #64748b; }
+#modal-custas-edicao .custas-form label span { color: #475569; }
+#modal-custas-edicao .custas-form input:not([type="hidden"]),
+#modal-custas-edicao .custas-form select {
+  min-height: 42px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  outline: none;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+#modal-custas-edicao .custas-form input::placeholder { color: #64748b; }
+#modal-custas-edicao .custas-form input:focus,
+#modal-custas-edicao .custas-form select:focus {
+  border-color: #047857;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, .16);
+}
+#modal-custas-edicao .custas-form select option { background: #fff; color: #0f172a; }
+#modal-custas-edicao .custas-form input:disabled,
+#modal-custas-edicao .custas-form input[readonly],
+#modal-custas-edicao .custas-form select:disabled {
+  border-color: #e2e8f0;
+  background: #f1f5f9;
+  color: #64748b;
+  opacity: 1;
+  cursor: not-allowed;
+}
+#modal-custas-edicao .modal-fechar {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+}
+#modal-custas-edicao .modal-fechar:hover { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+
 @media (max-width: 720px) {
   .navbar-content { padding-inline: 14px; }
   .navbar-saudacao { display: none; }

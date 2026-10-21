@@ -73,6 +73,17 @@ test('erro de conferência é mostrado e nunca copia ou gera negativa', async ()
     assert.equal(campo('btn-buscas-texto').disabled, false);
 });
 
+test('negativa com lacunas inclui ressalva no texto e avisa que não é segura', async () => {
+    const {ctx, campo} = ambiente();
+    ctx.api.definir({termo:'Pessoa sem resultado',pagina:1});
+    ctx.responder = () => ({itens:[], cobertura:{negativa_segura:false,sem_titular:12,mencoes_pendentes:4}});
+    await ctx.api.gerarTextoPesquisa();
+    assert.match(ctx.api.estado().texto, /Não foram encontrados imóveis/);
+    assert.match(ctx.api.estado().texto, /RESSALVA: o índice ainda tem 12 matrícula\(s\)/);
+    assert.match(ctx.api.estado().html, /RESSALVA:/);
+    assert.match(campo('buscas-texto-aviso').textContent, /não está certificada como segura/);
+});
+
 test('trocar de pesquisa durante geração descarta resposta antiga', async () => {
     const {ctx, copias} = ambiente();
     let liberar;
