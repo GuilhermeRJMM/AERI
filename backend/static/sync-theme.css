@@ -33,8 +33,8 @@
 
   /* Compatibilidade com os tokens usados pelas telas existentes. */
   --bg-gradient: #f8fafc;
-  --glass-bg: #0f172a;
-  --glass-border: #1e293b;
+  --glass-bg: #fff;
+  --glass-border: #e2e8f0;
   --glass-shadow: 0 12px 32px rgba(2, 6, 23, .08);
   --primary-color: #10b981;
   --primary-hover: #059669;
@@ -145,7 +145,9 @@ body.sync-tema > .navbar {
 .splash-skip { color: #f1f5f9; background: #1e293b; border-color: #334155; }
 .splash-progress span { background: linear-gradient(90deg, #10b981, #34d399); }
 
-/* Área de trabalho clara e trilha de navegação limpa. */
+/* Área de trabalho clara e trilha de navegação limpa.
+   Componentes compartilhados alcançam página e modais; as regras de layout
+   permanecem restritas à página. */
 .page-content {
   min-height: calc(100vh - 70px);
   color: #0f172a;
@@ -160,31 +162,31 @@ body.sync-tema > .navbar {
 .aeri-breadcrumb button:hover,
 .aeri-breadcrumb [aria-current] { color: #0f172a; }
 .aeri-breadcrumb button + button::before { color: #94a3b8; }
-.page-content .hero h1,
-.page-content .rotina-header h1,
-.page-content .auditoria-header h2,
-.page-content .page-placeholder h2,
-.page-content h1,
-.page-content h2,
-.page-content h3,
-.page-content h4,
-.page-content h5,
-.page-content h6,
-.page-content label,
-.page-content legend,
-.page-content summary,
-.page-content dt { color: #0f172a; }
-.page-content p,
-.page-content small,
-.page-content .rotina-header p,
-.page-content .hero p,
-.page-content .page-placeholder p,
-.page-content .rotina-form-header p,
-.page-content .aprendizado-acoes span { color: #64748b; }
-.page-content .eyebrow,
-.page-content .resultado-matricula { color: #047857; }
-.page-content a:not(.btn):not([class*="btn-"]) { color: #047857; }
-.page-content a:not(.btn):not([class*="btn-"]):hover { color: #059669; }
+:is(.page-content, .modal-box) .hero h1,
+:is(.page-content, .modal-box) .rotina-header h1,
+:is(.page-content, .modal-box) .auditoria-header h2,
+:is(.page-content, .modal-box) .page-placeholder h2,
+:is(.page-content, .modal-box) h1,
+:is(.page-content, .modal-box) h2,
+:is(.page-content, .modal-box) h3,
+:is(.page-content, .modal-box) h4,
+:is(.page-content, .modal-box) h5,
+:is(.page-content, .modal-box) h6,
+:is(.page-content, .modal-box) label,
+:is(.page-content, .modal-box) legend,
+:is(.page-content, .modal-box) summary,
+:is(.page-content, .modal-box) dt { color: #0f172a; }
+:is(.page-content, .modal-box) p,
+:is(.page-content, .modal-box) small,
+:is(.page-content, .modal-box) .rotina-header p,
+:is(.page-content, .modal-box) .hero p,
+:is(.page-content, .modal-box) .page-placeholder p,
+:is(.page-content, .modal-box) .rotina-form-header p,
+:is(.page-content, .modal-box) .aprendizado-acoes span { color: #64748b; }
+:is(.page-content, .modal-box) .eyebrow,
+:is(.page-content, .modal-box) .resultado-matricula { color: #047857; }
+:is(.page-content, .modal-box) a:not(.btn):not([class*="btn-"]) { color: #047857; }
+:is(.page-content, .modal-box) a:not(.btn):not([class*="btn-"]):hover { color: #059669; }
 
 /* Cartões e áreas de trabalho dos diferentes módulos. */
 .input-glass,
@@ -303,75 +305,75 @@ body.sync-tema > .navbar {
 .painel-alerta.com-alerta { color: #92400e; background: #fffbeb; border-color: #fde68a; }
 
 /* Formulários claros e consistentes; controles nativos continuam acessíveis. */
-.page-content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]),
-.page-content select,
-.page-content textarea,
-.page-content [contenteditable="true"] {
+:is(.page-content, .modal-box) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]),
+:is(.page-content, .modal-box) select,
+:is(.page-content, .modal-box) textarea,
+:is(.page-content, .modal-box) [contenteditable="true"] {
   color: #0f172a;
   background-color: #fff;
   border-color: #cbd5e1;
   caret-color: #047857;
 }
-.page-content input::placeholder,
-.page-content textarea::placeholder { color: #64748b; opacity: 1; }
-.page-content input:focus,
-.page-content select:focus,
-.page-content textarea:focus,
-.page-content [contenteditable="true"]:focus {
+:is(.page-content, .modal-box) input::placeholder,
+:is(.page-content, .modal-box) textarea::placeholder { color: #64748b; opacity: 1; }
+:is(.page-content, .modal-box) input:focus,
+:is(.page-content, .modal-box) select:focus,
+:is(.page-content, .modal-box) textarea:focus,
+:is(.page-content, .modal-box) [contenteditable="true"]:focus {
   border-color: #047857;
   outline: 0;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, .16);
 }
-.page-content input:disabled,
-.page-content select:disabled,
-.page-content textarea:disabled { color: #64748b; background-color: #f1f5f9; }
-.page-content input[type="checkbox"],
-.page-content input[type="radio"] { accent-color: #059669; }
-.page-content .matricula-search-row input { background: transparent; }
-.page-content .matricula-search-row {
+:is(.page-content, .modal-box) input:disabled,
+:is(.page-content, .modal-box) select:disabled,
+:is(.page-content, .modal-box) textarea:disabled { color: #64748b; background-color: #f1f5f9; }
+:is(.page-content, .modal-box) input[type="checkbox"],
+:is(.page-content, .modal-box) input[type="radio"] { accent-color: #059669; }
+:is(.page-content, .modal-box) .matricula-search-row input { background: transparent; }
+:is(.page-content, .modal-box) .matricula-search-row {
   color: #047857;
   background: #f1f5f9;
   border-color: #e2e8f0;
 }
-.page-content .matricula-search-row:focus-within { background: #fff; border-color: #047857; }
-.page-content .buscas-form > div > span {
+:is(.page-content, .modal-box) .matricula-search-row:focus-within { background: #fff; border-color: #047857; }
+:is(.page-content, .modal-box) .buscas-form > div > span {
   color: #047857;
   background: #ecfdf5;
   border-color: #a7f3d0;
 }
-.page-content .buscas-form input:focus { border-color: #047857; box-shadow: 0 0 0 3px rgba(16, 185, 129, .16); }
-.page-content .buscas-identidade input[type="checkbox"] { accent-color: #059669; }
-.page-content .buscas-resultados-topo > strong,
-.page-content .buscas-resultados-acoes > strong { color: #047857; }
-.page-content .buscas-matricula { color: #047857 !important; }
-.page-content .buscas-situacao[data-situacao="ATIVA"] { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .buscas-situacao[data-situacao="ENCERRADA"] { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .buscas-proporcao,
-.page-content .buscas-correspondencia { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .buscas-correspondencia[data-tipo="NOME_PARCIAL"] { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .regaux-form label span,
-.page-content .intimacao-documentos-origem label span,
-.page-content .intimacao-documentos-campos label span { color: #475569; }
+:is(.page-content, .modal-box) .buscas-form input:focus { border-color: #047857; box-shadow: 0 0 0 3px rgba(16, 185, 129, .16); }
+:is(.page-content, .modal-box) .buscas-identidade input[type="checkbox"] { accent-color: #059669; }
+:is(.page-content, .modal-box) .buscas-resultados-topo > strong,
+:is(.page-content, .modal-box) .buscas-resultados-acoes > strong { color: #047857; }
+:is(.page-content, .modal-box) .buscas-matricula { color: #047857 !important; }
+:is(.page-content, .modal-box) .buscas-situacao[data-situacao="ATIVA"] { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .buscas-situacao[data-situacao="ENCERRADA"] { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .buscas-proporcao,
+:is(.page-content, .modal-box) .buscas-correspondencia { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .buscas-correspondencia[data-tipo="NOME_PARCIAL"] { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .regaux-form label span,
+:is(.page-content, .modal-box) .intimacao-documentos-origem label span,
+:is(.page-content, .modal-box) .intimacao-documentos-campos label span { color: #475569; }
 
 /* MAPA-ONR e INCRA também usavam superfícies e acentos da identidade anterior. */
-.page-content .mapa-onr-consulta {
+:is(.page-content, .modal-box) .mapa-onr-consulta {
   color: #0f172a;
   background: linear-gradient(120deg, #ecfdf5, #fff 72%);
   border-color: #a7f3d0;
   box-shadow: var(--sync-sombra);
 }
-.page-content .mapa-onr-form > label { color: #334155; }
-.page-content .mapa-onr-form > div > span {
+:is(.page-content, .modal-box) .mapa-onr-form > label { color: #334155; }
+:is(.page-content, .modal-box) .mapa-onr-form > div > span {
   color: #047857;
   border-color: #a7f3d0;
   background: #ecfdf5;
 }
-.page-content .mapa-onr-form input { color: #0f172a; background: #fff; border-color: #cbd5e1; }
-.page-content .mapa-onr-form input:focus { border-color: #047857; box-shadow: 0 0 0 3px rgba(16, 185, 129, .16); }
-.page-content .mapa-onr-status[data-tipo="carregando"] { color: #1d4ed8; }
-.page-content .mapa-onr-status[data-tipo="sucesso"] { color: #047857; }
-.page-content .mapa-onr-status[data-tipo="erro"] { color: #be123c; }
-.page-content .mapa-onr-nativo {
+:is(.page-content, .modal-box) .mapa-onr-form input { color: #0f172a; background: #fff; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .mapa-onr-form input:focus { border-color: #047857; box-shadow: 0 0 0 3px rgba(16, 185, 129, .16); }
+:is(.page-content, .modal-box) .mapa-onr-status[data-tipo="carregando"] { color: #1d4ed8; }
+:is(.page-content, .modal-box) .mapa-onr-status[data-tipo="sucesso"] { color: #047857; }
+:is(.page-content, .modal-box) .mapa-onr-status[data-tipo="erro"] { color: #be123c; }
+:is(.page-content, .modal-box) .mapa-onr-nativo {
   --mapa-fundo: #fff;
   --mapa-texto: #0f172a;
   --mapa-borda: #e2e8f0;
@@ -387,47 +389,47 @@ body.sync-tema > .navbar {
   border-color: #e2e8f0;
   box-shadow: var(--sync-sombra);
 }
-.page-content .mapa-onr-abas { background: #f8fafc; }
-.page-content .mapa-onr-nativo button { color: #334155; background: #fff; }
-.page-content .mapa-onr-nativo button.ligado {
+:is(.page-content, .modal-box) .mapa-onr-abas { background: #f8fafc; }
+:is(.page-content, .modal-box) .mapa-onr-nativo button { color: #334155; background: #fff; }
+:is(.page-content, .modal-box) .mapa-onr-nativo button.ligado {
   color: #052e16;
   background: #10b981;
   border-color: #10b981;
   box-shadow: none;
 }
-.page-content .mapa-onr-nativo input[type="text"],
-.page-content .mapa-onr-nativo select,
-.page-content .mapa-onr-nativo textarea { color: #0f172a; background: #fff; }
-.page-content .mapa-onr-nativo input:focus,
-.page-content .mapa-onr-nativo select:focus,
-.page-content .mapa-onr-nativo textarea:focus { box-shadow: 0 0 0 3px rgba(16, 185, 129, .16); }
-.page-content .mapa-onr-nativo details.texto-ato pre,
-.page-content .mapa-onr-nativo pre.json {
+:is(.page-content, .modal-box) .mapa-onr-nativo input[type="text"],
+:is(.page-content, .modal-box) .mapa-onr-nativo select,
+:is(.page-content, .modal-box) .mapa-onr-nativo textarea { color: #0f172a; background: #fff; }
+:is(.page-content, .modal-box) .mapa-onr-nativo input:focus,
+:is(.page-content, .modal-box) .mapa-onr-nativo select:focus,
+:is(.page-content, .modal-box) .mapa-onr-nativo textarea:focus { box-shadow: 0 0 0 3px rgba(16, 185, 129, .16); }
+:is(.page-content, .modal-box) .mapa-onr-nativo details.texto-ato pre,
+:is(.page-content, .modal-box) .mapa-onr-nativo pre.json {
   color: #334155;
   background: #f8fafc;
   border-color: #e2e8f0;
 }
-.page-content .mapa-onr-nativo code { color: #047857; }
-.page-content .mapa-onr-nativo .aeri-revisao,
-.page-content .mapa-onr-nativo .aeri-revisao-item,
-.page-content .mapa-onr-nativo .aeri-revisao-mestre { border-color: #fde68a; }
-.page-content .mapa-onr-nativo .aeri-revisao.ok { border-color: #a7f3d0; }
-.page-content .incra-dropzone {
+:is(.page-content, .modal-box) .mapa-onr-nativo code { color: #047857; }
+:is(.page-content, .modal-box) .mapa-onr-nativo .aeri-revisao,
+:is(.page-content, .modal-box) .mapa-onr-nativo .aeri-revisao-item,
+:is(.page-content, .modal-box) .mapa-onr-nativo .aeri-revisao-mestre { border-color: #fde68a; }
+:is(.page-content, .modal-box) .mapa-onr-nativo .aeri-revisao.ok { border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .incra-dropzone {
   color: #334155;
   border-color: #a7f3d0;
   background: #f8fafc;
 }
-.page-content .incra-dropzone:hover,
-.page-content .incra-dropzone.com-arquivo { border-color: #10b981; background: #ecfdf5; }
-.page-content .incra-dropzone small { color: #64748b; }
-.page-content .incra-upload-icon { color: #047857; background: #ecfdf5; }
+:is(.page-content, .modal-box) .incra-dropzone:hover,
+:is(.page-content, .modal-box) .incra-dropzone.com-arquivo { border-color: #10b981; background: #ecfdf5; }
+:is(.page-content, .modal-box) .incra-dropzone small { color: #64748b; }
+:is(.page-content, .modal-box) .incra-upload-icon { color: #047857; background: #ecfdf5; }
 
 /* Ações primárias e secundárias. */
-.page-content .btn-primary,
-.page-content #btn-nova-intimacao,
-.page-content #btn-login,
-.page-content .incra-processar,
-.page-content .sync-botao {
+:is(.page-content, .modal-box) .btn-primary,
+:is(.page-content, .modal-box) #btn-nova-intimacao,
+:is(.page-content, .modal-box) #btn-login,
+:is(.page-content, .modal-box) .incra-processar,
+:is(.page-content, .modal-box) .sync-botao {
   color: #020617;
   background: #10b981;
   border-color: #10b981;
@@ -435,214 +437,214 @@ body.sync-tema > .navbar {
   box-shadow: none;
   font-weight: 700;
 }
-.page-content .btn-primary:hover,
-.page-content #btn-nova-intimacao:hover,
-.page-content #btn-login:hover,
-.page-content .incra-processar:hover,
-.page-content .sync-botao:hover { color: #020617; background: #059669; border-color: #059669; }
-.page-content .btn-primary:disabled,
-.page-content button:disabled { opacity: .56; cursor: not-allowed; }
-.page-content .btn-clear,
-.page-content .rotina-btn-secondary,
-.page-content .incra-filtro,
-.page-content .incra-acoes button,
-.page-content .btn-copiar,
-.page-content .rotina-row-actions button,
-.page-content .rotina-folder-btn,
-.page-content .sistema-card button,
-.page-content .contratos-card button:not(.btn-primary),
-.page-content .regaux-resultados-acoes button {
+:is(.page-content, .modal-box) .btn-primary:hover,
+:is(.page-content, .modal-box) #btn-nova-intimacao:hover,
+:is(.page-content, .modal-box) #btn-login:hover,
+:is(.page-content, .modal-box) .incra-processar:hover,
+:is(.page-content, .modal-box) .sync-botao:hover { color: #020617; background: #059669; border-color: #059669; }
+:is(.page-content, .modal-box) .btn-primary:disabled,
+:is(.page-content, .modal-box) button:disabled { opacity: .56; cursor: not-allowed; }
+:is(.page-content, .modal-box) .btn-clear,
+:is(.page-content, .modal-box) .rotina-btn-secondary,
+:is(.page-content, .modal-box) .incra-filtro,
+:is(.page-content, .modal-box) .incra-acoes button,
+:is(.page-content, .modal-box) .btn-copiar,
+:is(.page-content, .modal-box) .rotina-row-actions button,
+:is(.page-content, .modal-box) .rotina-folder-btn,
+:is(.page-content, .modal-box) .sistema-card button,
+:is(.page-content, .modal-box) .contratos-card button:not(.btn-primary),
+:is(.page-content, .modal-box) .regaux-resultados-acoes button {
   color: #334155;
   background: #fff;
   border-color: #cbd5e1;
 }
-.page-content .btn-clear:hover,
-.page-content .rotina-btn-secondary:hover,
-.page-content .incra-filtro:hover,
-.page-content .incra-acoes button:hover,
-.page-content .btn-copiar:hover,
-.page-content .rotina-row-actions button:hover,
-.page-content .rotina-folder-btn:hover,
-.page-content .regaux-resultados-acoes button:hover { color: #047857; background: #f0fdf4; border-color: #86efac; }
-.page-content .tab-btn.active,
-.page-content .incra-filtro.active,
-.page-content .rotina-folder-btn.ativo { color: #047857; background: #ecfdf5; border-color: #a7f3d0; box-shadow: none; }
-.page-content .gerador-notas-abas { background: #f1f5f9; border-color: #e2e8f0; }
-.page-content .gerador-notas-abas button { color: #475569; }
-.page-content .gerador-notas-abas button.ativa { color: #052e16; background: #10b981; box-shadow: none; }
-.page-content .gerador-notas-abas button.ativa:hover { background: #059669; }
-.page-content .gerador-notas-explica { color: #334155; border-left-color: #10b981; background: #ecfdf5; }
-.page-content :focus-visible { outline-color: #047857; }
+:is(.page-content, .modal-box) .btn-clear:hover,
+:is(.page-content, .modal-box) .rotina-btn-secondary:hover,
+:is(.page-content, .modal-box) .incra-filtro:hover,
+:is(.page-content, .modal-box) .incra-acoes button:hover,
+:is(.page-content, .modal-box) .btn-copiar:hover,
+:is(.page-content, .modal-box) .rotina-row-actions button:hover,
+:is(.page-content, .modal-box) .rotina-folder-btn:hover,
+:is(.page-content, .modal-box) .regaux-resultados-acoes button:hover { color: #047857; background: #f0fdf4; border-color: #86efac; }
+:is(.page-content, .modal-box) .tab-btn.active,
+:is(.page-content, .modal-box) .incra-filtro.active,
+:is(.page-content, .modal-box) .rotina-folder-btn.ativo { color: #047857; background: #ecfdf5; border-color: #a7f3d0; box-shadow: none; }
+:is(.page-content, .modal-box) .gerador-notas-abas { background: #f1f5f9; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .gerador-notas-abas button { color: #475569; }
+:is(.page-content, .modal-box) .gerador-notas-abas button.ativa { color: #052e16; background: #10b981; box-shadow: none; }
+:is(.page-content, .modal-box) .gerador-notas-abas button.ativa:hover { background: #059669; }
+:is(.page-content, .modal-box) .gerador-notas-explica { color: #334155; border-left-color: #10b981; background: #ecfdf5; }
+:is(.page-content, .modal-box) :focus-visible { outline-color: #047857; }
 
 /* Tabelas: cabeçalho neutro, linhas leves e hover discreto. */
-.page-content table { color: #334155; border-color: #e2e8f0; }
-.page-content table th { color: #475569; background: #f1f5f9; border-color: #e2e8f0; }
-.page-content table td { color: #334155; border-color: #e2e8f0; }
-.page-content table tbody tr:hover { background: #f0fdf4; }
-.page-content .rotina-table th,
-.page-content .incra-table th,
-.page-content .regaux-table th,
-.page-content .custas-table th,
-.page-content .custas-preview-table th { color: #475569; background: #f1f5f9; }
-.page-content .rotina-table td,
-.page-content .incra-table td,
-.page-content .regaux-table td { color: #334155; }
-.page-content .rotina-table th,
-.page-content .rotina-table td,
-.page-content .incra-table th,
-.page-content .incra-table td { border-color: #e2e8f0; }
+:is(.page-content, .modal-box) table { color: #334155; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) table th { color: #475569; background: #f1f5f9; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) table td { color: #334155; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) table tbody tr:hover { background: #f0fdf4; }
+:is(.page-content, .modal-box) .rotina-table th,
+:is(.page-content, .modal-box) .incra-table th,
+:is(.page-content, .modal-box) .regaux-table th,
+:is(.page-content, .modal-box) .custas-table th,
+:is(.page-content, .modal-box) .custas-preview-table th { color: #475569; background: #f1f5f9; }
+:is(.page-content, .modal-box) .rotina-table td,
+:is(.page-content, .modal-box) .incra-table td,
+:is(.page-content, .modal-box) .regaux-table td { color: #334155; }
+:is(.page-content, .modal-box) .rotina-table th,
+:is(.page-content, .modal-box) .rotina-table td,
+:is(.page-content, .modal-box) .incra-table th,
+:is(.page-content, .modal-box) .incra-table td { border-color: #e2e8f0; }
 
 /* Estados mantêm semântica, agora com fundos suaves e contraste adequado. */
-.page-content .badge-green,
-.page-content .usuario-status.ativo,
-.page-content .contratos-compativeis,
-.page-content .contratos-confirmacao-ok,
-.page-content .contratos-sucesso { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .badge-orange,
-.page-content .aprendizado-status,
-.page-content .contratos-alertas-extracao,
-.page-content .contratos-confirmacoes p { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .badge-red,
-.page-content .erro,
-.page-content .incra-erro,
-.page-content .contratos-erro,
-.page-content .custas-toast.erro { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
-.page-content .badge-blue { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
-.page-content .badge-gray,
-.page-content .usuario-status.inativo { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
-.page-content .aviso-status-onr-atencao { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .aviso-status-onr-indisponivel { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
-.page-content .controle-qualidade-alerta,
-.page-content .intimacao-documentos-avisos { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .feedback-analise,
-.page-content .rotina-historico-operacional { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
-.page-content .feedback-analise h3,
-.page-content .rotina-historico-operacional h3,
-.page-content .rotina-historico-operacional strong { color: #0f172a; }
-.page-content .feedback-analise p,
-.page-content .rotina-historico-operacional li { color: #64748b; }
-.page-content .rotina-documentos-acoes { color: #334155; background: #f0fdf4; border-color: #a7f3d0; }
-.page-content .rotina-documentos-acoes h3 { color: #0f172a; }
-.page-content .rotina-documentos-acoes p { color: #475569; }
-.page-content .rotina-gerar-desistencia { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .badge-green,
+:is(.page-content, .modal-box) .usuario-status.ativo,
+:is(.page-content, .modal-box) .contratos-compativeis,
+:is(.page-content, .modal-box) .contratos-confirmacao-ok,
+:is(.page-content, .modal-box) .contratos-sucesso { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .badge-orange,
+:is(.page-content, .modal-box) .aprendizado-status,
+:is(.page-content, .modal-box) .contratos-alertas-extracao,
+:is(.page-content, .modal-box) .contratos-confirmacoes p { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .badge-red,
+:is(.page-content, .modal-box) .erro,
+:is(.page-content, .modal-box) .incra-erro,
+:is(.page-content, .modal-box) .contratos-erro,
+:is(.page-content, .modal-box) .custas-toast.erro { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+:is(.page-content, .modal-box) .badge-blue { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+:is(.page-content, .modal-box) .badge-gray,
+:is(.page-content, .modal-box) .usuario-status.inativo { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .aviso-status-onr-atencao { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .aviso-status-onr-indisponivel { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+:is(.page-content, .modal-box) .controle-qualidade-alerta,
+:is(.page-content, .modal-box) .intimacao-documentos-avisos { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .feedback-analise,
+:is(.page-content, .modal-box) .rotina-historico-operacional { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .feedback-analise h3,
+:is(.page-content, .modal-box) .rotina-historico-operacional h3,
+:is(.page-content, .modal-box) .rotina-historico-operacional strong { color: #0f172a; }
+:is(.page-content, .modal-box) .feedback-analise p,
+:is(.page-content, .modal-box) .rotina-historico-operacional li { color: #64748b; }
+:is(.page-content, .modal-box) .rotina-documentos-acoes { color: #334155; background: #f0fdf4; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-documentos-acoes h3 { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-documentos-acoes p { color: #475569; }
+:is(.page-content, .modal-box) .rotina-gerar-desistencia { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
 
 /* Intimações carrega seu CSS sob demanda; estes ajustes cobrem a fila diária,
    o painel de foco, a agenda e as informações externas da Central RTD. */
-.page-content .rotina-cobertura {
+:is(.page-content, .modal-box) .rotina-cobertura {
   color: #0f172a;
   background: linear-gradient(115deg, #ecfdf5, #f0fdf4 65%, #fff);
   border-color: #a7f3d0;
   box-shadow: 0 4px 18px rgba(15, 23, 42, .05);
 }
-.page-content .rotina-cobertura .eyebrow { color: #047857; }
-.page-content .rotina-cobertura h2,
-.page-content .rotina-cobertura-legenda strong { color: #0f172a; }
-.page-content .rotina-cobertura p,
-.page-content .rotina-cobertura-legenda { color: #64748b; }
-.page-content .rotina-cobertura-trilho { background: #d1fae5; border-color: #a7f3d0; }
-.page-content .rotina-cobertura-trilho span { background: linear-gradient(90deg, #10b981, #34d399); box-shadow: none; }
-.page-content .rotina-cobertura-proximo {
+:is(.page-content, .modal-box) .rotina-cobertura .eyebrow { color: #047857; }
+:is(.page-content, .modal-box) .rotina-cobertura h2,
+:is(.page-content, .modal-box) .rotina-cobertura-legenda strong { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-cobertura p,
+:is(.page-content, .modal-box) .rotina-cobertura-legenda { color: #64748b; }
+:is(.page-content, .modal-box) .rotina-cobertura-trilho { background: #d1fae5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-cobertura-trilho span { background: linear-gradient(90deg, #10b981, #34d399); box-shadow: none; }
+:is(.page-content, .modal-box) .rotina-cobertura-proximo {
   color: #020617;
   background: #10b981;
   border-color: #10b981;
 }
-.page-content .rotina-cobertura-proximo small,
-.page-content .rotina-cobertura-proximo i { color: #064e3b; }
-.page-content .rotina-cobertura-proximo:hover:not(:disabled) { background: #059669; border-color: #059669; }
-.page-content .rotina-central-acao { color: #0f172a; }
-.page-content .rotina-foco,
-.page-content .rotina-fila-painel,
-.page-content .rotina-agenda-expansivel,
-.page-content .rotina-agenda {
+:is(.page-content, .modal-box) .rotina-cobertura-proximo small,
+:is(.page-content, .modal-box) .rotina-cobertura-proximo i { color: #022c22; }
+:is(.page-content, .modal-box) .rotina-cobertura-proximo:hover:not(:disabled) { background: #059669; border-color: #059669; }
+:is(.page-content, .modal-box) .rotina-central-acao { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-foco,
+:is(.page-content, .modal-box) .rotina-fila-painel,
+:is(.page-content, .modal-box) .rotina-agenda-expansivel,
+:is(.page-content, .modal-box) .rotina-agenda {
   color: #0f172a;
   background: #fff;
   border-color: #e2e8f0;
   box-shadow: 0 4px 18px rgba(15, 23, 42, .05);
 }
-.page-content .rotina-fila-titulo { border-color: #e2e8f0; }
-.page-content .rotina-fila-titulo h2,
-.page-content .rotina-foco-cabecalho h2,
-.page-content .rotina-foco-vazio h2,
-.page-content .rotina-agenda-cabecalho h2 { color: #0f172a; }
-.page-content .rotina-fila-titulo .eyebrow,
-.page-content .rotina-foco-cabecalho .eyebrow,
-.page-content .rotina-agenda-cabecalho .eyebrow { color: #047857; }
-.page-content .rotina-fila-cartao { background: #fff; border-color: #e2e8f0; }
-.page-content .rotina-fila-cartao:hover { background: #f8fafc; border-color: #cbd5e1; }
-.page-content .rotina-fila-cartao.selecionado { background: #ecfdf5; border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, .10); }
-.page-content .rotina-fila-linha strong { color: #0f172a; }
-.page-content .rotina-fila-partes,
-.page-content .rotina-fila-data,
-.page-content .rotina-fila-vazia { color: #64748b; }
-.page-content .rotina-fila-andamento { color: #334155; }
-.page-content .rotina-fila-protocolo-rtd,
-.page-content .rotina-fila-protocolo-rtd strong { color: #047857; }
-.page-content .rotina-fila-chevron { color: #64748b; }
-.page-content .rotina-fila-fase { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
-.page-content .rotina-fila-fase.fase-edital { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .rotina-fila-fase.fase-consolidacao { color: #334155; background: #f1f5f9; border-color: #cbd5e1; }
-.page-content .rotina-fila-situacao { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
-.page-content .rotina-fila-situacao.verde,
-.page-content .rotina-in-estado.verde,
-.page-content .rotina-foco-badge.verde { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rotina-fila-situacao.amarelo,
-.page-content .rotina-in-estado,
-.page-content .rotina-foco-badge.amarelo { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .rotina-fila-situacao.vermelho,
-.page-content .rotina-in-estado.vermelho,
-.page-content .rotina-foco-badge.vermelho { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
-.page-content .rotina-fila-situacao.cinza,
-.page-content .rotina-in-estado.cinza,
-.page-content .rotina-foco-badge { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
-.page-content .rotina-fila-situacao.rtd,
-.page-content .rotina-foco-badge.rtd { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rotina-in-dado,
-.page-content .rotina-foco-andamento,
-.page-content .rotina-agenda-dia,
-.page-content .rotina-foco-rtd { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
-.page-content .rotina-in-dado span,
-.page-content .rotina-in-protocolo-rtd > span,
-.page-content .rotina-in-andamento > span,
-.page-content .rotina-foco-metadados span,
-.page-content .rotina-foco-andamento span { color: #64748b; }
-.page-content .rotina-in-dado strong,
-.page-content .rotina-in-andamento strong,
-.page-content .rotina-foco-metadados strong,
-.page-content .rotina-foco-andamento strong,
-.page-content .rotina-foco-andamento time { color: #0f172a; }
-.page-content .rotina-in-protocolo-rtd { color: #0f172a; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rotina-in-protocolo-rtd strong { color: #047857; }
-.page-content .rotina-in-andamento { color: #334155; background: #f8fafc; border-color: #cbd5e1; }
-.page-content .rotina-in-aviso-rtd { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .rotina-in-aviso-rtd button { color: #92400e; background: #fff; border-color: #fde68a; }
-.page-content .rotina-proxima-acao,
-.page-content .rotina-proxima-acao.prioritaria { color: #334155; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rotina-proxima-acao.prioritaria { background: #f8fafc; border-color: #cbd5e1; }
-.page-content .rotina-proxima-acao .eyebrow,
-.page-content .rotina-proxima-acao.prioritaria .eyebrow { color: #047857; }
-.page-content .rotina-proxima-acao h3 { color: #0f172a; }
-.page-content .rotina-proxima-acao p,
-.page-content .rotina-foco-rtd p { color: #475569; }
-.page-content .rotina-acao-principal { color: #020617; background: #10b981; }
-.page-content .rotina-acao-principal:hover { background: #059669; filter:none; }
-.page-content .rotina-acao-rtd { color: #334155; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rotina-acao-rtd strong { color: #047857; }
-.page-content .rotina-foco-rodape,
-.page-content .rotina-foco-rodape summary { color: #64748b; }
-.page-content .rotina-foco-detalhes { border-color: #e2e8f0; }
-.page-content .rotina-foco-icone { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rotina-foco-vazio p { color: #64748b; }
-.page-content .rotina-fases { border-color: #e2e8f0; }
-.page-content .rotina-fase-btn { color: #475569; background: #fff; border-color: #cbd5e1; }
-.page-content .rotina-fase-btn:hover { color: #047857; background: #f0fdf4; border-color: #a7f3d0; }
-.page-content .rotina-fase-btn.ativa { color: #047857; background: #ecfdf5; border-color: #a7f3d0; box-shadow:none; }
-.page-content .rotina-fila-filtros button { color: #475569; background: #fff; border-color: #cbd5e1; }
-.page-content .rotina-fila-filtros button:hover { color: #047857; background: #f0fdf4; border-color: #a7f3d0; }
-.page-content .rotina-fila-filtros button.ativa { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-fila-titulo { border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rotina-fila-titulo h2,
+:is(.page-content, .modal-box) .rotina-foco-cabecalho h2,
+:is(.page-content, .modal-box) .rotina-foco-vazio h2,
+:is(.page-content, .modal-box) .rotina-agenda-cabecalho h2 { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-fila-titulo .eyebrow,
+:is(.page-content, .modal-box) .rotina-foco-cabecalho .eyebrow,
+:is(.page-content, .modal-box) .rotina-agenda-cabecalho .eyebrow { color: #047857; }
+:is(.page-content, .modal-box) .rotina-fila-cartao { background: #fff; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rotina-fila-cartao:hover { background: #f8fafc; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-fila-cartao.selecionado { background: #ecfdf5; border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, .10); }
+:is(.page-content, .modal-box) .rotina-fila-linha strong { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-fila-partes,
+:is(.page-content, .modal-box) .rotina-fila-data,
+:is(.page-content, .modal-box) .rotina-fila-vazia { color: #64748b; }
+:is(.page-content, .modal-box) .rotina-fila-andamento { color: #334155; }
+:is(.page-content, .modal-box) .rotina-fila-protocolo-rtd,
+:is(.page-content, .modal-box) .rotina-fila-protocolo-rtd strong { color: #047857; }
+:is(.page-content, .modal-box) .rotina-fila-chevron { color: #64748b; }
+:is(.page-content, .modal-box) .rotina-fila-fase { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-fila-fase.fase-edital { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .rotina-fila-fase.fase-consolidacao { color: #334155; background: #f1f5f9; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-fila-situacao { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-fila-situacao.verde,
+:is(.page-content, .modal-box) .rotina-in-estado.verde,
+:is(.page-content, .modal-box) .rotina-foco-badge.verde { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-fila-situacao.amarelo,
+:is(.page-content, .modal-box) .rotina-in-estado,
+:is(.page-content, .modal-box) .rotina-foco-badge.amarelo { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .rotina-fila-situacao.vermelho,
+:is(.page-content, .modal-box) .rotina-in-estado.vermelho,
+:is(.page-content, .modal-box) .rotina-foco-badge.vermelho { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+:is(.page-content, .modal-box) .rotina-fila-situacao.cinza,
+:is(.page-content, .modal-box) .rotina-in-estado.cinza,
+:is(.page-content, .modal-box) .rotina-foco-badge { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-fila-situacao.rtd,
+:is(.page-content, .modal-box) .rotina-foco-badge.rtd { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-in-dado,
+:is(.page-content, .modal-box) .rotina-foco-andamento,
+:is(.page-content, .modal-box) .rotina-agenda-dia,
+:is(.page-content, .modal-box) .rotina-foco-rtd { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rotina-in-dado span,
+:is(.page-content, .modal-box) .rotina-in-protocolo-rtd > span,
+:is(.page-content, .modal-box) .rotina-in-andamento > span,
+:is(.page-content, .modal-box) .rotina-foco-metadados span,
+:is(.page-content, .modal-box) .rotina-foco-andamento span { color: #64748b; }
+:is(.page-content, .modal-box) .rotina-in-dado strong,
+:is(.page-content, .modal-box) .rotina-in-andamento strong,
+:is(.page-content, .modal-box) .rotina-foco-metadados strong,
+:is(.page-content, .modal-box) .rotina-foco-andamento strong,
+:is(.page-content, .modal-box) .rotina-foco-andamento time { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-in-protocolo-rtd { color: #0f172a; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-in-protocolo-rtd strong { color: #047857; }
+:is(.page-content, .modal-box) .rotina-in-andamento { color: #334155; background: #f8fafc; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-in-aviso-rtd { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .rotina-in-aviso-rtd button { color: #92400e; background: #fff; border-color: #fde68a; }
+:is(.page-content, .modal-box) .rotina-proxima-acao,
+:is(.page-content, .modal-box) .rotina-proxima-acao.prioritaria { color: #334155; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-proxima-acao.prioritaria { background: #f8fafc; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-proxima-acao .eyebrow,
+:is(.page-content, .modal-box) .rotina-proxima-acao.prioritaria .eyebrow { color: #047857; }
+:is(.page-content, .modal-box) .rotina-proxima-acao h3 { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-proxima-acao p,
+:is(.page-content, .modal-box) .rotina-foco-rtd p { color: #475569; }
+:is(.page-content, .modal-box) .rotina-acao-principal { color: #020617; background: #10b981; }
+:is(.page-content, .modal-box) .rotina-acao-principal:hover { background: #059669; filter:none; }
+:is(.page-content, .modal-box) .rotina-acao-rtd { color: #334155; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-acao-rtd strong { color: #047857; }
+:is(.page-content, .modal-box) .rotina-foco-rodape,
+:is(.page-content, .modal-box) .rotina-foco-rodape summary { color: #64748b; }
+:is(.page-content, .modal-box) .rotina-foco-detalhes { border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rotina-foco-icone { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-foco-vazio p { color: #64748b; }
+:is(.page-content, .modal-box) .rotina-fases { border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rotina-fase-btn { color: #475569; background: #fff; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-fase-btn:hover { color: #047857; background: #f0fdf4; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-fase-btn.ativa { color: #047857; background: #ecfdf5; border-color: #a7f3d0; box-shadow:none; }
+:is(.page-content, .modal-box) .rotina-fila-filtros button { color: #475569; background: #fff; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-fila-filtros button:hover { color: #047857; background: #f0fdf4; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-fila-filtros button.ativa { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
 #page-rotina .rotina-fila-painel > .rotina-fases .rotina-fase-btn { color: #475569; background: #fff; border-color: #cbd5e1; }
 #page-rotina .rotina-fila-painel > .rotina-fases .rotina-fase-btn:hover { color: #047857; background: #f0fdf4; border-color: #a7f3d0; }
 #page-rotina .rotina-fila-painel > .rotina-fases .rotina-fase-btn.ativa { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rotina-fila-filtros button,
+:is(.page-content, .modal-box) .rotina-fila-filtros button,
 #page-rotina .rotina-fila-painel > .rotina-fases .rotina-fase-btn {
   border: 1px solid #cbd5e1;
   border-radius: 999px;
@@ -654,221 +656,320 @@ body.sync-tema > .navbar {
   cursor: pointer;
   transition: color .16s ease, background-color .16s ease, border-color .16s ease;
 }
-.page-content .rotina-fila-filtros button.ativa,
+:is(.page-content, .modal-box) .rotina-fila-filtros button.ativa,
 #page-rotina .rotina-fila-painel > .rotina-fases .rotina-fase-btn.ativa { border-color: #a7f3d0; }
-.page-content .rotina-toolbar { color: #334155; background: #fff; border-color: #e2e8f0; }
-.page-content .rotina-fila-painel .rotina-busca { color: #64748b; background: #fff; border-color: #cbd5e1; }
-.page-content .rotina-fila-painel .rotina-busca input { color: #0f172a; background: transparent; }
-.page-content #filtro-situacao-intimacao { color: #334155; background: #fff; border-color: #cbd5e1; }
-.page-content .rotina-table { background: #fff; }
-.page-content .rotina-table tbody tr { background: #fff; }
-.page-content .rotina-table tbody tr:hover { background: #f0fdf4; }
-.page-content .rotina-in-posicao { color: #047857; }
-.page-content .rotina-in-cabecalho h2 { color: #0f172a; }
-.page-content .rotina-in-dado { background: #f8fafc; }
-.page-content .rotina-in-protocolo-rtd { color: #334155; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rotina-in-protocolo-rtd > span { color: #475569; }
-.page-content .rotina-in-protocolo-rtd strong { color: #047857; }
-.page-content .rotina-in-andamento { background: #f8fafc; border-color: #cbd5e1; }
-.page-content .rotina-in-andamento > span { color: #64748b; }
-.page-content .rotina-in-andamento strong { color: #0f172a; }
-.page-content .rotina-in-aviso-rtd { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .rotina-in-aviso-rtd button { color: #92400e; background: #fff; border-color: #fde68a; }
-.page-content .rotina-in-proxima-acao { color: #334155; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rotina-in-proxima-acao > strong { color: #0f172a; }
-.page-content .rotina-in-proxima-acao p { color: #475569; }
-.page-content .rotina-in-proxima-acao a,
-.page-content .rotina-in-proxima-acao button { color: #020617; background: #10b981; border-color: #10b981; }
-.page-content .rotina-in-proxima-acao a:hover,
-.page-content .rotina-in-proxima-acao button:hover { color: #020617; background: #059669; }
-.page-content .rotina-in-pergunta { color: #0f172a; }
-.page-content .rotina-in-acoes button { color: #334155; background: #fff; border-color: #cbd5e1; }
-.page-content .rotina-in-acoes button[data-conferencia="igual"] { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rotina-in-acoes button[data-conferencia="mudou"] { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .rotina-in-acoes button[data-conferencia="pular"] { color: #64748b; background: transparent; border-color: transparent; }
-.page-content .rotina-in-controles button,
-.page-content .rotina-in-mais-acoes button { color: #334155; background: #fff; border: 1px solid #cbd5e1; }
-.page-content .rotina-in-mais-acoes summary { color: #475569; }
-.page-content .rotina-in-vazio h2 { color: #0f172a; }
-.page-content .rotina-in-vazio p { color: #64748b; }
-.page-content .rotina-agenda { background: #fff; }
-.page-content .rotina-agenda-cabecalho p,
-.page-content .rotina-agenda-metrica,
-.page-content .rotina-agenda-dia-cabecalho,
-.page-content .rotina-agenda-dia-cabecalho small,
-.page-content .rotina-agenda-sem-prazo,
-.page-content .rotina-agenda-mais,
-.page-content .rotina-agenda-contagem,
-.page-content .rotina-agenda-vazia { color: #64748b; }
-.page-content .rotina-agenda-controles strong,
-.page-content .rotina-agenda-dia-cabecalho strong { color: #0f172a; }
-.page-content .rotina-agenda-controles button { color: #334155; background: #fff; border-color: #cbd5e1; }
-.page-content .rotina-agenda-controles button:hover,
-.page-content .rotina-agenda-controles button[data-agenda-hoje] { color: #047857; background: #f0fdf4; border-color: #a7f3d0; }
-.page-content .rotina-agenda-metrica { color: #475569; background: #f8fafc; border-color: #e2e8f0; }
-.page-content .rotina-agenda-metrica strong { color: #0f172a; }
-.page-content .rotina-agenda-metrica.alerta { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
-.page-content .rotina-agenda-metrica.alerta strong { color: #be123c; }
-.page-content .rotina-agenda-dia.hoje { background: #ecfdf5; border-color: #10b981; box-shadow: inset 0 0 0 1px rgba(16,185,129,.10); }
-.page-content .rotina-agenda-dia.hoje .rotina-agenda-dia-cabecalho strong,
-.page-content .rotina-agenda-dia.hoje .rotina-agenda-dia-cabecalho span { color: #047857; }
-.page-content .rotina-agenda-in { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rotina-agenda-in:hover { background: #d1fae5; border-color: #10b981; }
-.page-content .rotina-agenda-vazia { border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-toolbar { color: #334155; background: #fff; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rotina-fila-painel .rotina-busca { color: #64748b; background: #fff; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-fila-painel .rotina-busca input { color: #0f172a; background: transparent; }
+:is(.page-content, .modal-box) #filtro-situacao-intimacao { color: #334155; background: #fff; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-table { background: #fff; }
+:is(.page-content, .modal-box) .rotina-table tbody tr { background: #fff; }
+:is(.page-content, .modal-box) .rotina-table tbody tr:hover { background: #f0fdf4; }
+:is(.page-content, .modal-box) .rotina-in-posicao { color: #047857; }
+:is(.page-content, .modal-box) .rotina-in-cabecalho h2 { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-in-dado { background: #f8fafc; }
+:is(.page-content, .modal-box) .rotina-in-protocolo-rtd { color: #334155; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-in-protocolo-rtd > span { color: #475569; }
+:is(.page-content, .modal-box) .rotina-in-protocolo-rtd strong { color: #047857; }
+:is(.page-content, .modal-box) .rotina-in-andamento { background: #f8fafc; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-in-andamento > span { color: #64748b; }
+:is(.page-content, .modal-box) .rotina-in-andamento strong { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-in-aviso-rtd { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .rotina-in-aviso-rtd button { color: #92400e; background: #fff; border-color: #fde68a; }
+:is(.page-content, .modal-box) .rotina-in-proxima-acao { color: #334155; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-in-proxima-acao > strong { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-in-proxima-acao p { color: #475569; }
+:is(.page-content, .modal-box) .rotina-in-proxima-acao a,
+:is(.page-content, .modal-box) .rotina-in-proxima-acao button { color: #020617; background: #10b981; border-color: #10b981; }
+:is(.page-content, .modal-box) .rotina-in-proxima-acao a:hover,
+:is(.page-content, .modal-box) .rotina-in-proxima-acao button:hover { color: #020617; background: #059669; }
+:is(.page-content, .modal-box) .rotina-in-pergunta { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-in-acoes button { color: #334155; background: #fff; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-in-acoes button[data-conferencia="igual"] { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-in-acoes button[data-conferencia="mudou"] { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .rotina-in-acoes button[data-conferencia="pular"] { color: #64748b; background: transparent; border-color: transparent; }
+:is(.page-content, .modal-box) .rotina-in-controles button,
+:is(.page-content, .modal-box) .rotina-in-mais-acoes button { color: #334155; background: #fff; border: 1px solid #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-in-mais-acoes summary { color: #475569; }
+:is(.page-content, .modal-box) .rotina-in-vazio h2 { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-in-vazio p { color: #64748b; }
+:is(.page-content, .modal-box) .rotina-agenda { background: #fff; }
+:is(.page-content, .modal-box) .rotina-agenda-cabecalho p,
+:is(.page-content, .modal-box) .rotina-agenda-metrica,
+:is(.page-content, .modal-box) .rotina-agenda-dia-cabecalho,
+:is(.page-content, .modal-box) .rotina-agenda-dia-cabecalho small,
+:is(.page-content, .modal-box) .rotina-agenda-sem-prazo,
+:is(.page-content, .modal-box) .rotina-agenda-mais,
+:is(.page-content, .modal-box) .rotina-agenda-contagem,
+:is(.page-content, .modal-box) .rotina-agenda-vazia { color: #64748b; }
+:is(.page-content, .modal-box) .rotina-agenda-controles strong,
+:is(.page-content, .modal-box) .rotina-agenda-dia-cabecalho strong { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-agenda-controles button { color: #334155; background: #fff; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rotina-agenda-controles button:hover,
+:is(.page-content, .modal-box) .rotina-agenda-controles button[data-agenda-hoje] { color: #047857; background: #f0fdf4; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-agenda-metrica { color: #475569; background: #f8fafc; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rotina-agenda-metrica strong { color: #0f172a; }
+:is(.page-content, .modal-box) .rotina-agenda-metrica.alerta { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+:is(.page-content, .modal-box) .rotina-agenda-metrica.alerta strong { color: #be123c; }
+:is(.page-content, .modal-box) .rotina-agenda-dia.hoje { background: #ecfdf5; border-color: #10b981; box-shadow: inset 0 0 0 1px rgba(16,185,129,.10); }
+:is(.page-content, .modal-box) .rotina-agenda-dia.hoje .rotina-agenda-dia-cabecalho strong,
+:is(.page-content, .modal-box) .rotina-agenda-dia.hoje .rotina-agenda-dia-cabecalho span { color: #047857; }
+:is(.page-content, .modal-box) .rotina-agenda-in { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rotina-agenda-in:hover { background: #d1fae5; border-color: #10b981; }
+:is(.page-content, .modal-box) .rotina-agenda-vazia { border-color: #cbd5e1; }
 
 /* RTD externo segue a mesma superfície clara, mantendo os avisos amarelos/vermelhos. */
-.page-content .rtd-painel,
-.page-content .rtd-detalhes,
-.page-content .rtd-pedido,
-.page-content .rtd-envios-historico {
+:is(.page-content, .modal-box) .rtd-painel,
+:is(.page-content, .modal-box) .rtd-detalhes,
+:is(.page-content, .modal-box) .rtd-pedido,
+:is(.page-content, .modal-box) .rtd-envios-historico {
   color: #334155;
   background: #fff;
   border-color: #e2e8f0;
 }
-.page-content .rtd-painel p,
-.page-content .rtd-detalhes-cabecalho > p,
-.page-content .rtd-envios-historico > p,
-.page-content .rtd-documentos-cabecalho p,
-.page-content .rtd-documentos-vazio { color: #64748b; }
-.page-content .rtd-origem,
-.page-content .rtd-aviso-novo,
-.page-content .rtd-resumo-cabecalho em,
-.page-content .rtd-diferencas span { color: #047857; }
-.page-content .rtd-contador,
-.page-content .rtd-metricas span,
-.page-content .rtd-situacao-atual,
-.page-content .rtd-detalhes-cabecalho h3,
-.page-content .rtd-pedido,
-.page-content .rtd-pedido-titulo strong,
-.page-content .rtd-metadados,
-.page-content .rtd-metadados strong,
-.page-content .rtd-o-que-mudou,
-.page-content .rtd-o-que-mudou h4,
-.page-content .rtd-diferencas,
-.page-content .rtd-diferencas strong,
-.page-content .rtd-pedido details summary,
-.page-content .rtd-historico > li,
-.page-content .rtd-historico time,
-.page-content .rtd-documentos-cabecalho h4,
-.page-content .rtd-documentos li,
-.page-content .rtd-envio-cabecalho h3,
-.page-content .rtd-envio-secao h3 { color: #334155; }
-.page-content .rtd-separacao,
-.page-content .rtd-o-que-mudou,
-.page-content .rtd-envios-lista li,
-.page-content .rtd-documentos li { background: #f8fafc; }
-.page-content .rtd-resumo-pedido > span:not(.rtd-resumo-cabecalho),
-.page-content .rtd-resumo-pedido small,
-.page-content .rtd-sem-diferenca,
-.page-content .rtd-aviso-visto,
-.page-content .rtd-historico time,
-.page-content .rtd-envios-lista li time { color: #64748b !important; }
-.page-content .rtd-pedido .rtd-alerta,
-.page-content .rtd-documentos-erro,
-.page-content .rtd-envios-lista li small { color: #be123c; }
-.page-content .rtd-pedido.rtd-novo,
-.page-content .rtd-resumo-pedido.rtd-novo { background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rtd-situacao-atual,
-.page-content .rtd-contador { background: #f1f5f9; border-color: #e2e8f0; }
-.page-content .rtd-contador.com-novidade { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .rtd-envio-ambiente { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .rtd-envio-status.is-homologacao { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .rtd-documentos-cabecalho button,
-.page-content .rtd-documentos li a,
-.page-content .rtd-envio-cabecalho button,
-.page-content .rtd-envio-secao-titulo button,
-.page-content .rtd-painel button,
-.page-content .rtd-pedido button { color: #020617; background: #10b981; border-color: #10b981; }
-.page-content .rtd-documentos-cabecalho button:hover,
-.page-content .rtd-documentos li a:hover,
-.page-content .rtd-envio-cabecalho button:hover,
-.page-content .rtd-envio-secao-titulo button:hover,
-.page-content .rtd-painel button:hover,
-.page-content .rtd-pedido button:hover { color: #020617; background: #059669; border-color: #059669; }
-.page-content .rtd-envio-modal .rotina-form-header { background: #fff; }
-.page-content .rtd-envio-modal input:not([type="checkbox"]):not([type="file"]),
-.page-content .rtd-envio-modal select,
-.page-content .rtd-envio-modal textarea { color: #0f172a; background: #fff; border-color: #cbd5e1; }
-.page-content .rtd-envio-documentos-lista { color: #334155; background: #eff6ff; border-color: #bfdbfe; }
-.page-content .rtd-detalhes-cabecalho,
-.page-content .rtd-detalhes-cabecalho h3,
-.page-content .rtd-envio-cabecalho h3,
-.page-content .rtd-envio-secao h3 { border-color: #e2e8f0; }
-.page-content .rtd-situacao-atual { color: #475569; }
-.page-content .rtd-o-que-mudou { color: #334155; }
-.page-content .rtd-pedido details { border-color: #e2e8f0; }
-.page-content .rtd-envios-lista li { color: #334155; border-color: #e2e8f0; }
-.page-content .rtd-envios-lista li strong { color: #047857; }
-.page-content .rtd-documentos li { border-color: #e2e8f0; }
-.page-content .rtd-documento-icone { color: #047857; }
-.page-content .rtd-envio-secao { background: #f8fafc; border-color: #e2e8f0; }
-.page-content .rtd-envio-status { color: #475569; }
-.page-content .rtd-envio-status.is-homologacao { color: #92400e; }
-.page-content .rtd-remover-notificado { color: #be123c !important; border-color: #fecdd3 !important; background: #fff !important; }
+:is(.page-content, .modal-box) .rtd-painel p,
+:is(.page-content, .modal-box) .rtd-detalhes-cabecalho > p,
+:is(.page-content, .modal-box) .rtd-envios-historico > p,
+:is(.page-content, .modal-box) .rtd-documentos-cabecalho p,
+:is(.page-content, .modal-box) .rtd-documentos-vazio { color: #64748b; }
+:is(.page-content, .modal-box) .rtd-origem,
+:is(.page-content, .modal-box) .rtd-aviso-novo,
+:is(.page-content, .modal-box) .rtd-resumo-cabecalho em,
+:is(.page-content, .modal-box) .rtd-diferencas span { color: #047857; }
+:is(.page-content, .modal-box) .rtd-contador,
+:is(.page-content, .modal-box) .rtd-metricas span,
+:is(.page-content, .modal-box) .rtd-situacao-atual,
+:is(.page-content, .modal-box) .rtd-detalhes-cabecalho h3,
+:is(.page-content, .modal-box) .rtd-pedido,
+:is(.page-content, .modal-box) .rtd-pedido-titulo strong,
+:is(.page-content, .modal-box) .rtd-metadados,
+:is(.page-content, .modal-box) .rtd-metadados strong,
+:is(.page-content, .modal-box) .rtd-o-que-mudou,
+:is(.page-content, .modal-box) .rtd-o-que-mudou h4,
+:is(.page-content, .modal-box) .rtd-diferencas,
+:is(.page-content, .modal-box) .rtd-diferencas strong,
+:is(.page-content, .modal-box) .rtd-pedido details summary,
+:is(.page-content, .modal-box) .rtd-historico > li,
+:is(.page-content, .modal-box) .rtd-historico time,
+:is(.page-content, .modal-box) .rtd-documentos-cabecalho h4,
+:is(.page-content, .modal-box) .rtd-documentos li,
+:is(.page-content, .modal-box) .rtd-envio-cabecalho h3,
+:is(.page-content, .modal-box) .rtd-envio-secao h3 { color: #334155; }
+:is(.page-content, .modal-box) .rtd-separacao,
+:is(.page-content, .modal-box) .rtd-o-que-mudou,
+:is(.page-content, .modal-box) .rtd-envios-lista li,
+:is(.page-content, .modal-box) .rtd-documentos li { background: #f8fafc; }
+:is(.page-content, .modal-box) .rtd-resumo-pedido > span:not(.rtd-resumo-cabecalho),
+:is(.page-content, .modal-box) .rtd-resumo-pedido small,
+:is(.page-content, .modal-box) .rtd-sem-diferenca,
+:is(.page-content, .modal-box) .rtd-aviso-visto,
+:is(.page-content, .modal-box) .rtd-historico time,
+:is(.page-content, .modal-box) .rtd-envios-lista li time { color: #64748b !important; }
+:is(.page-content, .modal-box) .rtd-pedido .rtd-alerta,
+:is(.page-content, .modal-box) .rtd-documentos-erro,
+:is(.page-content, .modal-box) .rtd-envios-lista li small { color: #be123c; }
+:is(.page-content, .modal-box) .rtd-pedido.rtd-novo,
+:is(.page-content, .modal-box) .rtd-resumo-pedido.rtd-novo { background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rtd-situacao-atual,
+:is(.page-content, .modal-box) .rtd-contador { background: #f1f5f9; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rtd-contador.com-novidade { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .rtd-envio-ambiente { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .rtd-envio-status.is-homologacao { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .rtd-documentos-cabecalho button,
+:is(.page-content, .modal-box) .rtd-documentos li a,
+:is(.page-content, .modal-box) .rtd-envio-cabecalho button,
+:is(.page-content, .modal-box) .rtd-envio-secao-titulo button,
+:is(.page-content, .modal-box) .rtd-painel button,
+:is(.page-content, .modal-box) .rtd-pedido button { color: #020617; background: #10b981; border-color: #10b981; }
+:is(.page-content, .modal-box) .rtd-documentos-cabecalho button:hover,
+:is(.page-content, .modal-box) .rtd-documentos li a:hover,
+:is(.page-content, .modal-box) .rtd-envio-cabecalho button:hover,
+:is(.page-content, .modal-box) .rtd-envio-secao-titulo button:hover,
+:is(.page-content, .modal-box) .rtd-painel button:hover,
+:is(.page-content, .modal-box) .rtd-pedido button:hover { color: #020617; background: #059669; border-color: #059669; }
+:is(.page-content, .modal-box) .rtd-envio-modal .rotina-form-header { background: #fff; }
+:is(.page-content, .modal-box) .rtd-envio-modal input:not([type="checkbox"]):not([type="file"]),
+:is(.page-content, .modal-box) .rtd-envio-modal select,
+:is(.page-content, .modal-box) .rtd-envio-modal textarea { color: #0f172a; background: #fff; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .rtd-envio-documentos-lista { color: #334155; background: #eff6ff; border-color: #bfdbfe; }
+:is(.page-content, .modal-box) .rtd-detalhes-cabecalho,
+:is(.page-content, .modal-box) .rtd-detalhes-cabecalho h3,
+:is(.page-content, .modal-box) .rtd-envio-cabecalho h3,
+:is(.page-content, .modal-box) .rtd-envio-secao h3 { border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rtd-situacao-atual { color: #475569; }
+:is(.page-content, .modal-box) .rtd-o-que-mudou { color: #334155; }
+:is(.page-content, .modal-box) .rtd-pedido details { border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rtd-envios-lista li { color: #334155; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rtd-envios-lista li strong { color: #047857; }
+:is(.page-content, .modal-box) .rtd-documentos li { border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rtd-documento-icone { color: #047857; }
+:is(.page-content, .modal-box) .rtd-envio-secao { background: #f8fafc; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .rtd-envio-status { color: #475569; }
+:is(.page-content, .modal-box) .rtd-envio-status.is-homologacao { color: #92400e; }
+:is(.page-content, .modal-box) .rtd-remover-notificado { color: #be123c !important; border-color: #fecdd3 !important; background: #fff !important; }
 
 /* Painéis de sincronização dos índices e listas de busca. */
-.page-content .buscas-sincronizacao,
-.page-content .regaux-sincronizacao { color: #334155; background: linear-gradient(120deg, #ecfdf5, #fff); border-color: #a7f3d0; }
-.page-content .buscas-resumo article,
-.page-content .regaux-certidao-resumo > div { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
-.page-content .buscas-resumo strong,
-.page-content .regaux-sync-resumo > div:first-child strong,
-.page-content .regaux-certidao-resumo strong { color: #0f172a; }
-.page-content .buscas-progresso > span strong,
-.page-content .regaux-sync-progresso > span strong { color: #047857; }
-.page-content .buscas-progresso > div,
-.page-content .regaux-sync-progresso > div { background: #e2e8f0; }
-.page-content .buscas-progresso i,
-.page-content .regaux-sync-progresso i { background: linear-gradient(90deg, #10b981, #34d399); }
-.page-content .buscas-log { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
-.page-content .buscas-log > strong { color: #334155; }
-.page-content .buscas-log li[data-tipo="sucesso"] { color: #047857; }
-.page-content .buscas-log li[data-tipo="alerta"] { color: #92400e; }
-.page-content .buscas-log li[data-tipo="erro"] { color: #be123c; }
-.page-content .buscas-prioridade { color: #92400e; background: #fffbeb; }
-.page-content .buscas-prioridade[data-prioridade="P0-CRITICA"] { color: #be123c; background: #fff1f2; }
-.page-content .regaux-numero,
-.page-content .regaux-pessoa strong { color: #0f172a; }
-.page-content .regaux-modalidade { color: #334155; background: #f1f5f9; border-color: #cbd5e1; }
-.page-content .regaux-situacao { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content #regaux-certidao-resultado[data-resultado="POSITIVA"] { color: #047857; }
-.page-content #regaux-certidao-resultado[data-resultado="NEGATIVA"] { color: #92400e; }
+:is(.page-content, .modal-box) .buscas-sincronizacao,
+:is(.page-content, .modal-box) .regaux-sincronizacao { color: #334155; background: linear-gradient(120deg, #ecfdf5, #fff); border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .buscas-resumo article,
+:is(.page-content, .modal-box) .regaux-certidao-resumo > div { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .buscas-resumo strong,
+:is(.page-content, .modal-box) .regaux-sync-resumo > div:first-child strong,
+:is(.page-content, .modal-box) .regaux-certidao-resumo strong { color: #0f172a; }
+:is(.page-content, .modal-box) .buscas-progresso > span strong,
+:is(.page-content, .modal-box) .regaux-sync-progresso > span strong { color: #047857; }
+:is(.page-content, .modal-box) .buscas-progresso > div,
+:is(.page-content, .modal-box) .regaux-sync-progresso > div { background: #e2e8f0; }
+:is(.page-content, .modal-box) .buscas-progresso i,
+:is(.page-content, .modal-box) .regaux-sync-progresso i { background: linear-gradient(90deg, #10b981, #34d399); }
+:is(.page-content, .modal-box) .buscas-log { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .buscas-log > strong { color: #334155; }
+:is(.page-content, .modal-box) .buscas-log li[data-tipo="sucesso"] { color: #047857; }
+:is(.page-content, .modal-box) .buscas-log li[data-tipo="alerta"] { color: #92400e; }
+:is(.page-content, .modal-box) .buscas-log li[data-tipo="erro"] { color: #be123c; }
+:is(.page-content, .modal-box) .buscas-prioridade { color: #92400e; background: #fffbeb; }
+:is(.page-content, .modal-box) .buscas-prioridade[data-prioridade="P0-CRITICA"] { color: #be123c; background: #fff1f2; }
+:is(.page-content, .modal-box) .regaux-numero,
+:is(.page-content, .modal-box) .regaux-pessoa strong { color: #0f172a; }
+:is(.page-content, .modal-box) .regaux-modalidade { color: #334155; background: #f1f5f9; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .regaux-situacao { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) #regaux-certidao-resultado[data-resultado="POSITIVA"] { color: #047857; }
+:is(.page-content, .modal-box) #regaux-certidao-resultado[data-resultado="NEGATIVA"] { color: #92400e; }
 
 /* Informar Custas: mantém os marcadores de status por cor, mas clareia a grade. */
-.page-content .custas-planilha { color: #0f172a; background: #fff; border-color: #e2e8f0; }
-.page-content .custas-abas { background: #f8fafc; border-color: #e2e8f0; }
-.page-content .custas-aba { color: #475569; }
-.page-content .custas-resumo article { color: #334155; background: #fff; border-color: #e2e8f0; box-shadow: 0 4px 16px rgba(15, 23, 42, .06); }
-.page-content .custas-resumo article span,
-.page-content .custas-resumo article small { color: #64748b; }
-.page-content .custas-resumo article strong { color: #0f172a; }
-.page-content .custas-resumo article:nth-child(2)::before { background: #059669; }
-.page-content .custas-busca { color: #64748b; background: #fff; border-color: #cbd5e1; }
-.page-content .custas-busca input { color: #0f172a; background: transparent; border: 0; }
-.page-content .custas-legenda button[data-custas-status="CUSTAS_ERRADAS"] i { background: #be123c !important; }
-.page-content .custas-aba.ativa { color: #047857; border-bottom-color: #10b981; }
-.page-content .custas-aba.ativa strong { color: #047857; background: #ecfdf5; }
-.page-content .custas-legenda button,
-.page-content .custas-acoes button,
-.page-content .custas-acoes .concluir { color: #334155; background: #fff; border-color: #cbd5e1; }
-.page-content .custas-legenda button:hover,
-.page-content .custas-legenda button.ativo,
-.page-content .custas-acoes .concluir { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .custas-table { background: #fff; }
-.page-content .custas-table tr { --custas-cor: #e2e8f0; }
-.page-content .custas-pedido,
-.page-content .custas-nome { color: #0f172a !important; }
-.page-content .custas-modalidade,
-.page-content .custas-resultado,
-.page-content .custas-status { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
-.page-content .custas-resultado.positiva { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
-.page-content .custas-resultado.negativa { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
-.page-content .custas-toast { color: #047857; background: #ecfdf5; border-color: #a7f3d0; box-shadow: 0 10px 24px rgba(15, 23, 42, .14); }
-.page-content .custas-toast.processando { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
-.page-content .custas-importacao-alerta { color: #92400e; background: #fffbeb; border-color: #fde68a; }
-.page-content .contratos-comparacao article,
-.page-content .contratos-dados-operacao,
-.page-content .contratos-bancada-ficha details { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .custas-planilha { color: #0f172a; background: #fff; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .custas-abas { background: #f8fafc; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .custas-aba { color: #475569; }
+:is(.page-content, .modal-box) .custas-resumo article { color: #334155; background: #fff; border-color: #e2e8f0; box-shadow: 0 4px 16px rgba(15, 23, 42, .06); }
+:is(.page-content, .modal-box) .custas-resumo article span,
+:is(.page-content, .modal-box) .custas-resumo article small { color: #64748b; }
+:is(.page-content, .modal-box) .custas-resumo article strong { color: #0f172a; }
+:is(.page-content, .modal-box) .custas-resumo article:nth-child(2)::before { background: #059669; }
+:is(.page-content, .modal-box) .custas-busca { color: #64748b; background: #fff; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .custas-busca input { color: #0f172a; background: transparent; border: 0; }
+:is(.page-content, .modal-box) .custas-legenda button[data-custas-status="CUSTAS_ERRADAS"] i { background: #be123c !important; }
+:is(.page-content, .modal-box) .custas-aba.ativa { color: #047857; border-bottom-color: #10b981; }
+:is(.page-content, .modal-box) .custas-aba.ativa strong { color: #047857; background: #ecfdf5; }
+:is(.page-content, .modal-box) .custas-legenda button,
+:is(.page-content, .modal-box) .custas-acoes button,
+:is(.page-content, .modal-box) .custas-acoes .concluir { color: #334155; background: #fff; border-color: #cbd5e1; }
+:is(.page-content, .modal-box) .custas-legenda button:hover,
+:is(.page-content, .modal-box) .custas-legenda button.ativo,
+:is(.page-content, .modal-box) .custas-acoes .concluir { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .custas-table { background: #fff; }
+:is(.page-content, .modal-box) .custas-table tr { --custas-cor: #e2e8f0; }
+:is(.page-content, .modal-box) .custas-pedido,
+:is(.page-content, .modal-box) .custas-nome { color: #0f172a !important; }
+:is(.page-content, .modal-box) .custas-modalidade,
+:is(.page-content, .modal-box) .custas-resultado,
+:is(.page-content, .modal-box) .custas-status { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+:is(.page-content, .modal-box) .custas-resultado.positiva { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:is(.page-content, .modal-box) .custas-resultado.negativa { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+:is(.page-content, .modal-box) .custas-toast { color: #047857; background: #ecfdf5; border-color: #a7f3d0; box-shadow: 0 10px 24px rgba(15, 23, 42, .14); }
+:is(.page-content, .modal-box) .custas-toast.processando { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+:is(.page-content, .modal-box) .custas-importacao-alerta { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+:is(.page-content, .modal-box) .contratos-comparacao article,
+:is(.page-content, .modal-box) .contratos-dados-operacao,
+:is(.page-content, .modal-box) .contratos-bancada-ficha details { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+
+/* Superfícies legadas que ainda usavam fundos escuros fixos. */
+body.sync-tema :is(.page-content, .modal-box) :is(
+  .aeri-card, .modulo-estado, .gerador-notas-rodape,
+  .gerador-notas-legislacao-ficha, .gerador-notas-grade article,
+  .gerador-notas-base-item, .rotina-intimacao-detalhes,
+  .usuario-atribuicoes, .rotina-in-form-alteracao,
+  .incra-loading, .incra-matricula-atos, .buscas-texto-fallback,
+  .imovel-resumo, .imovel-linha, .cadeia-texto-header,
+  .aprendizado-cabecalho, .rotina-busca, .usuario-perfil-select
+) {
+  color: #334155;
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: none;
+}
+body.sync-tema :is(.page-content, .modal-box) .rotina-form-header { background: #f0fdf4; border-color: #e2e8f0; }
+body.sync-tema :is(.page-content, .modal-box) .buscas-table th { color: #475569; background: #f8fafc; }
+body.sync-tema :is(.page-content, .modal-box) .imovel-alerta { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+body.sync-tema :is(.page-content, .modal-box) .gerador-notas-norma.ativa { color: #047857; background: #ecfdf5; border-color: #6ee7b7; }
+body.sync-tema :is(.page-content, .modal-box) :is(.custas-acoes-lote button, .senha-gerada button, .contratos-opcoes label span) {
+  color: #334155;
+  background: #fff;
+  border-color: #cbd5e1;
+  box-shadow: none;
+}
+body.sync-tema :is(.page-content, .modal-box) :is(.custas-acoes-lote button, .senha-gerada button):hover,
+body.sync-tema :is(.page-content, .modal-box) .contratos-opcoes input:checked + span {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+body.sync-tema :is(.page-content, .modal-box) :is(.contratos-campo-confirmado > span b, .contratos-opcoes legend b, .contratos-confirmacoes .ok strong) {
+  color: #047857;
+  background: #d1fae5;
+}
+body.sync-tema :is(.page-content, .modal-box) .contratos-confirmacoes strong { color: #92400e; background: #fef3c7; }
+body.sync-tema :is(.page-content, .modal-box) .contingencia-manual-badge { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+body.sync-tema :is(.page-content, .modal-box) .rotina-vazio { color: #475569 !important; }
+body.sync-tema :is(.page-content, .modal-box) .regaux-certidao-resumo span { color: #475569; }
+body.sync-tema :is(.page-content, .modal-box) :is(.custas-acoes-lote strong, .regaux-resultados-acoes strong) { color: #334155; }
+body.sync-tema :is(.page-content, .modal-box) button.perigo { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+body.sync-tema :is(.page-content, .modal-box) button.perigo:hover { color: #9f1239; background: #ffe4e6; border-color: #fda4af; }
+body.sync-tema :is(.page-content, .modal-box) .rotina-fila-painel > .rotina-fases .rotina-fase-btn {
+  color: #475569;
+  background: #fff;
+  border-color: #cbd5e1;
+}
+body.sync-tema :is(.page-content, .modal-box) .rotina-fila-painel > .rotina-fases .rotina-fase-btn.ativa {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+body.sync-tema :is(.page-content, .modal-box) .rotina-foco-etapa i { background: #e2e8f0; }
+body.sync-tema :is(.page-content, .modal-box) .rotina-foco-etapa.atual i { background: #fef3c7; border-color: #f59e0b; }
+body.sync-tema :is(.page-content, .modal-box) .btn:not(.btn-primary) {
+  color: #334155;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  box-shadow: none;
+}
+body.sync-tema :is(.page-content, .modal-box) .btn:not(.btn-primary):hover {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+body.sync-tema :is(.page-content, .modal-box) button:disabled,
+body.sync-tema :is(.page-content, .modal-box) .btn:disabled {
+  opacity: 1;
+  color: #64748b;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+body.sync-tema :is(.page-content, .modal-box) .btn-primary:disabled { color: #065f46; background: #d1fae5; border-color: #a7f3d0; }
+body.sync-tema :is(.page-content, .modal-box) input:is([type="checkbox"], [type="radio"]) {
+  appearance: auto;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  flex: 0 0 auto;
+  accent-color: #059669;
+  background: initial;
+  box-shadow: none;
+  color-scheme: light;
+}
+body.sync-tema .poligonos-preview-dialog,
+body.sync-tema .poligonos-preview-dialog-cabecalho {
+  color: #0f172a;
+  background: #fff;
+  border-color: #e2e8f0;
+  color-scheme: light;
+}
+body.sync-tema .poligonos-preview-dialog-cabecalho { background: #f0fdf4; }
+body.sync-tema .poligonos-preview-dialog::backdrop { background: rgba(15,23,42,.48); }
+body.sync-tema .poligonos-mapa { background: #fff; border-color: #e2e8f0; }
+body.sync-tema .mapa-creditos { color: #475569; background: rgba(255,255,255,.95); }
 
 /* Diálogos claros; as prévias documentais permanecem em papel branco. */
 .modal-overlay { background: rgba(15, 23, 42, .58); backdrop-filter: blur(3px); }
@@ -1182,7 +1283,7 @@ body.sync-tema #modal-resultado .cadeia-texto-pre { color: #0f172a; background: 
 
 @media print {
   .page-content { color: initial; background: transparent; }
-  .page-content table th,
-  .page-content table td { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  :is(.page-content, .modal-box) table th,
+  :is(.page-content, .modal-box) table td { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
 
