@@ -1010,6 +1010,98 @@ body.sync-tema #modal-rtd-exclusao .rtd-exclusao-aviso span,
 body.sync-tema #modal-rtd-exclusao .rtd-exclusao-form label span { color: #475569; }
 body.sync-tema #modal-rtd-exclusao .rtd-exclusao-status { color: #be123c; }
 
+/* O resultado da matrícula também é exibido fora de .page-content.
+   Seus cartões, abas e tabelas precisam da mesma superfície clara. */
+body.sync-tema .modal-box .rotina-btn-secondary,
+body.sync-tema .modal-box .btn-clear,
+body.sync-tema .modal-box .btn-copiar {
+  color: #334155;
+  background: #fff;
+  border-color: #cbd5e1;
+  box-shadow: none;
+}
+body.sync-tema .modal-box :is(.rotina-btn-secondary,.btn-clear,.btn-copiar):hover {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+body.sync-tema .modal-box .rotina-form-secao {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+body.sync-tema .modal-box .intimacao-documentos-avisos {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+body.sync-tema #modal-resultado .resultado-ferramentas {
+  color: #526176;
+  background: #fff;
+  border-color: #e2e8f0;
+}
+body.sync-tema #modal-resultado .tabs-container {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+body.sync-tema #modal-resultado .tab-btn {
+  color: #475569;
+  background: transparent;
+  box-shadow: none;
+}
+body.sync-tema #modal-resultado .tab-btn:hover { color: #047857; background: #ecfdf5; }
+body.sync-tema #modal-resultado .tab-btn.active {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #10b981;
+  box-shadow: none;
+}
+body.sync-tema #modal-resultado :is(.imovel-resumo,.imovel-lista,.imovel-linha,.imovel-resumo-item) {
+  background: #fff;
+  border-color: #e2e8f0;
+}
+body.sync-tema #modal-resultado .imovel-resumo { background: #f8fafc; }
+body.sync-tema #modal-resultado .imovel-resumo-item { background: transparent; }
+body.sync-tema #modal-resultado :is(.imovel-linha strong,.imovel-resumo-item strong,.codigo,.texto,.status-ato strong) { color: #0f172a; }
+body.sync-tema #modal-resultado :is(.imovel-grupo h3,.imovel-linha span,.imovel-resumo-item span) { color: #475569; }
+body.sync-tema #modal-resultado :is(.imovel-linha small,.imovel-resumo-item small,.imovel-linha-ausente strong,.status-ato) { color: #64748b; }
+body.sync-tema #modal-resultado .imovel-alerta {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+body.sync-tema #modal-resultado .imovel-alerta :is(span,small) { color: #92400e; }
+body.sync-tema #modal-resultado .controle-qualidade-alerta {
+  color: #854d0e;
+  background: #fefce8;
+  border-color: #fde68a;
+  flex-wrap: wrap;
+}
+body.sync-tema #modal-resultado .controle-qualidade-alerta strong { color: #854d0e; }
+body.sync-tema #modal-resultado .feedback-analise {
+  color: #334155;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+body.sync-tema #modal-resultado .feedback-analise p { color: #475569; }
+body.sync-tema #modal-resultado .card,
+body.sync-tema #modal-resultado .card:hover {
+  color: #0f172a;
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 8px rgba(15,23,42,.05);
+}
+body.sync-tema #modal-resultado .card-cancelado,
+body.sync-tema #modal-resultado .card-cancelado:hover { background: #f8fafc; opacity: 1; }
+body.sync-tema #modal-resultado .card-cancelado .texto { color: #64748b; }
+body.sync-tema #modal-resultado .card-header { border-color: #e2e8f0; }
+body.sync-tema #modal-resultado .badge-green { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+body.sync-tema #modal-resultado .badge-red { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+body.sync-tema #modal-resultado .badge-orange { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+body.sync-tema #modal-resultado .badge-blue { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+body.sync-tema #modal-resultado .badge-gray { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+body.sync-tema #modal-resultado .cadeia-texto-header { color: #334155; background: #f0fdf4; border-color: #e2e8f0; }
+body.sync-tema #modal-resultado .cadeia-texto-pre { color: #0f172a; background: #fff; }
+
 /* Informar Custas: controles do modal permanecem no tema claro do Sync.
    A folha antiga deixava um fundo escuro translúcido, que sobre o modal branco virava cinza. */
 #modal-custas-edicao .modal-box.custas-modal {
