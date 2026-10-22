@@ -222,7 +222,7 @@ def _selecionar_numeros_novos(
     # haver um número nunca consultado entre dois registros já indexados; a
     # antiga seleção só enxergava ausências conhecidas e ignorava esse buraco.
     cursor.execute(
-        """SELECT faixa.numero FROM generate_series(%s, %s) AS faixa(numero)
+        """SELECT faixa.numero FROM generate_series(%s::integer, %s::integer) AS faixa(numero)
         LEFT JOIN registros_auxiliares_aeri indice ON indice.numero=faixa.numero
         LEFT JOIN registros_auxiliares_varredura_aeri varredura ON varredura.numero=faixa.numero
         WHERE indice.numero IS NULL
@@ -253,7 +253,7 @@ def _selecionar_numeros_novos(
     numeros = list(dict.fromkeys([*reconsultados, *explorados]))
     if len(numeros) < tamanho:
         cursor.execute(
-            """SELECT faixa.numero FROM generate_series(%s, %s) AS faixa(numero)
+            """SELECT faixa.numero FROM generate_series(%s::integer, %s::integer) AS faixa(numero)
             LEFT JOIN registros_auxiliares_aeri indice ON indice.numero=faixa.numero
             LEFT JOIN registros_auxiliares_varredura_aeri varredura ON varredura.numero=faixa.numero
             WHERE indice.numero IS NULL
@@ -283,7 +283,7 @@ def _selecionar_numeros_lacunas(cursor, inicio: int, limite: int, tamanho: int) 
         return []
     inicio = max(1, min(inicio, limite))
     consulta = """SELECT faixa.numero
-        FROM generate_series(%s, %s) AS faixa(numero)
+        FROM generate_series(%s::integer, %s::integer) AS faixa(numero)
         LEFT JOIN registros_auxiliares_aeri indice ON indice.numero=faixa.numero
         LEFT JOIN registros_auxiliares_varredura_aeri varredura ON varredura.numero=faixa.numero
         WHERE indice.numero IS NULL
@@ -322,7 +322,7 @@ def _estado_json(cursor) -> dict:
     ausencias_registradas = cursor.fetchone()["total"]
     cursor.execute(
         """SELECT COUNT(*) AS total
-        FROM generate_series(%s, %s) AS faixa(numero)
+        FROM generate_series(%s::integer, %s::integer) AS faixa(numero)
         LEFT JOIN registros_auxiliares_aeri indice ON indice.numero=faixa.numero
         LEFT JOIN registros_auxiliares_varredura_aeri varredura ON varredura.numero=faixa.numero
         WHERE indice.numero IS NULL AND varredura.numero IS NULL""",

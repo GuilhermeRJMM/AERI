@@ -43,6 +43,7 @@ class TesteVarreduraRegistrosAuxiliares(unittest.TestCase):
         self.assertEqual(exploradas, 2)
         sql = cursor.execute.call_args_list[0].args[0]
         self.assertIn("generate_series", sql)
+        self.assertIn("generate_series(%s::integer, %s::integer)", sql)
         self.assertIn("varredura.numero IS NULL", sql)
         self.assertIn("varredura.resultado='AUSENTE'", sql)
         self.assertEqual(cursor.execute.call_args_list[0].args[1][0], 29356)
@@ -75,6 +76,7 @@ class TesteVarreduraRegistrosAuxiliares(unittest.TestCase):
         self.assertEqual(numeros, [29644, 29645, 2])
         self.assertEqual(cursor.execute.call_count, 2)
         self.assertIn("generate_series", cursor.execute.call_args_list[0].args[0])
+        self.assertIn("generate_series(%s::integer, %s::integer)", cursor.execute.call_args_list[0].args[0])
         self.assertIn("indice.numero IS NULL", cursor.execute.call_args_list[0].args[0])
         sql = cursor.execute.call_args_list[0].args[0]
         self.assertIn("varredura.resultado='AUSENTE'\n                   AND varredura.proxima_consulta_em<=NOW()", sql)
@@ -98,6 +100,7 @@ class TesteVarreduraRegistrosAuxiliares(unittest.TestCase):
         self.assertEqual(estado["lacunasRecentesNaoConsultadas"], 1)
         self.assertIsNone(estado["ultimaSondagemNovos"])
         self.assertIn("generate_series", cursor.execute.call_args_list[-1].args[0])
+        self.assertIn("generate_series(%s::integer, %s::integer)", cursor.execute.call_args_list[-1].args[0])
 
     def test_cada_ausencia_e_persistida_com_prazo_de_reconsulta(self):
         cursor = MagicMock()
