@@ -1552,7 +1552,7 @@ async function tratarAcaoTabela(evento) {
 export function iniciarIntimacoes() {
     iniciarDocumentosIntimacao((id, pares, credor) => abrirEnvioRtd(id, pares, credor));
     if (!document.getElementById('rtd-estilos')) {
-        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261021-rtd-modal-retomada-v2'; document.head.appendChild(css);
+        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261022-modais-claros-v1'; document.head.appendChild(css);
     }
     // Esta folha é carregada depois da navegação e contém regras de tema próprias.
     // Recolocamos o tema global no fim para manter a identidade do Sync também aqui.

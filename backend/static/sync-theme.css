@@ -892,6 +892,124 @@ body.sync-tema > .navbar {
 .contratos-previas pre { color: #0f172a; background: #fff; }
 .intimacao-documentos-previa article { color: #111827; background: #fff; }
 
+/* Todos os modais seguem o tema claro sem cabeçalhos ou campos acinzentados.
+   As janelas ficam fora de .page-content, então a regra precisa ser global. */
+body.sync-tema .modal-overlay {
+  background: rgba(15, 23, 42, .48);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+body.sync-tema .modal-overlay .modal-box {
+  color-scheme: light;
+  color: #0f172a;
+  background: #fff;
+  border: 1px solid #dbe3ec;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, .24);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body.sync-tema .modal-overlay .modal-box::before,
+body.sync-tema .modal-overlay .modal-box::after { content: none; }
+body.sync-tema .modal-overlay .modal-box .rotina-form-header {
+  color: #0f172a;
+  background: linear-gradient(110deg, #ecfdf5 0%, #f8fafc 78%);
+  border-color: #dbe3ec;
+}
+body.sync-tema .modal-overlay .modal-box :is(h1,h2,h3,h4,h5,h6,label,legend,summary),
+body.sync-tema .modal-overlay .modal-box .rotina-form-header :is(h1,h2,h3,h4,h5,h6) {
+  color: #0f172a;
+}
+body.sync-tema .modal-overlay .modal-box :is(p,small),
+body.sync-tema .modal-overlay .modal-box .rotina-form-header p { color: #526176; }
+body.sync-tema .modal-overlay .modal-box label > span,
+body.sync-tema .modal-overlay .modal-box .rtd-envio-secao label > span,
+body.sync-tema .modal-overlay .modal-box .rtd-envio-linha label > span,
+body.sync-tema .modal-overlay .modal-box .rtd-envio-endereco label > span {
+  color: #475569;
+}
+body.sync-tema .modal-overlay .modal-box input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]),
+body.sync-tema .modal-overlay .modal-box select,
+body.sync-tema .modal-overlay .modal-box textarea,
+body.sync-tema .modal-overlay .modal-box [contenteditable="true"] {
+  color: #0f172a;
+  background: #fff;
+  border-color: #cbd5e1;
+  opacity: 1;
+  box-shadow: none;
+}
+body.sync-tema .modal-overlay .modal-box input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):is(:disabled,[readonly]),
+body.sync-tema .modal-overlay .modal-box select:disabled,
+body.sync-tema .modal-overlay .modal-box textarea:is(:disabled,[readonly]) {
+  color: #334155;
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  opacity: 1;
+  -webkit-text-fill-color: #334155;
+  cursor: not-allowed;
+}
+body.sync-tema .modal-overlay .modal-box :is(input,select,textarea)::placeholder { color: #64748b; opacity: 1; }
+body.sync-tema .modal-overlay .modal-box select option { color: #0f172a; background: #fff; }
+body.sync-tema .modal-overlay .modal-box :is(input,select,textarea,[contenteditable="true"]):focus {
+  border-color: #059669;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, .16);
+}
+body.sync-tema .modal-overlay .modal-box .modal-fechar {
+  color: #334155;
+  background: #fff;
+  border-color: #cbd5e1;
+}
+body.sync-tema .modal-overlay .modal-box .modal-fechar:hover {
+  color: #be123c;
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+body.sync-tema #modal-trocar-senha #form-trocar-senha { grid-template-columns: minmax(0, 1fr); }
+body.sync-tema #modal-trocar-senha #form-trocar-senha > label,
+body.sync-tema #modal-trocar-senha #form-trocar-senha .rotina-form-actions { grid-column: 1; }
+body.sync-tema #modal-trocar-senha #form-trocar-senha > label { width: 100%; }
+body.sync-tema #modal-trocar-senha #form-trocar-senha input { box-sizing: border-box; width: 100%; min-height: 44px; }
+body.sync-tema #modal-trocar-senha #form-trocar-senha .rotina-form-actions { justify-content: flex-end; }
+body.sync-tema #modal-rtd-notificacao .rtd-envio-secao,
+body.sync-tema #modal-rtd-notificacao .rtd-envio-documentos-lista {
+  color: #334155;
+  background: #f8fafc;
+  border-color: #dbe3ec;
+}
+body.sync-tema #modal-rtd-notificacao .rtd-envio-cabecalho h3,
+body.sync-tema #modal-rtd-notificacao .rtd-envio-secao h3,
+body.sync-tema #modal-rtd-notificacao .rtd-notificado h4 { color: #0f172a; }
+body.sync-tema #modal-rtd-notificacao .rtd-envio-ajuda,
+body.sync-tema #modal-rtd-notificacao .rtd-envio-status,
+body.sync-tema #modal-rtd-notificacao .rtd-envio-documentos-lista { color: #526176; }
+body.sync-tema #modal-rtd-notificacao .rtd-envio-checkbox,
+body.sync-tema #modal-rtd-notificacao .rtd-envio-confirmacao { color: #334155; }
+body.sync-tema #modal-rtd-notificacao .rtd-envio-cabecalho button,
+body.sync-tema #modal-rtd-notificacao .rtd-envio-secao-titulo button {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+body.sync-tema #modal-rtd-notificacao .rtd-envio-status.is-homologacao {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+body.sync-tema #modal-rtd-exclusao .rtd-exclusao-modal {
+  color: #0f172a;
+  background: #fff;
+  border-color: #dbe3ec;
+}
+body.sync-tema #modal-rtd-exclusao .rtd-exclusao-modal .rotina-form-header { background: #fff7f7; }
+body.sync-tema #modal-rtd-exclusao .rtd-exclusao-aviso {
+  color: #9f1239;
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+body.sync-tema #modal-rtd-exclusao .rtd-exclusao-aviso span,
+body.sync-tema #modal-rtd-exclusao .rtd-exclusao-form label span { color: #475569; }
+body.sync-tema #modal-rtd-exclusao .rtd-exclusao-status { color: #be123c; }
+
 /* Informar Custas: controles do modal permanecem no tema claro do Sync.
    A folha antiga deixava um fundo escuro translúcido, que sobre o modal branco virava cinza. */
 #modal-custas-edicao .modal-box.custas-modal {
