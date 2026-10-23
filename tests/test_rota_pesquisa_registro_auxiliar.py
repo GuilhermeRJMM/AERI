@@ -1,6 +1,7 @@
 import os
 import unittest
 from unittest.mock import MagicMock, patch
+from fastapi import HTTPException
 
 from backend.app.rotas.registros_auxiliares import pesquisar_registros_auxiliares
 
@@ -22,6 +23,31 @@ def _sql_e_parametros(cursor):
 
 
 class TestePesquisaRegistroAuxiliar(unittest.TestCase):
+    @patch("backend.app.rotas.registros_auxiliares.conectar")
+    def test_produto_e_safra_sao_filtros_independentes_opcionais(self, conectar_mock):
+        for produto, safra in [("", ""), ("Soja", ""), ("", "2026/2027"), ("Soja", "2026/2027")]:
+            with self.subTest(produto=produto, safra=safra):
+                conexao, cursor = _conexao_falsa()
+                conectar_mock.return_value = conexao
+                pesquisar_registros_auxiliares(
+                    busca="João da Silva", produto=produto, safra=safra,
+                    limite=100, _usuario="TESTE",
+                )
+                sql, parametros = _sql_e_parametros(cursor)
+                self.assertEqual(bool(produto), "produtos ? %s" in sql)
+                self.assertEqual(bool(safra), "safras ? %s" in sql)
+                self.assertIn("situacao='ATIVO'", sql)
+                self.assertIn("%JOAO DA SILVA%", parametros)
+                self.assertIn("LIMIT %s", sql)
+                self.assertEqual(100, parametros[-1])
+
+    @patch("backend.app.rotas.registros_auxiliares.conectar")
+    def test_nome_ou_documento_continua_obrigatorio(self, conectar_mock):
+        with self.assertRaises(HTTPException) as erro:
+            pesquisar_registros_auxiliares(busca="  ", produto="Soja", safra="2026/2027", _usuario="TESTE")
+        self.assertEqual(422, erro.exception.status_code)
+        conectar_mock.assert_not_called()
+
     @patch("backend.app.rotas.registros_auxiliares.conectar")
     def test_digito_solto_no_nome_nao_vira_filtro_de_documento(self, conectar_mock):
         # Regressão: o filtro de documento nascia de qualquer dígito presente

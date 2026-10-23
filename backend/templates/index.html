@@ -832,8 +832,8 @@
                     <section class="regaux-pesquisa-card">
                         <form id="form-regaux-pesquisa" class="regaux-form">
                             <label class="regaux-busca-principal"><span>Emitente/devedor ou CPF/CNPJ</span><input id="regaux-busca" required placeholder="Ex.: João da Silva ou 000.000.000-00"></label>
-                            <label><span>Produto</span><input id="regaux-produto" required placeholder="Ex.: Soja ou bovinos"></label>
-                            <label><span>Safra</span><input id="regaux-safra" required placeholder="Ex.: 2026/2027"></label>
+                            <label><span>Produto (opcional)</span><input id="regaux-produto" placeholder="Todos os produtos"></label>
+                            <label><span>Safra (opcional)</span><input id="regaux-safra" placeholder="Todas as safras"></label>
                             <label><span>Modalidade</span><select id="regaux-modalidade"><option value="">Todas</option><option value="PENHOR">Penhor</option><option value="ALIENACAO">Alienação</option><option value="OUTROS">Outros</option></select></label>
                             <button class="btn btn-primary" id="btn-regaux-pesquisar" type="submit">Pesquisar</button>
                         </form>
@@ -849,7 +849,7 @@
                         <div class="regaux-table-wrap">
                             <table class="regaux-table">
                                 <thead><tr><th>Registro</th><th>Situação</th><th>Modalidade</th><th>Emitente/devedor</th><th>Produto</th><th>Safra</th></tr></thead>
-                                <tbody id="regaux-resultados"><tr><td colspan="6" class="rotina-vazio">Informe emitente/devedor, produto e safra para pesquisar.</td></tr></tbody>
+                                <tbody id="regaux-resultados"><tr><td colspan="6" class="rotina-vazio">Informe emitente/devedor ou CPF/CNPJ. Produto e safra são opcionais.</td></tr></tbody>
                             </table>
                         </div>
                     </section>

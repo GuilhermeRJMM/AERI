@@ -381,10 +381,10 @@ def pesquisar_registros_auxiliares(
     produto = normalizar_busca(produto)[:30]
     safra = normalizar_safra(safra)
     modalidade = normalizar_busca(modalidade)[:20]
-    if not termo or not produto or not safra:
+    if not termo:
         raise HTTPException(
             status_code=422,
-            detail="Informe o nome ou CPF/CNPJ, o produto e a safra.",
+            detail="Informe o nome ou CPF/CNPJ.",
         )
     if modalidade not in {"", "PENHOR", "ALIENACAO", "OUTROS"}:
         raise HTTPException(status_code=422, detail="Modalidade inválida.")
