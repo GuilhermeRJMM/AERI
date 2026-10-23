@@ -128,11 +128,11 @@ class TestCapacidadeDoExecutor:
             raise HTTPException(status_code=409, detail="já existe indexação em andamento")
         assert self.passo(monkeypatch, ocupado) is True
 
-    def test_tri7_fora_do_ar_nao_rebaixa_a_maquina(self, monkeypatch):
-        """O cron bateria na mesma parede; abrir mão dele não ajudaria."""
+    def test_falha_no_executor_nao_suprime_a_tentativa_do_cron(self, monkeypatch):
+        """A presença operacional não comprova que as fontes atualizaram."""
         def caiu(_pedido, _usuario):
             raise TimeoutError("sem resposta")
-        assert self.passo(monkeypatch, caiu) is True
+        assert self.passo(monkeypatch, caiu) is False
 
     def test_lote_processado_e_capacidade(self, monkeypatch):
         assert self.passo(monkeypatch, lambda _p, _u: {"modo": "REVISAO", "processados": 30}) is True

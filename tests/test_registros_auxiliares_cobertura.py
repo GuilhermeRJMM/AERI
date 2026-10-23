@@ -179,7 +179,7 @@ class TesteModoAutomaticoDoCron(unittest.TestCase):
     def test_carga_inicial_tem_prioridade(self):
         cursor = _cursor(fetchone={
             "proximo_inicial": 500, "limite_inicial": 29538,
-            "ultimo_conhecido": 29538, "proximo_revisao": 1,
+            "ultimo_conhecido": 29538, "proximo_revisao": 1, "ciclo_automatico": 2,
         })
 
         self.assertEqual(_proximo_modo_automatico(cursor), "INICIAL")
@@ -189,7 +189,7 @@ class TesteModoAutomaticoDoCron(unittest.TestCase):
         cursor.fetchone.side_effect = [
             {"proximo_inicial": 29539, "limite_inicial": 29538,
              "ultimo_existente": 29538, "proximo_revisao": 1,
-             "ciclo_automatico": 4},
+             "ciclo_automatico": 6},
             {"total": 4},
         ]
 
@@ -200,7 +200,7 @@ class TesteModoAutomaticoDoCron(unittest.TestCase):
         cursor.fetchone.side_effect = [
             {"proximo_inicial": 29539, "limite_inicial": 29538,
              "ultimo_existente": 29538, "proximo_revisao": 1,
-             "ciclo_automatico": 4},
+             "ciclo_automatico": 6},
             {"total": 0},
         ]
 

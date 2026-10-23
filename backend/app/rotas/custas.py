@@ -238,7 +238,7 @@ def incluir_busca_registro_auxiliar(
 
     with conectar() as conexao:
         with conexao.cursor() as cursor:
-            numeros = localizar_registros_custas(cursor, pedido_busca)
+            numeros = localizar_registros_custas(cursor, pedido_busca, recuperar=True)
             resultado = "POSITIVA" if numeros else "NEGATIVA"
             status = "BUSCA_REALIZADA"
             identificador = uuid4()
@@ -320,6 +320,7 @@ async def importar_relatorio(
         pendentes = 0
         itens_importados = []
         valor_total = 0.0
+        contexto_recuperacao = {}
         with conectar() as conexao:
             with conexao.cursor() as cursor:
                 # Tabela de precos lida uma vez, e nao por pedido do relatorio.
@@ -352,6 +353,7 @@ async def importar_relatorio(
                             preco,
                             indice_confiavel=bool(indice["confiavel"]),
                             motivo_indice=indice.get("motivo"),
+                            contexto_recuperacao=contexto_recuperacao,
                         )
                         itens_importados.append(busca["item"])
                         positivas += 1 if busca["resultado"] == "POSITIVA" else 0
@@ -445,17 +447,17 @@ def _preco_certidao_registro_auxiliar(cursor) -> Decimal:
 
 
 def _pesquisar_registros(
-    cursor, pedido, usuario, preco=None, *, indice_confiavel: bool = True, motivo_indice: str | None = None
+    cursor, pedido, usuario, preco=None, *, indice_confiavel: bool = True, motivo_indice: str | None = None,
+    contexto_recuperacao=None,
 ) -> dict:
     """Procura o pedido no Registro Auxiliar e grava o resultado.
 
-    A consulta e local, no indice ja sincronizado: nao ha chamada externa, entao
-    a importacao pode rodar isto para cada pedido na mesma transacao. `preco`
-    permite ler a tabela de precos uma vez por relatorio, e nao por pedido.
+    Recupera candidatos incompletos sem multiplicar consultas externas por
+    pedido do relatório. `preco` continua compartilhado pela importação.
     """
     if preco is None:
         preco = _preco_certidao_registro_auxiliar(cursor)
-    numeros = localizar_registros_custas(cursor, pedido)
+    numeros = localizar_registros_custas(cursor, pedido, recuperar=True, contexto=contexto_recuperacao)
     resultado = "POSITIVA" if numeros else "NEGATIVA"
     status = "BUSCA_REALIZADA"
     cursor.execute(

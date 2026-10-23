@@ -623,12 +623,8 @@ def passo_automatico(request=None, usuario: str = "cron") -> dict:
             validar_configuracao_buscas()
         except RuntimeError as erro:
             raise HTTPException(503, 'Indexação indisponível: configuração de segurança ausente no servidor.') from erro
-        from backend.app.servicos.buscas_movimentacoes import recuperar_movimentacoes
-        from backend.app.rotas.buscas_indexacao import logger
-        try:
-            recuperar_movimentacoes()
-        except Exception as erro:
-            logger.warning('recuperar_movimentacoes tipo=%s', type(erro).__name__)
+        # A descoberta do Livro tem laço próprio no executor. Um lote de
+        # matrículas não deve esperar a aquisição de movimentações.
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             modo = _proximo_modo_automatico(cursor)
@@ -650,4 +646,10 @@ def cron_buscas(request: Request):
         with conexao.cursor() as cursor:
             if executor_ativo(cursor):
                 return {"estado": "EXECUTOR_ATIVO", "detalhe": "indexação em curso na serventia"}
+    from backend.app.servicos.buscas_movimentacoes import recuperar_movimentacoes
+    from backend.app.rotas.buscas_indexacao import logger
+    try:
+        recuperar_movimentacoes()
+    except Exception as erro:
+        logger.warning('recuperar_movimentacoes tipo=%s', type(erro).__name__)
     return passo_automatico(request, "cron")

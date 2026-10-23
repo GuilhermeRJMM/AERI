@@ -128,7 +128,13 @@ class TesteExecutorOperacional(unittest.TestCase):
             for chave in ("AERI_CONTRATOS_ENCRYPTION_KEY", "AERI_BUSCAS_HMAC_KEY"):
                 with self.subTest(banco=banco, chave=chave):
                     ambiente = {banco: "postgres://teste", chave: "x" * 40}
-                    with patch.dict("os.environ", ambiente, clear=True),                          patch.object(worker, "carregar_env"),                          patch.object(worker, "preparar_banco") as preparar,                          patch.object(worker, "executar_passo", return_value={"estado": "OK"}),                          patch.object(worker, "processar_proximo_contrato",
+                    with patch.dict("os.environ", ambiente, clear=True), \
+                         patch.object(worker, "ciclo_indexacao"), \
+                         patch.object(worker, "recuperar_movimentacoes"), \
+                         patch.object(worker, "registrar_presenca"), \
+                         patch.object(worker, "processar_preparacao_intimacao", return_value={"estado": "SEM_TRABALHO"}), \
+                         patch.object(worker, "carregar_env"), patch.object(worker, "preparar_banco") as preparar, \
+                         patch.object(worker, "executar_passo", return_value={"estado": "OK"}), patch.object(worker, "processar_proximo_contrato",
                                       return_value={"estado": "SEM_TRABALHO"}),                          patch("sys.argv", ["worker", "--once"]):
                         self.assertEqual(worker.main(), 0)
                     preparar.assert_called_once()
@@ -167,6 +173,10 @@ class TesteExecutorOperacional(unittest.TestCase):
         with patch.dict("os.environ", ambiente, clear=True), \
              patch.object(worker, "carregar_env"), \
              patch.object(worker, "preparar_banco"), \
+             patch.object(worker, "ciclo_indexacao"), \
+             patch.object(worker, "recuperar_movimentacoes"), \
+             patch.object(worker, "registrar_presenca"), \
+             patch.object(worker, "processar_preparacao_intimacao", return_value={"estado": "SEM_TRABALHO"}), \
              patch.object(worker, "executar_passo", return_value={"estado": "OK"}), \
              patch.object(worker, "processar_proximo_contrato", return_value={"estado": "SEM_TRABALHO"}), \
              patch.object(worker, "fechar_pool") as fechar, \

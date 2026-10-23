@@ -1,13 +1,17 @@
 import io
 import re
 import unicodedata
+import logging
+import time
+from datetime import datetime, timezone
+from dataclasses import replace
 
 import pymupdf
 from fastapi import HTTPException
 from pypdf import PdfReader
 from psycopg.types.json import Jsonb
 
-from backend.app.servicos.buscas import hash_documento
+from backend.app.servicos.buscas import hash_documento, mascarar_documento
 from backend.app.servicos.registros_auxiliares import normalizar_busca, normalizar_safra
 
 
@@ -31,8 +35,48 @@ STATUS_CUSTAS = {
 STATUS_FINAIS = {"DUPLICADO_DEVOLVIDO", "RESPONDIDO", "SEM_PAGAMENTO"}
 
 
-def localizar_registros_custas(cursor, pedido: dict) -> list[int]:
-    """Pesquisa nome e CPF/CNPJ sem permitir que um deles invalide o outro."""
+def _identidade_compativel(item, pedido, protegido):
+    """CPF prevalece; nome é alternativa, não autorização para trocar de CPF."""
+    if protegido and protegido in (item.get("documentos_hash") or []):
+        return True
+    termo = normalizar_busca(pedido.get("nome", ""))
+    if len(termo) < 3 or termo in {"NAO CONSTA", "NÃO CONSTA"}:
+        return False
+    # Índices antigos não têm hash por pessoa. A máscara só serve para
+    # descartar contradição; nunca para confirmar uma identidade por si só.
+    mascara = mascarar_documento(pedido.get("documento", "")) if protegido else ""
+    for pessoa in item.get("pessoas") or []:
+        if termo not in normalizar_busca(pessoa.get("nome", "")):
+            continue
+        if protegido and pessoa.get("documento_hash"):
+            if pessoa["documento_hash"] != protegido:
+                continue
+        elif mascara and pessoa.get("documento") and pessoa["documento"] != mascara:
+            continue
+        return True
+    # Compatibilidade com registros legados cujo nome agregado foi preservado.
+    return not item.get("pessoas") and termo in (item.get("nomes_busca") or "")
+
+
+def _registro_atende_custas(item, pedido, protegido):
+    modalidade = "ALIENAÇÃO" if pedido.get("modalidade") == "ALIENACAO_FIDUCIARIA" else pedido.get("modalidade")
+    ano = ano_safrinha_custas(pedido.get("safra", ""))
+    safras = {f"{ano-1}/{ano}", f"{ano}/{ano}"} if ano else {normalizar_safra(pedido.get("safra", ""))}
+    return (
+        item.get("situacao") == "ATIVO" and item.get("modalidade") == modalidade
+        and normalizar_busca(pedido.get("produto", "")) in (item.get("produtos") or [])
+        and bool(safras.intersection(item.get("safras") or []))
+        and _identidade_compativel(item, pedido, protegido)
+    )
+
+
+def localizar_registros_custas(cursor, pedido: dict, *, recuperar=False, contexto=None) -> list[int]:
+    """Caminho rápido compatível, seguido de recuperação por pessoa na busca.
+
+    A revalidação de fundo usa somente o índice. Na pesquisa solicitada pelo
+    usuário recuperamos candidatos ANTES de exigir safra/produto, consultando
+    pontualmente os incompletos/antigos e enfileirando o restante.
+    """
     termo = normalizar_busca(pedido.get("nome", ""))
     documento = "".join(c for c in pedido.get("documento", "") if c.isdigit())
     safra = pedido.get("safra", "")
@@ -51,19 +95,92 @@ def localizar_registros_custas(cursor, pedido: dict) -> list[int]:
     parametros.append(
         "ALIENAÇÃO" if pedido.get("modalidade") == "ALIENACAO_FIDUCIARIA" else pedido.get("modalidade")
     )
-    if len(documento) in {11, 14}:
+    protegido = hash_documento(documento) if len(documento) in {11, 14} else ""
+    nome_valido = len(termo) >= 3 and termo not in {"NAO CONSTA", "NÃO CONSTA"}
+    if not protegido and not nome_valido:
+        return []
+    if protegido:
         # O documento vem primeiro por ser mais estável. O nome permanece no
         # OR para o acervo antigo em que o CPF/CNPJ não pôde ser indexado.
         filtros.append("(documentos_hash ? %s OR nomes_busca LIKE %s)")
-        parametros.extend((hash_documento(documento), f"%{termo}%"))
+        parametros.extend((protegido, f"%{termo}%" if nome_valido else ""))
     else:
         filtros.append("nomes_busca LIKE %s")
         parametros.append(f"%{termo}%")
     cursor.execute(
-        f"SELECT numero FROM registros_auxiliares_aeri WHERE {' AND '.join(filtros)} ORDER BY numero",
+        f"SELECT * FROM registros_auxiliares_aeri WHERE {' AND '.join(filtros)} ORDER BY numero",
         tuple(parametros),
     )
-    return [item["numero"] for item in cursor.fetchall()]
+    encontrados = cursor.fetchall()
+    numeros = {
+        item["numero"] for item in encontrados
+        if "pessoas" not in item or _identidade_compativel(item, pedido, protegido)
+    }
+    if not recuperar:
+        return sorted(numeros)
+    return _recuperar_candidatos_custas(cursor, pedido, protegido, termo, nome_valido, numeros, contexto)
+
+
+def _recuperar_candidatos_custas(cursor, pedido, protegido, termo, nome_valido, numeros, contexto):
+    # Sem filtro de safra/produto/situação: ausência de extração não é prova
+    # de ausência do registro. O teto limita apenas consultas imediatas;
+    # todos os candidatos elegíveis entram na fila persistente em um INSERT.
+    identidade = "(documentos_hash ? %s OR nomes_busca LIKE %s)" if protegido else "nomes_busca LIKE %s"
+    parametros = (protegido, f"%{termo}%" if nome_valido else "") if protegido else (f"%{termo}%",)
+    elegivel = """(pessoas='[]'::jsonb OR produtos='[]'::jsonb OR safras='[]'::jsonb
+        OR modalidade='OUTROS' OR consultado_em<NOW()-INTERVAL '1 day')"""
+    cursor.execute(
+        f"""INSERT INTO fila_registros_auxiliares_aeri(numero, motivo)
+        SELECT numero, 'CANDIDATO_CUSTAS' FROM registros_auxiliares_aeri
+        WHERE {identidade} AND {elegivel}
+        ON CONFLICT(numero) DO NOTHING""", parametros,
+    )
+    cursor.execute(
+        f"""SELECT * FROM registros_auxiliares_aeri WHERE {identidade} AND {elegivel}
+        ORDER BY (produtos='[]'::jsonb OR safras='[]'::jsonb) DESC, consultado_em, numero LIMIT 8""",
+        parametros,
+    )
+    candidatos = cursor.fetchall()
+    contexto = contexto if contexto is not None else {}
+    cache = contexto.setdefault("registros", {})
+    contexto.setdefault("consultas", 0)
+    contexto.setdefault("inicio", time.monotonic())
+    cliente = None
+    revisados = False
+    for item in candidatos:
+        if "pessoas" not in item:
+            continue
+        numero = item["numero"]
+        if numero in cache:
+            atual = cache[numero]
+        else:
+            # Orçamento compartilhado por relatório, não multiplicado por IN.
+            if contexto["consultas"] >= 2 or time.monotonic() - contexto["inicio"] >= 8:
+                continue
+            contexto["consultas"] += 1
+            try:
+                if cliente is None:
+                    from backend.app.servicos.tri7 import ClienteTri7, cliente_tri7
+                    original = cliente_tri7()
+                    cliente = ClienteTri7(replace(original.configuracao, timeout=3, tentativas_transitorias=1))
+                solicitada_ate = datetime.now(timezone.utc)
+                texto = cliente.buscar_texto_registro_auxiliar(numero)["texto"]
+            except Exception as erro:
+                logging.getLogger(__name__).warning("recuperar_candidato_custas tipo=%s", type(erro).__name__)
+                cache[numero] = None
+                continue
+            from backend.app.rotas.registros_auxiliares import _salvar_indice
+            # A persistência usa o mesmo parser e a mesma proteção de documentos.
+            atual, _novo = _salvar_indice(cursor, numero, texto, solicitada_ate=solicitada_ate)
+            revisados = True
+            cache[numero] = atual
+        if atual is not None:
+            numeros.discard(numero)
+            if _registro_atende_custas(atual, pedido, protegido):
+                numeros.add(numero)
+    if revisados:
+        revalidar_negativas_custas(cursor, "recuperacao_custas")
+    return sorted(numeros)
 
 
 def revalidar_negativas_custas(

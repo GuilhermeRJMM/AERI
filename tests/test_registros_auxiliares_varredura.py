@@ -140,7 +140,7 @@ class TesteVarreduraRegistrosAuxiliares(unittest.TestCase):
         cursor.fetchone.return_value = {
             "proximo_inicial": 29636,
             "limite_inicial": 29635,
-            "ciclo_automatico": 2,
+            "ciclo_automatico": 4,
         }
 
         modo = _proximo_modo_automatico(cursor)

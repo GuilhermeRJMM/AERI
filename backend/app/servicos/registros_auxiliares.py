@@ -3,7 +3,7 @@ import re
 import unicodedata
 from decimal import Decimal
 
-from backend.app.servicos.buscas import HASH_DOCUMENTOS_VERSAO, hash_documento, mascarar_documento
+from backend.app.servicos.buscas import HASH_DOCUMENTOS_VERSAO, hash_documentos, mascarar_documento
 
 
 PRODUTOS = (
@@ -251,14 +251,12 @@ def extrair_indice_registro_auxiliar(numero: int | str, texto: str) -> dict:
 
     pessoas_extraidas = _extrair_pessoas(texto)
     nomes_busca = " | ".join(normalizar_busca(item["nome"]) for item in pessoas_extraidas)
-    documentos_hash = list(dict.fromkeys(
-        protegido
-        for item in pessoas_extraidas
-        if (protegido := hash_documento(item["documento"]))
-    ))
+    hashes_pessoas = hash_documentos(item["documento"] for item in pessoas_extraidas)
+    documentos_hash = list(dict.fromkeys(protegido for protegido in hashes_pessoas if protegido))
     pessoas = [
-        {**item, "documento": mascarar_documento(item["documento"])}
-        for item in pessoas_extraidas
+        {**item, "documento": mascarar_documento(item["documento"]),
+         "documento_hash": protegido}
+        for item, protegido in zip(pessoas_extraidas, hashes_pessoas)
     ]
     return {
         "numero": int(numero),
@@ -278,7 +276,7 @@ def extrair_indice_registro_auxiliar(numero: int | str, texto: str) -> dict:
 def registro_auxiliar_json(item: dict) -> dict:
     pessoas = [
         {
-            **pessoa,
+            **{chave: valor for chave, valor in pessoa.items() if chave != "documento_hash"},
             "documento": mascarar_documento(pessoa.get("documento", "")),
         }
         for pessoa in (item.get("pessoas") or [])

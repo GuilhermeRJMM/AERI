@@ -3,6 +3,7 @@ from backend.app.database import conectar
 from backend.app.seguranca_web import registrar_auditoria_cursor
 from backend.app.servicos.buscas_mencoes import enfileirar_matriculas
 from backend.app.servicos.custas import revalidar_negativas_custas
+from backend.app.servicos.fila_auxiliares import enfileirar_auxiliares
 
 
 def reindexar_registros(alterados, cache_textos, cliente, request=None, usuario='executor',
@@ -45,6 +46,8 @@ def reindexar_registros(alterados, cache_textos, cliente, request=None, usuario=
                         relatorio['numerosComFalha'].append(f'{tipo}.{numero}')
                     if tipo == 'M':
                         enfileirar_matriculas(cur, [numero], 'LIVRO_PROTOCOLOS')
+                    else:
+                        enfileirar_auxiliares(cur, [numero], 'LIVRO_PROTOCOLOS')
 
             # O Livro de Protocolos tambem alimenta o indice do Registro
             # Auxiliar. Assim que um desses textos entra (novo ou alterado),

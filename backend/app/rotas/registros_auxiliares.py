@@ -1,6 +1,7 @@
 import hmac
 import os
 import threading
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -11,6 +12,7 @@ from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
 from backend.app.servicos.executor_presenca import executor_ativo
 from backend.app.servicos.custas import revalidar_negativas_custas
+from backend.app.servicos.fila_auxiliares import concluir_auxiliar, reagendar_auxiliar
 from backend.app.servicos.registros_auxiliares import (
     extrair_indice_registro_auxiliar,
     normalizar_busca,
@@ -98,7 +100,7 @@ def _consultar_lote_tri7(numeros: list[int]) -> tuple[list[dict], str | None]:
     return resultados, falha
 
 
-def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool]:
+def _salvar_indice(cursor, numero: int, texto: str, *, solicitada_ate=None) -> tuple[dict, bool]:
     indice = extrair_indice_registro_auxiliar(numero, texto)
     cursor.execute(
         "SELECT texto_hash FROM registros_auxiliares_aeri WHERE numero=%s",
@@ -138,6 +140,8 @@ def _salvar_indice(cursor, numero: int, texto: str) -> tuple[dict, bool]:
     item = cursor.fetchone()
     _limpar_erro(cursor, numero)
     _registrar_consulta_varredura(cursor, numero, "ENCONTRADO")
+    if solicitada_ate is not None:
+        concluir_auxiliar(cursor, numero, solicitada_ate)
     item["alterado"] = alterado
     return item, anterior is None
 
@@ -157,6 +161,7 @@ def _registrar_erro(cursor, numero: int, modo: str, erro: Exception) -> None:
         (numero, modo, str(erro)[:500]),
     )
     _registrar_consulta_varredura(cursor, numero, "ERRO")
+    reagendar_auxiliar(cursor, numero)
 
 
 def _registrar_consulta_varredura(cursor, numero: int, resultado: str) -> None:
@@ -204,6 +209,8 @@ def _limpar_erro(cursor, numero: int) -> None:
 def _salvar_ausencia(cursor, numero: int) -> None:
     _limpar_erro(cursor, numero)
     _registrar_consulta_varredura(cursor, numero, "AUSENTE")
+    # A Tri7 pode publicar o texto depois do lançamento no Livro.
+    reagendar_auxiliar(cursor, numero)
 
 
 def _selecionar_numeros_novos(
@@ -601,6 +608,13 @@ def _executar_sincronizacao(
                     numeros = _selecionar_numeros_lacunas(
                         cursor, estado.get("proximo_lacuna", 1), limite_lacunas, tamanho,
                     )
+                elif modo == "PRIORITARIA":
+                    cursor.execute(
+                        """SELECT numero FROM fila_registros_auxiliares_aeri
+                        WHERE proxima_tentativa_em<=NOW()
+                        ORDER BY solicitada_em, numero LIMIT %s""", (tamanho,),
+                    )
+                    numeros = [item["numero"] for item in cursor.fetchall()]
                 elif modo == "REVISAO":
                     cursor.execute(
                         """SELECT numero FROM registros_auxiliares_aeri
@@ -638,6 +652,7 @@ def _executar_sincronizacao(
                 # à Tri7 em vez de segurar linhas por até 20s x tamanho do lote.
                 conexao.commit()
 
+                solicitada_ate = datetime.now(timezone.utc)
                 resultados, falha = _consultar_lote_tri7(numeros)
 
                 processados = encontrados = novos = alterados = ausentes = falhas = 0
@@ -648,7 +663,7 @@ def _executar_sincronizacao(
                 for resultado in resultados:
                     numero = resultado["numero"]
                     if resultado["status"] == "OK":
-                        _item, inserido = _salvar_indice(cursor, numero, resultado["texto"])
+                        _item, inserido = _salvar_indice(cursor, numero, resultado["texto"], solicitada_ate=solicitada_ate)
                         encontrados += 1
                         novos += int(inserido)
                         if inserido:
@@ -712,7 +727,7 @@ def _executar_sincronizacao(
                         WHERE id=1""",
                         (ultimo_processado + 1,),
                     )
-                elif modo == "ERROS" and ultimo_processado is not None:
+                elif modo in {"ERROS", "PRIORITARIA"} and ultimo_processado is not None:
                     cursor.execute(
                         """UPDATE sincronizacao_registros_auxiliares_aeri
                         SET ultima_sincronizacao=NOW(), atualizado_em=NOW() WHERE id=1"""
@@ -731,7 +746,7 @@ def _executar_sincronizacao(
                     modo == "NOVOS" and ausentes > 0 and falhas == 0 and not falha
                 )
                 custas_revalidadas = []
-                if novos or alterados or fronteira_conferida:
+                if novos or alterados or fronteira_conferida or (modo == "PRIORITARIA" and encontrados):
                     custas_revalidadas = revalidar_negativas_custas(
                         cursor,
                         usuario,
@@ -786,10 +801,15 @@ def _proximo_modo_automatico(cursor) -> str | None:
         SET ciclo_automatico=ciclo_automatico+1 WHERE id=1 RETURNING *"""
     )
     estado = cursor.fetchone()
+    ciclo = ("PRIORITARIA", "NOVOS", "REVISAO", "LACUNAS", "PRIORITARIA", "ERROS", "LACUNAS", "REVISAO")
+    modo = ciclo[(estado.get("ciclo_automatico", 1) - 1) % len(ciclo)]
+    if modo == "PRIORITARIA":
+        cursor.execute("SELECT COUNT(*) AS total FROM fila_registros_auxiliares_aeri WHERE proxima_tentativa_em<=NOW()")
+        if cursor.fetchone()["total"]:
+            return modo
+        modo = "REVISAO"
     if estado["proximo_inicial"] <= estado["limite_inicial"]:
         return "INICIAL"
-    ciclo = ("NOVOS", "LACUNAS", "REVISAO", "ERROS", "LACUNAS", "REVISAO")
-    modo = ciclo[(estado.get("ciclo_automatico", 1) - 1) % len(ciclo)]
     if modo == "ERROS":
         cursor.execute(
             """SELECT COUNT(*) AS total FROM registros_auxiliares_erros_aeri

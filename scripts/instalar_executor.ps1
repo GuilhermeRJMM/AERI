@@ -15,12 +15,15 @@
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\instalar_executor.ps1 -Remover
 #
-# Nao pede senha nem privilegio de administrador: a tarefa roda no logon do
-# usuario atual, que e quando a maquina da serventia esta em uso. Rodar como
-# servico do sistema exigiria guardar a senha da conta, e nao vale a troca.
+# Por padrão roda no logon. Em servidor sempre ligado, -AoIniciarSistema
+# instala como SYSTEM no boot, sem guardar senha (exige PowerShell elevado).
+# Nesse modo a conta SYSTEM precisa acessar a pasta, Python e .env. Unidades
+# de rede mapeadas na sessão do usuário não existem na sessão de SYSTEM.
 param(
   [switch]$Remover,
   [switch]$Reiniciar,
+  [switch]$AoIniciarSistema,
+  [string]$PythonExecutavel = '',
   [int]$Intervalo = 15
 )
 
@@ -57,7 +60,12 @@ if ($Remover) {
 # costuma resolver para o stub da Microsoft Store em WindowsApps, que abre a
 # Loja em vez de executar. A tarefa ficaria instalada e nunca rodaria.
 $Python = $null
-foreach ($candidato in @("python", "py")) {
+if ($PythonExecutavel -and -not (Test-Path -LiteralPath $PythonExecutavel)) {
+  throw 'O Python informado nao existe.'
+}
+$candidatos = @($PythonExecutavel, (Join-Path $Raiz '.venv\Scripts\python.exe'), 'python', 'py')
+foreach ($candidato in $candidatos) {
+  if (-not $candidato) { continue }
   try {
     $saida = & $candidato -c "import sys; print(sys.executable)" 2>$null
     if ($LASTEXITCODE -eq 0 -and $saida -and (Test-Path $saida) -and
@@ -88,17 +96,31 @@ Write-Host "   log      : $Log"
 $acao = New-ScheduledTaskAction -Execute $Pythonw `
   -Argument "`"$Script`" --intervalo $Intervalo" -WorkingDirectory $Raiz
 $gatilho = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+$principal = $null
+if ($AoIniciarSistema) {
+  $identidade = [Security.Principal.WindowsIdentity]::GetCurrent()
+  $administrador = [Security.Principal.WindowsPrincipal]::new($identidade)
+  if (-not $administrador.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    throw '-AoIniciarSistema exige PowerShell como administrador no servidor.'
+  }
+  $gatilho = New-ScheduledTaskTrigger -AtStartup
+  $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+}
 # Um executor so: IgnoreNew descarta um segundo disparo enquanto o primeiro
 # roda -- o que acontece ao bloquear e desbloquear a sessao. O lease do banco ja
 # protege contra processamento duplo, mas duas copias so gastam CPU a toa.
 $config = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries `
   -DontStopIfGoingOnBatteries -StartWhenAvailable `
-  -MultipleInstances IgnoreNew -RestartInterval (New-TimeSpan -Minutes 1) -RestartCount 3
+  -MultipleInstances IgnoreNew -RestartInterval (New-TimeSpan -Minutes 1) -RestartCount 999
 $config.ExecutionTimeLimit = "PT0S"   # sem limite: e um laco continuo
 
-Register-ScheduledTask -TaskName $Nome -Action $acao -Trigger $gatilho `
-  -Settings $config -Description "Le a fila do AERI e faz OCR de contratos digitalizados nesta maquina." `
-  -Force | Out-Null
+$parametros = @{
+  TaskName = $Nome; Action = $acao; Trigger = $gatilho; Settings = $config
+  Description = 'Sincroniza matrículas e registros auxiliares continuamente, acompanha o Livro e processa documentos.'
+  Force = $true
+}
+if ($principal) { $parametros.Principal = $principal }
+Register-ScheduledTask @parametros | Out-Null
 
 Start-ScheduledTask -TaskName $Nome
 Start-Sleep -Seconds 3

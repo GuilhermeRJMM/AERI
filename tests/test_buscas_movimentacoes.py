@@ -1,5 +1,5 @@
 from contextlib import ExitStack
-from datetime import date
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from backend.app.servicos import buscas_movimentacoes as sinais
@@ -15,7 +15,7 @@ def conexao():
 
 def test_descoberta_limitada_recupera_sete_dias_e_deduplica_protocolos():
     con, cur = conexao()
-    cur.fetchone.return_value = {'id': 1}
+    cur.fetchone.return_value = {'sinais_trava_ate': datetime.now(timezone.utc)}
     cliente = MagicMock()
     with patch.object(sinais, 'conectar', return_value=con), \
          patch.object(sinais, 'janelas_livro_protocolos', return_value=[('a','b'),('c','d'),('e','f')]), \
@@ -49,8 +49,10 @@ def test_falha_em_protocolo_reagenda_sem_descartar_os_demais():
          patch.object(sinais, '_descobrir_protocolos'), \
          patch.object(sinais, 'registros_alterados_no_protocolo', return_value={('M',100),('RA',200)}), \
          patch.object(sinais, 'enfileirar_matriculas') as enfileirar:
-        assert sinais.recuperar_movimentacoes() == 1
+        assert sinais.recuperar_movimentacoes() == 2
     enfileirar.assert_called_once_with(cur, {100}, 'MOVIMENTACAO_RECENTE')
+    assert any('INSERT INTO fila_registros_auxiliares_aeri' in c.args[0]
+               and c.args[1] == (200, 'MOVIMENTACAO_RECENTE') for c in cur.execute.call_args_list)
     assert any('tentativas=tentativas+1' in c.args[0] for c in cur.execute.call_args_list)
     exclusoes = [c.args[1] for c in cur.execute.call_args_list if c.args[0].startswith('DELETE')]
     assert exclusoes == [(185002,)]
@@ -61,7 +63,7 @@ def test_livro_automatico_repassa_textos_ao_mesmo_indexador():
     token = 'lease-teste'
     item = {'status':'REGISTRADO','conferido':True,'ocorrencias':[]}
     config = dict(habilitada=True, trava_ate=None, proxima_execucao=None, intervalo_minutos=30)
-    trabalho = dict(id='execucao',data_alvo=date(2026,9,15),resultado={
+    trabalho = dict(id='execucao',data_alvo=datetime.now(automatico.FUSO).date(),resultado={
         'fila':[item],'protocolos':[],'regrasHash':'versao'})
     cur.fetchone.side_effect = [config, trabalho, {'trava':token}]
     cliente = MagicMock()

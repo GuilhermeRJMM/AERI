@@ -12,17 +12,17 @@ param a indexacao -- so a deixam mais lenta, no ritmo diario de antes.
 from backend.app.database import conectar
 
 # Quanto tempo sem batida ate considerar o executor ausente. O ciclo padrao e de
-# 15 segundos; 30 minutos aguentam um OCR longo, um reinicio por atualizacao de
-# codigo e uma reinicializacao da maquina sem que o cron atropele o trabalho.
+# 15 segundos; 30 minutos toleram um lote lento, atualização de código e
+# reinicialização. OCR não renova mais a presença da rotina ':indice'.
 JANELA_MINUTOS = 30
 
 
 def registrar_presenca(maquina: str, codigo_de=None, indexa=None) -> None:
     """Grava a batida. `indexa=None` preserva o que ja estava.
 
-    O ciclo nem sempre chega a tentar indexar -- quando ha contrato na fila, ele
-    passa direto. Nesse caso a capacidade nao mudou, e sobrescrever com FALSE
-    faria o cron da Vercel voltar a trabalhar sem motivo.
+    O sincronizador usa uma identidade própria ':indice' e informa a capacidade
+    de todas as fontes. O laço operacional não pode renovar essa presença.
+    None continua compatível com executores anteriores durante a transição.
     """
     with conectar() as conexao:
         with conexao.cursor() as cursor:

@@ -9,6 +9,7 @@ import os
 import socket
 import time
 import sys
+import threading
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -36,6 +37,13 @@ def carregar_env(caminho: Path) -> None:
         if not linha or linha.startswith("#") or "=" not in linha:
             continue
         chave, valor = linha.split("=", 1)
+        chave = chave.strip()
+        # Arquivos exportados da Vercel também trazem marcadores da
+        # plataforma. Importá-los no Windows bloqueia o hash remoto, pois o
+        # processo passa a se identificar falsamente como função serverless.
+        # Não altera marcadores reais já definidos no ambiente do processo.
+        if chave == "VERCEL" or chave.startswith("VERCEL_"):
+            continue
         valor = valor.strip().strip('"').strip("'")
         # `vercel env pull` escreve "[SENSITIVE]" no lugar do valor quando a
         # variavel e marcada como secreta la -- ela e de escrita apenas e nao
@@ -44,7 +52,7 @@ def carregar_env(caminho: Path) -> None:
         # [SENSITIVE]"), que nao diz o que fazer.
         if not valor or "[SENSITIVE]" in valor:
             continue
-        os.environ.setdefault(chave.strip(), valor)
+        os.environ.setdefault(chave, valor)
 
 
 # Lido em main(), nao ao importar: o modulo precisa poder ser importado por um
@@ -86,6 +94,7 @@ from backend.app.rotas.contratos import processar_proximo_contrato
 from backend.app.rotas.buscas import passo_automatico as passo_buscas
 from backend.app.rotas.registros_auxiliares import passo_automatico as passo_registros_auxiliares
 from backend.app.servicos.preparacao_intimacao import processar_preparacao_intimacao
+from backend.app.servicos.buscas_movimentacoes import recuperar_movimentacoes
 
 
 # A indexacao avancava por uma aba de navegador em laco: 4.605 lotes de
@@ -105,35 +114,34 @@ _indexacao_avisada = set()
 
 
 def passo_indexacao():
-    """Um lote de cada fonte, quando ninguem estiver esperando por nada.
+    """Um lote de cada fonte, independente da fila de OCR/documentos.
 
-    Fica atras do contrato de proposito: extracao tem gente parada na tela, e
-    um lote de 30 matriculas na Tri7 seguraria a fila por dezenas de segundos.
-
-    Devolve se esta maquina esta dando conta da indexacao -- e disso que o cron
-    da Vercel depende para se abster. Pausa deliberada e lote de outra pessoa
-    contam como "dando conta"; falta de configuracao, nao.
+    O sinal agregado só dispensa o cron se TODAS as fontes estiverem aptas.
+    Uma fonte saudável não pode esconder a indisponibilidade da outra.
     """
-    capaz = False
+    capacidades = []
     for nome, tabela, passo in FONTES_INDEXACAO:
-        with conectar() as con:
-            with con.cursor() as cur:
-                # Nome de tabela vem da constante acima, nunca de entrada.
-                cur.execute(f"SELECT indexacao_pausada FROM {tabela} WHERE id=1")
-                linha = cur.fetchone()
-        if not linha or linha["indexacao_pausada"]:
-            capaz = True   # parada por decisao de quem opera, nao por defeito
-            continue
         try:
+            with conectar() as con:
+                with con.cursor() as cur:
+                    # Nome de tabela vem da constante acima, nunca de entrada.
+                    cur.execute(f"SELECT indexacao_pausada FROM {tabela} WHERE id=1")
+                    linha = cur.fetchone()
+            if not linha:
+                capacidades.append(False)
+                continue
+            if linha["indexacao_pausada"]:
+                capacidades.append(True)  # preserva a pausa deliberada
+                continue
             r = passo(None, "executor")
             if nome in _indexacao_avisada:
                 _indexacao_avisada.discard(nome)
                 logging.info("indexacao=%s voltou a funcionar", nome)
             logging.info("indexacao=%s modo=%s processados=%s", nome,
                          r.get("modo"), r.get("processados"))
-            capaz = True
+            capacidades.append(not r.get("falha") and not r.get("falhas"))
         except HTTPException as exc:
-            capaz = capaz or exc.status_code == 409
+            capacidades.append(exc.status_code == 409)
             # 409: alguem sincronizando pela tela, e o lease e dele. 503:
             # configuracao ausente nesta maquina. Nenhum dos dois e falha do
             # ciclo -- na proxima volta tenta de novo, de graca, porque as duas
@@ -143,11 +151,59 @@ def passo_indexacao():
                 logging.info("indexacao=%s parada: %s (so avisa de novo quando mudar)",
                              nome, str(exc.detail)[:90])
         except Exception as exc:
-            # Tri7 fora do ar ou rede caida nao e incapacidade desta maquina: o
-            # cron da Vercel bateria na mesma parede. Segue capaz.
-            capaz = True
+            capacidades.append(False)
             logging.error("indexacao=%s falhou tipo=%s", nome, type(exc).__name__)
-    return capaz
+    return bool(capacidades) and all(capacidades)
+
+
+def ciclo_indexacao():
+    indexa = passo_indexacao()
+    registrar_presenca(f"{MAQUINA[:100]}:indice", datetime.fromtimestamp(versao_do_codigo()), indexa)
+
+
+def ciclo_operacional():
+    # Uma rotina com erro não impede as outras de receberem trabalho.
+    for nome, passo in (
+        ("intimacoes", lambda: executar_passo("intimacoes")),
+        ("livro_protocolos", lambda: executar_passo("livro_protocolos")),
+        ("contratos", processar_proximo_contrato),
+        ("preparacao_intimacao", processar_preparacao_intimacao),
+    ):
+        try:
+            resultado = passo()
+            logging.info("automacao=%s estado=%s", nome, resultado.get("estado"))
+        except Exception as exc:
+            logging.error("automacao=%s falhou tipo=%s", nome, type(exc).__name__)
+
+
+def executar_rotina_continua(nome, passo, parar, intervalo):
+    """Laço próprio com espera interrompível e recuo nas falhas.
+
+    Threads no mesmo processo compartilham o limitador global da Tri7 (3/s).
+    Não cria outro robô com orçamento de requisições independente.
+    """
+    falhas = 0
+    while not parar.is_set():
+        try:
+            passo()
+            falhas = 0
+        except Exception as exc:
+            falhas += 1
+            logging.error("rotina=%s falhou tipo=%s", nome, type(exc).__name__)
+        espera = min(300, intervalo * (2 ** min(falhas, 5)))
+        parar.wait(espera)
+
+
+def iniciar_sincronizadores(parar, intervalo):
+    rotinas = []
+    for nome, passo in (("indice", ciclo_indexacao), ("movimentacoes", recuperar_movimentacoes)):
+        rotina = threading.Thread(
+            name=f"aeri-{nome}", target=executar_rotina_continua,
+            args=(nome, passo, parar, intervalo), daemon=True,
+        )
+        rotina.start()
+        rotinas.append(rotina)
+    return rotinas
 
 
 def main():
@@ -189,36 +245,45 @@ def main():
                  carregado.strftime("%d/%m %H:%M"))
     versao = versao_do_codigo()
     preparar_banco()
-    while True:
-        try:
-            for chave in ("intimacoes","livro_protocolos"):
-                r=executar_passo(chave)
-                logging.info("automacao=%s estado=%s",chave,r["estado"])
-            r=processar_proximo_contrato()
-            logging.info("contratos estado=%s",r["estado"])
-            preparacao = processar_preparacao_intimacao()
-            if preparacao["estado"] != "SEM_TRABALHO":
-                logging.info("preparacao_intimacao estado=%s", preparacao["estado"])
-            indexa = passo_indexacao() if r["estado"] == "SEM_TRABALHO" and preparacao["estado"] == "SEM_TRABALHO" else None
-            # A batida diz a Vercel que esta maquina esta viva e dando conta, e
-            # o cron de madrugada se abstem. Vai depois do trabalho: uma volta
-            # que falhou inteira nao deve valer como presenca.
-            registrar_presenca(MAQUINA, datetime.fromtimestamp(versao_do_codigo()), indexa)
-        except Exception as exc:
-            logging.error("ciclo_falhou tipo=%s",type(exc).__name__)
-        if args.once: break
-        # Codigo novo no disco: troca este processo por um limpo, que reimporta
-        # tudo. execv substitui a imagem no lugar -- nao deixa processo orfao
-        # nem depende da politica de reinicio da Tarefa Agendada. Espera o
-        # arquivo assentar para nao pegar um git pull pela metade, e so entre
-        # ciclos, nunca no meio de um OCR.
-        if versao_do_codigo() > versao and time.time() - versao_do_codigo() > ASSENTAMENTO:
-            logging.info("codigo atualizado no disco: reiniciando o executor")
-            fechar_pool()
-            logging.shutdown()
-            os.execv(sys.executable, [sys.executable, *sys.argv])
-        time.sleep(max(5,min(args.intervalo,60)))
-    fechar_pool()
+    intervalo = max(5, min(args.intervalo, 60))
+    parar = threading.Event()
+    rotinas = [] if args.once else iniciar_sincronizadores(parar, intervalo)
+    reiniciar = False
+    try:
+        while True:
+            if args.once:
+                try:
+                    recuperar_movimentacoes()
+                except Exception as exc:
+                    logging.error("rotina=movimentacoes falhou tipo=%s", type(exc).__name__)
+                try:
+                    ciclo_indexacao()
+                except Exception as exc:
+                    logging.error("rotina=indice falhou tipo=%s", type(exc).__name__)
+            ciclo_operacional()
+            # O trabalho operacional não renova a presença do sincronizador.
+            try:
+                registrar_presenca(MAQUINA, datetime.fromtimestamp(versao), False)
+            except Exception as exc:
+                logging.error("presenca_operacional falhou tipo=%s", type(exc).__name__)
+            if args.once:
+                break
+            # Código novo: espera o arquivo assentar e os lotes terminarem.
+            atual = versao_do_codigo()
+            if atual > versao and time.time() - atual > ASSENTAMENTO:
+                reiniciar = True
+                break
+            parar.wait(intervalo)
+    finally:
+        parar.set()
+        # Termina o lote/checkpoint antes de trocar o código ou fechar o pool.
+        for rotina in rotinas:
+            rotina.join()
+        fechar_pool()
+    if reiniciar:
+        logging.info("codigo atualizado no disco: reiniciando o executor")
+        logging.shutdown()
+        os.execv(sys.executable, [sys.executable, *sys.argv])
     return 0
 
 
