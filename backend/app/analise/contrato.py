@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 NOME_MOTOR = "AERI Registral"
-VERSAO_MOTOR = "2.1.0"
+VERSAO_MOTOR = "2.2.0"
 MODO_MOTOR = "DETERMINÍSTICO"
 NAO_CONSTA = "NÃO CONSTA"
 
@@ -20,6 +20,17 @@ ARQUIVOS_REGRAS = (
     "cancelamentos.py",
     "proprietarios.py",
     "servicos/dados_imovel.py",
+    "modelos.py",
+    "analise/contrato.py",
+    "analise/cadeia.py",
+    "analise/rastro_cadeia.py",
+    "analise/evidencias.py",
+    "analise/onus.py",
+    "analise/imovel.py",
+    "analise/pipeline_eventos.py",
+    "analise/cobertura_atos.py",
+    "servicos/analise_matricula.py",
+    "servicos/aprendizado_regras.py",
 )
 
 

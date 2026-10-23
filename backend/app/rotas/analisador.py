@@ -17,6 +17,7 @@ from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_c
 from backend.app.database import conectar, preparar_banco
 from backend.app.seguranca_web import registrar_auditoria, registrar_auditoria_cursor
 from backend.app.servicos.analise_matricula import analisar_matricula
+from backend.app.analise.cobertura_atos import comparar_atos_tri7
 from backend.app.servicos.tri7 import (
     ConfiguracaoTri7Invalida,
     ErroTri7,
@@ -271,6 +272,43 @@ def _controle_qualidade_publico(analise: dict) -> dict:
     }
 
 
+def _aplicar_controle_qualidade(resultado, analise_secundaria):
+    qualidade = _controle_qualidade_publico(analise_secundaria)
+    cobertura = resultado.get("meta", {}).get("cobertura_atos", {})
+    if cobertura.get("estado") == "DIVERGENTE":
+        # A divergência vem de códigos concretos, não de uma nota genérica.
+        # Os resultados continuam disponíveis e nenhum ato é inventado.
+        qualidade["estado"] = "REVISAR"
+        qualidade["dominios"] = list(dict.fromkeys([*qualidade["dominios"], "ONUS", "PROPRIETARIOS"]))
+    resultado["controle_qualidade"] = qualidade
+
+
+def _conferir_atos_na_tri7(cliente, matricula, resultado, regras):
+    cobertura = resultado["meta"]["cobertura_atos"]
+    try:
+        resposta = cliente.buscar_atos_matricula(matricula["numero_matricula"])
+        cobertura = comparar_atos_tri7(cobertura, resposta)
+    except ErroTri7 as erro:
+        cobertura = {**cobertura, "tri7": {"estado": "INDISPONIVEL"}}
+        logger.warning("cobertura_atos_tri7 tipo=%s", type(erro).__name__)
+    if cobertura["tri7"].get("faltantes_no_texto"):
+        # Uma única recuperação: o catálogo de atos pode atualizar antes do
+        # texto. Se a releitura não resolver, mantém os códigos divergentes.
+        try:
+            nova = cliente.buscar_texto_matricula(matricula["numero_matricula"])
+            if nova["texto"] != matricula["texto"]:
+                resultado = analisar_matricula(nova["texto"], regras_aprendidas=regras,
+                                              numero_matricula=nova["numero_matricula"])
+                matricula = nova
+                cobertura = comparar_atos_tri7(resultado["meta"]["cobertura_atos"], resposta)
+            cobertura["reconsulta_texto"] = True
+        except ErroTri7 as erro:
+            cobertura["reconsulta_texto"] = False
+            logger.warning("recuperar_texto_matricula tipo=%s", type(erro).__name__)
+    resultado["meta"]["cobertura_atos"] = cobertura
+    return matricula, resultado
+
+
 @router.post("/analisar", dependencies=[Depends(proteger_csrf)])
 def analisar(dados: dict, request: Request, usuario: str = Depends(exigir_perfis("ADMIN"))):
     texto = str(dados.get("texto", ""))
@@ -293,7 +331,7 @@ def analisar(dados: dict, request: Request, usuario: str = Depends(exigir_perfis
     analise_secundaria = _executar_agente_na_matricula(
         int(numero or 0), texto, resultado, request, usuario,
     )
-    resultado["controle_qualidade"] = _controle_qualidade_publico(analise_secundaria)
+    _aplicar_controle_qualidade(resultado, analise_secundaria)
     registrar_auditoria(request, "analisar_matricula_texto_manual", "sucesso", usuario, numero)
     return resultado
 
@@ -309,24 +347,27 @@ def analisar_por_numero(
     except ValueError as erro:
         raise HTTPException(status_code=422, detail=str(erro)) from erro
     try:
-        matricula = cliente_tri7().buscar_texto_matricula(numero)
+        cliente = cliente_tri7()
+        matricula = cliente.buscar_texto_matricula(numero)
     except (MatriculaTri7NaoEncontrada, MatriculaTri7SemTexto) as erro:
         raise HTTPException(status_code=404, detail=str(erro)) from erro
     except ConfiguracaoTri7Invalida as erro:
         raise HTTPException(status_code=503, detail=str(erro)) from erro
     except ErroTri7 as erro:
         raise HTTPException(status_code=502, detail=str(erro)) from erro
+    regras = _regras_aprovadas()
     resultado = analisar_matricula(
         matricula["texto"],
-        regras_aprendidas=_regras_aprovadas(),
+        regras_aprendidas=regras,
         numero_matricula=matricula["numero_matricula"],
     )
+    matricula, resultado = _conferir_atos_na_tri7(cliente, matricula, resultado, regras)
     resultado["numero_matricula"] = matricula["numero_matricula"]
     resultado["origem"] = "TRI7"
     analise_secundaria = _executar_agente_na_matricula(
         int(numero), matricula["texto"], resultado, request, usuario,
     )
-    resultado["controle_qualidade"] = _controle_qualidade_publico(analise_secundaria)
+    _aplicar_controle_qualidade(resultado, analise_secundaria)
     registrar_auditoria(request, "consultar_e_analisar_matricula_tri7", "sucesso", usuario, numero)
     return resultado
 

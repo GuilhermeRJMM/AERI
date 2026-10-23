@@ -3,6 +3,7 @@ from backend.app.analise.contrato import finalizar_contrato
 from backend.app.analise.imovel import extrair_imovel_com_evidencias
 from backend.app.analise.onus import evidencias_atos, processar_atos, resumir_resultado_onus, serializar_atos
 from backend.app.analise.pipeline_eventos import executar_pipeline_paralelo
+from backend.app.analise.cobertura_atos import conferir_cobertura_texto
 
 
 def analisar_matricula(
@@ -12,7 +13,8 @@ def analisar_matricula(
 ) -> dict:
     atos = processar_atos(texto, regras_aprendidas=regras_aprendidas)
     resultado_final, publicidade = resumir_resultado_onus(atos)
-    proprietarios_atuais = calcular_cadeia(atos, texto)
+    rastro_cadeia = []
+    proprietarios_atuais = calcular_cadeia(atos, texto, rastro=rastro_cadeia)
     imovel, evidencias_imovel = extrair_imovel_com_evidencias(
         texto,
         atos,
@@ -28,7 +30,7 @@ def analisar_matricula(
         "imovel": imovel,
     }, {
         "atos": evidencias_atos(atos),
-        "proprietarios": evidencias_cadeia(proprietarios_atuais, atos, texto),
+        "proprietarios": evidencias_cadeia(proprietarios_atuais, atos, texto, rastro=rastro_cadeia),
         "imovel": evidencias_imovel,
     })
     # O pipeline novo roda em sombra: mede e registra coerência estrutural,
@@ -36,4 +38,5 @@ def analisar_matricula(
     retorno["meta"]["pipeline_paralelo"] = executar_pipeline_paralelo(
         atos, proprietarios_atuais, imovel,
     )
+    retorno["meta"]["cobertura_atos"] = conferir_cobertura_texto(texto, atos)
     return retorno

@@ -11,6 +11,7 @@ from backend.app.regras import (
     identificar_tipo_onus,
 )
 from backend.app.servicos.aprendizado_regras import identificar_tipo_onus_aprendido
+from backend.app.analise.evidencias import ato_por_codigo, trecho_por_padroes
 
 
 CATEGORIAS_RETORNO = ["ÔNUS", "RESTRIÇÃO", "PUBLICIDADE", "CANCELAMENTO"]
@@ -149,16 +150,42 @@ def serializar_atos(atos: list[Ato]) -> list[dict]:
     ]
 
 
+def _trecho_fundamento(ato: Ato) -> str:
+    if ato.categoria == "CANCELAMENTO":
+        padroes = [
+            r"\b(?:CANCELA(?:-SE|M-SE)|FICA(?:M)?\s+CANCELAD[OA]S?|PROCEDE-SE\s+AO\s+CANCELAMENTO)\b",
+            r"\b(?:CANCELAD[OA]S?|CANCELAMENTO|QUITACAO|BAIXA|EXTINCAO)\b",
+        ]
+    elif ato.categoria == "PUBLICIDADE":
+        padroes = [r"\b(?:INDISPONIBILIDADE|PREMONITORIA|EXISTENCIA\s+DE\s+ACAO|TOMBAMENTO)\b"]
+    else:
+        tipo = _normalizar(ato.tipo_onus or ato.categoria)
+        padroes = [
+            r"\b(?:CONSTITUI(?:-SE)?|CONSTITUID[OA]|DA(?:DO)?\s+EM|OFEREC(?:E|IDO)\s+EM)\b",
+            re.escape(tipo).replace(r"\ ", r"\s+"),
+        ]
+    return trecho_por_padroes(ato.descricao, padroes)
+
+
 def evidencias_atos(atos: list[Ato]) -> list[dict]:
     retorno = []
     for ato in atos:
         if ato.categoria not in CATEGORIAS_RETORNO:
             continue
         tipo = ato.tipo_onus or ato.categoria
-        retorno.append({
+        evidencia = {
             "codigo": ato.codigo,
             "regra_id": f"ONUS-{str(tipo).upper().replace(' ', '-')}-001",
             "fonte": ato.codigo,
-            "trecho": ato.descricao[:420],
-        })
+            "trecho": _trecho_fundamento(ato),
+        }
+        if ato.cancela_atos:
+            evidencia["atos_cancelados"] = list(ato.cancela_atos)
+        if ato.cancelado_por:
+            cancelamento = ato_por_codigo(atos, ato.cancelado_por)
+            evidencia["cancelamento"] = {
+                "fonte": ato.cancelado_por,
+                "trecho": _trecho_fundamento(cancelamento) if cancelamento else "",
+            }
+        retorno.append(evidencia)
     return retorno

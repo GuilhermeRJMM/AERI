@@ -5,6 +5,8 @@ from difflib import SequenceMatcher
 from types import SimpleNamespace
 
 from backend.app.parser import separar_atos
+from backend.app.analise.rastro_cadeia import ObservadorCadeia
+from backend.app.analise.evidencias import codigo_ato
 
 def limpar_nome(nome):
     nome = ''.join(c for c in unicodedata.normalize('NFD', nome) if unicodedata.category(c) != 'Mn')
@@ -3396,11 +3398,13 @@ def _creditar_adquirentes(estado, adquirentes, aquisicao, houve_debito):
             unico["proporcao"] = 100.0
 
 
-def calcular_cadeia_dominial(atos, texto_integral=""):
+def calcular_cadeia_dominial(atos, texto_integral="", *, rastro=None):
     atos = _expandir_subatos_repetidos_para_cadeia(atos)
     estado = {}
-
+    observador = ObservadorCadeia(estado, rastro)
+    observador.iniciar("Cabeçalho", "ABERTURA")
     _aplicar_proprietarios_iniciais(estado, texto_integral)
+    observador.concluir()
 
     grupos_partilha = _grupos_partilha_integrais(atos)
     indices_agrupados = {
@@ -3410,41 +3414,55 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
     }
 
     for indice_ato, ato in enumerate(atos):
+        observador.iniciar(ato, "RETIFICACAO")
         if indice_ato in indices_agrupados:
             continue
         if indice_ato in grupos_partilha:
+            grupo = grupos_partilha[indice_ato]
+            observador.efeito("PARTILHA", [
+                (codigo_ato(atos[indice_ato + deslocamento]), adquirentes)
+                for deslocamento, (adquirentes, _percentual) in enumerate(grupo[1])
+            ])
             _aplicar_partilha_integral_agrupada(estado, grupos_partilha[indice_ato])
             continue
 
         if _aplicar_retorno_status_quo_ante(estado, ato):
+            observador.efeito("RESTABELECIMENTO")
             continue
 
         # Não encerra o ato: o mesmo texto ainda pode conter transmissão.
         _aplicar_alteracao_de_nome(estado, ato)
 
         if _aplicar_indicacao_titularidade(estado, ato):
+            observador.efeito("DECLARACAO_TITULARIDADE")
             continue
 
         if _aplicar_consolidacao_fiduciaria(estado, ato):
+            observador.efeito("CONSOLIDACAO")
             continue
 
         if _aplicar_constituicao_de_sociedade(estado, ato):
+            observador.efeito("CONSTITUICAO_SOCIEDADE")
             continue
 
         # Também não encerra o ato.
         _aplicar_retificacoes_cpf(estado, ato)
 
         if _aplicar_desquite(ato.descricao, estado):
+            observador.efeito("PARTILHA")
             continue
 
         descricao_normalizada = limpar_nome(ato.descricao)
         if _aplicar_desmembramento_por_divisao(estado, ato, descricao_normalizada):
+            observador.efeito("ALTERACAO_TERRITORIAL")
             continue
         if _aplicar_divisao_em_matriculas_sucessoras(
             estado, ato, descricao_normalizada
         ):
+            observador.efeito("ALTERACAO_TERRITORIAL")
             continue
         if _aplicar_estremacao(estado, ato, descricao_normalizada):
+            observador.efeito("ALTERACAO_TERRITORIAL")
             continue
 
         if (
@@ -3472,6 +3490,7 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
             continue
 
         if _aplicar_distribuicao_explicita(estado, ato, adquirentes):
+            observador.efeito("TRANSMISSAO")
             continue
 
         distribuicao_valores_adquirentes = _percentuais_por_valores_em_trecho(
@@ -3488,6 +3507,8 @@ def calcular_cadeia_dominial(atos, texto_integral=""):
         houve_debito = _debitar_alienantes(
             estado, ato, adquirentes, transmitentes, aquisicao
         )
+        observador.efeito("TRANSMISSAO")
         _creditar_adquirentes(estado, adquirentes, aquisicao, houve_debito)
             
+    observador.concluir()
     return _formatar_resultado_cadeia(estado)

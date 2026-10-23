@@ -39,10 +39,40 @@ def codigo_ato(ato) -> str:
     return str(getattr(ato, "codigo", None) or (ato.get("codigo", "") if isinstance(ato, dict) else ""))
 
 
+def normalizar_codigo_ato(codigo: str) -> str:
+    encontrado = re.fullmatch(r"\s*(R|AV)\s*[.\-]?\s*0*(\d+)\s*", str(codigo), re.IGNORECASE)
+    return f"{encontrado[1].upper()}.{int(encontrado[2])}" if encontrado else normalizar(codigo)
+
+
+def trecho_por_padroes(texto: str, padroes: list[str], limite: int = LIMITE_TRECHO) -> str:
+    """Localiza a cláusula na grafia original, inclusive além do cabeçalho.
+
+    O mapa mantém offsets corretos quando a remoção de acentos/caixa expande
+    algum caractere. Nunca corta usando offsets de uma string diferente.
+    """
+    compacto = compactar(texto)
+    normalizado = []
+    mapa = []
+    for indice, caractere in enumerate(compacto):
+        parte = normalizar(caractere) if not caractere.isspace() else " "
+        normalizado.append(parte)
+        mapa.extend([indice] * len(parte))
+    linear = "".join(normalizado)
+    for padrao in padroes:
+        match = re.search(padrao, linear)
+        if match:
+            inicio_termo = mapa[match.start()]
+            fim_termo = mapa[match.end()-1] + 1
+            inicio = max(0, inicio_termo - limite // 4)
+            fim = min(len(compacto), max(inicio + limite, fim_termo))
+            return ("..." if inicio else "") + compacto[inicio:fim].strip() + ("..." if fim < len(compacto) else "")
+    return trecho_evidencia(compacto, limite=limite)
+
+
 def ato_por_codigo(atos: list, codigo: str):
-    alvo = normalizar(codigo).replace("-", ".")
+    alvo = normalizar_codigo_ato(codigo)
     for ato in reversed(atos):
-        atual = normalizar(codigo_ato(ato)).replace("-", ".")
+        atual = normalizar_codigo_ato(codigo_ato(ato))
         if atual == alvo:
             return ato
     return None
