@@ -2,6 +2,7 @@ import unittest
 import asyncio
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -10,6 +11,9 @@ from fastapi import HTTPException, Request, Response
 
 from backend.app.autenticacao import (
     COOKIE_SESSAO,
+    SESSAO_SEGUNDOS,
+    INATIVIDADE_SEGUNDOS,
+    criar_sessao_cursor,
     _obter_sessao,
     _derivar_csrf,
     exigir_permissao,
@@ -53,6 +57,35 @@ def _requisicao_com_cabecalhos(cabecalhos: dict[str, str]) -> Request:
 
 
 class TesteSeguranca(unittest.TestCase):
+    def test_sessao_cobre_jornada_de_oito_horas_e_quarenta_e_cinco(self):
+        self.assertEqual(31500, SESSAO_SEGUNDOS)
+        self.assertEqual(SESSAO_SEGUNDOS, INATIVIDADE_SEGUNDOS)
+        cursor = MagicMock()
+        antes = datetime.now(timezone.utc)
+        criar_sessao_cursor(cursor, "TESTE", _requisicao_com_cabecalhos({}))
+        expires = cursor.execute.call_args.args[1][-1]
+        duracao = (expires - antes).total_seconds()
+        self.assertGreaterEqual(duracao, 31500)
+        self.assertLess(duracao, 31502)
+
+    def test_atividade_preserva_limite_absoluto_e_revogacao(self):
+        cursor = MagicMock()
+        cursor.__enter__.return_value = cursor
+        cursor.fetchone.return_value = {"id": "sessao-sintetica", "usuario": "TESTE"}
+        conexao = MagicMock()
+        conexao.__enter__.return_value = conexao
+        conexao.cursor.return_value = cursor
+        request = _requisicao_com_cabecalhos({"cookie": f"{COOKIE_SESSAO}=sessao-sintetica"})
+        with patch("backend.app.autenticacao.conectar", return_value=conexao):
+            _obter_sessao(request)
+        consulta = cursor.execute.call_args_list[0]
+        self.assertIn("s.expira_em > NOW()", consulta.args[0])
+        self.assertIn("s.revogada_em IS NULL", consulta.args[0])
+        self.assertEqual(31500, consulta.args[1][-1])
+        atualizacao = cursor.execute.call_args.args[0]
+        self.assertIn("ultimo_acesso=NOW()", atualizacao)
+        self.assertNotIn("SET expira_em", atualizacao)
+
     def test_argon2_valida_senha_sem_armazenar_texto(self):
         senha = "Senha-Forte-AERI-2026!"
         armazenada = hash_senha(senha)

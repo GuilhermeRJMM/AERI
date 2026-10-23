@@ -109,7 +109,7 @@ def test_troca_cria_sessao_normal_e_revoga_anterior(ambiente, cliente, banco, an
     assert resposta.status_code == 200
     assert resposta.json() == {"ok": True}
     cookie = resposta.headers["set-cookie"]
-    assert "HttpOnly" in cookie and "Secure" in cookie and "Max-Age=28800" in cookie
+    assert "HttpOnly" in cookie and "Secure" in cookie and "Max-Age=31500" in cookie
     assert "Domain=" not in cookie
     criar.assert_called_once()
     assert criar.call_args.args[1] == "CONTA_SINTETICA"

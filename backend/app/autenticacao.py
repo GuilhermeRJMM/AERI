@@ -24,8 +24,11 @@ from backend.app.seguranca_web import ip_cliente, validar_origem
 
 
 COOKIE_SESSAO = "__Host-aeri_sessao"
-SESSAO_SEGUNDOS = 60 * 60 * 8
-INATIVIDADE_SEGUNDOS = 60 * 30
+# Jornada solicitada pelo responsável: 8h45 contadas a partir do login.
+# Inatividade não deve encerrar antes desse limite; atividades/sondas também
+# não renovam expira_em. Logout e revogação continuam imediatos.
+SESSAO_SEGUNDOS = 60 * (8 * 60 + 45)
+INATIVIDADE_SEGUNDOS = SESSAO_SEGUNDOS
 MAX_TENTATIVAS = 5
 JANELA_TENTATIVAS_MINUTOS = 15
 PERFIS_ADMINISTRATIVOS = {"ADMIN", "SUBSTITUTO"}
