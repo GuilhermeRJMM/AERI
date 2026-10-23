@@ -19,7 +19,7 @@ from backend.app.rotas import (
 )
 from backend.app.seguranca_web import politica_frame_ancestors
 from backend.app.database import conectar
-from backend.app.rotas import painel, contratos, executor_hash, rtd_intimacoes
+from backend.app.rotas import painel, contratos, executor_hash, rtd_intimacoes, sso_hub
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -44,6 +44,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 app.include_router(autenticacao.router)
+app.include_router(sso_hub.router)
 app.include_router(analisador.router)
 app.include_router(buscas.router)
 app.include_router(incra.router)

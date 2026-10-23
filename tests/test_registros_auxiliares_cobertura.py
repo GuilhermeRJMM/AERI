@@ -147,17 +147,15 @@ class TesteFiltrosDaPesquisa(unittest.TestCase):
         self.assertIn("modalidade=%s", sql)
         self.assertIn("ALIENAÇÃO", parametros)
 
-    def test_pesquisa_exige_produto_e_safra(self):
-        from fastapi import HTTPException
-
+    def test_pesquisa_aceita_produto_ou_safra_vazios(self):
         for faltando in ({"produto": ""}, {"safra": ""}):
             with self.subTest(faltando=faltando):
-                with self.assertRaises(HTTPException) as erro:
-                    self._executar(
-                        busca="João da Silva",
-                        **{"produto": "Soja", "safra": "2026/2027", **faltando},
-                    )
-                self.assertEqual(erro.exception.status_code, 422)
+                sql, _ = self._executar(
+                    busca="João da Silva",
+                    **{"produto": "Soja", "safra": "2026/2027", **faltando},
+                )
+                self.assertEqual("produtos ? %s" in sql, "produto" not in faltando)
+                self.assertEqual("safras ? %s" in sql, "safra" not in faltando)
 
     def test_modalidade_invalida_e_recusada(self):
         from fastapi import HTTPException
