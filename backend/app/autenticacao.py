@@ -130,17 +130,19 @@ def criar_sessao(usuario: str, request: Request) -> tuple[str, str]:
     return token, csrf
 
 
-def criar_sessao_cursor(cursor, usuario: str, request: Request) -> tuple[str, str]:
+def criar_sessao_cursor(cursor, usuario: str, request: Request, *, origem: str = 'LOCAL') -> tuple[str, str]:
+    if origem not in {'LOCAL', 'HUB'}:
+        raise ValueError('Origem de autenticação inválida.')
     token = secrets.token_urlsafe(48)
     csrf = _derivar_csrf(token)
     agora = datetime.now(timezone.utc)
     cursor.execute("DELETE FROM sessoes_aeri WHERE expira_em < NOW() OR revogada_em IS NOT NULL")
     cursor.execute(
         """INSERT INTO sessoes_aeri
-        (id, usuario, token_hash, csrf_hash, ip, user_agent, expira_em)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+        (id, usuario, token_hash, csrf_hash, ip, user_agent, origem_autenticacao, expira_em)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
         (uuid4(), usuario, _hash_token(token), _hash_token(csrf), ip_cliente(request),
-         request.headers.get("user-agent", "")[:300], agora + timedelta(seconds=SESSAO_SEGUNDOS)),
+         request.headers.get("user-agent", "")[:300], origem, agora + timedelta(seconds=SESSAO_SEGUNDOS)),
     )
     return token, csrf
 

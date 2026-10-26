@@ -1,5 +1,5 @@
 import {configurarAcessoAnaliseManual, iniciarAnalisador} from './analisador.js?v=20260827-operacao-v1-api1';
-import {iniciarAutenticacao} from './autenticacao.js?v=20260831-setores-v1-api1';
+import {iniciarAutenticacao} from './autenticacao.js?v=20261026-sessao-hub-v1';
 import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20261021-negativa-qualificada';
 import {iniciarIncra} from './incra.js?v=20260827-operacao-v1-api1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js?v=20260831-setores-v1-api1';

@@ -110,7 +110,7 @@ def login(dados: dict, request: Request):
     resposta = JSONResponse({
         "usuario": conta["usuario"], "nome": conta["nome"], "perfil": conta["perfil"], "cargo": conta["perfil"],
         "deveTrocarSenha": conta["deve_trocar_senha"], "csrfToken": csrf,
-        "mfaAtivo": bool(conta.get("mfa_ativo")),
+        "mfaAtivo": bool(conta.get("mfa_ativo")), "origemAutenticacao": "LOCAL",
         "permissoes": permissoes_sessao(conta),
     })
     resposta.set_cookie(
@@ -235,6 +235,7 @@ def sessao(request: Request, usuario: str = Depends(usuario_atual)):
         "usuario": usuario, "nome": conta["nome"], "perfil": conta["perfil"], "cargo": conta["perfil"],
         "deveTrocarSenha": conta["deve_trocar_senha"], "csrfToken": csrf_atual(request),
         "mfaAtivo": bool(conta.get("mfa_ativo")),
+        "origemAutenticacao": "HUB" if conta.get("origem_autenticacao") == "HUB" else "LOCAL",
         "permissoes": permissoes_sessao(conta),
     }
 

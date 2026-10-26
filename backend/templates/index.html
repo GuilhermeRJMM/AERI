@@ -30,7 +30,12 @@
             <img src="/static/aeri-sidebar-transparent.png" alt="AERI" class="login-logo">
             <span class="eyebrow">ACESSO RESTRITO</span>
             <h1 id="login-titulo">Bem-vindo ao AERI</h1>
-            <p>Entre com suas credenciais para acessar o sistema.</p>
+            <p id="login-orientacao">Entre com suas credenciais para acessar o sistema.</p>
+            <div id="login-hub" hidden role="status" aria-live="polite">
+                <p>Seu acesso é feito pelo Sync HUB. Abra novamente o AERI pelo HUB para continuar, sem digitar uma senha do AERI.</p>
+                <button id="btn-verificar-acesso-hub" class="btn btn-primary" type="button">Verificar acesso do HUB</button>
+                <p id="login-hub-status"></p>
+            </div>
             <form id="form-login">
                 <label><span>Usuário</span><input id="login-usuario" autocomplete="username" required autofocus></label>
                 <label><span>Senha</span><input id="login-senha" type="password" autocomplete="current-password" required></label>
@@ -1310,7 +1315,7 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261021-indice-lacunas-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20261026-sessao-hub-v1"></script>
 </body>
 </html>
 

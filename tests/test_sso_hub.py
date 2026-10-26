@@ -113,6 +113,7 @@ def test_troca_cria_sessao_normal_e_revoga_anterior(ambiente, cliente, banco, an
     assert "Domain=" not in cookie
     criar.assert_called_once()
     assert criar.call_args.args[1] == "CONTA_SINTETICA"
+    assert criar.call_args.kwargs == {"origem": "HUB"}
     revogacoes = [c for c in cursor.execute.call_args_list if "UPDATE sessoes_aeri" in c.args[0]]
     assert len(revogacoes) == bool(anterior)
     if anterior:

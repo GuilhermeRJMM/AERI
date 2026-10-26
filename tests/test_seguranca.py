@@ -67,6 +67,14 @@ class TesteSeguranca(unittest.TestCase):
         duracao = (expires - antes).total_seconds()
         self.assertGreaterEqual(duracao, 31500)
         self.assertLess(duracao, 31502)
+        self.assertEqual(cursor.execute.call_args.args[1][-2], 'LOCAL')
+
+    def test_origem_hub_explicita_na_criacao_da_sessao(self):
+        cursor = MagicMock()
+        criar_sessao_cursor(cursor, "TESTE", _requisicao_com_cabecalhos({}), origem='HUB')
+        self.assertEqual(cursor.execute.call_args.args[1][-2], 'HUB')
+        with self.assertRaises(ValueError):
+            criar_sessao_cursor(cursor, "TESTE", _requisicao_com_cabecalhos({}), origem='OUTRA')
 
     def test_atividade_preserva_limite_absoluto_e_revogacao(self):
         cursor = MagicMock()

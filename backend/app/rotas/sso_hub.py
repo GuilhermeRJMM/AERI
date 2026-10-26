@@ -90,7 +90,7 @@ def _trocar_sessao(ticket, request):
                         "UPDATE sessoes_aeri SET revogada_em=NOW() WHERE token_hash=%s AND revogada_em IS NULL",
                         (hashlib.sha256(anterior.encode()).hexdigest(),),
                     )
-                token, _csrf = criar_sessao_cursor(cursor, conta["usuario"], request)
+                token, _csrf = criar_sessao_cursor(cursor, conta["usuario"], request, origem='HUB')
                 registrar_auditoria_cursor(cursor, request, "login_hub", "sucesso", conta["usuario"])
             conexao.commit()
     except ErroPostgres:

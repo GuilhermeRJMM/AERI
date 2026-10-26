@@ -46,4 +46,14 @@ Na preparação desta publicação, a chave pública Ed25519 e o `kid` fornecido
 
 ## Validação
 
+### Interface de sessão gerenciada pelo HUB
+
+A migração 065 registra `origem_autenticacao` na sessão. Somente o receptor Ed25519 novo define `HUB`; login por senha e receptor legado continuam `LOCAL`. A API `/api/sessao` informa `origemAutenticacao`. Sessões HUB antigas só são reconhecidas pela auditoria `login_hub` da mesma transação, nunca por login, user-agent ou simples existência de vínculo.
+
+Na sessão HUB, a interface oculta `Sair` e `Alterar senha`. Expiração/revogação continuam protegendo o backend, mas a tela orienta a abrir o AERI novamente pelo HUB, sem exibir o formulário de senha local. A duração absoluta de 8h45 permanece. Login local mantém suas opções normais.
+
+A aba lembra apenas o modo visual (`HUB` ou `LOCAL`) em `sessionStorage`, sem usuário, senha, ticket, cookie ou permissões. Esse indicador não autentica nem libera API alguma. Ao recarregar uma aba expirada, conserva a orientação de reentrada. `/api/sessao` válido é a única autorização para abrir a aplicação; uma sessão local válida substitui a lembrança visual anterior.
+
+Quando o WebView2 oferece a ponte `window.chrome.webview`, a tela envia a notificação sem credenciais `{type:"aeri:reauth-required",version:1}`. O HUB pode tratar o sinal gerando um novo ticket e executando a troca normal. Essa automação depende de implementação no HUB; a tela não presume que o evento foi tratado. O botão `Verificar acesso do HUB` apenas verifica se uma nova sessão já existe, e não renova ou reaproveita tickets sozinho. Também reconsulta ao recuperar foco/visibilidade. Não foi adicionada sessão infinita, bypass de revogação nem transporte de tickets em armazenamento ou mensagens JavaScript.
+
 `tests/test_sso_hub.py` usa chaves/identidades sintéticas e testa assinatura, claims, entrada restrita, cookies, replay, substituição e indisponibilidade. `tests/test_sso_hub_postgres.py` é opt-in com `AERI_TEST_POSTGRES_URL`: deve apontar para banco **de testes**, nunca produção. Verifica concorrência na tabela real e rollback da rotação. O teste de ponta a ponta com WebView/Host da Vercel e a chave do HUB permanece para a ativação conjunta.

@@ -7,6 +7,25 @@ let aoSair = () => {};
 let aoAtualizar = () => {};
 let sincronizandoSessao = false;
 let ultimaSincronizacao = 0;
+// Apenas uma preferência visual por aba. Nunca guarda ticket, cookie,
+// identidade ou permissão, nem substitui a validação de /api/sessao.
+const CHAVE_ORIGEM = 'aeri:origem-login';
+let origemAutenticacao = 'LOCAL';
+try { origemAutenticacao = sessionStorage.getItem(CHAVE_ORIGEM) === 'HUB' ? 'HUB' : 'LOCAL'; } catch (_erro) {}
+
+function definirOrigem(dados) {
+    origemAutenticacao = dados.origemAutenticacao === 'HUB' ? 'HUB' : 'LOCAL';
+    try { sessionStorage.setItem(CHAVE_ORIGEM, origemAutenticacao); } catch (_erro) {}
+    const viaHub = origemAutenticacao === 'HUB';
+    document.getElementById('btn-sair').hidden = viaHub;
+    document.getElementById('btn-minha-senha').hidden = viaHub;
+}
+
+function solicitarEntradaHub() {
+    // Notificação opcional ao host WebView2, sem credenciais. A interface
+    // continua utilizável se o HUB ainda não implementou esse sinal.
+    try { window.chrome?.webview?.postMessage({type: 'aeri:reauth-required', version: 1}); } catch (_erro) {}
+}
 
 function definirModuloVisivel(pageId, visivel) {
     const item = document.querySelector(`.nav-item[data-page="${pageId}"]`);
@@ -54,11 +73,22 @@ function aplicarPermissoesSidebar(dados) {
 }
 
 function abrirLogin() {
+    if (autenticado) aoSair();
+    autenticado = false;
+    definirCsrfToken('');
     document.body.classList.add('auth-pending');
     const saudacao = document.getElementById('saudacao-usuario');
     if (saudacao) saudacao.textContent = '';
     document.getElementById('login-aeri').classList.add('aberto');
-    window.setTimeout(() => document.getElementById('login-usuario').focus(), 80);
+    const viaHub = origemAutenticacao === 'HUB';
+    document.getElementById('form-login').hidden = viaHub;
+    document.getElementById('login-hub').hidden = !viaHub;
+    document.getElementById('login-titulo').textContent = viaHub ? 'Continue pelo Sync HUB' : 'Bem-vindo ao AERI';
+    document.getElementById('login-orientacao').textContent = viaHub
+        ? 'Não é necessário ter uma senha cadastrada no AERI.'
+        : 'Entre com suas credenciais para acessar o sistema.';
+    if (viaHub) solicitarEntradaHub();
+    window.setTimeout(() => document.getElementById(viaHub ? 'btn-verificar-acesso-hub' : 'login-usuario').focus(), 80);
 }
 
 function primeiroNome(valor) {
@@ -76,6 +106,7 @@ function atualizarSaudacaoUsuario(dados) {
 }
 
 function abrirAplicacao(dados) {
+    definirOrigem(dados);
     autenticado = true;
     document.body.dataset.perfil = dados.perfil;
     window.aeriPermissoes = dados.permissoes || {};
@@ -94,30 +125,36 @@ function abrirAplicacao(dados) {
 async function verificarSessao() {
     try {
         const resposta = await fetch('/api/sessao');
-        if (!resposta.ok) return abrirLogin();
+        if (!resposta.ok) {
+            document.getElementById('login-hub-status').textContent = resposta.status === 401
+                ? 'Aguardando um novo acesso pelo HUB.' : 'Não foi possível verificar o acesso. Tente novamente.';
+            return abrirLogin();
+        }
         const dados = await resposta.json();
         definirCsrfToken(dados.csrfToken);
         abrirAplicacao(dados);
     } catch {
+        document.getElementById('login-hub-status').textContent = 'Não foi possível conectar. Verifique sua conexão e tente novamente.';
         abrirLogin();
     }
 }
 
 async function sincronizarSessao() {
     const agora = Date.now();
-    if (!autenticado || sincronizandoSessao || agora - ultimaSincronizacao < 2_000) return;
+    if ((!autenticado && origemAutenticacao !== 'HUB') || sincronizandoSessao || agora - ultimaSincronizacao < 2_000) return;
     sincronizandoSessao = true;
     ultimaSincronizacao = agora;
     try {
         const resposta = await fetch('/api/sessao', {headers: {'X-AERI-Background': '1'}});
         if (resposta.status === 401) {
-            autenticado = false;
             window.dispatchEvent(new CustomEvent('aeri:sessao-expirada'));
             return;
         }
         if (!resposta.ok) return;
         const dados = await resposta.json();
         definirCsrfToken(dados.csrfToken);
+        if (!autenticado) return abrirAplicacao(dados);
+        definirOrigem(dados);
         document.body.dataset.perfil = dados.perfil;
         window.aeriPermissoes = dados.permissoes || {};
         aplicarPermissoesSidebar(dados);
@@ -168,6 +205,7 @@ async function fazerLogin(evento) {
 }
 
 async function sairAeri() {
+    if (origemAutenticacao === 'HUB') return;
     try {
         await requisicaoAeri('/api/logout', {method: 'POST'});
     } finally {
@@ -203,6 +241,7 @@ export function iniciarAutenticacao(opcoes = {}) {
     aoAtualizar = opcoes.aoAtualizar || aoAtualizar;
     document.getElementById('form-login').addEventListener('submit', fazerLogin);
     document.getElementById('btn-sair').addEventListener('click', sairAeri);
+    document.getElementById('btn-verificar-acesso-hub').addEventListener('click', verificarSessao);
     document.getElementById('btn-meu-mfa').addEventListener('click', configurarMeuMfa);
     window.addEventListener('aeri:sessao-expirada', abrirLogin);
     window.addEventListener('focus', sincronizarSessao);
