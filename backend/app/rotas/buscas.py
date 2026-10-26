@@ -7,6 +7,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from psycopg.types.json import Jsonb
 
@@ -79,6 +80,27 @@ def pesquisar_combinado(
     with conectar() as con:
         with con.cursor() as cur:
             return pesquisar(cur, nome, documento, pagina, limite, somente_ativos, exportar)
+
+@router.get('/exportar-pdf')
+def exportar_pdf_pesquisa(
+    nome: str = Query('', max_length=300),
+    documento: str = Query('', max_length=24),
+    somente_ativos: bool = True,
+    usuario: str = Depends(exigir_permissao('acessar_buscas')),
+):
+    from backend.app.servicos.buscas_pdf import gerar_pdf_buscas
+    # Mesmos critérios da tela, incluindo resultados com revisão pendente.
+    # A leitura é única e inclui todas as páginas, sem reconsulta à Tri7.
+    dados = pesquisar_combinado(nome, documento, 1, 5001, somente_ativos, False, usuario)
+    if dados['total'] > 5000:
+        raise HTTPException(422, 'A pesquisa ultrapassa 5.000 resultados. Refine o nome ou CPF/CNPJ para exportar.')
+    return Response(
+        gerar_pdf_buscas(dados, nome, documento, somente_ativos),
+        media_type='application/pdf',
+        headers={'Content-Disposition': 'attachment; filename="resultado-buscas.pdf"',
+                 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'},
+    )
+
 
 LEASE_SEGUNDOS = 300
 MAX_WORKERS_TRI7 = 3

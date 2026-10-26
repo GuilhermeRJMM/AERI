@@ -1,6 +1,6 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {mostrarPagina} from './navegacao.js?v=20261020-voltar-paginas-v1';
-import {escaparHtml} from './util.js';
+import {baixarArquivo, escaparHtml} from './util.js';
 
 let estadoAtual = null;
 let indexando = false;
@@ -146,6 +146,7 @@ export async function carregarBuscas(opcoes = {}) {
 
 export function limparBuscas() {
     geracaoPesquisa++;
+    document.getElementById('btn-buscas-pdf').hidden = true;
     textoPreparado = null;
     document.getElementById('buscas-texto-fallback')?.remove();
     document.getElementById('buscas-documento').value = '';
@@ -236,6 +237,7 @@ function renderizarResultados(dados) {
     // O texto da pesquisa qualificada existe nos dois casos: com imóveis
     // (positivo) e sem nenhum (negativo).
     document.getElementById('btn-buscas-texto').hidden = !(buscaAtual.termo || buscaAtual.documento);
+    document.getElementById('btn-buscas-pdf').hidden = !(buscaAtual.termo || buscaAtual.documento);
     document.getElementById('btn-buscas-texto').textContent = 'Gerar texto';
     document.getElementById('btn-buscas-texto').disabled = false;
     textoPreparado = null;
@@ -289,6 +291,7 @@ function renderizarCandidatos(dados) {
 
 async function executarPesquisa(pagina = 1) {
     const geracao=++geracaoPesquisa;
+    document.getElementById('btn-buscas-pdf').hidden = true;
     textoPreparado = null;
     document.getElementById('btn-buscas-texto').hidden = true;
     document.getElementById('buscas-texto-aviso').hidden = true;
@@ -319,6 +322,32 @@ async function pesquisar(evento) {
         documento:document.getElementById('buscas-documento').value.trim(),
         incluirEncerradas:document.getElementById('buscas-incluir-encerradas').checked, pagina:1, totalPaginas:0};
     await executarPesquisa(1);
+}
+
+async function exportarPdfPesquisa() {
+    const botao = document.getElementById('btn-buscas-pdf');
+    const aviso = document.getElementById('buscas-texto-aviso');
+    const geracao = geracaoPesquisa;
+    const parametros = parametrosPesquisa();
+    parametros.delete('pagina');
+    parametros.delete('limite');
+    parametros.delete('exportar');
+    botao.disabled = true;
+    botao.textContent = 'Gerando PDF…';
+    try {
+        const pdf = await requisicaoAeri(`/api/buscas/exportar-pdf?${parametros}`, {resposta:'blob'});
+        if (geracao !== geracaoPesquisa) return;
+        baixarArquivo(pdf, 'application/pdf', 'resultado-buscas.pdf');
+        aviso.textContent = 'PDF exportado com todos os resultados desta pesquisa, sem conferência prévia.';
+        aviso.hidden = false;
+    } catch (erro) {
+        if (geracao !== geracaoPesquisa) return;
+        aviso.textContent = `Não foi possível exportar o PDF: ${erro.message}`;
+        aviso.hidden = false;
+    } finally {
+        botao.disabled = false;
+        botao.textContent = 'Exportar PDF';
+    }
 }
 
 async function prepararTextoPesquisa() {
@@ -958,6 +987,7 @@ export function iniciarBuscas() {
     });
     document.getElementById('form-buscas').addEventListener('submit', pesquisar);
     document.getElementById('btn-buscas-texto').addEventListener('click', gerarTextoPesquisa);
+    document.getElementById('btn-buscas-pdf').addEventListener('click', exportarPdfPesquisa);
     document.getElementById('btn-buscas-anterior').addEventListener('click', paginaAnterior);
     document.getElementById('btn-buscas-proxima').addEventListener('click', proximaPagina);
     document.getElementById('btn-buscas-indexar').addEventListener('click', alternarIndexacao);
