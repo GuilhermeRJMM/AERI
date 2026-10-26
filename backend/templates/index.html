@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/static/styles.css?v=20261020-cabecalho-neutro-v1">
     <link rel="stylesheet" href="/static/painel.css?v=20260904-barra">
     <link id="sync-theme" rel="stylesheet" href="/static/sync-theme.css?v=20261022-limpeza-clara-v3">
+    <link rel="stylesheet" href="/static/intimacoes-mesa.css?v=20261026-mesa-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="sync-tema splash-active auth-pending">
@@ -866,8 +867,8 @@
                     <div class="rotina-header">
                         <div>
                             <span class="eyebrow">CONTROLE DIÁRIO</span>
-                            <h1>Intimações</h1>
-                            <p>Confira cada IN, um por vez, e registre o que aconteceu.</p>
+                            <h1>Mesa de conferência</h1>
+                            <p>Intimações · Consulte o Ofício, compare o andamento e registre a conferência.</p>
                         </div>
                         <div class="rotina-header-actions">
                             <input id="importar-intimacoes" type="file" accept=".csv,text/csv" hidden>
@@ -893,10 +894,10 @@
                     </section>
 
                     <section class="rotina-painel">
+                        <div id="mesa-feedback" class="mesa-feedback" role="status" hidden></div>
                         <div class="rotina-central-acao" id="rotina-central-acao">
-                            <aside class="rotina-foco" id="rotina-foco" aria-label="Próxima ação do protocolo selecionado" aria-live="polite"></aside>
                             <section class="rotina-fila-painel" aria-label="Todos os INs">
-                                <div class="rotina-fila-titulo"><div><span class="eyebrow">CONSULTA E FILTROS</span><h2>Todos os INs ativos</h2></div><span id="rotina-total-fila" class="rotina-total"></span></div>
+                                <div class="rotina-fila-titulo"><div><span class="eyebrow">TODOS OS INs</span><h2>Caixa de conferência</h2></div><span id="rotina-total-fila" class="rotina-total"></span></div>
                                 <div class="rotina-fases" id="rotina-fases" role="tablist" aria-label="Fases das intimações">
                                     <button type="button" class="rotina-fase-btn ativa" data-fase="TODAS" role="tab" aria-selected="true"><span>Todas</span><strong data-total-fase="TODAS">0</strong></button>
                                     <button type="button" class="rotina-fase-btn" data-fase="INTIMACAO" role="tab" aria-selected="false"><span>Intimação</span><strong data-total-fase="INTIMACAO">0</strong></button>
@@ -917,6 +918,7 @@
                                 </div>
                                 <div class="rotina-fila-lista" id="rotina-fila" aria-live="polite"></div>
                             </section>
+                            <aside class="rotina-foco" id="rotina-foco" aria-label="Mesa do protocolo selecionado"></aside>
                         </div>
                         <details class="rotina-agenda-expansivel">
                             <summary>Consultar agenda de prazos</summary>
@@ -1315,7 +1317,7 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261026-sessao-hub-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20261026-mesa-v1"></script>
 </body>
 </html>
 

@@ -1,0 +1,112 @@
+/* Mesa de conferência: superfícies brancas, sem filtros ou opacidade herdados. */
+#page-rotina { color: #10273c; background: #f8fcfb; }
+#page-rotina .rotina-layout { max-width: 1540px; width: 100%; padding: 32px 28px 60px; margin: 0 auto; }
+#page-rotina .rotina-header h1 { font-size: clamp(26px, 3vw, 36px); letter-spacing: -.035em; }
+#page-rotina .rotina-header p { color: #42596b; }
+#page-rotina .eyebrow { color: #047857; letter-spacing: .1em; font-size: 11px; }
+#page-rotina .rotina-painel { background: transparent; border: 0; box-shadow: none; padding: 0; overflow: visible; }
+#page-rotina .rotina-central-acao { display: grid; grid-template-columns: minmax(330px, .72fr) minmax(0, 1.35fr); gap: 22px; align-items: start; padding: 0; }
+#page-rotina .rotina-fila-painel, #page-rotina .rotina-in-cartao, #page-rotina .rotina-cobertura {
+    background: #fff; border: 1px solid #d5e7e0; border-radius: 18px; box-shadow: 0 6px 24px #103a2510; color: #10273c;
+}
+#page-rotina .rotina-foco { order: 1; padding: 0; background: transparent; border: 0; border-radius: 0; min-width: 0; position: static; box-shadow: none; }
+#page-rotina .rotina-fila-painel { order: 0; }
+#page-rotina .rotina-in-cartao { display: block; padding: 26px; }
+#page-rotina .btn-primary { background: #047857; color: #fff; border-color: #047857; }
+#page-rotina .rotina-cobertura { padding: 22px 26px; margin: 22px 0; display: flex; align-items: center; gap: 24px; }
+#page-rotina .rotina-cobertura-conteudo { flex: 1; }
+#page-rotina .rotina-cobertura h2 { font-size: 19px; color: #10273c; }
+#page-rotina .rotina-cobertura p, #page-rotina .rotina-cobertura-legenda { color: #42596b; }
+#page-rotina .rotina-cobertura-trilho { background: #e2f4ec; height: 7px; border: 0; margin: 14px 0 10px; }
+#page-rotina #rotina-cobertura-barra { background: #059669; }
+#page-rotina .rotina-cobertura-proximo { background: #047857; color: #fff; border: 1px solid #047857; border-radius: 12px; padding: 14px 20px; min-width: 240px; }
+#page-rotina .rotina-cobertura-proximo :is(small,strong,i) { color: #fff; }
+#page-rotina .rotina-cobertura-proximo:disabled { background: #fff; color: #166449; opacity: 1; }
+#page-rotina .rotina-cobertura-proximo:disabled :is(small,strong,i) { color: #166449; }
+#page-rotina .rotina-fila-titulo { padding: 20px 18px 14px; align-items: center; gap: 8px; }
+#page-rotina .rotina-fila-titulo h2 { color: #10273c; font-size: 18px; }
+#page-rotina .rotina-total { color: #42596b; font-size: 11px; white-space: normal; }
+#page-rotina .rotina-fases { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; padding: 0 16px 14px; border: 0; background: #fff; }
+#page-rotina .rotina-fase-btn { min-width: 0; min-height: 38px; padding: 8px 10px; background: #fff; border: 1px solid #d5e7e0; color: #284957; border-radius: 9px; font-size: 12px; }
+#page-rotina .rotina-fase-btn.ativa { background: #ecfdf5; border-color: #059669; color: #065f46; box-shadow: none; }
+#page-rotina .rotina-fase-btn strong { background: #fff; color: inherit; }
+#page-rotina .rotina-toolbar { display: block; padding: 0 16px 12px; border: 0; }
+#page-rotina .rotina-busca { display: flex; flex-wrap: wrap; width: 100%; max-width: none; background: #fff; border: 0; padding: 0; gap: 8px; }
+#page-rotina .rotina-busca > svg { display: none; }
+#page-rotina .rotina-busca :is(input,select) { width: 100%; flex: 1 1 100%; min-width: 0; background: #fff; color: #10273c; border: 1px solid #b5cfc4; border-radius: 9px; min-height: 42px; padding: 10px; font: inherit; font-size: 12px; box-shadow: none; }
+#page-rotina .rotina-busca input::placeholder { color: #527063; opacity: 1; }
+#page-rotina .rotina-fila-filtros { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 16px; background: #fff; border-bottom: 1px solid #d5e7e0; }
+#page-rotina .rotina-fila-filtros button { background: #fff; color: #365747; border: 1px solid #b5cfc4; padding: 8px 10px; font-size: 11px; border-radius: 20px; }
+#page-rotina .rotina-fila-filtros button.ativa { background: #047857; border-color: #047857; color: #fff; }
+#page-rotina .rotina-fila-lista { max-height: 740px; padding: 12px; overflow-y: auto; scrollbar-color: #94b8a8 #fff; display: grid; gap: 8px; }
+#page-rotina .rotina-fila-cartao { background: #fff; border: 1px solid #d5e7e0; border-radius: 11px; overflow: hidden; margin: 0; box-shadow: none; }
+#page-rotina .rotina-fila-cartao.selecionado { background: #f0fdf7; border-color: #059669; box-shadow: inset 3px 0 #059669; }
+#page-rotina .rotina-fila-selecionar { color: #10273c; background: transparent; padding: 15px 13px; width: 100%; border: 0; text-align: left; }
+#page-rotina .rotina-fila-cartao :is(strong,h3) { color: #10273c; }
+#page-rotina .rotina-fila-cartao :is(p,small,.rotina-fila-partes) { color: #42596b; }
+#page-rotina .rotina-fila-cartao .rotina-fila-partes { font-size: 12px; line-height: 1.6; }
+#page-rotina .rotina-folder-btn svg { width: 18px; height: 18px; }
+#page-rotina .mesa-ferramentas .rotina-folder-btn { width: auto; height: auto; display: inline-flex; align-items: center; gap: 7px; }
+#page-rotina .rotina-fila-vazia { color: #42596b; padding: 32px 16px; }
+#page-rotina .rotina-in-cabecalho { margin-bottom: 20px; gap: 12px; }
+#page-rotina .rotina-in-posicao { color: #047857; letter-spacing: .06em; font-size: 11px; }
+#page-rotina .rotina-in-cabecalho h2 { color: #10273c; font-size: clamp(22px,2.5vw,29px); margin-top: 7px; overflow-wrap: anywhere; }
+#page-rotina .rotina-in-partes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 18px; }
+#page-rotina .rotina-in-dado { background: #fff; padding: 0; border: 0; }
+#page-rotina .rotina-in-dado span { color: #42596b; }
+#page-rotina .rotina-in-dado strong { color: #10273c; font-size: 13px; }
+#page-rotina .rotina-in-protocolo-rtd { background: #fff; border: 1px solid #cfc6f0; border-radius: 10px; padding: 13px 16px; margin: 18px 0; }
+#page-rotina .rotina-in-protocolo-rtd span { color: #59468b; }
+#page-rotina .rotina-in-protocolo-rtd strong { color: #523391; overflow-wrap: anywhere; }
+#page-rotina .mesa-comparacao { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 22px 0; }
+#page-rotina :is(.mesa-referencia,.mesa-consulta) { background: #fff; border: 1px solid #c9dfd5; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; align-items: start; gap: 10px; }
+#page-rotina .mesa-referencia { border-top: 3px solid #475d9d; }
+#page-rotina .mesa-consulta { border-top: 3px solid #059669; }
+#page-rotina .mesa-rotulo { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: #047857; }
+#page-rotina .mesa-comparacao strong { color: #10273c; font-size: 15px; line-height: 1.5; }
+#page-rotina .mesa-comparacao :is(p,small) { color: #42596b; font-size: 12px; line-height: 1.6; margin: 0; }
+#page-rotina .mesa-consulta a { color: #047857; font-size: 12px; font-weight: 750; text-underline-offset: 4px; margin-top: auto; }
+#page-rotina .mesa-editor fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+#page-rotina .mesa-editor legend { font-size: 16px; font-weight: 750; margin-bottom: 14px; color: #10273c; }
+#page-rotina .mesa-escolhas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#page-rotina .mesa-escolhas label { display: flex; align-items: start; gap: 10px; background: #fff; border: 1px solid #b5cfc4; border-radius: 12px; padding: 15px 12px; cursor: pointer; }
+#page-rotina .mesa-escolhas label:has(input:checked) { background: #ecfdf5; border-color: #059669; box-shadow: 0 0 0 1px #059669; }
+#page-rotina .mesa-escolhas input { accent-color: #047857; width: 18px; height: 18px; min-height: 0; padding: 0; flex: 0 0 18px; margin: 2px 0; }
+#page-rotina .mesa-escolhas strong { display: block; color: #10273c; font-size: 13px; }
+#page-rotina .mesa-escolhas small { display: block; color: #42596b; font-size: 11px; margin-top: 5px; line-height: 1.5; }
+#page-rotina .mesa-novo-andamento { display: grid; grid-template-columns: minmax(0,1fr) 165px; gap: 12px; margin: 16px 0; }
+#page-rotina .mesa-novo-andamento[hidden], #page-rotina .mesa-feedback[hidden] { display: none; }
+#page-rotina .mesa-novo-andamento label span { display: block; margin-bottom: 7px; font-size: 12px; font-weight: 650; color: #284957; }
+#page-rotina .mesa-novo-andamento input { box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #b5cfc4; border-radius: 9px; color: #10273c; background: #fff; font: inherit; font-size: 13px; color-scheme: light; }
+#page-rotina .mesa-confirmar { width: 100%; min-height: 48px; background: #047857; color: #fff; border: 1px solid #047857; border-radius: 10px; font: inherit; font-size: 13px; font-weight: 750; margin-top: 18px; padding: 12px; cursor: pointer; }
+#page-rotina .mesa-confirmar:disabled { background: #fff; color: #42596b; border-color: #b5cfc4; opacity: 1; cursor: not-allowed; }
+#page-rotina .mesa-ajuda, #page-rotina .mesa-somente-leitura { color: #42596b; font-size: 11px; line-height: 1.7; margin: 10px 0 20px; }
+#page-rotina .mesa-ferramentas { display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid #d5e7e0; padding-top: 18px; margin-top: 18px; }
+#page-rotina :is(.mesa-ferramentas button,.rotina-in-controles button,.rotina-btn-secondary) { background: #fff; border: 1px solid #b5cfc4; border-radius: 9px; color: #174c39; font-size: 12px; padding: 10px 13px; box-shadow: none; }
+#page-rotina .rotina-in-controles { margin: 18px 0 0; display: flex; justify-content: space-between; gap: 8px; }
+#page-rotina .rotina-in-mais-acoes { margin-top: 20px; color: #42596b; }
+#page-rotina .mesa-feedback { background: #ecfdf5; border: 1px solid #73cba6; color: #065f46; padding: 14px 18px; border-radius: 12px; margin-bottom: 16px; font-size: 13px; }
+#page-rotina .rotina-agenda-expansivel { margin-top: 22px; border: 1px solid #d5e7e0; border-radius: 12px; background: #fff; padding: 16px; color: #174c39; }
+#page-rotina :is(button,a,input,select,summary):focus-visible { outline: 3px solid #059669; outline-offset: 3px; }
+#page-rotina :is(button,input,select,fieldset) { filter: none; }
+#page-rotina .rotina-in-estado { background: #fff; border: 1px solid #d5e7e0; color: #42596b; }
+#page-rotina .rotina-in-estado.verde { background: #ecfdf5; color: #065f46; border-color: #73cba6; }
+#page-rotina .rotina-in-estado.amarelo { background: #fffbeb; color: #854d0e; border-color: #e9c96b; }
+#page-rotina .rotina-in-estado.vermelho { background: #fff1f2; color: #9f1239; border-color: #fda4af; }
+@media (min-width: 1600px) { #page-rotina .rotina-fila-lista { max-height: 800px; } }
+@media (max-width: 1000px) {
+    #page-rotina .rotina-layout { padding: 24px 18px 44px; }
+    #page-rotina .rotina-central-acao { grid-template-columns: minmax(290px,.8fr) minmax(0,1fr); gap: 14px; }
+    #page-rotina .rotina-in-cartao { padding: 18px; }
+    #page-rotina :is(.mesa-comparacao,.mesa-escolhas,.mesa-novo-andamento) { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+    #page-rotina .rotina-central-acao { grid-template-columns: 1fr; }
+    #page-rotina .rotina-cobertura { flex-direction: column; align-items: stretch; padding: 18px; }
+    #page-rotina .rotina-cobertura-proximo { min-width: 0; }
+    #page-rotina .rotina-fila-lista { max-height: 280px; }
+    #page-rotina .rotina-in-partes { grid-template-columns: 1fr; gap: 12px; }
+    #page-rotina .rotina-fases { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    #page-rotina .rotina-header-actions { flex-wrap: wrap; }
+    #page-rotina .rotina-in-cabecalho { flex-wrap: wrap; }
+}

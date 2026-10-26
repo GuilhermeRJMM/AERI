@@ -4,15 +4,52 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
+from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 
 from backend.app.rotas.intimacoes import _analisar_versao_esperada
 from backend.app.servicos import intimacoes as servico
+from backend.app.rotas import intimacoes as rotas
 from ferramentas.abrir_pasta_intimacao import caminho_pasta
 
 
 class TesteIntimacoes(unittest.TestCase):
+    def test_rota_persiste_data_da_movimentacao_sem_alterar_data_da_conferencia(self):
+        for data_informada in [None, "2020-01-02"]:
+            with self.subTest(data=data_informada):
+                conexao = MagicMock()
+                cursor = conexao.cursor.return_value.__enter__.return_value
+                cursor.fetchone.side_effect = [{"historico": [], "fase": "INTIMACAO"},
+                                              {"protocolo": "IN00000001X", "fase": "INTIMACAO"}]
+                dados = {"nomeAndamento": "Aguardando orçamento"}
+                if data_informada:
+                    dados["dataAndamento"] = data_informada
+                with patch.object(rotas, "conectar") as conectar, \
+                     patch.object(rotas, "_registrar_evento"), \
+                     patch.object(rotas, "registrar_auditoria_cursor"), \
+                     patch.object(rotas, "intimacao_json"):
+                    conectar.return_value.__enter__.return_value = conexao
+                    rotas.conferir_intimacao(uuid4(), MagicMock(), dados, "usuario_sintetico")
+                parametros = cursor.execute.call_args_list[1].args[1]
+                hoje = datetime.now(rotas.ZoneInfo("America/Sao_Paulo")).date().isoformat()
+                self.assertEqual(hoje, parametros[0])
+                self.assertEqual(data_informada or hoje, parametros[3])
+                conexao.commit.assert_called_once()
+
+    def test_data_movimentacao_independe_da_conferencia(self):
+        self.assertEqual("2026-10-26", servico.validar_data_andamento(None, "2026-10-26"))
+        self.assertEqual("2026-10-20", servico.validar_data_andamento(
+            {"nomeAndamento": "Aguardando orçamento", "dataAndamento": "2026-10-20"}, "2026-10-26"))
+
+    def test_rejeita_data_futura_invalida_ou_sem_novo_andamento(self):
+        for valor in ["2026-10-27", "2026-02-30", "20/10/2026", "20261020", "", None, 1]:
+            with self.subTest(valor=valor), self.assertRaises(HTTPException) as erro:
+                servico.validar_data_andamento({"nomeAndamento": "Prenotado", "dataAndamento": valor}, "2026-10-26")
+            self.assertEqual(422, erro.exception.status_code)
+        with self.assertRaises(HTTPException):
+            servico.validar_data_andamento({"dataAndamento": "2026-10-20"}, "2026-10-26")
+
     def test_valida_nome_e_data_do_andamento(self):
         resultado = servico.validar_intimacao(
             {

@@ -150,6 +150,22 @@ def validar_novo_andamento(dados: dict | None) -> str | None:
     return nome_andamento
 
 
+def validar_data_andamento(dados: dict | None, hoje: str) -> str:
+    """A data da movimentação é independente da data da conferência."""
+    if not dados or "dataAndamento" not in dados:
+        return hoje
+    valor = dados["dataAndamento"]
+    try:
+        data = date.fromisoformat(valor) if isinstance(valor, str) else None
+        if data is None or data.isoformat() != valor or valor > hoje:
+            raise ValueError("Data inválida")
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail="Informe uma data de andamento válida, até hoje.") from exc
+    if not validar_novo_andamento(dados):
+        raise HTTPException(status_code=422, detail="Informe o novo andamento junto com sua data.")
+    return valor
+
+
 def _validar_texto_opcional(dados: dict, campo: str, limite: int) -> str | None:
     valor = str(dados.get(campo, "") or "").strip()
     if len(valor) > limite:

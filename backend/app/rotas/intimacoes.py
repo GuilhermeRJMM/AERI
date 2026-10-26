@@ -17,6 +17,7 @@ from backend.app.servicos.intimacoes import (
     validar_campos_fase_inicial,
     validar_intimacao,
     validar_novo_andamento,
+    validar_data_andamento,
 )
 from backend.app.seguranca_web import registrar_auditoria_cursor
 from backend.app.servicos.rtd_sincronizacao import anexar_rtd
@@ -356,6 +357,7 @@ def conferir_intimacao(
 ):
     hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date().isoformat()
     novo_andamento = validar_novo_andamento(dados)
+    data_andamento = validar_data_andamento(dados, hoje)
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute("SELECT historico, fase FROM intimacoes_aeri WHERE id=%s", (identificador,))
@@ -369,7 +371,7 @@ def conferir_intimacao(
                     """UPDATE intimacoes_aeri SET ultima_conferencia=%s, historico=%s,
                     nome_andamento=%s, ultimo_andamento=%s, fase=%s, atualizado_em=NOW()
                     WHERE id=%s RETURNING *""",
-                    (hoje, Jsonb(historico), novo_andamento, hoje, fase, identificador),
+                    (hoje, Jsonb(historico), novo_andamento, data_andamento, fase, identificador),
                 )
             else:
                 cursor.execute(

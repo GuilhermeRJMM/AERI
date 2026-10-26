@@ -15,6 +15,9 @@ let exibindoLixeira = false;
 let filtroFila = 'TODAS';
 let intimacaoSelecionadaId = null;
 let mostrandoFormularioAndamentoId = null;
+const rascunhosConferencia = new Map();
+let filaConferenciaAtual = [];
+let avisoMesa = '';
 let deslocamentoSemanaAgenda = 0;
 const enviosRtdPorIntimacao = new Map();
 const enviosRtdCarregando = new Set();
@@ -191,12 +194,13 @@ function renderizarCabecalho() {
     document.getElementById('rotina-cabecalho').innerHTML = titulos.map(titulo => `<th>${titulo}</th>`).join('');
 }
 
-function botaoPastaIntimacao(item) {
+function botaoPastaIntimacao(item, comRotulo = false) {
     const titulo = `Abrir pasta de ${item.protocolo}`;
     return `<button class="rotina-folder-btn ativo" data-acao="abrir-pasta" data-protocolo="${escaparHtml(item.protocolo)}" title="${escaparHtml(titulo)}" aria-label="${escaparHtml(titulo)}">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"/>
         </svg>
+        ${comRotulo ? '<span>Abrir pasta</span>' : ''}
     </button>`;
 }
 
@@ -302,47 +306,62 @@ function renderizarFocoIntimacao(item, fila) {
     const fase = item.fase || 'INTIMACAO';
     const podeExcluirProtocolosRtd = somenteAdm() && fase === 'INTIMACAO'
         && (protocolosRtd.length > 0 || Boolean(item.protocoloRtd));
-    const textoProximoPasso = fase === 'INTIMACAO'
-        ? 'Abra a intimação no Ofício Eletrônico e compare o andamento com o que está registrado aqui. Se houver mudança, informe o novo andamento.'
-        : fase === 'EDITAL'
-            ? 'Confira a publicação e o prazo do edital conforme o manual de intimações. Registre aqui se o andamento mudou.'
-            : 'Confira as providências da consolidação conforme o manual de intimações. Registre aqui se o andamento mudou.';
     const status = novidade ? 'Novidade do RTD' : situacao.rotulo;
     const classeStatus = novidade ? 'amarelo' : situacao.classe;
     const conferidoHoje = situacao.classe === 'verde' && !novidade;
-    const desabilitarConferenciaIgual = intimacoesPendentes.has(item.id) || conferidoHoje;
+    const pendente = intimacoesPendentes.has(item.id);
     const somenteLeitura = exibindoLixeira || !pode('conferir_intimacoes');
     const avisoRtd = novidade ? `<div class="rotina-in-aviso-rtd"><strong>O AERI detectou uma novidade no RTD.</strong> Compare o andamento e consulte o histórico antes de concluir a conferência.<br><button type="button" data-acao="detalhes" data-id="${escaparHtml(item.id)}">Ver detalhes e documentos</button></div>` : '';
     const dadosRtd = fase === 'INTIMACAO' ? `<section class="rotina-in-protocolo-rtd" aria-label="Número do protocolo RTD"><span>${protocolosRtd.length === 1 ? 'Número do protocolo RTD' : 'Protocolos RTD vinculados a este IN'}</span>${protocolosRtd.length ? protocolosRtd.map((protocolo, posicao) => `<strong class="rotina-in-protocolo-item">${escaparHtml(protocolo)}</strong>`).join('') : '<strong>Não informado no AERI</strong>'}</section>` : '';
-    const acaoRtd = fase === 'INTIMACAO'
-        ? '<a href="https://www.oficioeletronico.onr.org.br" target="_blank" rel="noopener noreferrer">Abrir Ofício Eletrônico ↗</a>'
-        : '';
+    const rascunho = rascunhosConferencia.get(item.id) || {modo:'', nome:'', data:hojeLocal()};
+    const ativo = document.activeElement;
+    const preservarFoco = ativo?.closest('[data-mesa-conferencia]')?.dataset.id === item.id
+        ? {nome:ativo.name, valor:ativo.value, inicio:ativo.selectionStart, fim:ativo.selectionEnd} : null;
+    const mudou = rascunho.modo === 'mudou';
+    const desabilitar = pendente || !rascunho.modo || (rascunho.modo === 'igual' && conferidoHoje);
+    const rotuloConfirmar = pendente ? 'Salvando conferência…'
+        : mudou ? 'Salvar novo andamento e conferir'
+        : rascunho.modo === 'igual' ? (conferidoHoje ? 'Conferência já registrada hoje' : 'Registrar conferência sem alteração')
+        : 'Escolha o resultado da sua consulta';
     const botoesConferencia = somenteLeitura
-        ? `<div class="rotina-in-aviso-rtd">${exibindoLixeira ? 'Este IN está na lixeira. Use “Mais ações” para restaurá-lo.' : 'Seu perfil permite consultar este IN, mas não registrar a conferência.'}</div>`
-        : `<h3 class="rotina-in-pergunta">${fase === 'INTIMACAO' ? 'O andamento continua igual?' : 'A situação continua igual?'}</h3>
-            <div class="rotina-in-acoes">
-                <button type="button" data-conferencia="igual" data-id="${escaparHtml(item.id)}" ${desabilitarConferenciaIgual ? 'disabled' : ''}>${intimacoesPendentes.has(item.id) ? 'Salvando…' : conferidoHoje ? 'Conferido hoje' : 'Sim, continua igual'}</button>
-                <button type="button" data-conferencia="mudou" data-id="${escaparHtml(item.id)}">Não, mudou</button>
-                <button type="button" data-conferencia="pular" data-id="${escaparHtml(item.id)}">Não consegui conferir agora</button>
-            </div>
-            <form class="rotina-in-form-alteracao" data-form-novo-andamento data-id="${escaparHtml(item.id)}" ${mostrandoFormularioAndamentoId === item.id ? '' : 'hidden'}>
-                <label for="rotina-in-novo-andamento">Qual andamento apareceu?</label>
-                <input id="rotina-in-novo-andamento" name="novoAndamento" maxlength="160" required placeholder="Digite o andamento como aparece no sistema">
-                <button type="submit">Registrar mudança e seguir</button>
-            </form>`;
+        ? `<p class="mesa-somente-leitura">${exibindoLixeira ? 'Este IN está na lixeira. A restauração está disponível em Mais ações.' : 'Seu perfil permite consultar este IN, mas não registrar a conferência.'}</p>`
+        : `<form class="mesa-editor" data-mesa-conferencia data-id="${escaparHtml(item.id)}">
+            <fieldset ${pendente ? 'disabled' : ''}>
+                <legend>Como está o andamento no Ofício?</legend>
+                <div class="mesa-escolhas">
+                    <label><input type="radio" name="tipoConferencia" value="igual" data-mesa-modo ${rascunho.modo === 'igual' ? 'checked' : ''} required><span><strong>Mesmo andamento</strong><small>Está igual ao registro do AERI.</small></span></label>
+                    <label><input type="radio" name="tipoConferencia" value="mudou" data-mesa-modo ${mudou ? 'checked' : ''} required><span><strong>Novo andamento</strong><small>Encontrei uma movimentação diferente.</small></span></label>
+                </div>
+                <div class="mesa-novo-andamento" ${mudou ? '' : 'hidden'}>
+                    <label><span>Novo andamento no Ofício</span><input id="rotina-in-novo-andamento" name="novoAndamento" maxlength="160" value="${escaparHtml(rascunho.nome)}" ${mudou ? 'required' : 'disabled'} placeholder="Digite exatamente o que aparece no Ofício"></label>
+                    <label><span>Data desse andamento</span><input name="dataAndamento" type="date" value="${escaparHtml(rascunho.data)}" max="${hojeLocal()}" ${mudou ? 'required' : 'disabled'}></label>
+                </div>
+                <button type="submit" class="mesa-confirmar" ${desabilitar ? 'disabled' : ''}>${rotuloConfirmar}</button>
+                <p class="mesa-ajuda">${mudou ? 'O novo andamento e sua data serão salvos junto com a conferência de hoje.' : 'Selecionar uma opção não salva nada. Confirme a conferência no botão acima.'}</p>
+            </fieldset>
+        </form>`;
     const botoesNavegacao = total > 1 ? `<div class="rotina-in-controles"><button type="button" data-foco-navegar="-1">← IN anterior</button><button type="button" data-foco-navegar="1">Próximo IN →</button></div>` : '';
     foco.innerHTML = `<article class="rotina-in-cartao">
         <div class="rotina-in-cabecalho"><div><span class="rotina-in-posicao">${escaparHtml(rotuloFaseIntimacao(fase).toLocaleUpperCase('pt-BR'))} · IN ${indice} DE ${total}</span><h2>${escaparHtml(item.protocolo)}</h2></div><span class="rotina-in-estado ${classeStatus}">${escaparHtml(status || 'Falta conferir')}</span></div>
         <div class="rotina-in-partes"><div class="rotina-in-dado"><span>Credor</span><strong>${escaparHtml(item.credor || 'Não informado')}</strong></div><div class="rotina-in-dado"><span>Devedor</span><strong>${escaparHtml(item.devedor || 'Não informado')}</strong></div></div>
         ${dadosRtd}
-        <div class="rotina-in-andamento"><span>Último andamento registrado no AERI · ${formatarDataRotina(item.ultimoAndamento)}</span><strong>${escaparHtml(item.nomeAndamento || 'Não informado')}</strong></div>
         ${avisoRtd}
-        <section class="rotina-in-proxima-acao"><strong>O que fazer agora</strong><p>${textoProximoPasso}</p>${acaoRtd}</section>
+        <div class="mesa-comparacao">
+            <section class="mesa-referencia"><span class="mesa-rotulo">NO AERI</span><strong>${escaparHtml(item.nomeAndamento || 'Não informado')}</strong><small>Último andamento · ${formatarDataRotina(item.ultimoAndamento)}</small></section>
+            <section class="mesa-consulta"><span class="mesa-rotulo">NO OFÍCIO ELETRÔNICO</span><strong>Consulte antes de registrar</strong><p>Compare o andamento deste IN com o registro ao lado.</p><a href="https://www.oficioeletronico.onr.org.br" target="_blank" rel="noopener noreferrer">Abrir Ofício Eletrônico ↗</a></section>
+        </div>
         ${botoesConferencia}
+        <div class="mesa-ferramentas"><button type="button" data-acao="detalhes" data-id="${escaparHtml(item.id)}" aria-expanded="${detalhesAbertos.has(item.id)}">${detalhesAbertos.has(item.id) ? 'Fechar histórico e documentos' : 'Histórico e documentos'}</button>${botaoPastaIntimacao(item, true)}${pode('alterar_intimacoes') && !exibindoLixeira ? `<button type="button" data-acao="editar" data-id="${escaparHtml(item.id)}">Editar cadastro</button>` : ''}${pode('alterar_intimacoes') && fase === 'INTIMACAO' && !exibindoLixeira ? `<button type="button" data-acao="novo-envio-rtd" data-id="${escaparHtml(item.id)}">Preparar envio ao RTD</button>` : ''}</div>
         ${botoesNavegacao}
-        <details class="rotina-in-mais-acoes"><summary>Mais ações</summary><div>${botaoPastaIntimacao(item)} <button type="button" data-acao="detalhes" data-id="${escaparHtml(item.id)}">${detalhesAbertos.has(item.id) ? 'Fechar detalhes' : 'Ver detalhes'}</button>${acoesIntimacao(item, false)}${pode('alterar_intimacoes') && fase === 'INTIMACAO' && !exibindoLixeira ? `<button type="button" data-acao="novo-envio-rtd" data-id="${escaparHtml(item.id)}">Preparar envio ao RTD</button>` : ''}${podeExcluirProtocolosRtd ? `<button type="button" class="rtd-exclusao-atalho" data-acao="excluir-protocolos-rtd" data-id="${escaparHtml(item.id)}">Remover protocolos RTD</button>` : ''}</div></details>
+        ${cargoAdministrativo() ? `<details class="rotina-in-mais-acoes"><summary>Mais ações administrativas</summary><div>${exibindoLixeira ? `<button type="button" data-acao="restaurar" data-id="${escaparHtml(item.id)}">Restaurar IN</button>` : `<button type="button" class="perigo" data-acao="excluir" data-id="${escaparHtml(item.id)}">Mover IN para a lixeira</button>`}${podeExcluirProtocolosRtd && !exibindoLixeira ? `<button type="button" class="rtd-exclusao-atalho" data-acao="excluir-protocolos-rtd" data-id="${escaparHtml(item.id)}">Remover protocolos RTD</button>` : ''}</div></details>` : ''}
         ${detalhesAbertos.has(item.id) ? `<div class="rotina-foco-detalhes">${detalhesFaseInicial(item)}</div>` : ''}
     </article>`;
+    if (preservarFoco) {
+        const campo = [...foco.querySelectorAll('[name]')].find(el => el.name === preservarFoco.nome
+            && (el.type !== 'radio' || el.value === preservarFoco.valor));
+        campo?.focus({preventScroll:true});
+        if (campo?.type === 'text' && preservarFoco.inicio !== null) campo.setSelectionRange(preservarFoco.inicio, preservarFoco.fim);
+    }
 }
 
 function renderizarCentralAcao(filtradas) {
@@ -352,6 +371,9 @@ function renderizarCentralAcao(filtradas) {
     let fila = filtradas;
     if (filtroFila === 'PENDENTES') fila = fila.filter(item => situacaoIntimacao(item).classe !== 'verde');
     if (filtroFila === 'RTD') fila = fila.filter(temNovidadeRtd);
+    filaConferenciaAtual = fila;
+    const feedback = document.getElementById('mesa-feedback');
+    if (feedback) { feedback.textContent = avisoMesa; feedback.hidden = !avisoMesa; }
     if (!fila.some(item => item.id === intimacaoSelecionadaId)) intimacaoSelecionadaId = fila[0]?.id || null;
     const selecionada = fila.find(item => item.id === intimacaoSelecionadaId) || null;
     const vazio = filtroFila === 'RTD'
@@ -1058,6 +1080,10 @@ export async function carregarIntimacoes(opcoes = {}) {
 
 export function limparIntimacoes() {
     intimacoes = [];
+    rascunhosConferencia.clear();
+    filaConferenciaAtual = [];
+    avisoMesa = '';
+    intimacaoSelecionadaId = null;
     renderizarIntimacoes();
 }
 
@@ -1198,7 +1224,7 @@ function escolherNovoAndamento() {
     document.getElementById('check-novo-andamento').focus();
 }
 
-async function conferirIntimacao(id, novoAndamento = null) {
+async function conferirIntimacao(id, novoAndamento = null, dataAndamento = null) {
     const indice = intimacoes.findIndex(item => item.id === id);
     if (indice < 0 || intimacoesPendentes.has(id)) return;
     const anterior = {...intimacoes[indice], historico:[...(intimacoes[indice].historico || [])]};
@@ -1214,7 +1240,7 @@ async function conferirIntimacao(id, novoAndamento = null) {
         historico: [...new Set([...(anterior.historico || []), hoje])],
         ...(novoAndamento ? {
             nomeAndamento: novoAndamento,
-            ultimoAndamento: hoje,
+            ultimoAndamento: dataAndamento || hoje,
             fase: fasePorAndamento(novoAndamento, anterior.fase),
         } : {}),
     };
@@ -1224,30 +1250,14 @@ async function conferirIntimacao(id, novoAndamento = null) {
         const opcoes = {method:'POST'};
         if (novoAndamento) {
             opcoes.headers = {'Content-Type':'application/json'};
-            opcoes.body = JSON.stringify({nomeAndamento: novoAndamento});
+            opcoes.body = JSON.stringify({nomeAndamento: novoAndamento, ...(dataAndamento ? {dataAndamento} : {})});
         }
         const salvo = await requisicaoAeri(`/api/intimacoes/${id}/conferir`, opcoes);
         const indiceAtual = intimacoes.findIndex(item => item.id === id);
         if (indiceAtual >= 0) intimacoes[indiceAtual] = salvo;
         mostrandoFormularioAndamentoId = null;
-        if (intimacaoSelecionadaId === id) {
-            const proximoPendente = intimacoes
-                .filter(item => item.id !== id && situacaoIntimacao(item).classe !== 'verde')
-                .sort((a, b) => situacaoIntimacao(a).ordem - situacaoIntimacao(b).ordem || a.protocolo.localeCompare(b.protocolo))[0];
-            faseAtiva = 'TODAS';
-            filtroSituacao = 'TODAS';
-            const busca = document.getElementById('busca-intimacao');
-            if (busca) busca.value = '';
-            const filtro = document.getElementById('filtro-situacao-intimacao');
-            if (filtro) filtro.value = 'TODAS';
-            if (proximoPendente) {
-                filtroFila = 'PENDENTES';
-                intimacaoSelecionadaId = proximoPendente.id;
-            } else {
-                filtroFila = 'TODAS';
-                intimacaoSelecionadaId = salvo.id;
-            }
-        }
+        rascunhosConferencia.delete(id);
+        avisoMesa = `${salvo.protocolo}: ${novoAndamento ? 'novo andamento salvo e conferência registrada.' : 'conferência registrada sem alteração do andamento.'}`;
     } catch (falha) {
         const indiceAtual = intimacoes.findIndex(item => item.id === id);
         if (indiceAtual >= 0) intimacoes[indiceAtual] = anterior;
@@ -1662,13 +1672,35 @@ export function iniciarIntimacoes() {
         }
         await tratarAcaoTabela(evento);
     });
-    document.getElementById('rotina-central-acao').addEventListener('submit', async evento => {
-        const formulario = evento.target.closest('[data-form-novo-andamento]');
+    const centralMesa = document.getElementById('rotina-central-acao');
+    centralMesa.addEventListener('input', evento => {
+        const formulario = evento.target.closest('[data-mesa-conferencia]');
+        if (!formulario || evento.target.type === 'radio') return;
+        const dados = new FormData(formulario);
+        rascunhosConferencia.set(formulario.dataset.id, {
+            modo:dados.get('tipoConferencia') || '',
+            nome:dados.get('novoAndamento') || '',
+            data:dados.get('dataAndamento') || hojeLocal(),
+        });
+    });
+    centralMesa.addEventListener('change', evento => {
+        if (!evento.target.matches('[data-mesa-modo]')) return;
+        const formulario = evento.target.closest('[data-mesa-conferencia]');
+        const anterior = rascunhosConferencia.get(formulario.dataset.id) || {nome:'', data:hojeLocal()};
+        rascunhosConferencia.set(formulario.dataset.id, {...anterior, modo:evento.target.value});
+        renderizarFocoIntimacao(intimacoes.find(item => item.id === formulario.dataset.id), filaConferenciaAtual);
+    });
+    centralMesa.addEventListener('submit', async evento => {
+        const formulario = evento.target.closest('[data-mesa-conferencia]');
         if (!formulario) return;
         evento.preventDefault();
+        if (!pode('conferir_intimacoes') || exibindoLixeira || !formulario.reportValidity()) return;
         const id = formulario.dataset.id;
-        const andamento = new FormData(formulario).get('novoAndamento')?.toString().trim();
-        if (id && andamento && pode('conferir_intimacoes')) await conferirIntimacao(id, andamento);
+        const dados = new FormData(formulario);
+        const modo = dados.get('tipoConferencia');
+        const andamento = dados.get('novoAndamento')?.toString().trim();
+        if (modo === 'igual') await conferirIntimacao(id);
+        else if (modo === 'mudou' && andamento) await conferirIntimacao(id, andamento, dados.get('dataAndamento'));
     });
     document.getElementById('rotina-agenda-dias').addEventListener('click', evento => {
         const protocolo = evento.target.closest('[data-agenda-intimacao]');
