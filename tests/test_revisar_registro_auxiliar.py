@@ -80,7 +80,7 @@ class TesteRevisarRegistroAuxiliar(unittest.TestCase):
         salvar_indice.return_value = (
             {
                 "numero": 29461, "modalidade": "ALIENAÇÃO", "situacao": "ATIVO",
-                "pessoas": [], "produtos": ["MILHO", "SOJA"], "safras": ["2025/2026"],
+                "pessoas": [], "produtos": ["MILHO"], "safras": ["2025/2026"],
                 "consultado_em": datetime.now(timezone.utc), "alterado": True,
             },
             False,

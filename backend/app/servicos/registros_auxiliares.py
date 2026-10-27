@@ -7,12 +7,7 @@ from backend.app.servicos.buscas import HASH_DOCUMENTOS_VERSAO, hash_documentos,
 
 
 PRODUTOS = (
-    # "Padrão CONCEX" é a classificação de qualidade específica da soja (14%
-    # umidade, 1% impurezas, 8% avariados/5% ardidos, 10% verdes, 30%
-    # quebrados) — algumas cédulas descrevem só essas características, sem
-    # nunca escrever a palavra "SOJA" no texto (campo do template não
-    # preenchido), então esse padrão serve de assinatura alternativa.
-    ("SOJA", r"\bSOJA(?:\s+EM\s+GRAOS)?\b|\bPADRAO\s+CONCEX\b"),
+    ("SOJA", r"\bSOJA(?:\s+EM\s+GRAOS)?\b"),
     ("MILHO", r"\bMILHO\b"),
     ("SORGO", r"\bSORGO\b"),
     ("ALGODÃO", r"\bALGODAO\b"),
@@ -48,6 +43,13 @@ PADRAO_PAPEIS_NAO_BUSCADOS = (
 )
 
 VALOR_CERTIDAO_REGISTRO_AUXILIAR = Decimal("139.93")
+
+PADRAO_CAMPO_PRODUTO = re.compile(
+    r"\b(?:IDENTIFICACAO\s+DO\s+)?PRODUTO\s*:\s*([^;]{1,160})"
+)
+PADRAO_RETIFICACAO_PRODUTO = re.compile(
+    r"\bONDE\s+SE\s+LE\s+([^.;]{1,100}?),?\s+LEIA-SE\s+([^.;]{1,100})"
+)
 
 
 def normalizar_safra(valor: str) -> str:
@@ -185,6 +187,40 @@ def _extrair_situacao(texto: str) -> str:
     return "ATIVO"
 
 
+def _produtos_no_trecho(trecho: str) -> list[str]:
+    return [rotulo for rotulo, padrao in PRODUTOS if re.search(padrao, trecho)]
+
+
+def _extrair_produtos(normalizado: str) -> list[str]:
+    """Extrai o produto declarado sem misturá-lo com qualidade ou histórico.
+
+    Quando o título informa "PRODUTO: ...", esse campo é a fonte principal:
+    palavras de outra cultura em características, observações ou averbações
+    não devem transformar, por exemplo, milho em soja. CONCEX só é usado como
+    fallback legado se não houver produto explícito nem outra cultura escrita.
+    Retificações "onde se lê X, leia-se Y" substituem X por Y no índice atual.
+    """
+    campos = PADRAO_CAMPO_PRODUTO.findall(normalizado)
+    if campos:
+        encontrados = set()
+        for campo in campos:
+            encontrados.update(_produtos_no_trecho(campo))
+    else:
+        encontrados = set(_produtos_no_trecho(normalizado))
+
+    for anterior, corrigido in PADRAO_RETIFICACAO_PRODUTO.findall(normalizado):
+        produtos_anteriores = _produtos_no_trecho(anterior)
+        produtos_corrigidos = _produtos_no_trecho(corrigido)
+        encontrados.difference_update(produtos_anteriores)
+        encontrados.update(produtos_corrigidos)
+
+    if not campos and not encontrados and re.search(r"\bPADRAO\s+CONCEX\b", normalizado):
+        encontrados.add("SOJA")
+
+    # Mantém a ordem estável dos rótulos apresentados na busca.
+    return [rotulo for rotulo, _ in PRODUTOS if rotulo in encontrados]
+
+
 def resumo_certidao_registro_auxiliar(quantidade_registros: int) -> dict:
     quantidade = max(0, int(quantidade_registros))
     multiplicador = max(1, quantidade)
@@ -217,7 +253,7 @@ def extrair_indice_registro_auxiliar(numero: int | str, texto: str) -> dict:
     else:
         modalidade = "OUTROS"
 
-    produtos = [rotulo for rotulo, padrao in PRODUTOS if re.search(padrao, normalizado)]
+    produtos = _extrair_produtos(normalizado)
     safras = []
     for inicio, fim in re.findall(r"\b(20\d{2})\s*[/\-]\s*(20\d{2})\b", normalizado):
         safra = f"{inicio}/{fim}"

@@ -109,6 +109,46 @@ class TesteRegistrosAuxiliares(unittest.TestCase):
         self.assertEqual(indice["produtos"], ["SORGO"])
         self.assertEqual(indice["safras"], ["2026/2026"])
 
+    def test_produto_explicito_milho_nao_vira_soja_por_padrao_concex(self):
+        # Regressão dos registros 29.671 e 29.672: CONCEX é uma classificação
+        # de qualidade e não pode adicionar SOJA quando o campo PRODUTO diz MILHO.
+        texto = """
+        OBJETO DA GARANTIA: PENHOR CEDULAR.
+        PRODUTO: MILHO TIPO 1, PADRÃO CONCEX; SAFRA: 2026/2027.
+        A garantia refere-se exclusivamente à produção informada neste campo.
+        """
+
+        indice = extrair_indice_registro_auxiliar(29671, texto)
+
+        self.assertEqual(indice["produtos"], ["MILHO"])
+        self.assertEqual(indice["safras"], ["2026/2027"])
+
+    def test_soja_explicita_com_concex_permanece_soja(self):
+        indice = extrair_indice_registro_auxiliar(
+            29672,
+            "PRODUTO: SOJA EM GRÃOS, PADRÃO CONCEX; SAFRA: 2026/2027.",
+        )
+
+        self.assertEqual(indice["produtos"], ["SOJA"])
+
+    def test_concex_legado_sem_produto_explicito_ainda_indica_soja(self):
+        # Preserva registros antigos em que a Tri7 não informou o campo
+        # PRODUTO e o único indicador era a classificação CONCEX.
+        indice = extrair_indice_registro_auxiliar(
+            29673,
+            "PENHOR AGRÍCOLA. PADRÃO CONCEX; SAFRA: 2026/2027.",
+        )
+
+        self.assertEqual(indice["produtos"], ["SOJA"])
+
+    def test_retificacao_de_produto_substitui_o_produto_anterior(self):
+        indice = extrair_indice_registro_auxiliar(
+            29674,
+            "PRODUTO: SOJA; AV.02 - RETIFICAÇÃO: onde se lê SOJA, leia-se MILHO.",
+        )
+
+        self.assertEqual(indice["produtos"], ["MILHO"])
+
     def test_identifica_produtos_pecuarios(self):
         indice = extrair_indice_registro_auxiliar(
             29538,
