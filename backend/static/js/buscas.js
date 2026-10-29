@@ -258,7 +258,7 @@ function renderizarResultados(dados) {
         const situacao = String(item.situacao || 'REVISAR').toUpperCase();
         return `<tr>
             <td data-label="Matrícula"><strong class="buscas-matricula">${formatarNumero(item.matricula)}</strong><small class="buscas-situacao" data-situacao="${escaparHtml(situacao)}">${escaparHtml(situacao)}</small></td>
-            <td data-label="Proprietário"><strong>${escaparHtml(item.nome)}</strong><small>${item.revisaoPendente ? 'Conferência pendente' : 'Confiança '+escaparHtml((item.confianca || 'BAIXA').toLowerCase())}</small></td>
+            <td data-label="Proprietário"><strong>${escaparHtml(item.nome)}</strong><small>${item.motorDesatualizado ? 'Análise desatualizada · atualização pendente' : item.revisaoPendente ? 'Conferência pendente' : 'Confiança '+escaparHtml((item.confianca || 'BAIXA').toLowerCase())}</small>${(item.alertas || []).map(a=>`<small>${escaparHtml(a)}</small>`).join('')}</td>
             <td data-label="Documento">${escaparHtml(item.tipoDocumento || '')} ${escaparHtml(item.documento || 'Não informado')}</td>
             <td data-label="Proporção"><span class="buscas-proporcao">${escaparHtml(item.proporcao)}</span></td>
             <td data-label="Origem">${escaparHtml(item.origem)}</td>
@@ -277,7 +277,7 @@ function renderizarCandidatos(dados) {
     const audita=['ADMIN','SUBSTITUTO'].includes(document.body.dataset.perfil) || window.aeriPermissoes?.revisar_auditoria;
     alvo.innerHTML='<h2>Menções em atos anteriores</h2><p>Estas menções ajudam na conferência e não compõem a lista de imóveis em propriedade atual.</p>' + candidatos.map(c=>`<article>
         <strong>Matrícula ${formatarNumero(c.matricula)} · ${escaparHtml(c.situacao)}</strong>
-        <span>${c.revisaoPendente ? 'Extração precisa de revisão' : 'Menção histórica'}</span>
+        <span>${c.revisaoPendente ? 'Extração precisa de revisão' : 'Menção histórica'}${c.motorDesatualizado ? ' · análise de versão anterior' : ''}</span>
         <ul>${(c.mencoes || []).slice(0,8).map(m=>`<li>${escaparHtml(m.nome)} · ${escaparHtml(m.ato)} · ${escaparHtml(m.papel.replaceAll('_',' ').toLowerCase())}</li>`).join('')}</ul>
         <button class="rotina-btn-secondary" data-matricula="${Number(c.matricula)}">Abrir matrícula</button>
         ${audita ? `<button class="rotina-btn-secondary" data-reconsultar="${Number(c.matricula)}">Reconsultar texto</button>` : ''}</article>`).join('') + (dados.maisCandidatos ? '<p>Existem mais menções. Refine pelo nome completo e CPF/CNPJ.</p>' : '');
@@ -286,6 +286,9 @@ function renderizarCandidatos(dados) {
     const pendentes=Number(dados.cobertura?.mencoes_pendentes || 0);
     cobertura.textContent=`${formatarNumero(dados.totalMatriculas ?? dados.total)} matrículas nesta pesquisa.` +
         (pendentes ? ` Recuperação por atos em atualização: ${formatarNumero(pendentes)} matrículas restantes.` : '') +
+        (dados.cobertura?.motor_pendente ? ` Análises de versão anterior: ${formatarNumero(dados.cobertura.motor_pendente)}.` : '') +
+        (dados.cobertura?.falhas_consulta ? ` Falhas de consulta: ${formatarNumero(dados.cobertura.falhas_consulta)}.` : '') +
+        (dados.cobertura?.carga_inicial_pendente ? ' Carga inicial ainda incompleta.' : '') +
         (!dados.total ? ' Nenhum titular localizado no índice; confira as menções e a cobertura antes de concluir.' : '');
 }
 
@@ -396,8 +399,11 @@ function montarTextoPesquisa(termo, itens, cobertura = {}) {
             + `(${porExtenso(matriculas.length)}) ${unico ? 'imóvel' : 'imóveis'} `
             + 'em propriedade da pessoa pesquisada.'
         : 'Não foram encontrados imóveis em propriedade da pessoa pesquisada.';
+    const lacunas = Array.isArray(cobertura.ressalvas) && cobertura.ressalvas.length
+        ? cobertura.ressalvas.join('; ')
+        : `${formatarNumero(cobertura.sem_titular || 0)} matrícula(s) ativa(s) sem titular extraído e ${formatarNumero(cobertura.mencoes_pendentes || 0)} com menções pendentes`;
     const ressalvaNegativa = !matriculas.length && cobertura.negativa_segura === false
-        ? `RESSALVA: o índice ainda tem ${formatarNumero(cobertura.sem_titular || 0)} matrícula(s) ativa(s) sem titular extraído e ${formatarNumero(cobertura.mencoes_pendentes || 0)} com menções pendentes. Esta busca não pode ser considerada uma negativa segura até a regularização dessas lacunas.`
+        ? `RESSALVA: o índice ainda tem ${lacunas}. Esta busca não pode ser considerada uma negativa segura até a regularização dessas lacunas.`
         : '';
     const rotuloMatriculas = unico ? 'Matrícula' : 'Matrículas';
 
@@ -410,6 +416,9 @@ function montarTextoPesquisa(termo, itens, cobertura = {}) {
         resultado,
     ];
     if (ressalvaNegativa) linhas.push(ressalvaNegativa);
+    const ressalvaVersao = matriculas.length && ativos.some(item => item.motorDesatualizado)
+        ? 'OBSERVAÇÃO: há análises de versão anterior nesta listagem. O resultado do índice está disponível, mas sua atualização ainda está pendente.' : '';
+    if (ressalvaVersao) linhas.push(ressalvaVersao);
     if (matriculas.length) linhas.push(`2.1 ${rotuloMatriculas}: ${listarComE(listadas)}.`);
 
     return {
@@ -418,6 +427,7 @@ function montarTextoPesquisa(termo, itens, cobertura = {}) {
             solicitados,
             resultado,
             ressalvaNegativa,
+            ressalvaVersao,
             rotuloMatriculas,
             listadas: matriculas.length ? listarComE(listadas) : '',
         }),
@@ -443,7 +453,7 @@ function montarTextoPesquisa(termo, itens, cobertura = {}) {
 // Arial 12 declarado no <span> de cada trecho, e não só no parágrafo: ao
 // colar, o Word costuma herdar a fonte do estilo do destino quando ela não
 // vem no nível do texto -- foi assim que o tamanho mudou sozinho.
-function montarHtmlPesquisa({solicitados, resultado, ressalvaNegativa, rotuloMatriculas, listadas}) {
+function montarHtmlPesquisa({solicitados, resultado, ressalvaNegativa, ressalvaVersao, rotuloMatriculas, listadas}) {
     const FONTE = 'font-family:Arial,sans-serif;font-size:12.0pt;';
     const P = `margin:0;padding:0;text-align:left;${FONTE}`;
 
@@ -465,6 +475,9 @@ function montarHtmlPesquisa({solicitados, resultado, ressalvaNegativa, rotuloMat
     ];
     if (ressalvaNegativa) {
         partes.push(`<p style="${P}color:#92400e;font-weight:bold;">${trecho(ressalvaNegativa, true)}</p>`);
+    }
+    if (ressalvaVersao) {
+        partes.push(`<p style="${P}color:#92400e;">${trecho(ressalvaVersao)}</p>`);
     }
     if (listadas) {
         partes.push(

@@ -129,6 +129,16 @@ def preparar_texto_pesquisa(
     with conectar() as con:
         with con.cursor() as cur:
             previa = pesquisar(cur, nome, documento, exportar=True, validar_exportacao=False)
+            # Atualização da versão segue em segundo plano; não vira exigência
+            # adicional de conferência nem bloqueia o texto operacional.
+            antigos = {int(i['matricula']) for i in previa['itens'] + previa['candidatos']
+                       if i.get('motorDesatualizado')}
+            if antigos:
+                from backend.app.servicos.buscas_mencoes import enfileirar_matriculas
+                enfileirar_matriculas(cur, antigos, 'PESQUISA_MOTOR_ANTIGO')
+                registrar_auditoria_cursor(cur, request, 'priorizar_versao_busca', 'sucesso', usuario,
+                                          detalhes={'quantidade':len(antigos)})
+                con.commit()
     pendentes = sorted({int(i['matricula']) for i in previa['itens'] + previa['candidatos']
                         if i['revisaoPendente']})
     if len(pendentes) > 20 or previa['maisCandidatos']:

@@ -107,3 +107,23 @@ test('não inclui matrícula encerrada e deduplica imóveis', () => {
     assert.match(resultado.texto, /Foi encontrado 1 \(um\) imóvel/);
     assert.deepEqual(Array.from(resultado.descartadas.ENCERRADA), [11]);
 });
+
+test('motor antigo mantém texto disponível e leva observação ao HTML e texto puro', async () => {
+    const {ctx,copias} = ambiente();
+    ctx.responder = () => ({itens:[{matricula:40001,nome:'Pessoa Exemplo',situacao:'ATIVA',motorDesatualizado:true}]});
+    await ctx.api.gerarTextoPesquisa();
+    assert.equal(copias.length,1);
+    assert.match(ctx.api.estado().texto,/análises de versão anterior/);
+    assert.match(ctx.api.estado().html,/análises de versão anterior/);
+});
+
+test('negativa informa motivo novo sem inventar lacunas de titulares ou menções', () => {
+    const {ctx} = ambiente();
+    const resultado=ctx.api.montarTextoPesquisa('Pessoa Exemplo',[],{
+        negativa_segura:false,sem_titular:0,mencoes_pendentes:0,
+        ressalvas:['2 análises de versão anterior','1 matrícula com falha na última consulta'],
+    });
+    assert.match(resultado.texto,/2 análises de versão anterior/);
+    assert.match(resultado.html,/falha na última consulta/);
+    assert(!resultado.texto.includes('0 matrícula(s) ativa(s)'));
+});

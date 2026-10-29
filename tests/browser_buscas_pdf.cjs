@@ -25,7 +25,7 @@ const root=path.resolve(__dirname,'..');
                 pedidos.push(url);
                 if(url.pathname==='/api/buscas/exportar-pdf')return route.fulfill({contentType:'application/pdf',body:Buffer.from('%PDF-1.7\n%arquivo sintetico de teste\n')});
                 return route.fulfill({contentType:'application/json',body:JSON.stringify({
-                    total:101,totalPaginas:3,pagina:1,porPagina:50,itens:[{matricula:12000,nome:'Pessoa Exemplo',documento:'***.123.456-**',situacao:'ATIVA',revisaoPendente:true,consultadoEm:'2026-10-26T10:00:00Z'}],candidatos:[],cobertura:{negativa_segura:false},
+                    total:101,totalPaginas:3,pagina:1,porPagina:50,itens:[{matricula:12000,nome:'Pessoa Exemplo',documento:'***.123.456-**',situacao:'ATIVA',revisaoPendente:true,motorDesatualizado:true,alertas:['Análise de versão anterior; atualização pendente'],correspondencia:'DOCUMENTO_DIVERGENTE',consultadoEm:'2026-10-26T10:00:00Z'}],candidatos:[],cobertura:{negativa_segura:false,motor_pendente:7,falhas_consulta:1},
                 })});
             }
             if(url.pathname.startsWith('/static/')){
@@ -42,6 +42,9 @@ const root=path.resolve(__dirname,'..');
         await page.locator('#btn-buscas-pesquisar').click();
         await page.locator('#btn-buscas-pdf').waitFor({state:'visible'});
         assert((await page.locator('#buscas-resultados').textContent()).includes('12.000'));
+        assert((await page.locator('#buscas-resultados').textContent()).includes('Análise desatualizada'));
+        assert((await page.locator('#buscas-resultados').textContent()).includes('Documento diferente'));
+        assert((await page.locator('#buscas-cobertura').textContent()).includes('Análises de versão anterior: 7'));
         const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#btn-buscas-pdf').click()]);
         assert.equal(download.suggestedFilename(),'resultado-buscas.pdf');
         const pedido=pedidos.find(p=>p.pathname==='/api/buscas/exportar-pdf');

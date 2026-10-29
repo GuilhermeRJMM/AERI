@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 NOME_MOTOR = "AERI Registral"
-VERSAO_MOTOR = "2.2.0"
+VERSAO_MOTOR = "2.2.1"
 MODO_MOTOR = "DETERMINÍSTICO"
 NAO_CONSTA = "NÃO CONSTA"
 
@@ -41,7 +41,9 @@ def hash_regras() -> str:
     for relativo in ARQUIVOS_REGRAS:
         caminho = raiz / relativo
         digest.update(relativo.encode("utf-8"))
-        digest.update(caminho.read_bytes())
+        # Git/Windows podem materializar CRLF, enquanto a Vercel usa LF.
+        # A representação da quebra de linha não muda a regra executada.
+        digest.update(caminho.read_bytes().replace(b"\r\n", b"\n"))
     return digest.hexdigest()
 
 

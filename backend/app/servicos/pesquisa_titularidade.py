@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from backend.app.servicos.buscas import hash_documento, normalizar_documento, normalizar_nome
 from backend.app.servicos.buscas_mencoes import INDICE_BUSCA_VERSAO
 from backend.app.servicos.busca_textual import escapar_like
+from backend.app.analise.contrato import versao_indice_motor
 
 
 PARTICULAS_NOME = {'DA', 'DE', 'DO', 'DAS', 'DOS', 'E'}
@@ -64,10 +65,26 @@ def _item(row, nome, documento_protegido):
     pendente = bool(row.get('falha_consulta_em') or row.get('veredito_cadeia') != 'OK'
         or row.get('indice_busca_versao', 0) < INDICE_BUSCA_VERSAO or conflito
         or documento_protegido and not doc_igual)
+    motor_antigo = row.get('motor_versao') != versao_indice_motor()
+    alertas = []
+    if motor_antigo:
+        alertas.append('Análise de versão anterior; atualização pendente')
+    if row.get('falha_consulta_em'):
+        alertas.append('Última consulta à Tri7 falhou; resultado anterior preservado')
+    if row.get('veredito_cadeia') != 'OK':
+        alertas.append('Cadeia dominial com revisão pendente')
+    if (row.get('indice_busca_versao') or 0) < INDICE_BUSCA_VERSAO:
+        alertas.append('Menções históricas em atualização')
+    if conflito:
+        alertas.append('Documento diferente do pesquisado; identidade não confirmada')
+    elif documento_protegido and not doc_igual:
+        alertas.append('Documento não confirmado no índice')
     return dict(matricula=row['numero'], nome=row['nome'], documento=row['documento_mascarado'],
         tipoDocumento=row['tipo_documento'], proporcao=row['proporcao'], origem=row['origem'],
-        situacao=row['situacao'], confianca='BAIXA' if pendente else row['confianca'],
+        situacao=row['situacao'], confianca='BAIXA' if pendente or motor_antigo else row['confianca'],
         correspondencia=correspondencia, revisaoPendente=pendente,
+        # Sinal informativo: não adiciona um novo bloqueio para gerar texto/PDF.
+        motorDesatualizado=motor_antigo, motorVersao=row.get('motor_versao'), alertas=alertas,
         consultadoEm=row['consultado_em'].isoformat())
 
 
@@ -99,7 +116,7 @@ def pesquisar(cursor, nome='', documento='', pagina=1, limite=50, somente_ativos
     if exportar and total > 5000:
         raise HTTPException(422, 'Refine a pesquisa pelo CPF/CNPJ antes de exportar.')
     tamanho = 5000 if exportar else limite
-    cursor.execute(f'''SELECT m.numero,m.situacao,m.consultado_em,m.falha_consulta_em,m.indice_busca_versao,
+    cursor.execute(f'''SELECT m.numero,m.situacao,m.consultado_em,m.falha_consulta_em,m.indice_busca_versao,m.motor_versao,
         p.nome,p.nome_busca,p.documento_hash,p.documento_mascarado,p.tipo_documento,p.proporcao,p.origem,
         p.confianca,a.veredito_cadeia {base}
         ORDER BY CASE WHEN p.documento_hash=%s THEN 0 WHEN p.nome_busca=%s THEN 1 ELSE 2 END,
@@ -113,6 +130,7 @@ def pesquisar(cursor, nome='', documento='', pagina=1, limite=50, somente_ativos
 
     filtro_m, param_m, _, _ = filtros_identidade(nome, documento, 'x', exata=exportar)
     cursor.execute(f'''SELECT m.numero,m.situacao,m.consultado_em,
+        bool_or(m.motor_versao IS DISTINCT FROM %s) AS motor_desatualizado,
         bool_or(m.quantidade_proprietarios=0 OR COALESCE(a.veredito_cadeia,'REVISAR')<>'OK'
                 OR m.falha_consulta_em IS NOT NULL) AS revisar,
         jsonb_agg(DISTINCT jsonb_build_object('nome',x.nome,'ato',x.ato,'papel',x.papel)) AS mencoes
@@ -124,9 +142,10 @@ def pesquisar(cursor, nome='', documento='', pagina=1, limite=50, somente_ativos
             WHERE p.matricula_numero=x.matricula_numero
             AND (p.nome_busca=x.nome_busca OR p.documento_hash=x.documento_hash))
         GROUP BY m.numero,m.situacao,m.consultado_em
-        ORDER BY revisar DESC,m.numero LIMIT 51''', (*param_m, INDICE_BUSCA_VERSAO))
+        ORDER BY revisar DESC,m.numero LIMIT 51''', (versao_indice_motor(), *param_m, INDICE_BUSCA_VERSAO))
     encontrados = cursor.fetchall()
     candidatos = [dict(matricula=r['numero'], situacao=r['situacao'], revisaoPendente=r['revisar'],
+        motorDesatualizado=bool(r.get('motor_desatualizado')),
         consultadoEm=r['consultado_em'].isoformat(), mencoes=r['mencoes']) for r in encontrados[:50]]
     if exportar:
         # CPF prevalece; nomes correspondentes sem documento exigem identificação.
@@ -135,16 +154,29 @@ def pesquisar(cursor, nome='', documento='', pagina=1, limite=50, somente_ativos
         if validar_exportacao and (any(i['revisaoPendente'] for i in itens) or any(c['revisaoPendente'] for c in candidatos) or len(encontrados)>50):
             raise HTTPException(409, 'Há correspondências que precisam de conferência. Revise a identificação e as matrículas indicadas antes de gerar o texto.')
     cursor.execute('''SELECT COUNT(*) FILTER(WHERE situacao='ATIVA' AND quantidade_proprietarios=0) AS sem_titular,
-        COUNT(*) FILTER(WHERE texto_hash IS NOT NULL AND indice_busca_versao<%s) AS mencoes_pendentes,
+        COUNT(*) FILTER(WHERE texto_hash IS NOT NULL AND indice_busca_versao IS DISTINCT FROM %s) AS mencoes_pendentes,
+        COUNT(*) FILTER(WHERE texto_hash IS NOT NULL AND motor_versao IS DISTINCT FROM %s) AS motor_pendente,
+        COUNT(*) FILTER(WHERE falha_consulta_em IS NOT NULL) AS falhas_consulta,
+        COALESCE((SELECT proximo_inicial<=limite_inicial FROM sincronizacao_matriculas_busca_aeri WHERE id=1),TRUE) AS carga_inicial_pendente,
         MIN(consultado_em) FILTER(WHERE situacao='ATIVA') AS mais_antiga
-        FROM matriculas_busca_aeri''', (INDICE_BUSCA_VERSAO,))
+        FROM matriculas_busca_aeri''', (INDICE_BUSCA_VERSAO, versao_indice_motor()))
     cobertura = dict(cursor.fetchone())
     cobertura['mais_antiga'] = cobertura['mais_antiga'].isoformat() if cobertura.get('mais_antiga') else None
     # A lacuna de cobertura não deve bloquear o trabalho, mas uma negativa
     # precisa carregar ressalva explícita e nunca ser apresentada como segura.
     cobertura['negativa_segura'] = not bool(
         cobertura.get('mencoes_pendentes') or cobertura.get('sem_titular')
+        or cobertura.get('motor_pendente') or cobertura.get('falhas_consulta')
+        or cobertura.get('carga_inicial_pendente')
     )
+    cobertura['ressalvas'] = [f'{int(cobertura[chave])} {rotulo}' for chave,rotulo in (
+        ('sem_titular','matrícula(s) ativa(s) sem titular extraído'),
+        ('mencoes_pendentes','matrícula(s) com menções pendentes'),
+        ('motor_pendente','análise(s) de versão anterior'),
+        ('falhas_consulta','matrícula(s) com falha na última consulta'),
+    ) if cobertura.get(chave)]
+    if cobertura.get('carga_inicial_pendente'):
+        cobertura['ressalvas'].append('carga inicial ainda incompleta')
     if exportar and validar_exportacao and not itens and nome:
         aproximada = pesquisar(cursor, nome, documento, limite=1)
         if aproximada['total']:
