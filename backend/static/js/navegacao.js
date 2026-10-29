@@ -15,8 +15,12 @@ export function mostrarPagina(pageId, {registrarHistorico = true} = {}) {
     const itemAlvo = document.querySelector(`.nav-item[data-page="${pageId}"]`);
     if (!itemAlvo || itemAlvo.hidden) return;
     sincronizarHistorico(pageId, registrarHistorico);
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+        item.removeAttribute('aria-current');
+    });
     itemAlvo.classList.add('active');
+    itemAlvo.setAttribute('aria-current', 'page');
     document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
     document.getElementById(`page-${pageId}`)?.classList.add('active');
     atualizarBreadcrumb(pageId);
@@ -82,12 +86,17 @@ export function iniciarNavegacao() {
         if (item && !item.hidden) {
             mostrarPagina(item.dataset.page);
             if (limiteMobile.matches) fecharSidebarMobile();
+            if (evento.detail === 0) document.getElementById('main-content')?.focus();
         }
     });
     document.getElementById('btn-sidebar').addEventListener('click', alternarSidebar);
     document.getElementById('sidebar-backdrop').addEventListener('click', fecharSidebarMobile);
     document.addEventListener('keydown', evento => {
-        if (evento.key === 'Escape' && limiteMobile.matches) fecharSidebarMobile();
+        if (evento.key === 'Escape' && limiteMobile.matches
+            && document.body.classList.contains('sidebar-aberta-mobile')) {
+            fecharSidebarMobile();
+            document.getElementById('btn-sidebar').focus();
+        }
     });
     limiteMobile.addEventListener('change', () => {
         document.body.classList.remove('sidebar-aberta-mobile');

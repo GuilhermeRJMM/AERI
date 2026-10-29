@@ -3,17 +3,17 @@
 
 :root {
   color-scheme: light;
-  --fundo:        #f8fafc;
-  --superficie:   #fff;
-  --superficie-2: #f8fafc;
-  --borda:        #e2e8f0;
-  --borda-forte:  #cbd5e1;
-  --texto:        #0f172a;
-  --texto-fraco:  #475569;
-  --destaque:     #047857;
-  --destaque-sup: #ecfdf5;
-  --alerta:       #92400e;
-  --alerta-sup:   #fffbeb;
+  --fundo:        var(--aeri-canvas, #f8fafc);
+  --superficie:   var(--aeri-white, #fff);
+  --superficie-2: var(--aeri-white, #fff);
+  --borda:        var(--aeri-border, #e2e8f0);
+  --borda-forte:  var(--aeri-control-border, #8293a8);
+  --texto:        var(--aeri-navy, #0f172a);
+  --texto-fraco:  var(--aeri-muted, #526477);
+  --destaque:     var(--aeri-green, #047857);
+  --destaque-sup: var(--aeri-mint, #ecfdf5);
+  --alerta:       var(--aeri-warning, #92400e);
+  --alerta-sup:   var(--aeri-warning-bg, #fffbeb);
   --sombra:       0 8px 24px rgba(15, 23, 42, .06);
   --raio:         12px;
 }
@@ -22,7 +22,7 @@
 
 body {
   margin: 0;
-  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: var(--aeri-font, system-ui, sans-serif);
   font-size: 14px;
   color: var(--texto);
   background: var(--fundo);
@@ -167,7 +167,16 @@ button { font: inherit; border-radius: 9px; cursor: pointer; border: 1px solid t
 .primario:hover { filter: brightness(1.08); }
 .secundario { background: var(--superficie-2); color: var(--texto); border-color: var(--borda-forte); }
 .secundario:hover { background: var(--borda); }
-button:disabled { opacity: .5; cursor: default; filter: none; }
+button:disabled { opacity: 1; color: var(--texto-fraco); background: var(--fundo); border-color: var(--borda); cursor: not-allowed; filter: none; }
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, button, .botao-link {
+  min-height: var(--aeri-control-height, 44px);
+}
+:is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--destaque); outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
 
 /* -------------------------------------------------------------------- modal */
 

@@ -1,21 +1,3 @@
-/* Tokens locais: não alteram a identidade dos demais módulos. */
-#page-rotina {
- --aeri-white: #fff;
- --aeri-navy: #0f172a;
- --aeri-muted: #526477;
- --aeri-border: #dbe5eb;
- --aeri-green: #047857;
- --aeri-green-hover: #065f46;
- --aeri-mint: #ecfdf5;
- --aeri-warning: #92400e;
- --aeri-warning-bg: #fffbeb;
- --aeri-error: #be123c;
- --aeri-error-bg: #fff1f2;
- --aeri-radius-8: 8px;
- --aeri-radius-16: 16px;
- --aeri-space-24: 24px;
- --aeri-font: 'Outfit', system-ui, sans-serif;
-}
 /* Mesa de conferência: superfícies brancas, sem filtros ou opacidade herdados. */
 #page-rotina { color: var(--aeri-navy); background: var(--aeri-white); }
 #page-rotina .rotina-layout { max-width: 1600px; width: 100%; padding: 32px 32px 60px; margin: 0 auto; }

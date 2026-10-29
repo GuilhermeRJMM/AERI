@@ -1,0 +1,37 @@
+/* Fundação visual compartilhada: aplicação principal e interfaces independentes.
+   Não contém seletores de layout nem regras de negócio. Identidade baseada no Sync. */
+:root {
+  --aeri-white: #fff;
+  --aeri-canvas: #f8fafc;
+  --aeri-navy: #0f172a;
+  --aeri-muted: #526477;
+  --aeri-border: #dbe5eb;
+  --aeri-green: #047857;
+  --aeri-green-hover: #065f46;
+  --aeri-emerald: #10b981;
+  --aeri-mint: #ecfdf5;
+  --aeri-warning: #92400e;
+  --aeri-warning-bg: #fffbeb;
+  --aeri-error: #be123c;
+  --aeri-error-bg: #fff1f2;
+  --aeri-info: #1d4ed8;
+  --aeri-info-bg: #eff6ff;
+  --aeri-radius-8: 8px;
+  --aeri-radius-12: 12px;
+  --aeri-radius-16: 16px;
+  --aeri-space-4: 4px;
+  --aeri-space-8: 8px;
+  --aeri-space-12: 12px;
+  --aeri-space-16: 16px;
+  --aeri-space-24: 24px;
+  --aeri-space-32: 32px;
+  --aeri-font: 'Outfit', system-ui, sans-serif;
+  --aeri-shadow: 0 12px 32px rgb(15 23 42 / 8%);
+  --aeri-control-height: 44px;
+  --aeri-control-border: #8293a8;
+  --aeri-focus-ring: 0 0 0 3px rgb(4 120 87 / 16%);
+  --aeri-disabled-bg: #f8fafc;
+  --aeri-disabled-text: #526477;
+  --aeri-duration: 160ms;
+  --aeri-content-width: 1280px;
+}

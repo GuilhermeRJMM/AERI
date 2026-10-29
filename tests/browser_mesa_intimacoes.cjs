@@ -31,6 +31,12 @@ const root = path.resolve(__dirname, '..');
                     (_,nome) => fs.readFileSync(path.join(root,'backend/templates',nome),'utf8'));
                 html = html.replace(/<script type="module" src="\/static\/js\/app.js[^\"]*"><\/script>/,
                     `<script type="module">import {iniciarIntimacoes,carregarIntimacoes} from '/static/js/intimacoes.js';
+                    import {iniciarNavegacao,mostrarPagina} from '/static/js/navegacao.js';
+                    window.mostrarPaginaTeste=mostrarPagina;iniciarNavegacao();
+                    for(const id of ['inicio','certidao','rotina']) {
+                        const n=document.querySelector('[data-page="'+id+'"]');
+                        n.hidden=false;n.dataset.autorizado='true';
+                    }
                     window.recarregarMesa=carregarIntimacoes;document.getElementById('splash-aeri').remove();
                     document.body.classList.remove('splash-active','auth-pending');document.body.dataset.perfil='ADMIN';
                     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active','ativa'));
@@ -63,6 +69,11 @@ const root = path.resolve(__dirname, '..');
         const fila = page.locator('#rotina-fila [data-selecionar-intimacao]');
         await fila.first().waitFor();
         assert.equal(await fila.count(),6);
+        assert.equal(await page.locator('.sidebar-nav .nav-item:not(button)').count(),0,'Navegação usa botões nativos');
+        const folhas=await page.evaluate(()=>[...document.styleSheets].map(s=>s.href || ''));
+        assert(folhas.findIndex(s=>s.includes('rtd_intimacoes.css')) < folhas.findIndex(s=>s.includes('sync-theme.css')));
+        assert(folhas.findIndex(s=>s.includes('sync-theme.css')) < folhas.findIndex(s=>s.includes('design-system.css')));
+        assert(folhas.findIndex(s=>s.includes('design-system.css')) < folhas.findIndex(s=>s.includes('intimacoes-mesa.css')));
         const foco=page.locator('#rotina-foco');
         assert(await foco.getByText('20260000000000001',{exact:true}).isVisible());
         assert(await foco.getByText('20260000000000002',{exact:true}).isVisible());
@@ -107,20 +118,17 @@ const root = path.resolve(__dirname, '..');
         assert((await page.locator('.rotina-fila-painel').boundingBox()).x < (await foco.boundingBox()).x,'Fila à esquerda e comparação à direita');
         const cores=await page.evaluate(()=>['.rotina-in-cartao','.mesa-referencia','.mesa-consulta','.rotina-fila-painel'].map(s=>getComputedStyle(document.querySelector('#page-rotina '+s)).backgroundColor));
         assert(cores.every(c=>c==='rgb(255, 255, 255)'),JSON.stringify(cores));
-        const tema = await page.evaluate(() => {
-            const folhas = [...document.querySelectorAll('link[rel=stylesheet]')];
-            return {
-                legado: folhas.findIndex(e => e.id === 'rtd-estilos'),
-                sync: folhas.findIndex(e => e.id === 'sync-theme'),
-                mesa: folhas.findIndex(e => e.href.includes('/intimacoes-mesa.css')),
-                verde: getComputedStyle(document.getElementById('page-rotina')).getPropertyValue('--aeri-green').trim(),
-                fundoAtivo: getComputedStyle(document.querySelector('.rotina-fase-btn.ativa')).backgroundColor,
-            };
-        });
-        assert(tema.legado >= 0 && tema.legado < tema.sync && tema.sync < tema.mesa,'Legado não sobrepõe o tema da mesa');
-        assert.equal(tema.verde,'#047857','Tokens locais independem do Design System global');
-        assert.equal(tema.fundoAtivo,'rgb(236, 253, 245)');
         await page.evaluate(()=>window.scrollTo(0,0));
+        await page.evaluate(()=>window.mostrarPaginaTeste('inicio'));
+        await page.evaluate(()=>window.mostrarPaginaTeste('rotina'));
+        await page.goBack();
+        assert(await page.locator('#page-inicio').evaluate(n=>n.classList.contains('active')));
+        await page.goForward();
+        assert.equal(await page.locator('[data-page=rotina]').getAttribute('aria-current'),'page');
+        await page.locator('#aeri-breadcrumb [data-destino=certidao]').focus();
+        await page.keyboard.press('Enter');
+        assert(await page.locator('#page-certidao').evaluate(n=>n.classList.contains('active')),'Breadcrumb funciona por teclado');
+        await page.evaluate(()=>window.mostrarPaginaTeste('rotina'));
         await page.screenshot({path:path.join(require('os').tmpdir(),'aeri-mesa-real-desktop.png'),fullPage:true});
         await page.setViewportSize({width:390,height:844});
         assert(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth),'Sem overflow horizontal');

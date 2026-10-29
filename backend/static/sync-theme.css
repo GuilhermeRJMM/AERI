@@ -1221,8 +1221,8 @@ body.sync-tema #modal-resultado .cadeia-texto-pre { color: #0f172a; background: 
 #modal-custas-edicao .custas-form label span { color: #475569; }
 #modal-custas-edicao .custas-form input:not([type="hidden"]),
 #modal-custas-edicao .custas-form select {
-  min-height: 42px;
-  border: 1px solid #cbd5e1;
+  min-height: var(--aeri-control-height, 42px);
+  border: 1px solid var(--aeri-control-border, #cbd5e1);
   background: #fff;
   color: #0f172a;
   outline: none;

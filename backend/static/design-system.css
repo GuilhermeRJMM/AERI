@@ -1,0 +1,270 @@
+/* AERI · Institucional moderna. Contrato compartilhado do primeiro lote.
+   Legado conserva seus seletores; novos módulos usam os tokens semânticos. */
+:root {
+  --sync-superficie: var(--aeri-white);
+  --sync-texto: var(--aeri-navy);
+  --sync-texto-secundario: var(--aeri-muted);
+  --sync-borda: var(--aeri-border);
+  --sync-verde-texto: var(--aeri-green);
+}
+body.sync-tema { font-family: var(--aeri-font); }
+body.sync-tema .login-aeri { background: var(--aeri-canvas); }
+body.sync-tema .login-card {
+  color: var(--aeri-navy); background: var(--aeri-white);
+  border: 1px solid var(--aeri-border); box-shadow: var(--aeri-shadow);
+  padding: clamp(24px, 5vw, 40px); max-height: calc(100dvh - 32px); overflow-y: auto;
+}
+body.sync-tema .login-card h1 { color: var(--aeri-navy); }
+body.sync-tema .login-card :is(p, label span) { color: var(--aeri-muted); }
+body.sync-tema .login-card .login-logo {
+  display: block; width: 88px; height: 88px; object-fit: contain; margin: 0 auto 20px;
+  background: var(--aeri-navy); border-radius: var(--aeri-radius-12); padding: 12px;
+}
+body.sync-tema .login-card > .eyebrow { display: block; margin-bottom: 12px; }
+body.sync-tema .login-card input {
+  min-height: var(--aeri-control-height); background: var(--aeri-white); color: var(--aeri-navy);
+  border: 1px solid var(--aeri-control-border); border-radius: var(--aeri-radius-8);
+  font: 400 14px/1.5 var(--aeri-font);
+}
+body.sync-tema .login-card input:focus {
+  background: var(--aeri-white); border-color: var(--aeri-green); box-shadow: var(--aeri-focus-ring);
+}
+body.sync-tema #btn-login { background: var(--aeri-green); color: var(--aeri-white); box-shadow: none; }
+body.sync-tema #btn-login:hover:not(:disabled) { background: var(--aeri-green-hover); }
+body.sync-tema .login-card .login-erro { color: var(--aeri-error); }
+body.sync-tema :is(.layout, .painel-pagina) { max-width: var(--aeri-content-width); }
+body.sync-tema :is(.hero, .rotina-header, .painel-cabecalho) h1 {
+  font-size: clamp(26px, 3vw, 32px); line-height: 1.2; letter-spacing: -.025em;
+}
+body.sync-tema :is(.hero, .rotina-header, .painel-cabecalho) p { line-height: 1.65; }
+body.sync-tema :is(.buscas-pesquisa-card, .regaux-pesquisa-card, .incra-upload-card,
+  .livroproto-consulta-card, .sistema-card, .contratos-card, .input-glass) {
+  background: var(--aeri-white); border-color: var(--aeri-border);
+  border-radius: var(--aeri-radius-16); box-shadow: var(--aeri-shadow);
+}
+body.sync-tema :is(.buscas-table-wrap, .regaux-table-wrap, .custas-table-wrap,
+  .incra-table-wrap, .rotina-table-wrap) { max-width: 100%; overflow-x: auto; }
+body.sync-tema :is(.page-content, .modal-box) input[type="file"]::file-selector-button {
+  min-height: 40px; padding: 8px 12px; margin-right: 12px;
+  border: 1px solid var(--aeri-green); border-radius: var(--aeri-radius-8);
+  color: var(--aeri-white); background: var(--aeri-green); font: inherit; cursor: pointer;
+}
+body.sync-tema .page-content :is(.form-error, .regaux-erro) { color: var(--aeri-error); }
+body.sync-tema :is(.buscas-log, .contratos-previas pre, .cadeia-texto-pre) {
+  color: var(--aeri-navy); background: var(--aeri-white); line-height: 1.6;
+}
+body.sync-tema .contratos-carregando-numero,
+body.sync-tema .contratos-carregando-pct,
+body.sync-tema .contratos-carregando-pct span,
+body.sync-tema .contratos-carregando-pct::after,
+body.sync-tema #page-contratos.contratos-extraindo #contratos-mensagem {
+  color: var(--aeri-navy);
+}
+body.sync-tema .contratos-carregando-rotulo { color: var(--aeri-muted); font-size: 20px; letter-spacing: .16em; }
+body.sync-tema .contratos-carregando-pct { font: 800 30px/1 var(--aeri-font); }
+/* O template já contém o sinal de porcentagem; não duplicá-lo no pseudo-elemento. */
+body.sync-tema .contratos-carregando-pct::after { content: none; }
+body.sync-tema .contratos-carregando-trilha {
+  border: 1px solid var(--aeri-control-border); background: var(--aeri-canvas);
+  border-radius: var(--aeri-radius-8);
+}
+body.sync-tema .contratos-carregando-trilha i { background: var(--aeri-emerald); }
+body.sync-tema .modulo-estado-indicador { border-color: var(--aeri-border); border-top-color: var(--aeri-green); }
+body.sync-tema .modulo-estado.erro .modulo-estado-indicador { background: var(--aeri-error); }
+body.sync-tema .modulo-estado.sucesso .modulo-estado-indicador { background: var(--aeri-green); }
+.aeri-skip-link {
+  position: fixed; top: 12px; left: 12px; z-index: 10000;
+  padding: 12px 20px; border-radius: var(--aeri-radius-8);
+  background: var(--aeri-white); color: var(--aeri-green);
+  transform: translateY(-200%);
+}
+.aeri-skip-link:focus { transform: none; }
+body.sync-tema :is(button, a, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--aeri-green);
+  outline-offset: 3px;
+}
+body.sync-tema .navbar :focus-visible,
+body.sync-tema .sidebar :focus-visible { outline-color: #6ee7b7; }
+body.sync-tema .sidebar { box-shadow: none; }
+body.sync-tema .sidebar-nav .nav-item {
+  width: 100%; font: 500 13px/1.45 var(--aeri-font); text-align: left;
+  min-height: 44px; background: transparent; border: 1px solid transparent;
+  border-radius: var(--aeri-radius-8); color: #cbd5e1;
+}
+body.sync-tema .sidebar-nav .nav-item:hover { background: #1e293b; color: #fff; }
+body.sync-tema .sidebar-nav .nav-item.active {
+  color: #6ee7b7; border-color: #245c4d; background: #12352f;
+}
+body.sync-tema .aeri-breadcrumb { background: var(--aeri-white); border-bottom: 1px solid var(--aeri-border); }
+body.sync-tema .aeri-breadcrumb button {
+  min-height: 40px; color: var(--aeri-muted); font-family: var(--aeri-font);
+}
+body.sync-tema .aeri-breadcrumb button[aria-current="page"] { color: var(--aeri-navy); font-weight: 600; }
+body.sync-tema :is(.setor-card, .ferramenta-card, .sistema-atalho) {
+  background: var(--aeri-white); color: var(--aeri-navy);
+  border: 1px solid var(--aeri-border); border-radius: var(--aeri-radius-16);
+  box-shadow: none;
+}
+body.sync-tema :is(.setor-card, .ferramenta-card, .sistema-atalho):hover {
+  border-color: var(--aeri-green); transform: none;
+}
+body.sync-tema :is(.setor-card, .ferramenta-card) :is(h2, h3) { color: var(--aeri-navy); }
+body.sync-tema :is(.setor-card, .ferramenta-card) p { color: var(--aeri-muted); }
+body.sync-tema :is(.card-abrir, .setor-card strong) { color: var(--aeri-green); }
+body.sync-tema .painel-cabecalho h1 { font-size: clamp(26px, 3vw, 30px); }
+body.sync-tema :is(.btn, .rotina-btn-secondary) {
+  min-height: 44px; border-radius: var(--aeri-radius-8);
+  font-family: var(--aeri-font); font-size: 13px; font-weight: 600;
+  line-height: 1.45; box-shadow: none;
+}
+body.sync-tema .btn-primary { background: var(--aeri-green); color: var(--aeri-white); }
+body.sync-tema .btn-primary:hover:not(:disabled) { background: var(--aeri-green-hover); }
+body.sync-tema .rotina-btn-secondary {
+  background: var(--aeri-white); color: var(--aeri-navy); border: 1px solid var(--aeri-border);
+}
+body.sync-tema .modal-overlay {
+  background: rgb(15 23 42 / 45%); backdrop-filter: none;
+}
+body.sync-tema .modal-overlay .modal-box {
+  background: var(--aeri-white); color: var(--aeri-navy);
+  border: 1px solid var(--aeri-border); border-radius: var(--aeri-radius-16);
+  box-shadow: var(--aeri-shadow);
+}
+body.sync-tema .modal-overlay .modal-box :is(input, select, textarea) {
+  font-family: var(--aeri-font); color: var(--aeri-navy);
+  background: var(--aeri-white); border-color: var(--aeri-border);
+}
+body.sync-tema .modal-overlay .modal-box :is(input, select, textarea):disabled {
+  color: var(--aeri-muted); background: var(--aeri-canvas); opacity: 1;
+}
+
+/* Componentes compartilhados. Não interfere nos estados operacionais das linhas
+   nem em controles de arquivo, assinatura, mapas, rádio ou caixas de seleção. */
+body.sync-tema :is(.page-content, .modal-box) :is(
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+  select, textarea
+) {
+  box-sizing: border-box;
+  min-height: var(--aeri-control-height);
+  max-width: 100%;
+  border: 1px solid var(--aeri-control-border);
+  border-radius: var(--aeri-radius-8);
+  padding: 10px 12px;
+  font: 400 14px/1.5 var(--aeri-font);
+  background-color: var(--aeri-white);
+  color: var(--aeri-navy);
+  color-scheme: light;
+  transition: border-color var(--aeri-duration), box-shadow var(--aeri-duration);
+}
+body.sync-tema :is(.page-content, .modal-box) :is(input, textarea)::placeholder {
+  color: var(--aeri-muted); opacity: 1;
+}
+body.sync-tema :is(.page-content, .modal-box) :is(input, select, textarea):focus-visible {
+  border-color: var(--aeri-green);
+  box-shadow: var(--aeri-focus-ring);
+  outline: 2px solid var(--aeri-green); outline-offset: 2px;
+}
+body.sync-tema :is(.page-content, .modal-box) :is(input, select, textarea):disabled,
+body.sync-tema :is(.page-content, .modal-box) :is(input, textarea)[readonly] {
+  background-color: var(--aeri-disabled-bg); color: var(--aeri-disabled-text);
+  opacity: 1;
+}
+body.sync-tema :is(.page-content, .modal-box) :is(input, select, textarea):disabled { cursor: not-allowed; }
+body.sync-tema :is(.page-content, .modal-box) :is(input, textarea)[readonly] { cursor: text; }
+body.sync-tema :is(.page-content, .modal-box) [aria-invalid="true"] {
+  border-color: var(--aeri-error);
+}
+body.sync-tema :is(.btn, .aeri-button) {
+  min-height: var(--aeri-control-height); border-radius: var(--aeri-radius-8);
+  font: 600 14px/1.45 var(--aeri-font);
+  transition: background-color var(--aeri-duration), border-color var(--aeri-duration);
+}
+body.sync-tema .aeri-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 16px; border: 1px solid transparent; cursor: pointer;
+}
+body.sync-tema :is(.btn-primary, .aeri-button--primary) {
+  color: var(--aeri-white); background: var(--aeri-green); border-color: var(--aeri-green);
+}
+body.sync-tema :is(.btn-primary, .aeri-button--primary):hover:not(:disabled) {
+  background: var(--aeri-green-hover); border-color: var(--aeri-green-hover);
+}
+body.sync-tema :is(.page-content, .modal-box) .btn-primary,
+body.sync-tema :is(.page-content, .modal-box) .btn-primary:hover {
+  box-shadow: none; transform: none;
+}
+body.sync-tema :is(.btn-secondary, .aeri-button--secondary) {
+  color: var(--aeri-navy); background: var(--aeri-white); border: 1px solid var(--aeri-control-border);
+}
+body.sync-tema :is(.btn-secondary, .aeri-button--secondary):hover:not(:disabled) {
+  background: var(--aeri-mint); border-color: var(--aeri-green);
+}
+body.sync-tema .aeri-button--danger {
+  color: var(--aeri-white); background: var(--aeri-error); border-color: var(--aeri-error);
+}
+body.sync-tema :is(.btn, .aeri-button, .rotina-btn-secondary):disabled {
+  color: var(--aeri-disabled-text); background: var(--aeri-disabled-bg);
+  border-color: var(--aeri-border); opacity: 1; box-shadow: none;
+  cursor: not-allowed; transform: none;
+}
+body.sync-tema .modal-overlay .modal-box {
+  max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain;
+}
+/* O fundo do cabeçalho legado não pode cobrir o botão flutuante de fechar. */
+body.sync-tema .modal-box > .modal-fechar {
+  position: sticky; top: 12px; z-index: 3;
+  width: 44px; height: 44px; flex-shrink: 0;
+}
+body.sync-tema .modal-box > .rotina-form-header { padding-right: 52px; }
+body.sync-tema .modal-fechar[hidden] { display: none; }
+body.sync-tema .modal-box :is(.modal-header, .rotina-form-header) {
+  background: var(--aeri-white); color: var(--aeri-navy);
+  border-color: var(--aeri-border);
+}
+body.sync-tema .page-content :is(.buscas-table, .regaux-table, .custas-table, .incra-table, .rotina-table) th {
+  color: var(--aeri-navy); background: var(--aeri-canvas);
+  font: 600 13px/1.5 var(--aeri-font); border-color: var(--aeri-border);
+}
+body.sync-tema .page-content :is(.buscas-table, .regaux-table, .custas-table, .incra-table, .rotina-table) td {
+  border-color: var(--aeri-border);
+}
+body.sync-tema .page-content :is(.buscas-table, .regaux-table, .custas-table, .incra-table, .rotina-table) tbody tr:focus-within {
+  outline: 2px solid var(--aeri-green); outline-offset: -2px;
+}
+/* Novas peças reutilizáveis: sempre há rótulo textual além da cor. */
+body.sync-tema :is(.aeri-alert, .aeri-status) {
+  --aeri-state-fg: var(--aeri-navy); --aeri-state-bg: var(--aeri-canvas);
+  color: var(--aeri-state-fg); background: var(--aeri-state-bg);
+  border: 1px solid currentColor; border-radius: var(--aeri-radius-8);
+}
+body.sync-tema .aeri-alert { margin-block: 12px; padding: 16px; font: 400 14px/1.5 var(--aeri-font); }
+body.sync-tema .aeri-alert :is(p, span, strong) { color: inherit; }
+body.sync-tema .aeri-status { display: inline-flex; padding: 4px 10px; font: 600 12px/1.5 var(--aeri-font); }
+body.sync-tema :is(.aeri-alert, .aeri-status)[data-state="success"] {
+  --aeri-state-fg: var(--aeri-green); --aeri-state-bg: var(--aeri-mint);
+}
+body.sync-tema :is(.aeri-alert, .aeri-status)[data-state="warning"] {
+  --aeri-state-fg: var(--aeri-warning); --aeri-state-bg: var(--aeri-warning-bg);
+}
+body.sync-tema :is(.aeri-alert, .aeri-status)[data-state="error"] {
+  --aeri-state-fg: var(--aeri-error); --aeri-state-bg: var(--aeri-error-bg);
+}
+body.sync-tema :is(.aeri-alert, .aeri-status)[data-state="info"] {
+  --aeri-state-fg: var(--aeri-info); --aeri-state-bg: var(--aeri-info-bg);
+}
+body.sync-tema .aeri-empty {
+  margin-block: 16px; padding: 24px; background: var(--aeri-white); color: var(--aeri-muted);
+  border: 1px dashed var(--aeri-control-border); border-radius: var(--aeri-radius-12);
+  text-align: center;
+}
+body.sync-tema .aeri-button[aria-busy="true"]::after {
+  content: ''; width: 14px; height: 14px; border: 2px solid currentColor;
+  border-right-color: transparent; border-radius: 50%; animation: aeri-spin 800ms linear infinite;
+}
+@keyframes aeri-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  body.sync-tema *, body.sync-tema *::before, body.sync-tema *::after {
+    animation-duration: .01ms !important; transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

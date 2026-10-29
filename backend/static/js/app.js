@@ -7,8 +7,8 @@ import {configurarAcessoGeradorNotas, iniciarGeradorNotas} from './gerador_notas
 import {configurarAcessoMapaOnr, iniciarMapaOnr, limparMapaOnr} from './mapa_onr.js?v=20260901-nativo-v1-api1';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20261021-negativa-simples-v1';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20261029-institucional-v1';
-import {iniciarNavegacao} from './navegacao.js?v=20261020-voltar-paginas-v1';
-import {carregarPainel, iniciarPainel, limparPainel} from './painel.js?v=20260831-setores-v1-api1';
+import {iniciarNavegacao} from './navegacao.js?v=20261029-institucional-v1';
+import {carregarPainel, iniciarPainel, limparPainel} from './painel.js?v=20261029-sistema-v2';
 import {carregarSistema, iniciarSistema, limparSistema} from './sistema.js?v=20260831-setores-v1-api1';
 import {iniciarContratos, limparContratos} from './contratos.js?v=20260909-itbi-ged-v2';
 import {carregarPoligonos, configurarAcessoPoligonos, iniciarPoligonos, limparPoligonos} from './poligonos.js?v=20261013-planta-contexto-v2';
