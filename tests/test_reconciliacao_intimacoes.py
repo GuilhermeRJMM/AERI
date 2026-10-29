@@ -1,4 +1,4 @@
-from scripts.importar_intimacoes_relatorio import em_tratativa, planejar_reconciliacao
+from scripts.importar_intimacoes_relatorio import em_tratativa, em_tratativa_oficio, planejar_reconciliacao
 
 
 def test_preserva_ausentes_sem_ignorar_encerramento_confirmado():
@@ -46,3 +46,32 @@ def test_plano_nao_altera_fontes_e_nao_escolhe_registros_por_contagem():
     assert plano['destino'] == {'ativo', 'ausente'}
     assert atuais == {'ausente': {'nome_andamento': 'Conferir'}}
     assert relatorio == {'ativo': {'Status': 'Prenotado'}}
+
+
+def test_criterio_oficio_mantem_devolucao_pendente_e_exclui_negativa_pagamento():
+    assert em_tratativa_oficio('Entrega das importâncias recebidas')
+    assert em_tratativa_oficio('Desistência')
+    assert not em_tratativa_oficio('Negativa Pagamento')
+    assert not em_tratativa_oficio('Desistência Concluída')
+    assert not em_tratativa_oficio('Arquivamento por desinteresse')
+
+
+def test_restaura_sem_duplicar_e_separa_ausente_de_encerrado():
+    relatorio = {'devolucao': {'Status': 'Entrega das importâncias recebidas'},
+                 'negativa': {'Status': 'Negativa Pagamento'},
+                 'novo': {'Status': 'Prenotado'}}
+    plano = planejar_reconciliacao(relatorio, {'negativa': {}, 'ausente': {}},
+                                  arquivadas={'devolucao': {}}, criterio_oficio=True)
+    assert plano['destino'] == {'devolucao', 'novo'}
+    assert plano['restaurar'] == ['devolucao']
+    assert plano['novos'] == ['novo']
+    assert plano['remover'] == ['ausente', 'negativa']
+
+
+def test_criterio_oficio_idempotente():
+    relatorio = {'devolucao': {'Status': 'Entrega das importâncias recebidas'},
+                 'negativa': {'Status': 'Negativa Pagamento'}}
+    plano = planejar_reconciliacao(relatorio, {'devolucao': {}},
+                                  arquivadas={'negativa': {}}, criterio_oficio=True)
+    assert plano['destino'] == {'devolucao'}
+    assert plano['restaurar'] == plano['novos'] == plano['remover'] == []

@@ -25,15 +25,24 @@ def em_tratativa(status):
                 or status in ('registro / averbacao', 'entrega das importancias recebidas'))
 
 
-def planejar_reconciliacao(todos, atuais, *, preservar_ausentes=False):
+def em_tratativa_oficio(status):
+    """Escopo conferido nos relatórios: devolução de valores ainda é pendência."""
+    status = normalizar(status)
+    return not (status.startswith('arquiv') or status in (
+        'desistencia concluida', 'registro / averbacao', 'negativa pagamento'))
+
+
+def planejar_reconciliacao(todos, atuais, *, preservar_ausentes=False, criterio_oficio=False, arquivadas=None):
     """Ausência no relatório não comprova encerramento quando a opção é usada."""
-    ativos = {p:r for p,r in todos.items() if em_tratativa(r['Status'])}
+    criterio = em_tratativa_oficio if criterio_oficio else em_tratativa
+    ativos = {p:r for p,r in todos.items() if criterio(r['Status'])}
     ausentes = set(atuais) - set(todos)
     destino = set(ativos) | (ausentes if preservar_ausentes else set())
     return {
         'ativos_relatorio': ativos,
         'destino': destino,
-        'novos': sorted(destino - set(atuais)),
+        'novos': sorted(destino - set(atuais) - set(arquivadas or {})),
+        'restaurar': sorted((destino - set(atuais)) & set(arquivadas or {})),
         'remover': sorted(set(atuais) - destino),
         'preservados': sorted(set(atuais) & destino),
         'ausentes_preservados': sorted(ausentes) if preservar_ausentes else [],
@@ -66,7 +75,10 @@ def main():
     parser.add_argument('--esperados', type=int, required=True, help='Total ativo esperado após a reconciliação.')
     parser.add_argument('--preservar-ausentes', action='store_true',
                         help='Não encerra INs apenas porque estão ausentes do relatório; informa quais precisam de revisão.')
+    parser.add_argument('--criterio-oficio', action='store_true',
+                        help='Inclui pendência de devolução de valores e exclui negativa de pagamento do escopo em tratativa.')
     parser.add_argument('--arquivar', nargs='*', default=[])
+    parser.add_argument('--restaurar', nargs='*', default=[])
     parser.add_argument('--aplicar', action='store_true')
     parser.add_argument('--usuario', help='Responsável registrado na auditoria (administrador existente).')
     args = parser.parse_args()
@@ -81,13 +93,16 @@ def main():
     try:
         with conectar() as con, con.cursor() as cur:
             cur.execute('LOCK TABLE intimacoes_aeri IN SHARE ROW EXCLUSIVE MODE')
-            cur.execute('SELECT * FROM intimacoes_aeri WHERE excluida_em IS NULL')
-            atuais = {r['protocolo']:r for r in cur.fetchall()}
-            plano = planejar_reconciliacao(todos, atuais, preservar_ausentes=args.preservar_ausentes)
+            cur.execute('SELECT * FROM intimacoes_aeri')
+            cadastradas = {r['protocolo']:r for r in cur.fetchall()}
+            atuais = {p:r for p,r in cadastradas.items() if r['excluida_em'] is None}
+            arquivadas = {p:r for p,r in cadastradas.items() if r['excluida_em'] is not None}
+            plano = planejar_reconciliacao(todos, atuais, preservar_ausentes=args.preservar_ausentes,
+                                          criterio_oficio=args.criterio_oficio, arquivadas=arquivadas)
             ativos, destino = plano['ativos_relatorio'], plano['destino']
-            novos, remover = plano['novos'], plano['remover']
+            novos, remover, restaurar = plano['novos'], plano['remover'], plano['restaurar']
             print(json.dumps({'relatorio':len(todos),'em_tratativa':len(ativos),'incluir':novos,
-                              'lixeira':remover,'preservados':len(plano['preservados']),
+                              'lixeira':remover,'restaurar':restaurar,'preservados':len(plano['preservados']),
                               'ausentes_preservados':plano['ausentes_preservados'],
                               'total_final':len(destino)},ensure_ascii=False))
             if len(destino) != args.esperados:
@@ -96,10 +111,20 @@ def main():
                 con.rollback(); return
             if set(remover) != set(args.arquivar):
                 raise ValueError('Diferença na lista de arquivamento autorizado. Execute a prévia com a lista exata.')
+            if set(restaurar) != set(args.restaurar):
+                raise ValueError('Diferença na lista de restauração autorizada. Nada alterado.')
             usuario = args.usuario or os.getenv('AERI_ADMIN_USER')
             cur.execute("SELECT usuario FROM usuarios_aeri WHERE usuario=%s AND ativo=TRUE AND perfil IN ('ADMIN','SUBSTITUTO')",(usuario,))
             if not cur.fetchone():
                 raise ValueError('Administrador responsável não identificado no ambiente.')
+            for p in restaurar:
+                cur.execute('''UPDATE intimacoes_aeri
+                    SET excluida_em=NULL,excluida_por=NULL,atualizado_em=NOW() WHERE id=%s''',
+                    (arquivadas[p]['id'],))
+                cur.execute('''INSERT INTO eventos_intimacao_aeri(intimacao_id,protocolo,tipo,usuario,detalhes)
+                    VALUES (%s,%s,'RESTAURACAO',%s,%s)''',
+                    (arquivadas[p]['id'],p,usuario,Jsonb({'fonte':'relatorio_oficio_eletronico','sha256':assinatura,
+                    'criterio_oficio':args.criterio_oficio,'status_relatorio':ativos[p]['Status']})))
             for p in novos:
                 r=ativos[p]
                 cur.execute('''SELECT DISTINCT nome FROM rtd_pedidos_aeri,
@@ -126,6 +151,8 @@ def main():
                 cur.execute('''INSERT INTO eventos_intimacao_aeri(intimacao_id,protocolo,tipo,usuario,detalhes)
                     VALUES (%s,%s,'EXCLUSAO',%s,%s)''',(atuais[p]['id'],p,usuario,
                     Jsonb({'motivo':'reconciliacao_autorizada_relatorio','sha256':assinatura,'restauravel':True,
+                           'criterio_oficio':args.criterio_oficio,
+                           'fora_do_relatorio':p not in todos,
                            'status_relatorio':todos.get(p,{}).get('Status'),
                            'data_status_relatorio':todos.get(p,{}).get('Data Status')})))
             cur.execute('SELECT protocolo FROM intimacoes_aeri WHERE excluida_em IS NULL')
@@ -135,10 +162,17 @@ def main():
             cur.execute('SELECT * FROM intimacoes_aeri WHERE protocolo=ANY(%s)',(plano['preservados'],))
             if any(r != atuais[r['protocolo']] for r in cur.fetchall()):
                 raise ValueError('Dado existente foi alterado. Transação revertida.')
+            cur.execute('SELECT * FROM intimacoes_aeri WHERE protocolo=ANY(%s)',(restaurar,))
+            campos_restauracao = {'excluida_em','excluida_por','atualizado_em'}
+            for registro in cur.fetchall():
+                original = arquivadas[registro['protocolo']]
+                if any(v != original[k] for k,v in registro.items() if k not in campos_restauracao):
+                    raise ValueError('Dados da restauração foram alterados. Transação revertida.')
             cur.execute('''UPDATE rtd_pedidos_aeri SET pendente=TRUE,tentar_em=NOW()
                 WHERE in_documento=ANY(%s)''',(novos,))
             registrar_auditoria_cursor(cur,None,'importar_intimacoes_relatorio','sucesso',usuario,
                 detalhes={'incluidos':len(novos),'lixeira':len(remover),'total':len(destino),'sha256':assinatura,
+                          'restaurados':len(restaurar),'criterio_oficio':args.criterio_oficio,
                           'ausentes_preservados':plano['ausentes_preservados']})
             con.commit()
             print(f'Confirmado no banco: {len(destino)} ativas. Histórico preservado; exclusões restauráveis.')
