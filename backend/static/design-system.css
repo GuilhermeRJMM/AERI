@@ -72,6 +72,16 @@ body.sync-tema .contratos-carregando-trilha i { background: var(--aeri-emerald);
 body.sync-tema .modulo-estado-indicador { border-color: var(--aeri-border); border-top-color: var(--aeri-green); }
 body.sync-tema .modulo-estado.erro .modulo-estado-indicador { background: var(--aeri-error); }
 body.sync-tema .modulo-estado.sucesso .modulo-estado-indicador { background: var(--aeri-green); }
+/* Estados preenchidos: contraste preservado também em prévias e rascunhos. */
+body.sync-tema .gerador-notas-previa .falta {
+  color: var(--aeri-warning); background: var(--aeri-warning-bg);
+}
+body.sync-tema .contratos-previa-selo:not(:empty) {
+  color: var(--aeri-muted); border-color: var(--aeri-control-border);
+}
+body.sync-tema .contratos-bancada-minuta:has(.contratos-previa-rascunho) .contratos-previa-selo {
+  color: var(--aeri-warning); background: var(--aeri-warning-bg); border-color: var(--aeri-warning);
+}
 .aeri-skip-link {
   position: fixed; top: 12px; left: 12px; z-index: 10000;
   padding: 12px 20px; border-radius: var(--aeri-radius-8);

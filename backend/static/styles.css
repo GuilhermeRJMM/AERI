@@ -1273,7 +1273,7 @@ body.sidebar-recolhida .nav-item {
 }
 .incra-filtro b { margin-left: 4px; color: #2563eb; }
 .incra-filtro.active { color: #fff; background: #2563eb; border-color: #2563eb; }
-.incra-filtro.active b { color: #fff; }
+.incra-filtro.active b { color: inherit; }
 .incra-acoes button { color: #2563eb; }
 .incra-table-wrap {
   overflow-x: auto; background: rgba(255,255,255,.9);
@@ -2314,15 +2314,10 @@ input::placeholder {
 .rotina-resumo-card:hover,
 .incra-resumo div:hover,
 .perfis-resumo > div:hover {
-  transform: translateY(-3px);
-  border-color: rgba(16, 185, 129, 0.24);
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.082), rgba(255, 255, 255, 0.032)),
-    rgba(15, 23, 42, 0.82);
-  box-shadow:
-    0 30px 58px -14px rgba(0, 0, 0, 0.58),
-    0 0 34px rgba(16, 185, 129, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  transform: none;
+  border-color: var(--aeri-green, #047857);
+  background: var(--aeri-white, #fff);
+  box-shadow: var(--aeri-shadow, 0 4px 16px rgba(15, 23, 42, .06));
 }
 
 .card-header {

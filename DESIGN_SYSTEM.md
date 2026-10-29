@@ -94,3 +94,22 @@ Validação adicional:
 Limite da validação: os testes visuais não usam o banco nem enviam documentos,
 não constituem validação completa de todos os fluxos operacionais em produção
 e não substituem o teste com dados reais feito pelo setor após a publicação.
+
+## Regressão dos estados preenchidos e hover
+
+A inspeção anterior das páginas vazias não exercitava os resultados do Livro
+e do INCRA. O hover de `.incra-resumo div`, `.rotina-resumo-card` e
+`.perfis-resumo > div` ainda ativava um gradiente escuro do legado. Essa regra
+foi substituída na origem por superfície branca e sombra discreta. O contador
+do filtro ativo herda a cor legível do próprio botão, em vez de impor branco.
+
+`node tests/browser_estados_preenchidos.cjs` exercita consultas reais da interface
+com respostas sintéticas interceptadas, sete filtros do Livro, três do INCRA,
+cartões preenchidos em hover e controles de Custas. O catálogo adicional cobre
+estados de Usuários, Buscas, Registro Auxiliar, Minutas, Notas e MAPA-ONR.
+As cores translúcidas são compostas com os fundos ancestrais antes da medição
+de contraste; não basta procurar apenas fundos RGB opacos escuros.
+
+A regressão também identificou e corrigiu texto claro em campos pendentes do
+Gerador de Notas e no selo de prévia de Minutas. Estados informativos de erro,
+alerta e confirmação conservam suas cores semânticas e os dados não mudam.
