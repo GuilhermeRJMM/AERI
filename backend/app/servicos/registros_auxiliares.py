@@ -24,15 +24,17 @@ PRODUTOS = (
 )
 
 PADRAO_EMITENTE = r"EMITENTE(?:\(S\)|S)?"
-PADRAO_DEVEDOR = r"DEVEDOR(?:\(A\)|\(ES\)|\(AS\)|A|ES|AS)?"
-PADRAO_DEPOSITARIO = r"DEPOSIT[ÁA]RIO(?:\(S\)|S)?"
+PADRAO_DEVEDOR = r"DEVEDOR(?:\(A\)\(S\)|\(A\)|\(ES\)|\(AS\)|A\(S\)|AS|ES|A)?"
+# O gênero compõe o cabeçalho inteiro. Reconhecer só EMITENTE/DEVEDORA
+# deixava o restante FIEL DEPOSITÁRIA antes do nome e perdia a identidade.
+PADRAO_DEPOSITARIO = r"DEPOSIT[ÁA]RI(?:O\(A\)\(S\)|O\(A\)|O\(S\)|A\(S\)|OS|AS|O|A)"
 PADRAO_FIEL = rf"(?:FIEL(?:\(IS\))?|FI[ÉE]IS)(?:\s+{PADRAO_DEPOSITARIO})?"
 PADRAO_PAPEL_COMPLEMENTAR = (
     rf"(?:{PADRAO_EMITENTE}|{PADRAO_DEVEDOR}|{PADRAO_FIEL}|{PADRAO_DEPOSITARIO})"
 )
 PADRAO_PAPEIS_BUSCADOS = (
     rf"(?:{PADRAO_EMITENTE}|{PADRAO_DEVEDOR})"
-    rf"(?:\s*(?:/|E|-)\s*{PADRAO_PAPEL_COMPLEMENTAR})*"
+    rf"(?:\s*(?:/|E|[-–—]|,|&)\s*{PADRAO_PAPEL_COMPLEMENTAR})*"
 )
 
 PADRAO_PAPEIS_NAO_BUSCADOS = (
@@ -93,7 +95,7 @@ def _formatar_documento(valor: str) -> str:
 
 
 def _extrair_pessoas(texto: str) -> list[dict]:
-    texto_linear = re.sub(r"\s+", " ", texto)
+    texto_linear = re.sub(r"\s+", " ", unicodedata.normalize('NFC', texto))
     separador_papel = r"(?P<separador>\s*:\s*|\s*[-–—]\s*|\s+)"
     cabecalho = re.compile(
         rf"\b(?P<papel>{PADRAO_PAPEIS_BUSCADOS}){separador_papel}",
