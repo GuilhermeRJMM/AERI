@@ -25,6 +25,21 @@ def em_tratativa(status):
                 or status in ('registro / averbacao', 'entrega das importancias recebidas'))
 
 
+def planejar_reconciliacao(todos, atuais, *, preservar_ausentes=False):
+    """Ausência no relatório não comprova encerramento quando a opção é usada."""
+    ativos = {p:r for p,r in todos.items() if em_tratativa(r['Status'])}
+    ausentes = set(atuais) - set(todos)
+    destino = set(ativos) | (ausentes if preservar_ausentes else set())
+    return {
+        'ativos_relatorio': ativos,
+        'destino': destino,
+        'novos': sorted(destino - set(atuais)),
+        'remover': sorted(set(atuais) - destino),
+        'preservados': sorted(set(atuais) & destino),
+        'ausentes_preservados': sorted(ausentes) if preservar_ausentes else [],
+    }
+
+
 def ler_relatorio(caminho):
     import xlrd  # Dependência somente deste importador de Excel antigo.
     livro = xlrd.open_workbook(str(caminho), logfile=io.StringIO())
@@ -48,7 +63,9 @@ def ler_relatorio(caminho):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('arquivo', type=Path)
-    parser.add_argument('--esperados', type=int, required=True)
+    parser.add_argument('--esperados', type=int, required=True, help='Total ativo esperado após a reconciliação.')
+    parser.add_argument('--preservar-ausentes', action='store_true',
+                        help='Não encerra INs apenas porque estão ausentes do relatório; informa quais precisam de revisão.')
     parser.add_argument('--arquivar', nargs='*', default=[])
     parser.add_argument('--aplicar', action='store_true')
     parser.add_argument('--usuario', help='Responsável registrado na auditoria (administrador existente).')
@@ -60,23 +77,25 @@ def main():
     from psycopg.types.json import Jsonb
     from backend.app.seguranca_web import registrar_auditoria_cursor
     todos = ler_relatorio(args.arquivo)
-    ativos = {p:r for p,r in todos.items() if em_tratativa(r['Status'])}
-    if len(ativos) != args.esperados:
-        raise ValueError(f'Relatório resultou em {len(ativos)}, não {args.esperados}. Nada alterado.')
     assinatura = hashlib.sha256(args.arquivo.read_bytes()).hexdigest()
     try:
         with conectar() as con, con.cursor() as cur:
             cur.execute('LOCK TABLE intimacoes_aeri IN SHARE ROW EXCLUSIVE MODE')
             cur.execute('SELECT * FROM intimacoes_aeri WHERE excluida_em IS NULL')
             atuais = {r['protocolo']:r for r in cur.fetchall()}
-            novos = sorted(set(ativos)-set(atuais))
-            remover = sorted(set(atuais)-set(ativos))
-            if set(remover) != set(args.arquivar):
-                raise ValueError('Diferença na lista de arquivamento autorizado. Execute a prévia com a lista exata.')
+            plano = planejar_reconciliacao(todos, atuais, preservar_ausentes=args.preservar_ausentes)
+            ativos, destino = plano['ativos_relatorio'], plano['destino']
+            novos, remover = plano['novos'], plano['remover']
             print(json.dumps({'relatorio':len(todos),'em_tratativa':len(ativos),'incluir':novos,
-                              'lixeira':remover,'preservados':len(set(atuais)&set(ativos))},ensure_ascii=False))
+                              'lixeira':remover,'preservados':len(plano['preservados']),
+                              'ausentes_preservados':plano['ausentes_preservados'],
+                              'total_final':len(destino)},ensure_ascii=False))
+            if len(destino) != args.esperados:
+                raise ValueError(f'Reconciliação resultou em {len(destino)}, não {args.esperados}. Nada alterado.')
             if not args.aplicar:
                 con.rollback(); return
+            if set(remover) != set(args.arquivar):
+                raise ValueError('Diferença na lista de arquivamento autorizado. Execute a prévia com a lista exata.')
             usuario = args.usuario or os.getenv('AERI_ADMIN_USER')
             cur.execute("SELECT usuario FROM usuarios_aeri WHERE usuario=%s AND ativo=TRUE AND perfil IN ('ADMIN','SUBSTITUTO')",(usuario,))
             if not cur.fetchone():
@@ -106,20 +125,23 @@ def main():
                     WHERE id=%s''',(usuario,atuais[p]['id']))
                 cur.execute('''INSERT INTO eventos_intimacao_aeri(intimacao_id,protocolo,tipo,usuario,detalhes)
                     VALUES (%s,%s,'EXCLUSAO',%s,%s)''',(atuais[p]['id'],p,usuario,
-                    Jsonb({'motivo':'reconciliacao_autorizada_relatorio','sha256':assinatura,'restauravel':True})))
+                    Jsonb({'motivo':'reconciliacao_autorizada_relatorio','sha256':assinatura,'restauravel':True,
+                           'status_relatorio':todos.get(p,{}).get('Status'),
+                           'data_status_relatorio':todos.get(p,{}).get('Data Status')})))
             cur.execute('SELECT protocolo FROM intimacoes_aeri WHERE excluida_em IS NULL')
-            if {r['protocolo'] for r in cur.fetchall()} != set(ativos):
+            if {r['protocolo'] for r in cur.fetchall()} != destino:
                 raise ValueError('Conferência final divergente. Transação revertida.')
-            # Os 31 existentes devem permanecer byte a byte intactos.
-            cur.execute('SELECT * FROM intimacoes_aeri WHERE protocolo=ANY(%s)',(list(set(atuais)&set(ativos)),))
+            # Todos os existentes mantidos devem permanecer byte a byte intactos.
+            cur.execute('SELECT * FROM intimacoes_aeri WHERE protocolo=ANY(%s)',(plano['preservados'],))
             if any(r != atuais[r['protocolo']] for r in cur.fetchall()):
                 raise ValueError('Dado existente foi alterado. Transação revertida.')
             cur.execute('''UPDATE rtd_pedidos_aeri SET pendente=TRUE,tentar_em=NOW()
                 WHERE in_documento=ANY(%s)''',(novos,))
             registrar_auditoria_cursor(cur,None,'importar_intimacoes_relatorio','sucesso',usuario,
-                detalhes={'incluidos':len(novos),'lixeira':len(remover),'total':len(ativos),'sha256':assinatura})
+                detalhes={'incluidos':len(novos),'lixeira':len(remover),'total':len(destino),'sha256':assinatura,
+                          'ausentes_preservados':plano['ausentes_preservados']})
             con.commit()
-            print(f'Confirmado no banco: {len(ativos)} ativas. Histórico preservado; exclusões restauráveis.')
+            print(f'Confirmado no banco: {len(destino)} ativas. Histórico preservado; exclusões restauráveis.')
     finally:
         fechar_pool()
 
