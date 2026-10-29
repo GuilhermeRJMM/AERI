@@ -1562,12 +1562,12 @@ async function tratarAcaoTabela(evento) {
 export function iniciarIntimacoes() {
     iniciarDocumentosIntimacao((id, pares, credor) => abrirEnvioRtd(id, pares, credor));
     if (!document.getElementById('rtd-estilos')) {
-        const css = document.createElement('link'); css.id='rtd-estilos'; css.rel='stylesheet'; css.href='/static/css/rtd_intimacoes.css?v=20261022-modais-claros-v1'; document.head.appendChild(css);
+        const css = document.createElement('link');
+        css.id = 'rtd-estilos'; css.rel = 'stylesheet';
+        css.href = '/static/css/rtd_intimacoes.css?v=20261022-modais-claros-v1';
+        // O legado RTD vem antes dos temas, sem mudar a prioridade das telas.
+        document.head.insertBefore(css, document.getElementById('sync-theme'));
     }
-    // Esta folha é carregada depois da navegação e contém regras de tema próprias.
-    // Recolocamos o tema global no fim para manter a identidade do Sync também aqui.
-    const temaGlobal = document.getElementById('sync-theme');
-    if (temaGlobal) document.head.appendChild(temaGlobal);
     window.addEventListener('aeri:abrir-alerta', async evento => {
         if (evento.detail.modulo !== 'rotina') return;
         faseAtiva='TODAS'; filtroSituacao='PENDENTES'; filtroFila='PENDENTES'; exibindoLixeira=false;

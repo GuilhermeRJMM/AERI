@@ -107,6 +107,19 @@ const root = path.resolve(__dirname, '..');
         assert((await page.locator('.rotina-fila-painel').boundingBox()).x < (await foco.boundingBox()).x,'Fila à esquerda e comparação à direita');
         const cores=await page.evaluate(()=>['.rotina-in-cartao','.mesa-referencia','.mesa-consulta','.rotina-fila-painel'].map(s=>getComputedStyle(document.querySelector('#page-rotina '+s)).backgroundColor));
         assert(cores.every(c=>c==='rgb(255, 255, 255)'),JSON.stringify(cores));
+        const tema = await page.evaluate(() => {
+            const folhas = [...document.querySelectorAll('link[rel=stylesheet]')];
+            return {
+                legado: folhas.findIndex(e => e.id === 'rtd-estilos'),
+                sync: folhas.findIndex(e => e.id === 'sync-theme'),
+                mesa: folhas.findIndex(e => e.href.includes('/intimacoes-mesa.css')),
+                verde: getComputedStyle(document.getElementById('page-rotina')).getPropertyValue('--aeri-green').trim(),
+                fundoAtivo: getComputedStyle(document.querySelector('.rotina-fase-btn.ativa')).backgroundColor,
+            };
+        });
+        assert(tema.legado >= 0 && tema.legado < tema.sync && tema.sync < tema.mesa,'Legado não sobrepõe o tema da mesa');
+        assert.equal(tema.verde,'#047857','Tokens locais independem do Design System global');
+        assert.equal(tema.fundoAtivo,'rgb(236, 253, 245)');
         await page.evaluate(()=>window.scrollTo(0,0));
         await page.screenshot({path:path.join(require('os').tmpdir(),'aeri-mesa-real-desktop.png'),fullPage:true});
         await page.setViewportSize({width:390,height:844});
