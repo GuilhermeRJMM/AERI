@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from psycopg.types.json import Jsonb
+from backend.app.servicos.busca_textual import documento_da_consulta, escapar_like
 
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
 from backend.app.database import conectar, preparar_banco
@@ -377,11 +378,14 @@ def pesquisar_registros_auxiliares(
     _usuario: str = Depends(exigir_permissao("consultar_registro_auxiliar")),
 ):
     termo = normalizar_busca(busca)[:120]
-    documento = "".join(caractere for caractere in busca if caractere.isdigit())[:14]
+    try:
+        documento = documento_da_consulta(busca)
+    except ValueError as erro:
+        raise HTTPException(status_code=422, detail=str(erro)) from erro
     produto = normalizar_busca(produto)[:30]
     safra = normalizar_safra(safra)
     modalidade = normalizar_busca(modalidade)[:20]
-    if not termo:
+    if not termo or not any(c.isalnum() for c in termo):
         raise HTTPException(
             status_code=422,
             detail="Informe o nome ou CPF/CNPJ.",
@@ -392,18 +396,17 @@ def pesquisar_registros_auxiliares(
 
     filtros = ["situacao='ATIVO'"]
     parametros = []
-    if termo:
-        # Só filtra por documento quando os dígitos digitados formam um CPF ou
-        # CNPJ completo. Antes bastava haver dígito no texto: pesquisar
-        # "Ls3 Saran Agropecuária Ltda" extraía o "3" do nome e virava
-        # documentos_busca LIKE '%3%', que casa com quase todo documento do
-        # acervo -- a busca devolvia dezenas de registros de outras pessoas.
-        if len(documento) in {11, 14}:
-            filtros.append("(nomes_busca LIKE %s OR documentos_hash ? %s)")
-            parametros.extend((f"%{termo}%", hash_documento(documento)))
-        else:
-            filtros.append("nomes_busca LIKE %s")
-            parametros.append(f"%{termo}%")
+    if documento:
+        filtros.append("documentos_hash ? %s")
+        try:
+            parametros.append(hash_documento(documento))
+        except RuntimeError as erro:
+            raise HTTPException(503, "A busca por documento está indisponível nesta configuração.") from erro
+    else:
+        if len(termo) < 3:
+            raise HTTPException(422, "Informe ao menos três caracteres do nome.")
+        filtros.append("nomes_busca LIKE %s")
+        parametros.append(f"%{escapar_like(termo)}%")
     if produto:
         filtros.append("produtos ? %s")
         parametros.append(produto)
@@ -437,6 +440,19 @@ def status_sincronizacao(
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             return _estado_json(cursor)
+
+
+@router.get("/diagnostico")
+def diagnostico_buscas(
+    _usuario: str = Depends(exigir_perfis("ADMIN", "SUBSTITUTO")),
+):
+    from backend.app.database import estatisticas_pool
+    from backend.app.servicos.diagnostico_buscas import diagnosticar_cursor
+    with conectar() as conexao:
+        with conexao.cursor() as cursor:
+            cursor.execute("SET LOCAL statement_timeout = '5s'")
+            dados = diagnosticar_cursor(cursor)
+    return {**dados, "poolProcesso": estatisticas_pool()}
 
 
 @router.get("/erros")

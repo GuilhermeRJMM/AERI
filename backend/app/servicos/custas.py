@@ -13,6 +13,7 @@ from psycopg.types.json import Jsonb
 
 from backend.app.servicos.buscas import hash_documento, mascarar_documento
 from backend.app.servicos.registros_auxiliares import normalizar_busca, normalizar_safra
+from backend.app.servicos.busca_textual import escapar_like, nomes_equivalentes
 
 
 MODALIDADES = {"PENHOR", "ALIENACAO_FIDUCIARIA"}
@@ -46,7 +47,7 @@ def _identidade_compativel(item, pedido, protegido):
     # descartar contradição; nunca para confirmar uma identidade por si só.
     mascara = mascarar_documento(pedido.get("documento", "")) if protegido else ""
     for pessoa in item.get("pessoas") or []:
-        if termo not in normalizar_busca(pessoa.get("nome", "")):
+        if not nomes_equivalentes(termo, pessoa.get("nome", "")):
             continue
         if protegido and pessoa.get("documento_hash"):
             if pessoa["documento_hash"] != protegido:
@@ -55,7 +56,9 @@ def _identidade_compativel(item, pedido, protegido):
             continue
         return True
     # Compatibilidade com registros legados cujo nome agregado foi preservado.
-    return not item.get("pessoas") and termo in (item.get("nomes_busca") or "")
+    return not item.get("pessoas") and any(
+        nomes_equivalentes(termo, nome) for nome in (item.get("nomes_busca") or "").split("|")
+    )
 
 
 def _registro_atende_custas(item, pedido, protegido):
@@ -103,10 +106,10 @@ def localizar_registros_custas(cursor, pedido: dict, *, recuperar=False, context
         # O documento vem primeiro por ser mais estável. O nome permanece no
         # OR para o acervo antigo em que o CPF/CNPJ não pôde ser indexado.
         filtros.append("(documentos_hash ? %s OR nomes_busca LIKE %s)")
-        parametros.extend((protegido, f"%{termo}%" if nome_valido else ""))
+        parametros.extend((protegido, f"%{escapar_like(termo)}%" if nome_valido else ""))
     else:
         filtros.append("nomes_busca LIKE %s")
-        parametros.append(f"%{termo}%")
+        parametros.append(f"%{escapar_like(termo)}%")
     cursor.execute(
         f"SELECT * FROM registros_auxiliares_aeri WHERE {' AND '.join(filtros)} ORDER BY numero",
         tuple(parametros),
@@ -126,7 +129,7 @@ def _recuperar_candidatos_custas(cursor, pedido, protegido, termo, nome_valido, 
     # de ausência do registro. O teto limita apenas consultas imediatas;
     # todos os candidatos elegíveis entram na fila persistente em um INSERT.
     identidade = "(documentos_hash ? %s OR nomes_busca LIKE %s)" if protegido else "nomes_busca LIKE %s"
-    parametros = (protegido, f"%{termo}%" if nome_valido else "") if protegido else (f"%{termo}%",)
+    parametros = (protegido, f"%{escapar_like(termo)}%" if nome_valido else "") if protegido else (f"%{escapar_like(termo)}%",)
     elegivel = """(pessoas='[]'::jsonb OR produtos='[]'::jsonb OR safras='[]'::jsonb
         OR modalidade='OUTROS' OR consultado_em<NOW()-INTERVAL '1 day')"""
     cursor.execute(

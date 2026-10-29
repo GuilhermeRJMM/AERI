@@ -74,6 +74,12 @@ def _obter_pool() -> ConnectionPool:
     return _pool
 
 
+def estatisticas_pool() -> dict:
+    """Métricas locais do processo, sem DSN, credenciais ou termos de busca."""
+    return {"inicializado": _pool is not None,
+            "metricas": _pool.get_stats() if _pool is not None else {}}
+
+
 def _executar_migracoes(cursor) -> None:
     cursor.execute(
         """

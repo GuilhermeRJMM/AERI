@@ -6,6 +6,7 @@ from fastapi import HTTPException
 
 from backend.app.servicos.buscas import hash_documento, normalizar_documento, normalizar_nome
 from backend.app.servicos.buscas_mencoes import INDICE_BUSCA_VERSAO
+from backend.app.servicos.busca_textual import escapar_like
 
 
 PARTICULAS_NOME = {'DA', 'DE', 'DO', 'DAS', 'DOS', 'E'}
@@ -46,7 +47,7 @@ def filtros_identidade(nome, documento, alias='p', exata=False):
             condicao, valores = filtro_nome_completo(nome, alias)
         else:
             condicao = f'{alias}.nome_busca=%s' if not tokens else ' AND '.join(f'{alias}.nome_busca LIKE %s' for _ in tokens)
-            valores = [nome] if not tokens else [f'%{t}%' for t in tokens]
+            valores = [nome] if not tokens else [f'%{escapar_like(t)}%' for t in tokens]
         partes.append(f'({condicao})')
         parametros.extend(valores)
     return '(' + ' OR '.join(partes) + ')', parametros, nome, documento

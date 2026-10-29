@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from psycopg.types.json import Jsonb
+from backend.app.servicos.busca_textual import escapar_like
 
 from backend.app.autenticacao import exigir_perfis, exigir_permissao, proteger_csrf
 from backend.app.database import conectar, executar_manutencao_banco, preparar_banco
@@ -199,7 +200,7 @@ def pesquisar_titularidade(
         if len(nome) < 3:
             raise HTTPException(status_code=422, detail="Informe ao menos três caracteres do nome.")
         filtro = "(p.nome_busca=%s OR p.nome_busca LIKE %s)"
-        parametros.extend((nome, f"%{nome}%"))
+        parametros.extend((nome, f"%{escapar_like(nome)}%"))
         tipo_busca = "NOME"
 
     with conectar() as conexao:
