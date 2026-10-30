@@ -18,8 +18,8 @@ VERSAO = 'tres-anexos-20261030'
 
 
 def _matricula(texto):
-    recibo = re.search(r'Matr[ií]cula/Registro\s*:\s*([\d.]+)', texto, re.I)
-    return recibo.group(1).strip('.') if recibo else documentos._extrair_matricula(texto) or _cabecalho_projecao(texto).get('matricula', '')
+    recibo = re.search(r'Matr[ií]cula(?:/Registro|\(s\)|s)?\s*:\s*([\d.]+)', texto, re.I)
+    return recibo.group(1).strip('.') if recibo else _cabecalho_projecao(texto).get('matricula', '')
 
 
 def _cabecalho_projecao(texto):
@@ -28,15 +28,56 @@ def _cabecalho_projecao(texto):
 
 
 def _contrato(texto):
-    return documentos._extrair_contrato(texto)['numero'] or _cabecalho_projecao(texto).get('contrato', '')
+    return _dados_contrato(texto)['numero'] or _cabecalho_projecao(texto).get('contrato', '')
+
+
+def _dados_contrato(texto):
+    contrato = documentos._extrair_contrato(texto)
+    if contrato['numero']:
+        return contrato
+    m = re.search(r'Contrato\s*(?:n[ºo°.]*\s*)?:\s*(\d[\d./-]*)', texto, re.I)
+    data = re.search(r'(?:Data de Assinatura|firmad[oa]s?\s+em)\s*:?\s*(\d{2}/\d{2}/\d{4})', texto[m.end():m.end()+180], re.I) if m else None
+    return dict(numero=m.group(1) if m else '', data=data.group(1) if data else '')
+
+
+def _grupos_cotas(texto):
+    m = re.search(r'\bGrupo(?:\(\s*s\s*\)|s)?\s*[:/]', texto, re.I)
+    return {documentos._digitos(n) for n in re.findall(r'\b\d{4,8}\s*/\s*\d{3,6}\b', texto[max(0,m.start()-250):m.start()+700])} if m else set()
+
+
+def _credor(texto):
+    # Qualificação narrativa: nome da pessoa jurídica antes da sede e CNPJ.
+    for nome in re.finditer(r"(?m)^\s*([A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ \t.&/-]{4,160}?\b(?:LTDA|S/?A|S\.A\.|EIRELI))\s*[,;]", texto):
+        cnpj = re.search(r'CNPJ\s*(?:sob\s*)?(?:n[.ºo°]*\s*)?[:.]?\s*([\d./-]{14,20})', texto[nome.end():nome.end()+500], re.I)
+        if cnpj and len(documentos._digitos(cnpj.group(1))) == 14:
+            return dict(nome=nome.group(1).strip(), cnpj=documentos._digitos(cnpj.group(1)))
+    return documentos._extrair_credor(texto)
 
 
 def _devedores(texto):
     ps = documentos._extrair_devedores(texto)
-    if ps:
-        return ps
     bloco = re.search(r'Devedores?\s*:\s*(.*?)(?=Endere[cç]o do im[oó]vel|\Z)', texto, re.I | re.S)
-    return documentos._extrair_devedores('Fiduciante(s): ' + bloco.group(1)) if bloco else []
+    if bloco:
+        ps = ps or documentos._extrair_devedores('Fiduciante(s): ' + bloco.group(1))
+    inicio = re.search(r'Fiduciante(?:\(s\)|s)?\s*:', texto, re.I)
+    if not inicio:
+        return ps
+    trecho = re.split(r'CL[AÁ]USULA|Dados do Im[oó]vel|Matr[ií]cula\s*:', texto[inicio.end():inicio.end()+5000], maxsplit=1, flags=re.I)[0]
+    padrao = r"([A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ .'-]{3,100}?)\s*,\s*(?i:brasileir[oa]|casad[oa]|solteir[oa]|divorciad[oa]|portador[ae]?)\b.{0,700}?\bCPF\s*(?i:sob\s*)?(?i:n[ºo°.]*\s*)?[:.]?\s*([\d. -]{11,18})"
+    for m in re.finditer(padrao, trecho, re.S):
+        pessoa = dict(nome=documentos._nome_arquivo(m.group(1)), cpf=documentos._digitos(m.group(2)))
+        if len(pessoa['cpf']) != 11:
+            continue
+        if any(p.get('cpf') == pessoa['cpf'] and documentos._nome_para_comparacao(p['nome']) != documentos._nome_para_comparacao(pessoa['nome']) for p in ps):
+            raise Erro('O ofício apresenta nomes diferentes para o mesmo CPF. Confira o original.')
+        if pessoa not in ps:
+            ps.append(pessoa)
+    return ps
+
+
+def _texto_corrompido(texto):
+    ruins = sum(c in '\ufffd\u25a1' or ord(c) < 32 and c not in '\n\r\t' for c in texto)
+    return '\ufffd' in texto or ruins >= 5 and ruins / max(len(texto), 1) > .02
 
 
 def _celula(valor, formato=''):
@@ -130,11 +171,13 @@ def ler_anexo(conteudo, nome, papel, permitir_ocr=False):
     if extensao == '.pdf':
         try:
             texto = documentos._ler_pdf(conteudo, papel)
+            if _texto_corrompido(texto):
+                raise Erro('O PDF parece ser imagem ou tem codificação de texto corrompida.')
         except Erro as exc:
             if 'parece ser imagem' not in str(exc):
                 raise
             if not permitir_ocr:
-                raise Erro('PDF digitalizado: use a leitura da pasta pelo executor Windows para realizar OCR local.') from None
+                raise Erro('PDF digitalizado ou com texto corrompido: use a leitura da pasta pelo executor Windows para realizar OCR local.') from None
             from backend.app.contratos_nucleo import ocr
             if not ocr.disponivel():
                 raise Erro('OCR local indisponível no executor. Instale/configure o motor ou forneça um PDF pesquisável.')
@@ -142,13 +185,13 @@ def ler_anexo(conteudo, nome, papel, permitir_ocr=False):
             with tempfile.TemporaryDirectory(prefix='aeri-intimacao-') as pasta:
                 arquivo = Path(pasta) / 'anexo.pdf'
                 arquivo.write_bytes(conteudo)
-                texto = ocr.texto_de(arquivo)
+                texto = ocr.texto_de(arquivo, linhas_espaciais=True) if papel == 'projecao' else ocr.texto_de(arquivo)
             ocr_usado = True
     elif papel == 'projecao' and extensao in {'.xlsx', '.xls'}:
         texto = _ler_excel(conteudo, extensao)
     else:
         raise Erro('Recibo e ofício devem ser PDFs; a projeção pode ser PDF, XLS ou XLSX.')
-    if len(texto.strip()) < 30 or '\ufffd' in texto:
+    if len(texto.strip()) < 30 or _texto_corrompido(texto):
         raise Erro('O anexo está ilegível ou contém caracteres corrompidos. Revise o arquivo de origem.')
     return texto, dict(papel=papel, nome=nome, sha256=sha256(conteudo).hexdigest(), ocr=ocr_usado)
 
@@ -176,8 +219,7 @@ def analisar_tres_anexos(anexos, referencia, protocolo_in, protocolo_tri7='', pe
     if not numero or not entrada:
         raise Erro('Recibo inadequado: número e data de entrada do protocolo não foram identificados.')
     protocolo = documentos._digitos(numero.group(1))
-    if protocolo_tri7 and documentos._digitos(protocolo_tri7) != protocolo:
-        raise Erro('O protocolo do recibo diverge do protocolo vinculado a este IN no AERI.')
+    protocolo_divergente = bool(protocolo_tri7 and documentos._digitos(protocolo_tri7) != protocolo)
     try:
         datetime.strptime(entrada.group(1), '%d/%m/%Y')
     except ValueError:
@@ -186,13 +228,21 @@ def analisar_tres_anexos(anexos, referencia, protocolo_in, protocolo_tri7='', pe
                                               textos=(textos['oficio'], textos['projecao']))
     dados.update(fluxo=VERSAO, dataProtocolo=entrada.group(1), fontes=fontes,
                  inconsistencias=[], origens={}, registroGarantia='', titulo='', dataTituloAutuacao='')
+    dados['credor'] = _credor(textos['oficio'])
+    dados['devedores'] = _devedores(textos['oficio'])
+    dados['matricula'] = _matricula(textos['oficio']) or _matricula(recibo)
+    dados['contrato'] = _dados_contrato(textos['oficio'])
+    if protocolo_divergente:
+        fontes_protocolo = {'recibo': protocolo, 'cadastroAeri': str(protocolo_tri7)}
+        dados['inconsistencias'].append(dict(campo='protocoloTri7', fontes=fontes_protocolo))
+        dados['avisos'].append(f'O recibo deste IN informa protocolo {protocolo}; o cadastro antigo do AERI contém {protocolo_tri7}. Confira a divergência antes de aprovar. O rascunho usa o recibo e o cadastro NÃO foi alterado.')
     if len({f['sha256'] for f in fontes}) != 3:
         raise Erro('Os três anexos precisam ser documentos distintos.')
     if not _devedores(textos['oficio']) or not dados['credor']['nome']:
         raise Erro('Ofício inadequado: credor e devedores não puderam ser identificados.')
     if not dados['projecao']['datasDisponiveis']:
         raise Erro('A projeção não apresenta linhas legíveis de data e valor. Salve os cálculos no Excel ou forneça o PDF pesquisável.')
-    dados['origens'].update(protocoloTri7={'recibo': protocolo}, dataProtocolo={'recibo': entrada.group(1)},
+    dados['origens'].update(protocoloTri7={'recibo': protocolo, 'cadastroAeri': str(protocolo_tri7 or '')}, dataProtocolo={'recibo': entrada.group(1)},
         credor={'oficio': dados['credor']}, devedores={'oficio': dados['devedores']},
         projecao={'projecao': dados['projecao']}, enderecoImovel={'oficio/projecao': dados['enderecoImovel']})
 
@@ -214,7 +264,7 @@ def analisar_tres_anexos(anexos, referencia, protocolo_in, protocolo_tri7='', pe
     comparar('contrato', _contrato, documentos._digitos)
     comparar('enderecoImovel', documentos._extrair_endereco_imovel,
              lambda v: re.sub(r'\W', '', documentos._nome_para_comparacao(v)))
-    datas = comparar('dataContrato', lambda t: documentos._extrair_contrato(t)['data'], str)
+    datas = comparar('dataContrato', lambda t: _dados_contrato(t)['data'], str)
     if len(set(datas.values())) > 1:
         dados['contrato']['data'] = ''
     pessoas = {p: _devedores(t) for p, t in textos.items() if p != 'recibo'}
@@ -227,15 +277,25 @@ def analisar_tres_anexos(anexos, referencia, protocolo_in, protocolo_tri7='', pe
     for papel in ('oficio', 'projecao'):
         contem_in = protocolo_in in textos[papel].upper()
         matricula = _matricula(textos[papel])
-        contrato = documentos._extrair_contrato(textos[papel])['numero']
-        if not contem_in and not (matricula_recibo and matricula and
-                documentos._digitos(matricula_recibo) == documentos._digitos(matricula)):
+        contrato = _contrato(textos[papel])
+        mesma_matricula = bool(matricula_recibo and matricula and documentos._digitos(matricula_recibo) == documentos._digitos(matricula))
+        if matricula_recibo and matricula and not mesma_matricula:
+            raise Erro('A matrícula de um dos anexos diverge da matrícula do recibo. Confira os arquivos do IN.')
+        oficio_vinculado = bool(matricula_recibo and documentos._digitos(matricula_recibo) == documentos._digitos(_matricula(textos['oficio'])))
+        contrato_oficio = documentos._digitos(_contrato(textos['oficio']))
+        mesmos_grupos = bool(papel == 'projecao' and oficio_vinculado and contrato_oficio and
+                             contrato_oficio in _grupos_cotas(textos[papel]) and
+                             contrato_oficio in _grupos_cotas(textos['oficio']))
+        mesmo_contrato = bool(papel == 'projecao' and oficio_vinculado and contrato and contrato_oficio and documentos._digitos(contrato) == contrato_oficio)
+        if not contem_in and not (mesma_matricula or mesmos_grupos or mesmo_contrato):
             raise Erro('Não foi possível vincular todos os anexos ao IN pela matrícula do recibo. Confira os arquivos.')
-        if not (matricula or contrato):
+        if not (matricula or contrato or mesmos_grupos):
             raise Erro('Ofício ou projeção sem identificação mínima do contrato ou da matrícula.')
     dados['avisos'].append('Título, data do título na Autuação, registro da garantia, selo e cláusula contratual exigem conferência nos documentos; não foram presumidos.')
     if any(f['ocr'] for f in fontes):
         dados['avisos'].append('Há dados obtidos por OCR local: confira nomes, documentos, datas e valores no original.')
+    if 'CONSORCIO' in documentos._nome_para_comparacao(dados['credor']['nome']).upper():
+        dados['avisos'].append('Credor de consórcio: confira a aplicabilidade dos modelos e das cláusulas. Não trate o instrumento como financiamento residencial por presunção.')
     return dados
 
 

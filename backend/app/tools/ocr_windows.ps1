@@ -8,7 +8,8 @@
 #   powershell -File tools/ocr_windows.ps1 -Pasta C:\temp\paginas -Idioma pt-BR
 param(
   [Parameter(Mandatory = $true)][string]$Pasta,
-  [string]$Idioma = "pt-BR"
+  [string]$Idioma = "pt-BR",
+  [switch]$LinhasEspaciais
 )
 
 $ErrorActionPreference = "Stop"
@@ -59,7 +60,33 @@ foreach ($png in (Get-ChildItem -Path $Pasta -Filter *.png | Sort-Object Name)) 
     # RecognizeAsync devolve o texto todo numa linha so; as linhas do
     # reconhecimento preservam a quebra do documento, e a leitura por rotulo
     # depende disso.
-    foreach ($linha in $resultado.Lines) { Write-Output $linha.Text }
+    if ($LinhasEspaciais) {
+      # O motor pode devolver colunas inteiras separadas. Para tabelas,
+      # reconstruir linhas por coordenadas, nunca parear listas por índice.
+      $palavras = @($resultado.Lines | ForEach-Object { $_.Words } | ForEach-Object {
+        [pscustomobject]@{Texto=$_.Text; X=$_.BoundingRect.X;
+          Y=($_.BoundingRect.Y + $_.BoundingRect.Height / 2); H=$_.BoundingRect.Height}
+      })
+      if ($palavras.Count -gt 0) {
+        $alturas = @($palavras.H | Sort-Object)
+        $tolerancia = [Math]::Max(2, [Math]::Min(5, $alturas[[int]($alturas.Count / 2)] * 0.3))
+        $grupo = [System.Collections.Generic.List[object]]::new()
+        $linhaY = -10000
+        foreach ($palavra in ($palavras | Sort-Object Y,X)) {
+          if ($grupo.Count -gt 0 -and [Math]::Abs($palavra.Y - $linhaY) -gt $tolerancia) {
+            Write-Output (($grupo | Sort-Object X | ForEach-Object { $_.Texto }) -join ' ')
+            $grupo.Clear()
+          }
+          if ($grupo.Count -eq 0) { $linhaY = $palavra.Y }
+          $grupo.Add($palavra)
+        }
+        if ($grupo.Count -gt 0) {
+          Write-Output (($grupo | Sort-Object X | ForEach-Object { $_.Texto }) -join ' ')
+        }
+      }
+    } else {
+      foreach ($linha in $resultado.Lines) { Write-Output $linha.Text }
+    }
   }
   finally {
     $fluxo.Dispose()

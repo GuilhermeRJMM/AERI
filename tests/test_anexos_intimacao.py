@@ -60,8 +60,10 @@ def test_documento_de_outro_in_rejeitado(papel):
 
 
 def test_recibo_precisa_confirmar_in_e_protocolo_vinculado():
-    with pytest.raises(a.Erro,match='diverge'):
-        executar(protocolo_tri7='123999')
+    d=executar(protocolo_tri7='123999')
+    assert d['protocoloTri7']=='123456'
+    assert d['origens']['protocoloTri7']['cadastroAeri']=='123999'
+    assert any(i['campo']=='protocoloTri7' for i in d['inconsistencias'])
     with pytest.raises(a.Erro,match='não confirma'):
         executar(dict(recibo=RECIBO.replace(IN,''),oficio=OFICIO,projecao=PROJECAO))
 
@@ -76,6 +78,76 @@ def test_devedores_divergentes_exigem_correcao():
     d=executar(dict(recibo=RECIBO,oficio=OFICIO,projecao=PROJECAO.replace('PESSOA EXEMPLO','OUTRA PESSOA')))
     assert d['devedores']==[]
     assert any(i['campo']=='devedores' for i in d['inconsistencias'])
+
+
+NARRATIVO='''REQUERIMENTO DE INTIMAÇÃO
+ADMINISTRADORA EXEMPLO DE CONSORCIO LTDA, sediado em RUA EXEMPLO,
+inscrito no CNPJ sob n. 00.360.305/0001-04, vem requerer a intimação dos Devedor(es) Fiduciante(s):
+PESSOA PRIMEIRA EXEMPLO, Brasileiro, Casado, portador da cédula de identidade,
+inscrito no CPF sob n° 111.444.777-35, e sua cônjuge PESSOA SEGUNDA EXEMPLO,
+Brasileira, Empresária, inscrita no CPF sob nº 529.982.247-25, casados.
+Grupo(s ) / Cota(s) nº(s): 000111/0001, 000111/0002
+Dados do Imóvel
+Matrícula: 1234 / Registro: R-05
+Dados do Contrato de Alienação
+Contrato nº: 000111/0002 / Data de Assinatura: 23/12/2023
+'''
+
+
+def test_oficio_narrativo_extrai_credor_duas_pessoas_e_contrato():
+    assert a._credor(NARRATIVO)==dict(nome='ADMINISTRADORA EXEMPLO DE CONSORCIO LTDA',cnpj='00360305000104')
+    assert a._devedores(NARRATIVO)==[dict(nome='PESSOA PRIMEIRA EXEMPLO',cpf='11144477735'),dict(nome='PESSOA SEGUNDA EXEMPLO',cpf='52998224725')]
+    assert a._dados_contrato(NARRATIVO)==dict(numero='000111/0002',data='23/12/2023')
+    assert a._matricula(NARRATIVO)=='1234'
+
+
+def test_projecao_consorcio_vinculada_por_grupo_cota_sem_inventar_matricula():
+    proj='ADMINISTRADORA EXEMPLO\nGrupo: 000111/0001, 000111/0002\nData Pgto Total Geral a pagar\n30/10/2026 R$ 10.545,44'
+    d=executar(dict(recibo=RECIBO,oficio=NARRATIVO,projecao=proj),protocolo_tri7='99999')
+    assert d['protocoloTri7']=='123456' and d['projecao']['valor']=='10545.44'
+    assert len(d['devedores'])==2
+    assert any('consórcio' in v for v in d['avisos'])
+
+
+def test_ocr_pode_posicionar_rotulo_grupo_apos_numeros_na_mesma_regiao():
+    assert '0001110002' in a._grupos_cotas('000111/0001, 000111/0002\nGrupo:')
+
+
+def test_grupo_cota_diferente_na_projecao_continua_bloqueado():
+    proj='Grupo: 999999/0002\nData Pgto Total Geral a pagar\n30/10/2026 R$ 10.545,44'
+    with pytest.raises(a.Erro,match='vincular'):
+        executar(dict(recibo=RECIBO,oficio=NARRATIVO,projecao=proj))
+
+
+def test_mesmo_contrato_nao_sobrepoe_matricula_explicita_diferente():
+    proj=PROJECAO.replace('123456789012 1234','123456789012 9999')
+    with pytest.raises(a.Erro,match='matrícula'):
+        executar(dict(recibo=RECIBO,oficio=OFICIO,projecao=proj))
+
+
+def test_representante_do_credor_fora_da_qualificacao_nao_vira_devedor():
+    t=NARRATIVO+'\nPROCURADOR EXEMPLO, Brasileiro, inscrito no CPF sob nº 123.456.789-09'
+    assert len(a._devedores(t))==2
+
+
+def test_texto_longo_corrompido_aciona_ocr_e_nao_passa_como_pdf_legivel():
+    from backend.app.contratos_nucleo import ocr
+    with patch.object(a.documentos,'_ler_pdf',return_value='□ /28 /39 '*500), \
+         patch.object(ocr,'disponivel',return_value=True), \
+         patch.object(ocr,'texto_de',return_value='Grupo: 000111/0002\n30/10/2026 R$ 10.545,44') as motor:
+        texto,fonte=a.ler_anexo(b'%PDF teste','projecao.pdf','projecao',True)
+        assert fonte['ocr'] and '10.545,44' in texto
+        assert motor.call_args.kwargs['linhas_espaciais'] is True
+
+
+def test_formulario_com_poucas_caixas_de_marcacao_nao_e_corrompido():
+    assert not a._texto_corrompido('Texto legível para conferência. '*100+'□ □ □ □ □')
+
+
+def test_sem_ocr_na_nuvem_orienta_executor_em_vez_de_inventar_valor():
+    with patch.object(a.documentos,'_ler_pdf',return_value='□ /28 /39 '*500):
+        with pytest.raises(a.Erro,match='executor Windows'):
+            a.ler_anexo(b'%PDF teste','projecao.pdf','projecao')
 
 
 def test_valores_divergentes_e_data_futura_nao_sao_escolhidos():

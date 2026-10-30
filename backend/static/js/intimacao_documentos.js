@@ -84,6 +84,10 @@ function numerar() {
 
 function preencher(dados) {
     leitura=dados;
+    const conflitoProtocolo=(dados.inconsistencias || []).find(i=>i.campo==='protocoloTri7');
+    el('doc-int-confirmacao-protocolo').hidden=!conflitoProtocolo;
+    el('doc-int-protocolo-conferido').checked=false;
+    el('doc-int-protocolo-aviso').textContent=conflitoProtocolo?`Conferi o recibo deste IN: usarei o protocolo ${conflitoProtocolo.fontes.recibo} nos documentos. O cadastro antigo contém ${conflitoProtocolo.fontes.cadastroAeri} e não será alterado por esta preparação.`:'';
     const campos={processo:dados.processoCredor,'protocolo-tri7':dados.protocoloTri7,'data-protocolo':dados.dataProtocolo,
         matricula:dados.matricula,'registro-garantia':dados.registroGarantia,credor:dados.credor?.nome,cnpj:dados.credor?.cnpj,
         titulo:dados.titulo,contrato:dados.contrato?.numero,'data-contrato':dados.contrato?.data,
@@ -219,6 +223,7 @@ export function sanitizarHtml(html) {
 function trocarAba(tipo){for(const t of Object.keys(ROTULOS)){el(`doc-int-painel-${t}`).hidden=t!==tipo;el(`doc-int-aba-${t}`).setAttribute('aria-selected',String(t===tipo));}}
 function gerar() {
     if(!leitura || leitura.fontes?.length!==3){status('Processe os três anexos novamente.');return;}
+    if((leitura.inconsistencias || []).some(i=>i.campo==='protocoloTri7') && !el('doc-int-protocolo-conferido').checked){status('Confirme expressamente o protocolo do recibo antes de preparar os textos; ele difere do cadastro antigo.');return;}
     const d=dadosFormulario();
     if(!el('doc-int-modelo-conferido').checked || !el('doc-int-divergencias-conferidas').checked){status('Confirme a aplicabilidade do modelo e a conferência dos campos e divergências.');return;}
     rascunhos.clear();

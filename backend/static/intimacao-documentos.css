@@ -8,6 +8,7 @@
 #modal-documentos-intimacao .doc-int-anexos label,#modal-documentos-intimacao .doc-int-rede label { padding:14px;border:1px solid #c8dcd5;background:#fff;border-radius:10px; }
 #modal-documentos-intimacao input[type=file] { width:100%;font-size:.75rem; }
 #modal-documentos-intimacao .doc-int-status { padding:10px 0;color:#16432f;min-height:22px; }
+#modal-documentos-intimacao .btn-primary,#modal-documentos-intimacao .btn-primary:hover,#modal-documentos-intimacao .btn-primary:focus-visible { color:#fff;background:#087857;border-color:#087857; }
 #modal-documentos-intimacao .intimacao-documentos-avisos,#modal-documentos-intimacao .doc-int-divergencias { color:#6d4205;background:#fff9e9;border:1px solid #e8c987;border-radius:10px;padding:12px;font-size:.82rem; }
 #modal-documentos-intimacao .doc-int-divergencias:empty { display:none; }
 #modal-documentos-intimacao .doc-int-fontes { display:grid;gap:6px;padding:12px;border:1px solid #c3dfd3;border-radius:10px;color:#14573f;background:#f0fff6;font-size:.8rem; }

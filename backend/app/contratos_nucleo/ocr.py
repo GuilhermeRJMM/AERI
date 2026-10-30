@@ -183,11 +183,11 @@ def _com_tesseract(pasta: Path) -> str:
     return processo.stdout.decode("utf-8", "replace")
 
 
-def _com_windows(pasta: Path) -> str:
+def _com_windows(pasta: Path, linhas_espaciais: bool = False) -> str:
     processo = subprocess.run(
         [_powershell(), "-NoProfile", "-ExecutionPolicy", "Bypass",
          "-File", str(SCRIPT_WINDOWS), "-Pasta", str(pasta),
-         "-Idioma", IDIOMA["windows"]],
+         "-Idioma", IDIOMA["windows"], *(["-LinhasEspaciais"] if linhas_espaciais else [])],
         capture_output=True, timeout=TEMPO_LIMITE,
         # Sem isto cada pagina abre um console preto: rodando pelo executor,
         # um contrato de 24 paginas piscava 24 janelas na cara do conferente.
@@ -215,7 +215,7 @@ def texto_de_pasta(pasta, forcar: str | None = None) -> str:
     return corrige(bruto)
 
 
-def texto_de(caminho, forcar: str | None = None) -> str:
+def texto_de(caminho, forcar: str | None = None, *, linhas_espaciais: bool = False) -> str:
     """Rasteriza o PDF e devolve o texto reconhecido.
 
     `forcar` escolhe o motor à mão ("tesseract" ou "windows"); serve para
@@ -230,8 +230,12 @@ def texto_de(caminho, forcar: str | None = None) -> str:
     pasta = Path(tempfile.mkdtemp(prefix="minutas-ocr-"))
     try:
         _rasteriza(Path(caminho), pasta)
-        bruto = _com_tesseract(pasta) if escolhido == "tesseract" \
-            else _com_windows(pasta)
+        if escolhido == "tesseract":
+            bruto = _com_tesseract(pasta)
+        elif linhas_espaciais:
+            bruto = _com_windows(pasta, linhas_espaciais=True)
+        else:
+            bruto = _com_windows(pasta)
     finally:
         shutil.rmtree(pasta, ignore_errors=True)
 
