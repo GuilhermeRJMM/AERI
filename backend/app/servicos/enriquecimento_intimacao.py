@@ -7,6 +7,9 @@ from hashlib import sha256
 from backend.app.analise.onus import processar_atos
 from backend.app.servicos import documentos_intimacao as doc
 from backend.app.servicos.tri7 import cliente_tri7, ErroTri7
+from backend.app.servicos.enderecos_documentos_intimacao import preparar_enderecos
+
+SIGNATARIO_PADRAO = 'Luiz Fernando Ribeiro'
 
 
 def _normal(v):
@@ -166,14 +169,13 @@ def complementar_preparacao(dados, responsavel='', *, cliente=None):
     dados.setdefault('inconsistencias', [])
     dados.setdefault('avisos', [])
     dados['consultaAutomatica'] = dict(matriculaConsultada=False, protocoloConsultado=False, garantiaConfirmada=False)
-    nome = ' '.join(str(responsavel or '').split())
-    if len(nome.split()) >= 2 and not re.search(r'administra|sistema|suporte', nome, re.I):
-        _atribuir(dados, 'signatario', nome, 'cadastro_usuario:responsavel_sugerido')
+    if not dados.get('signatario'):
+        _atribuir(dados, 'signatario', SIGNATARIO_PADRAO, 'configuracao_setor:padrao_confirmado')
     try:
         cliente = cliente or cliente_tri7()
     except (ErroTri7, ValueError, RuntimeError):
         dados['avisos'].append('Consulta automática à Tri7 indisponível; confira os campos pendentes.')
-        return dados
+        return preparar_enderecos(dados)
     for campo, metodo, aplicar in [('matricula', cliente.buscar_texto_matricula, _complementar_matricula),
                                     ('protocoloTri7', cliente.buscar_protocolo_completo, _complementar_protocolo)]:
         if dados.get(campo):
@@ -181,4 +183,4 @@ def complementar_preparacao(dados, responsavel='', *, cliente=None):
                 aplicar(dados, metodo(dados[campo]))
             except (ErroTri7, ValueError, RuntimeError):
                 dados['avisos'].append(f'Não foi possível complementar {campo} pela Tri7. Dados dos anexos preservados; confira a exceção.')
-    return dados
+    return preparar_enderecos(dados)

@@ -1,6 +1,12 @@
 from copy import deepcopy
 from backend.app.servicos.enriquecimento_intimacao import complementar_preparacao
 from backend.app.servicos.tri7 import ErroTri7
+from backend.app.servicos.enriquecimento_intimacao import SIGNATARIO_PADRAO
+import pytest
+
+@pytest.fixture(autouse=True)
+def sem_consulta_cep_externa(monkeypatch):
+    monkeypatch.setattr('backend.app.servicos.enderecos_documentos_intimacao.consultar_viacep',lambda _:[])
 
 
 TEXTO='''IMÓVEL: Lote 1, Quadra 2, Rua Exemplo, nesta cidade. PROPRIETÁRIO: HISTÓRICO.
@@ -36,7 +42,7 @@ def test_preenche_garantia_titulo_data_clausula_selo_sem_inventar_ou_recalcular(
     assert d['dataTituloAutuacao']=='16/11/2023' and d['contrato']['data']=='16/11/2023'
     assert d['clausula']=='26 OUTORGA DE PROCURAÇÕES'
     assert d['selo']=='00000000000000000000002'
-    assert d['signatario']=='Escrevente Exemplo'
+    assert d['signatario']==SIGNATARIO_PADRAO
     assert d['projecao']['valor']=='10545.44'
     assert 'PROPRIETÁRIO' not in d['enderecoImovel']
     assert d['consultaAutomatica']['garantiaConfirmada']
@@ -127,6 +133,6 @@ def test_resposta_outra_matricula_e_outro_protocolo_nao_sao_aceitos():
     assert not d['registroGarantia'] and not d.get('selo')
 
 
-def test_nome_generico_administrador_nao_e_inventado_como_escrevente():
+def test_responsavel_padrao_do_setor_nao_depende_do_nome_da_conta():
     d=dados();complementar_preparacao(d,'Administrador do Sistema',cliente=Tri7())
-    assert not d.get('signatario')
+    assert d['signatario']==SIGNATARIO_PADRAO

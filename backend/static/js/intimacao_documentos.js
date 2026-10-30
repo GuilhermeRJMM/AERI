@@ -1,6 +1,6 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {escaparHtml} from './util.js';
-import {gerarAutuacao, gerarOficio, gerarConvocacao, proximoOficio} from './intimacao_modelos.js?v=20261030-v1';
+import {gerarAutuacao, gerarOficio, gerarConvocacao, proximoOficio, SIGNATARIO_PADRAO, enderecoDeMorrinhos} from './intimacao_modelos.js?v=20261030-enderecos-v2';
 export {gerarAutuacao, gerarOficio, gerarConvocacao, proximoOficio};
 
 const FLUXO='tres-anexos-20261030';
@@ -94,9 +94,9 @@ function preencher(dados) {
         matricula:dados.matricula,'registro-garantia':dados.registroGarantia,credor:dados.credor?.nome,cnpj:dados.credor?.cnpj,
         titulo:dados.titulo,contrato:dados.contrato?.numero,'data-contrato':dados.contrato?.data,
         'data-titulo':dados.dataTituloAutuacao,'endereco-imovel':dados.enderecoImovel,
-        enderecos:(dados.enderecos || []).join('\n'),devedores:(dados.devedores || []).map(p=>`${p.nome} | ${p.cpf || p.cnpj || ''}`).join('\n'),
+        enderecos:(dados.enderecosPrimeiraNotificacao || dados.enderecos || []).filter(enderecoDeMorrinhos).join('\n'),devedores:(dados.devedores || []).map(p=>`${p.nome} | ${p.cpf || p.cnpj || ''}`).join('\n'),
         'data-projecao':dados.projecao?.data,'valor-projecao':dados.projecao?.valor,'valor-extenso':dados.projecao?.extenso,
-        signatario:dados.signatario,selo:dados.selo,clausula:dados.clausula,'credor-encerramento':dados.credorEncerramento};
+        signatario:dados.signatario || SIGNATARIO_PADRAO,selo:dados.selo,clausula:dados.clausula,'credor-encerramento':dados.credorEncerramento || dados.credor?.nome};
     for(const [id,v]of Object.entries(campos))campo(id).value=v || '';
     el('documentos-intimacao-fontes').innerHTML=(dados.fontes || []).map(f=>`<div><strong>${esc(f.papel)}:</strong> ${esc(f.nome)} · ${f.ocr?'OCR local — conferir':'texto extraído'}</div>`).join('');
     const detalhes=document.createElement('details');
@@ -108,7 +108,7 @@ function preencher(dados) {
     atualizarAlvo();el('documentos-intimacao-editor').hidden=false;
     el('doc-int-mostrar-todos').checked=false;
     const ca=dados.consultaAutomatica || {};
-    el('doc-int-resumo-automatico').textContent=`Matrícula: ${ca.matriculaConsultada?'consultada na Tri7':'consulta não confirmada'} · Garantia: ${ca.garantiaConfirmada?'vinculada ao contrato e às partes':'conferência necessária'} · Protocolo: ${ca.protocoloConsultado?'consultado na Tri7':'consulta não confirmada'}. O responsável sugerido pelo cadastro deve ser conferido; nenhum selo é emitido aqui.`;
+    el('doc-int-resumo-automatico').textContent=`Matrícula: ${ca.matriculaConsultada?'consultada na Tri7':'consulta não confirmada'} · Garantia: ${ca.garantiaConfirmada?'vinculada ao contrato e às partes':'conferência necessária'} · Protocolo: ${ca.protocoloConsultado?'consultado na Tri7':'consulta não confirmada'}. Responsável padrão: ${SIGNATARIO_PADRAO}; confira antes de aprovar. Nenhum selo é emitido aqui.`;
     for(const label of el('doc-int-campos-extraidos').querySelectorAll('label')){
         const input=label.querySelector('input,textarea,select');
         const invalido=input.value.includes('\ufffd') || input.id.startsWith('doc-int-data-') && !dataValida(input.value) || input.id==='doc-int-cnpj' && digitos(input.value).length!==14 || input.id==='doc-int-valor-projecao' && !moedaLiteral(input.value);
@@ -212,7 +212,7 @@ export function pendencias(d,tipo=null) {
     if((!tipo || tipo==='oficio') && d.dataProjecao!==d.dataGeracao)faltas.push('projeção para a data da preparação');
     if(!d.pessoas.length || d.pessoas.some(p=>!p.nome || p.cpf.length!==11))faltas.push('nome e CPF de cada devedor');
     if((!tipo || tipo==='oficio') && digitos(d.cnpj).length!==14)faltas.push('CNPJ do credor');
-    if((!tipo || tipo==='oficio') && !d.enderecos.length)faltas.push('endereços para notificação');
+    if((!tipo || tipo==='oficio') && !d.enderecos.some(enderecoDeMorrinhos))faltas.push('endereço de Morrinhos confirmado no Ofício');
     if((!tipo || tipo==='oficio') && !/^INT\/\d{4}\/\d{3,6}$/.test(d.oficio))faltas.push('número do ofício');
     if(JSON.stringify(d).includes('\ufffd'))faltas.push('caracteres ilegíveis');
     return faltas;
@@ -221,7 +221,7 @@ export function pendencias(d,tipo=null) {
 export function sanitizarHtml(html) {
     const t=document.createElement('template');t.innerHTML=html;
     const permitidas=new Set(['DIV','SECTION','P','SPAN','STRONG','B','EM','I','U','BR','TABLE','TBODY','TR','TD','UL','OL','LI']);
-    const estilos=new Set(['font-family','font-size','font-weight','line-height','color','background','text-align','text-indent','text-decoration','margin','margin-top','margin-bottom','width','max-width','height','vertical-align','border','border-collapse','padding','page-break-after','break-after']);
+    const estilos=new Set(['font-family','font-size','font-weight','line-height','color','background','text-align','text-indent','text-decoration','margin','margin-top','margin-bottom','width','max-width','height','vertical-align','border','border-collapse','padding','page-break-after','break-after','page-break-inside','break-inside']);
     function limpar(n){
         if(n.nodeType===3)return document.createTextNode(n.textContent);
         if(n.nodeType!==1 || ['SCRIPT','STYLE','IFRAME','OBJECT','SVG','IMG'].includes(n.tagName))return document.createTextNode('');
@@ -234,6 +234,12 @@ export function sanitizarHtml(html) {
     const saida=document.createElement('div');for(const n of t.content.childNodes)saida.append(limpar(n));return saida.innerHTML;
 }
 function trocarAba(tipo){for(const t of Object.keys(ROTULOS)){el(`doc-int-painel-${t}`).hidden=t!==tipo;el(`doc-int-aba-${t}`).setAttribute('aria-selected',String(t===tipo));}}
+export function validarPaginacaoOficio(html){
+    const medidor=document.createElement('div');medidor.style.cssText='position:fixed;left:-20000px;top:0;width:165mm;visibility:hidden;pointer-events:none';
+    medidor.innerHTML=sanitizarHtml(html);document.body.append(medidor);
+    try{const paginas=[...medidor.querySelectorAll('section')];const alturas=paginas.map(p=>Math.max(p.getBoundingClientRect().height,p.scrollHeight)*25.4/96);return{ok:paginas.length===3 && alturas.every(h=>h<=225),alturasMm:alturas};}
+    finally{medidor.remove();}
+}
 function gerar() {
     if(!leitura || leitura.fontes?.length!==3){status('Processe os três anexos novamente.');return;}
     const d=dadosFormulario();
@@ -242,10 +248,11 @@ function gerar() {
     el('documentos-intimacao-previa-conteudo').innerHTML=Object.entries(ROTULOS).map(([t,n])=>{
         const faltas=pendencias(d,t);
         rascunhos.set(t,{aprovado:false,geracao,faltas});
-        const previa={...d};for(const k of Object.keys(previa))if(typeof previa[k]==='string' && !previa[k])previa[k]=`[PENDENTE: ${k}]`;
+        const previa={...d,credorEncerramento:d.credorEncerramento || d.credor};for(const k of Object.keys(previa))if(typeof previa[k]==='string' && !previa[k])previa[k]=`[PENDENTE: ${k}]`;
         if(!previa.pessoas.length)previa.pessoas=[{nome:'[DEVEDOR A CONFERIR]',cpf:''}];
         previa.alvo=previa.alvo || previa.pessoas[0];if(!previa.enderecos.length)previa.enderecos=['[ENDEREÇO PARA NOTIFICAÇÃO PENDENTE]'];
-        return `<section id="doc-int-painel-${t}" role="tabpanel" aria-labelledby="doc-int-aba-${t}" hidden>${faltas.length?`<p class="doc-int-divergencias">Rascunho incompleto · ${faltas.map(esc).join(', ')}. Cópia bloqueada; corrija as exceções.</p>`:''}<p class="doc-int-limite">Fontes: ${leitura.fontes.map(f=>esc(f.nome)).join(' · ')}${leitura.consultaAutomatica?.garantiaConfirmada?' · matrícula/garantia conferida na Tri7':''}</p><article class="doc-int-papel" id="doc-int-texto-${t}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto de ${n}">${GERADORES[t](previa)}</article><div class="doc-int-revisao-acoes"><label class="doc-int-confirmacao"><input type="checkbox" data-aprovar-documento="${t}" ${faltas.length?'disabled':''}> Revisei integralmente esta versão de ${n} e conferi a numeração na Tri7.</label><button type="button" class="btn btn-primary" data-copiar-documento="${t}" disabled>Copiar ${n}</button><button type="button" class="rotina-btn-secondary" data-copiar-simples="${t}" disabled>Copiar texto simples</button></div><p id="doc-int-revisao-${t}" role="status">${faltas.length?'Há campos pendentes.':'Revisão pendente.'}</p></section>`;
+        const paginas=t==='oficio'?'<p class="doc-int-limite">3 páginas: 1 · Ofício até a assinatura; 2 · Contrafé e Certidão; 3 · continuação, Observações e endereços de Morrinhos. Confirme as quebras na Tri7.</p><details><summary>Se a Tri7 remover as quebras, copiar uma página por vez</summary>'+[1,2,3].map(p=>`<button type="button" class="rotina-btn-secondary" data-copiar-pagina="${p}" disabled>Copiar página ${p}/3</button>`).join('')+'</details>':'';
+        return `<section id="doc-int-painel-${t}" role="tabpanel" aria-labelledby="doc-int-aba-${t}" hidden>${faltas.length?`<p class="doc-int-divergencias">Rascunho incompleto · ${faltas.map(esc).join(', ')}. Cópia bloqueada; corrija as exceções.</p>`:''}<p class="doc-int-limite">Fontes: ${leitura.fontes.map(f=>esc(f.nome)).join(' · ')}${leitura.consultaAutomatica?.garantiaConfirmada?' · matrícula/garantia conferida na Tri7':''}</p><article class="doc-int-papel" id="doc-int-texto-${t}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto de ${n}">${GERADORES[t](previa)}</article><div class="doc-int-revisao-acoes"><label class="doc-int-confirmacao"><input type="checkbox" data-aprovar-documento="${t}" ${faltas.length?'disabled':''}> Revisei integralmente esta versão de ${n} e conferi a numeração na Tri7.</label><button type="button" class="btn btn-primary" data-copiar-documento="${t}" disabled>Copiar ${n}</button><button type="button" class="rotina-btn-secondary" data-copiar-simples="${t}" disabled>Copiar texto simples</button></div>${paginas}<p id="doc-int-revisao-${t}" role="status">${faltas.length?'Há campos pendentes.':'Revisão pendente.'}</p></section>`;
     }).join('');
     el('documentos-intimacao-previa').hidden=false;trocarAba('autuacao');
     el('btn-gerar-tres-documentos').hidden=true;
@@ -260,6 +267,7 @@ async function aprovar(tipo,checkbox){
     if(!checkbox.checked){bloquear(tipo);return;}
     if(r.faltas.length || !consentimentosOk()){checkbox.checked=false;status('Confira as exceções, a aplicabilidade do modelo e a divergência do protocolo antes de aprovar esta versão.');return;}
     const v=geracao,html=el(`doc-int-texto-${tipo}`).innerHTML;
+    if(tipo==='oficio' && !validarPaginacaoOficio(html).ok){checkbox.checked=false;status('O Ofício excede o espaço das três páginas A4. Confira o tamanho dos campos e as quebras; a cópia permanece bloqueada, sem cortar texto.');return;}
     checkbox.disabled=true;
     try{r.hash=await hashTexto(sanitizarHtml(html));if(v!==geracao)return;
         await eventoDocumento(tipo,'revisao');if(v!==geracao || !rascunhos.has(tipo))return;
@@ -268,19 +276,22 @@ async function aprovar(tipo,checkbox){
         el(`doc-int-revisao-${tipo}`).textContent='Revisão registrada. Cópia liberada para esta versão; número não reservado.';
     }catch(e){checkbox.checked=false;status(e.message);}finally{checkbox.disabled=false;}
 }
-async function copiar(tipo,simples=false){
+async function copiar(tipo,simples=false,pagina=null){
     const r=rascunhos.get(tipo),artigo=el(`doc-int-texto-${tipo}`);
     if(!r?.aprovado || r.geracao!==geracao || r.html!==artigo.innerHTML || !consentimentosOk()){status('Revise a versão atual antes de copiar.');return;}
     const v=geracao;
     try{
-        if(simples){if(!navigator.clipboard?.writeText)throw Error('Área de transferência indisponível neste navegador.');await navigator.clipboard.writeText(artigo.innerText);}
+        if(tipo==='oficio' && !validarPaginacaoOficio(artigo.innerHTML).ok)throw Error('O conteúdo não cabe nas três páginas. Revise sem cortar texto.');
+        let conteudo=artigo.innerHTML,texto=artigo.innerText;
+        if(pagina){const copia=document.createElement('div');copia.innerHTML=sanitizarHtml(conteudo);const parte=copia.querySelectorAll('section')[pagina-1],root=copia.firstElementChild;if(!parte)throw Error('Página não localizada. Gere os textos novamente.');conteudo=`<div style="${esc(root.getAttribute('style'))}">${parte.innerHTML}</div>`;texto=artigo.querySelectorAll('section')[pagina-1].innerText;}
+        if(simples){if(!navigator.clipboard?.writeText)throw Error('Área de transferência indisponível neste navegador.');await navigator.clipboard.writeText(texto);}
         else{
             if(!navigator.clipboard?.write || !globalThis.ClipboardItem)throw Error('Cópia formatada indisponível. Use o botão explícito de texto simples e ajuste a formatação na Tri7.');
-            const html=sanitizarHtml(artigo.innerHTML);
-            await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([artigo.innerText],{type:'text/plain'})})]);
+            const html=sanitizarHtml(conteudo);
+            await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([texto],{type:'text/plain'})})]);
         }
         if(v!==geracao)return;
-        status(`${ROTULOS[tipo]} copiada${simples?' em texto simples, sem formatação':''}. Cole na Tri7 e confira antes de salvar. Nenhum envio foi feito.`);
+        status(`${ROTULOS[tipo]}${pagina?` · página ${pagina}/3`:''} copiada${simples?' em texto simples, sem formatação':''}. Cole na Tri7 e confira as quebras antes de salvar. Nenhum envio foi feito.`);
         try{await eventoDocumento(tipo,'copia');}catch(e){status(`O texto foi copiado, mas o registro da cópia não foi confirmado: ${e.message}`);}
     }catch(e){status(`Não foi possível copiar: ${e.message}`);}
 }
@@ -330,5 +341,5 @@ export function iniciarDocumentosIntimacao(_abrirRtdComPares){
     previa.addEventListener('paste',e=>{if(!e.target.closest('.doc-int-papel'))return;e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'));});
     previa.addEventListener('drop',e=>e.preventDefault());
     previa.addEventListener('change',e=>{const t=e.target.dataset.aprovarDocumento;if(t)aprovar(t,e.target);});
-    previa.addEventListener('click',e=>{const b=e.target.closest('button');if(b?.dataset.copiarDocumento)copiar(b.dataset.copiarDocumento);if(b?.dataset.copiarSimples)copiar(b.dataset.copiarSimples,true);});
+    previa.addEventListener('click',e=>{const b=e.target.closest('button');if(b?.dataset.copiarDocumento)copiar(b.dataset.copiarDocumento);if(b?.dataset.copiarSimples)copiar(b.dataset.copiarSimples,true);if(b?.dataset.copiarPagina)copiar('oficio',false,+b.dataset.copiarPagina);});
 }

@@ -33,7 +33,7 @@ assert.equal((oficio.match(/page-break-after:always/g) || []).length, 2);
 assert.ok(oficio.includes('PESSOA A(CPF:'));
 assert.ok(oficio.includes('R$2.879,34 (dois mil oitocentos'));
 assert.ok(oficio.includes('Rua A'));
-assert.ok(oficio.includes('Rua C'), 'Os endereços da minuta não são descartados pelo filtro de envio RTD.');
+assert.ok(!oficio.includes('Rua C'), 'A primeira notificação contém apenas endereços de Morrinhos.');
 assert.ok(gerarConvocacao(dados).includes('30.338'));
 
 console.log('Preparação RTD: duas pessoas em dois endereços geram quatro pedidos individuais.');

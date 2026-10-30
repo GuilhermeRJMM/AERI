@@ -196,6 +196,35 @@ def ler_anexo(conteudo, nome, papel, permitir_ocr=False):
     return texto, dict(papel=papel, nome=nome, sha256=sha256(conteudo).hexdigest(), ocr=ocr_usado)
 
 
+def _enderecos_do_oficio(texto):
+    """Complemento rural/multilinha restrito à qualificação dos fiduciantes."""
+    encontrados = documentos._extrair_enderecos(texto)
+    inicio = re.search(r'Fiduciante(?:\(s\)|s)?\s*:', texto, re.I)
+    bloco = texto[inicio.end():] if inicio else ''
+    bloco = re.split(r'\n\s*(?:3\.1|4\.)\s', bloco, maxsplit=1)[0]
+    linhas = bloco.splitlines()
+    inicio_endereco = r'(?:Rua|Avenida|Av\.|Alameda|Praça|Estrada|Rodovia|Fazenda|S[ií]tio|Ch[aá]cara|Gleba)\b'
+    for i, linha in enumerate(linhas):
+        m = re.match(r'^\s*(?:\d+[.)]\s*)?('+inicio_endereco+r'.+)', linha, re.I)
+        if not m:
+            continue
+        partes = [m[1].strip()]
+        # Não continuar após município/UF já presente; evita anexar outra pessoa.
+        for proxima in linhas[i+1:i+5]:
+            if re.search(r'\b[A-ZÀ-Ü][A-ZÀ-Üa-zà-ü ]+\s*[-/]\s*[A-Z]{2}\b|Munic[ií]pio de Morrinhos', ' '.join(partes)):
+                break
+            trecho = proxima.strip()
+            if not trecho or re.match(r'^(?:\d+[.)]|'+inicio_endereco+r'|CPF|CNPJ|Nome|Contrato|Endere[cç]o|Registro)\b', trecho, re.I):
+                break
+            partes.append(trecho)
+        valor = documentos._corrigir_indicador_numero(re.sub(r'\s+', ' ', ' '.join(partes))).strip(' ,;.')
+        # Substitui a linha parcial, sem duplicar o mesmo endereço.
+        encontrados = [e for e in encontrados if e != partes[0].strip(' ,;.')]
+        if valor not in encontrados:
+            encontrados.append(valor)
+    return encontrados
+
+
 def analisar_tres_anexos(anexos, referencia, protocolo_in, protocolo_tri7='', permitir_ocr=False):
     if not re.fullmatch(r'IN\d{8}C', protocolo_in):
         raise Erro('Selecione um IN válido cadastrado no AERI.')
@@ -230,6 +259,7 @@ def analisar_tres_anexos(anexos, referencia, protocolo_in, protocolo_tri7='', pe
                  inconsistencias=[], origens={}, registroGarantia='', titulo='', dataTituloAutuacao='')
     dados['credor'] = _credor(textos['oficio'])
     dados['devedores'] = _devedores(textos['oficio'])
+    dados['enderecosDoOficio'] = _enderecos_do_oficio(textos['oficio'])
     dados['matricula'] = _matricula(textos['oficio']) or _matricula(recibo)
     dados['contrato'] = _dados_contrato(textos['oficio'])
     registros = set(re.findall(r'Registro(?:\(s\)|s)?\s*:\s*(R[.\s-]*\d+)', textos['oficio'], re.I))

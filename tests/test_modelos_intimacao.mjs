@@ -13,7 +13,7 @@ const d={in:'IN00000001C',processo:'100100/2026',dataGeracao:'30/10/2026',dataPr
     oficio:'INT/2026/053',protocolo:'123456',matricula:'1.234',registro:'R.6',titulo:'Título literal n.°',contrato:'1.234-0',
     dataTituloAutuacao:'19/10/2026',dataContrato:'16/11/2023',credor:'CREDOR EXEMPLO',cnpj:'00.360.305/0001-04',
     pessoas:[{nome:'PESSOA EXEMPLO',cpf:'11144477735'}],alvo:{nome:'PESSOA EXEMPLO',cpf:'11144477735'},
-    enderecoImovel:'Rua A, 1, Centro',enderecos:['Rua B, 2, Centro'],signatario:'Escrevente Exemplo',
+    enderecoImovel:'Rua A, 1, Centro',enderecos:['Rua B, 2, Centro, Morrinhos-GO'],signatario:'Escrevente Exemplo',
     dataProjecao:'30/10/2026',valorProjecao:'R$ 10.545,44',valorExtenso:'dez mil quinhentos e quarenta e cinco reais e quarenta e quatro centavos',
     selo:'00000000000000000000000',clausula:'26 OUTORGA DE PROCURAÇÕES'};
 assert.deepEqual(pendencias(d),[]);
@@ -29,4 +29,6 @@ assert.equal((of.match(/page-break-after:always/g)||[]).length,2);
 for(const s of ['CONTRA-FÉ','CERTIDÃO','OBSERVAÇÕES:','30 dias após o término','deixei de intimar pessoalmente'])assert(of.includes(s));
 assert(!aut.includes('MANIFESTO') && !of.includes('06364830102'));
 assert(gerarAutuacao({...d,credor:'<img src=x onerror=alert(1)>'}).includes('&lt;img'));
+assert(!gerarOficio({...d,credorEncerramento:'[PENDENTE: credorEncerramento]'}).includes('[PENDENTE: credorEncerramento]'));
+assert(gerarOficio({...d,signatario:''}).includes('Luiz Fernando Ribeiro'));
 console.log('Modelos: numeração, redação, datas independentes, estilos e escape conferidos.');
