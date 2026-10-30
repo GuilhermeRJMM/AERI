@@ -1,7 +1,7 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
 import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd, carregarDocumentosRtd} from './rtd_intimacoes.js?v=20261019-protocolo-rtd-visivel-v1';
-import {abrirDocumentosIntimacao, iniciarDocumentosIntimacao} from './intimacao_documentos.js?v=20261009-v1';
+import {abrirDocumentosIntimacao, iniciarDocumentosIntimacao} from './intimacao_documentos.js?v=20261030-modelos-v1';
 
 let intimacoes = [];
 const intimacoesPendentes = new Set();

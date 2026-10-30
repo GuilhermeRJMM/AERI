@@ -419,9 +419,10 @@ def analisar_pdfs_intimacao(
     protocolo_in: str,
     protocolo_tri7: str = "",
     titulo_registrado: bytes | None = None,
+    *, textos: tuple[str, str] | None = None,
 ) -> dict:
-    texto_oficio = _ler_pdf(oficio_pdf, "Ofício/requerimento")
-    texto_projecao = _ler_pdf(projecao_pdf, "Planilha de projeção")
+    texto_oficio = textos[0] if textos is not None else _ler_pdf(oficio_pdf, "Ofício/requerimento")
+    texto_projecao = textos[1] if textos is not None else _ler_pdf(projecao_pdf, "Planilha de projeção")
     credor = _extrair_credor(texto_oficio)
     devedores = _extrair_devedores(texto_oficio) or _extrair_devedores(texto_projecao)
     enderecos = _extrair_enderecos(texto_oficio) or _extrair_enderecos(texto_projecao)

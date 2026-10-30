@@ -1,0 +1,70 @@
+<div id="modal-documentos-intimacao" class="modal-overlay">
+  <div class="modal-box rotina-modal intimacao-documentos-modal" role="dialog" aria-modal="true" aria-labelledby="documentos-intimacao-titulo">
+    <button class="modal-fechar" id="btn-fechar-documentos-intimacao" type="button" aria-label="Fechar preparação">&times;</button>
+    <div class="rotina-form-header">
+      <span class="eyebrow">BANCADA DE DOCUMENTOS · RASCUNHO</span>
+      <h2 id="documentos-intimacao-titulo">Autuação, Ofício Contrafé e Convocação</h2>
+      <p id="documentos-intimacao-contexto"></p>
+    </div>
+    <ol class="doc-int-etapas" aria-label="Etapas"><li>1 · IN e numeração</li><li>2 · Três anexos</li><li>3 · Conferir dados</li><li>4 · Revisar e copiar</li></ol>
+    <section class="intimacao-documentos-origem">
+      <div class="intimacao-documentos-campos">
+        <label><span>IN selecionado</span><input id="doc-int-in" readonly></label>
+        <label><span>Data da preparação e da projeção</span><input id="doc-int-data-geracao" type="date" required></label>
+        <label><span>Número do último Ofício Contrafé gerado</span><input id="doc-int-ultimo-oficio" maxlength="30" placeholder="52 ou INT/2026/052" required></label>
+        <label><span>Próximo número — confira e corrija, se necessário</span><input id="doc-int-numero-oficio" maxlength="30" placeholder="INT/2026/053" required></label>
+      </div>
+      <p>O número é uma sugestão, não uma reserva. Confira o último efetivamente utilizado na Tri7, inclusive se houver outro funcionário preparando ofícios.</p>
+      <div class="intimacao-documentos-acoes"><button type="button" class="rotina-btn-secondary" id="btn-abrir-pasta-documentos-intimacao">Abrir pasta deste IN no Windows</button><button type="button" class="rotina-btn-secondary" id="btn-ler-documentos-intimacao-rede">Localizar anexos pelo executor</button></div>
+      <p>A abertura usa o auxiliar Windows já instalado. O navegador não consegue apontar o seletor nativo para uma pasta da rede. Você pode selecionar os arquivos abaixo ou usar o seletor do executor.</p>
+      <div id="documentos-intimacao-arquivos-rede" class="doc-int-rede" hidden></div>
+      <div class="doc-int-anexos">
+        <label><span>1 · Recibo do Protocolo · obrigatório</span><input id="documentos-intimacao-recibo" type="file" accept="application/pdf,.pdf" required></label>
+        <label><span>2 · Ofício do credor · obrigatório</span><input id="documentos-intimacao-oficio" type="file" accept="application/pdf,.pdf" required></label>
+        <label><span>3 · Planilha de Projeção · obrigatória</span><input id="documentos-intimacao-projecao" type="file" accept=".pdf,.xlsx,.xls" required></label>
+      </div>
+      <label class="intimacao-documentos-confirmacao"><input id="documentos-intimacao-confirmar-origem" type="checkbox"><span>Conferi que os três anexos pertencem ao IN selecionado.</span></label>
+      <button type="button" class="btn btn-primary" id="btn-analisar-documentos-intimacao">Processar os três documentos</button>
+      <p id="documentos-intimacao-status" class="doc-int-status" role="status" aria-live="polite"></p>
+    </section>
+    <section id="documentos-intimacao-editor" class="intimacao-documentos-editor" hidden>
+      <h3>Confira os dados e suas fontes</h3>
+      <div id="documentos-intimacao-fontes" class="doc-int-fontes"></div>
+      <div id="documentos-intimacao-avisos" class="intimacao-documentos-avisos"></div>
+      <div id="documentos-intimacao-divergencias" class="doc-int-divergencias"></div>
+      <div class="intimacao-documentos-campos">
+        <label><span>Processo do credor</span><input id="doc-int-processo" maxlength="40"></label>
+        <label><span>Protocolo do Registro de Imóveis</span><input id="doc-int-protocolo-tri7" maxlength="40"></label>
+        <label><span>Data de entrada do protocolo</span><input id="doc-int-data-protocolo" maxlength="10" placeholder="dd/mm/aaaa"></label>
+        <label><span>Matrícula</span><input id="doc-int-matricula" maxlength="30"></label>
+        <label><span>Registro da garantia</span><input id="doc-int-registro-garantia" maxlength="30" placeholder="R.6"></label>
+        <label><span>Data contratual · Ofício e Convocação</span><input id="doc-int-data-contrato" maxlength="10" placeholder="dd/mm/aaaa"></label>
+        <label><span>Data do título · Autuação · conferir no original</span><input id="doc-int-data-titulo" maxlength="10" placeholder="dd/mm/aaaa"></label>
+        <label><span>Número do contrato · preservar pontuação</span><input id="doc-int-contrato" maxlength="80"></label>
+        <label class="intimacao-documentos-largo"><span>Título completo · redação literal do documento</span><textarea id="doc-int-titulo" rows="3" maxlength="1200"></textarea></label>
+        <label><span>Credor fiduciário</span><input id="doc-int-credor" maxlength="160"></label>
+        <label><span>CNPJ do credor</span><input id="doc-int-cnpj" maxlength="18"></label>
+        <label class="intimacao-documentos-largo"><span>Grafia do credor no encerramento · se diferente, confira a fonte</span><input id="doc-int-credor-encerramento" maxlength="160"></label>
+        <label class="intimacao-documentos-largo"><span>Devedores · um por linha: Nome | CPF</span><textarea id="doc-int-devedores" rows="3" maxlength="4000"></textarea></label>
+        <label><span>Devedor desta via</span><select id="doc-int-devedor-alvo"></select></label>
+        <label><span>Escrevente signatário · confirme o responsável</span><input id="doc-int-signatario" maxlength="160"></label>
+        <label class="intimacao-documentos-largo"><span>Endereço do imóvel · Autuação e descrição do título</span><textarea id="doc-int-endereco-imovel" rows="2" maxlength="1500"></textarea></label>
+        <label class="intimacao-documentos-largo"><span>Endereços para notificação · um por linha</span><textarea id="doc-int-enderecos" rows="3" maxlength="5000"></textarea></label>
+        <label><span>Data da projeção</span><input id="doc-int-data-projecao" maxlength="10" placeholder="dd/mm/aaaa"></label>
+        <label><span>Valor projetado · sem recalcular</span><input id="doc-int-valor-projecao" inputmode="decimal" maxlength="30"></label>
+        <label class="intimacao-documentos-largo"><span>Valor projetado por extenso · confira com o valor</span><input id="doc-int-valor-extenso" maxlength="300"></label>
+        <label><span>Selo já existente · não será emitido pelo AERI</span><input id="doc-int-selo" maxlength="40"></label>
+        <label><span>Cláusula contratual citada · copiar do instrumento</span><input id="doc-int-clausula" maxlength="200" placeholder="Número e título da cláusula, após conferir"></label>
+      </div>
+      <label class="doc-int-confirmacao"><input id="doc-int-modelo-conferido" type="checkbox"> Confirmei no instrumento a cláusula e a aplicabilidade dos trechos do modelo, inclusive financiamento residencial. Os anexos não substituem essa conferência.</label>
+      <label class="doc-int-confirmacao"><input id="doc-int-divergencias-conferidas" type="checkbox"> Conferi as fontes e corrigi os campos ausentes ou divergentes, inclusive as duas datas de título/contrato.</label>
+      <button type="button" class="btn btn-primary" id="btn-gerar-tres-documentos">Preparar os três textos para revisão</button>
+    </section>
+    <section id="documentos-intimacao-previa" class="intimacao-documentos-previa" hidden>
+      <h3>Revisão individual</h3>
+      <p class="doc-int-limite">Prévia editável do texto, sem papel de segurança, assinatura digital ou manifesto. Fonte e marcações seguem os PDFs fornecidos; paginação e colagem no editor da Tri7 ainda precisam de validação presencial. Qualquer alteração invalida a aprovação correspondente.</p>
+      <div id="documentos-intimacao-abas" role="tablist" aria-label="Documento para revisar"></div>
+      <div id="documentos-intimacao-previa-conteudo"></div>
+    </section>
+  </div>
+</div>

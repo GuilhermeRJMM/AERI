@@ -6,7 +6,7 @@ import unicodedata
 from zoneinfo import ZoneInfo
 
 from backend.app.database import conectar
-from backend.app.servicos.contratos import cifrar
+from backend.app.servicos.contratos import cifrar, decifrar
 from backend.app.servicos.documentos_intimacao import (
     analisar_pdfs_intimacao, complementar_matricula, estruturar_endereco,
     ErroDocumentoIntimacao, LIMITE_PDF_INTIMACAO,
@@ -176,8 +176,9 @@ def processar_preparacao_intimacao():
         with con.cursor() as cur:
             cur.execute('DELETE FROM preparacoes_intimacao_aeri WHERE expira_em < NOW()')
             cur.execute("""UPDATE preparacoes_intimacao_aeri SET estado='ERRO', erro='A leitura foi interrompida. Solicite novamente.', atualizado_em=NOW()
-                WHERE estado='LENDO' AND atualizado_em < NOW() - INTERVAL '5 minutes'""")
-            cur.execute("""SELECT p.id,i.protocolo,i.protocolo_tri7 FROM preparacoes_intimacao_aeri p
+                WHERE estado='LENDO' AND atualizado_em < NOW() - INTERVAL '5 minutes'
+                AND expira_em-criado_em > INTERVAL '20 minutes'""")
+            cur.execute("""SELECT p.id,p.dados_cifrados,i.protocolo,i.protocolo_tri7 FROM preparacoes_intimacao_aeri p
                 JOIN intimacoes_aeri i ON i.id=p.intimacao_id
                 WHERE p.estado='PENDENTE' AND p.expira_em>NOW() AND i.excluida_em IS NULL AND i.fase='INTIMACAO'
                 ORDER BY p.criado_em FOR UPDATE OF p SKIP LOCKED LIMIT 1""")
@@ -188,7 +189,16 @@ def processar_preparacao_intimacao():
     if not trabalho:
         return {'estado': 'SEM_TRABALHO'}
     try:
-        dados = ler_pasta_processo(trabalho['protocolo'], trabalho['protocolo_tri7'] or '')
+        from backend.app.servicos.anexos_intimacao import VERSAO, arquivos_da_pasta, ler_selecao_pasta
+        opcoes = decifrar(trabalho['dados_cifrados']) if trabalho.get('dados_cifrados') else {}
+        if opcoes.get('fluxo') == VERSAO:
+            if opcoes['acao'] == 'listar':
+                dados = {'fluxo': VERSAO, 'arquivos': [info for _, info in arquivos_da_pasta(trabalho['protocolo']).values()]}
+            else:
+                dados = ler_selecao_pasta(trabalho['protocolo'], opcoes['selecao'],
+                    datetime.fromisoformat(opcoes['referencia']).date(), trabalho['protocolo_tri7'] or '')
+        else:
+            dados = ler_pasta_processo(trabalho['protocolo'], trabalho['protocolo_tri7'] or '')
         cifrado, erro, estado = cifrar(dados), None, 'PRONTO'
     except (ErroDocumentoIntimacao, ValueError) as exc:
         cifrado, erro, estado = None, str(exc)[:500], 'ERRO'

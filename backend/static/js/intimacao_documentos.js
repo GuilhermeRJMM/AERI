@@ -1,394 +1,269 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {escaparHtml} from './util.js';
+import {gerarAutuacao, gerarOficio, gerarConvocacao, proximoOficio} from './intimacao_modelos.js?v=20261030-v1';
+export {gerarAutuacao, gerarOficio, gerarConvocacao, proximoOficio};
 
-const SIGNATARIO_PADRAO = 'Guilherme Richard Jesus Morais Medeiros';
-const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-let intimacaoAtual = null;
-let leituraAtual = null;
-let htmlAtual = '';
-let prepararRtd = null;
-let leituraEmCurso = false;
-let versaoJanela = 0;
+const FLUXO='tres-anexos-20261030';
+const PAPEIS=['recibo','oficio','projecao'];
+const ROTULOS={autuacao:'Autuação',oficio:'Ofício Contrafé',convocacao:'Convocação'};
+const GERADORES={autuacao:gerarAutuacao,oficio:gerarOficio,convocacao:gerarConvocacao};
+let atual=null, leitura=null, geracao=0, ocupado=false, origem='manual', trabalho=null, controlador=null;
+const rascunhos=new Map();
+const el=id=>document.getElementById(id);
+const campo=id=>el(`doc-int-${id}`);
+const valor=id=>campo(id).value.trim();
+const digitos=s=>String(s || '').replace(/\D/g,'');
+const esc=s=>escaparHtml(String(s ?? ''));
+const status=s=>{el('documentos-intimacao-status').textContent=s;};
+const hashTexto=async texto=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(texto)))].map(v=>v.toString(16).padStart(2,'0')).join('');
 
-const campo = id => document.getElementById(`doc-int-${id}`);
-const valor = id => campo(id).value.trim();
-const digitos = texto => String(texto || '').replace(/\D/g, '');
-const seguro = texto => escaparHtml(String(texto || ''));
-
-function dataPorExtenso(data) {
-    const partes = String(data || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!partes || !MESES[Number(partes[2]) - 1]) return data;
-    return `${Number(partes[1])} de ${MESES[Number(partes[2]) - 1]} de ${partes[3]}`;
+export function dataValida(v) {
+    const m=String(v || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(!m)return false;
+    const d=new Date(Date.UTC(+m[3],+m[2]-1,+m[1]));
+    return d.getUTCFullYear()===+m[3] && d.getUTCMonth()===+m[2]-1 && d.getUTCDate()===+m[1];
+}
+const dataBr=v=>String(v).split('-').reverse().join('/');
+const pontos=v=>digitos(v).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+export function moedaLiteral(v) {
+    const s=String(v || '').replace(/^R\$\s*/,'').trim();
+    if(!/^(?:\d+|\d{1,3}(?:\.\d{3})+),\d{2}$/.test(s) && !/^\d+\.\d{2}$/.test(s))return '';
+    const [inteiro,centavos]=s.includes(',')?s.replace(/\./g,'').split(','):s.split('.');
+    return `R$ ${inteiro.replace(/\B(?=(\d{3})+(?!\d))/g,'.')},${centavos}`;
 }
 
-function dataBrValida(data) {
-    const partes = String(data || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!partes) return false;
-    const dia = Number(partes[1]);
-    const mes = Number(partes[2]);
-    const ano = Number(partes[3]);
-    const conferida = new Date(Date.UTC(ano, mes - 1, dia));
-    return conferida.getUTCFullYear() === ano && conferida.getUTCMonth() === mes - 1
-        && conferida.getUTCDate() === dia;
-}
-
-function numeroComPontos(numero) {
-    const limpo = digitos(numero);
-    return limpo ? limpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : String(numero || '');
-}
-
-function cpfFormatado(cpf) {
-    const limpo = digitos(cpf);
-    return limpo.length === 11
-        ? `${limpo.slice(0,3)}.${limpo.slice(3,6)}.${limpo.slice(6,9)}-${limpo.slice(9)}`
-        : cpf;
-}
-
-function cnpjFormatado(cnpj) {
-    const limpo = digitos(cnpj);
-    return limpo.length === 14
-        ? `${limpo.slice(0,2)}.${limpo.slice(2,5)}.${limpo.slice(5,8)}/${limpo.slice(8,12)}-${limpo.slice(12)}`
-        : cnpj;
-}
-
-function pessoasDoFormulario() {
-    return valor('devedores').split(/\r?\n/).map(linha => {
-        const [nome = '', cpf = ''] = linha.split('|');
-        return {nome:nome.trim(), cpf:digitos(cpf)};
-    }).filter(pessoa => pessoa.nome || pessoa.cpf);
-}
-
-function enderecosDoFormulario() {
-    return valor('enderecos').split(/\r?\n/).map(linha => linha.trim()).filter(Boolean);
-}
-
-function atualizarSeletorDevedor() {
-    const seletor = campo('devedor-alvo');
-    const anterior = seletor.value;
-    seletor.replaceChildren();
-    pessoasDoFormulario().forEach((pessoa, indice) => {
-        const opcao = document.createElement('option');
-        opcao.value = String(indice);
-        opcao.textContent = pessoa.nome || `Devedor ${indice + 1}`;
-        seletor.append(opcao);
-    });
-    if ([...seletor.options].some(opcao => opcao.value === anterior)) seletor.value = anterior;
-}
-
-function abrirDocumentosIntimacao(item) {
-    versaoJanela += 1;
-    intimacaoAtual = item;
-    leituraAtual = null;
-    htmlAtual = '';
-    document.getElementById('documentos-intimacao-contexto').textContent =
-        `IN ${item.protocolo}: selecione o ofício do credor e a planilha de projeção deste processo.`;
-    document.getElementById('documentos-intimacao-oficio').value = '';
-    document.getElementById('documentos-intimacao-projecao').value = '';
-    document.getElementById('documentos-intimacao-titulo-registrado').value = '';
-    document.getElementById('documentos-intimacao-confirmar-origem').checked = false;
-    document.getElementById('documentos-intimacao-status').textContent = '';
-    document.getElementById('documentos-intimacao-editor').hidden = true;
-    document.getElementById('documentos-intimacao-previa').hidden = true;
-    campo('signatario').value = SIGNATARIO_PADRAO;
-    document.getElementById('modal-documentos-intimacao').classList.add('aberta');
-}
-
-function fecharDocumentosIntimacao() {
-    versaoJanela += 1;
-    document.getElementById('modal-documentos-intimacao').classList.remove('aberta');
-    document.getElementById('documentos-intimacao-oficio').value = '';
-    document.getElementById('documentos-intimacao-projecao').value = '';
-    document.getElementById('documentos-intimacao-titulo-registrado').value = '';
-    document.getElementById('documentos-intimacao-previa-conteudo').replaceChildren();
-    intimacaoAtual = null;
-    leituraAtual = null;
-    htmlAtual = '';
-}
-
-function mostrarLeitura(resultado) {
-    leituraAtual = resultado;
-    campo('processo').value = resultado.processoCredor || '';
-    campo('numero-oficio').value = '';
-    campo('protocolo-tri7').value = resultado.protocoloTri7 || '';
-    campo('data-protocolo').value = resultado.dataProtocolo || '';
-    campo('matricula').value = resultado.matricula || '';
-    campo('registro-garantia').value = resultado.registroGarantia || '';
-    campo('credor').value = resultado.credor?.nome?.includes('�') && intimacaoAtual?.credor
-        ? intimacaoAtual.credor : resultado.credor?.nome || '';
-    campo('cnpj').value = resultado.credor?.cnpj || '';
-    campo('titulo').value = resultado.titulo || '';
-    campo('contrato').value = resultado.contrato?.numero || '';
-    campo('data-contrato').value = resultado.contrato?.data || '';
-    campo('devedores').value = (resultado.devedores || []).map(p => `${p.nome} | ${p.cpf || ''}`).join('\n');
-    campo('endereco-imovel').value = resultado.enderecoImovel || '';
-    campo('enderecos').value = (resultado.enderecos || []).join('\n');
-    campo('data-projecao').value = resultado.projecao?.data || '';
-    campo('valor-projecao').value = resultado.projecao?.valor || '';
-    campo('valor-extenso').value = resultado.projecao?.extenso || '';
-    campo('signatario').value = SIGNATARIO_PADRAO;
-    atualizarSeletorDevedor();
-    const avisos = [...(resultado.avisos || []),
-        ...(resultado.protocoloIN === 'IN01688738C'
-            ? ['Neste IN de teste, confira o signatário: o material enviado foi assinado por Matheus Antônio Alves dos Santos. O padrão dos demais INs continua Guilherme.'] : []),
-        ...(resultado.credor?.nome?.includes('�') && intimacaoAtual?.credor
-            ? ['O nome do credor veio ilegível do PDF; o campo foi preenchido com o cadastro deste IN no AERI. Confirme a grafia no documento.'] : []),
-        'Confirme o CEP atualizado, a descrição do título, o registro da garantia, a data do protocolo e o número sequencial do ofício.'];
-    document.getElementById('documentos-intimacao-avisos').innerHTML = avisos.map(aviso => `<p>${seguro(aviso)}</p>`).join('');
-    document.getElementById('documentos-intimacao-editor').hidden = false;
-    document.getElementById('documentos-intimacao-previa').hidden = true;
-    htmlAtual = '';
-    document.getElementById('documentos-intimacao-status').textContent =
-        `Leitura concluída para ${resultado.protocoloIN}. Confira os campos antes de preparar cada texto.`;
-}
-
-async function lerDocumentos() {
-    if (!intimacaoAtual) return;
-    const oficio = document.getElementById('documentos-intimacao-oficio').files?.[0];
-    const projecao = document.getElementById('documentos-intimacao-projecao').files?.[0];
-    const status = document.getElementById('documentos-intimacao-status');
-    const tituloRegistrado = document.getElementById('documentos-intimacao-titulo-registrado').files?.[0];
-    if (!oficio || !projecao || [oficio, projecao, tituloRegistrado].filter(Boolean).some(arquivo => arquivo.size > 8_000_000)) {
-        status.textContent = 'Selecione o ofício e a planilha em PDF, cada um com até 8 MB.';
-        return;
-    }
-    if (!document.getElementById('documentos-intimacao-confirmar-origem').checked) {
-        status.textContent = 'Confira se os documentos pertencem ao IN selecionado e marque a confirmação de origem.';
-        return;
-    }
-    if (oficio.size + projecao.size + (tituloRegistrado?.size || 0) > 4_000_000) {
-        status.textContent = 'Os PDFs selecionados passam de 4 MB no total. Use a leitura da pasta pelo executor ou selecione apenas o ofício e a projeção.';
-        return;
-    }
-    const botao = document.getElementById('btn-analisar-documentos-intimacao');
-    const dados = new FormData();
-    dados.set('oficio', oficio, oficio.name);
-    dados.set('projecao', projecao, projecao.name);
-    if (tituloRegistrado) dados.set('titulo_registrado', tituloRegistrado, tituloRegistrado.name);
-    botao.disabled = true;
-    status.textContent = 'Lendo os dois documentos…';
-    try {
-        const resultado = await requisicaoAeri(
-            `/api/intimacoes/${intimacaoAtual.id}/preparar-documentos`,
-            {method:'POST', body:dados},
-        );
-        mostrarLeitura(resultado);
-    } catch (erro) {
-        leituraAtual = null;
-        document.getElementById('documentos-intimacao-editor').hidden = true;
-        status.textContent = erro.message;
-    } finally {
-        botao.disabled = false;
+function invalidar(fontes=false) {
+    geracao++;
+    ocupado=false;el('btn-analisar-documentos-intimacao').disabled=false;
+    rascunhos.clear();
+    el('documentos-intimacao-previa').hidden=true;
+    el('documentos-intimacao-previa-conteudo').replaceChildren();
+    if(fontes){
+        leitura=null;controlador?.abort();
+        el('documentos-intimacao-editor').hidden=true;
+        el('documentos-intimacao-confirmar-origem').checked=false;
     }
 }
+async function descartarTrabalho() {
+    const anterior=trabalho;trabalho=null;
+    if(anterior)try{await requisicaoAeri(anterior,{method:'DELETE',background:true});}catch(_){/* expiração também remove o resultado */}
+}
+function fechar() {
+    invalidar(true);descartarTrabalho();atual=null;
+    for(const papel of PAPEIS)el(`documentos-intimacao-${papel}`).value='';
+    el('documentos-intimacao-fontes').replaceChildren();
+    el('documentos-intimacao-avisos').replaceChildren();
+    el('documentos-intimacao-divergencias').replaceChildren();
+    el('documentos-intimacao-arquivos-rede').replaceChildren();
+    for(const entrada of el('modal-documentos-intimacao').querySelectorAll('input,textarea')){
+        if(['checkbox','radio'].includes(entrada.type))entrada.checked=false;else entrada.value='';
+    }
+    campo('devedor-alvo').replaceChildren();
+    el('documentos-intimacao-contexto').textContent='';
+    el('modal-documentos-intimacao').classList.remove('aberta');
+}
+export function abrirDocumentosIntimacao(item) {
+    fechar();atual=item;origem='manual';ocupado=false;
+    el('documentos-intimacao-contexto').textContent=`${item.protocolo} · prepare, revise e copie. Nada será enviado ou inserido na Tri7.`;
+    campo('in').value=item.protocolo;
+    const hoje=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Sao_Paulo'}).format(new Date());
+    campo('data-geracao').value=hoje;
+    campo('ultimo-oficio').value='';campo('numero-oficio').value='';
+    el('documentos-intimacao-arquivos-rede').hidden=true;
+    el('doc-int-modelo-conferido').checked=false;
+    el('doc-int-divergencias-conferidas').checked=false;
+    status('Informe o último ofício e selecione os três documentos deste IN.');
+    el('modal-documentos-intimacao').classList.add('aberta');
+    campo('ultimo-oficio').focus();
+}
+function numerar() {
+    invalidar();
+    try{campo('numero-oficio').value=proximoOficio(valor('ultimo-oficio'),valor('data-geracao').slice(0,4));status('Próximo número sugerido. Confira a sequência na Tri7; não houve reserva.');}
+    catch(erro){campo('numero-oficio').value='';status(erro.message);}
+}
 
-async function lerDocumentosDaRede() {
-    if (!intimacaoAtual || leituraEmCurso) return;
-    const versao = versaoJanela;
-    leituraEmCurso = true;
-    const botao = document.getElementById('btn-ler-documentos-intimacao-rede');
-    const status = document.getElementById('documentos-intimacao-status');
-    botao.disabled = true;
-    status.textContent = 'Solicitando ao executor a leitura dos PDFs na pasta deste IN…';
-    try {
-        const base = `/api/intimacoes/${intimacaoAtual.id}/preparar-documentos-rede`;
-        const trabalho = await requisicaoAeri(base, {method:'POST'});
-        for (let tentativa = 0; tentativa < 60; tentativa += 1) {
-            if (versao !== versaoJanela) return;
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            if (versao !== versaoJanela) return;
-            const resposta = await requisicaoAeri(`${base}/${trabalho.id}`, {background:true});
-            if (resposta.estado === 'PRONTO') {
-                mostrarLeitura(resposta.dados);
-                return;
+function preencher(dados) {
+    leitura=dados;
+    const campos={processo:dados.processoCredor,'protocolo-tri7':dados.protocoloTri7,'data-protocolo':dados.dataProtocolo,
+        matricula:dados.matricula,'registro-garantia':dados.registroGarantia,credor:dados.credor?.nome,cnpj:dados.credor?.cnpj,
+        titulo:dados.titulo,contrato:dados.contrato?.numero,'data-contrato':dados.contrato?.data,
+        'data-titulo':dados.dataTituloAutuacao,'endereco-imovel':dados.enderecoImovel,
+        enderecos:(dados.enderecos || []).join('\n'),devedores:(dados.devedores || []).map(p=>`${p.nome} | ${p.cpf || p.cnpj || ''}`).join('\n'),
+        'data-projecao':dados.projecao?.data,'valor-projecao':dados.projecao?.valor,'valor-extenso':dados.projecao?.extenso,
+        signatario:'',selo:'',clausula:'','credor-encerramento':''};
+    for(const [id,v]of Object.entries(campos))campo(id).value=v || '';
+    el('documentos-intimacao-fontes').innerHTML=(dados.fontes || []).map(f=>`<div><strong>${esc(f.papel)}:</strong> ${esc(f.nome)} · ${f.ocr?'OCR local — conferir':'texto extraído'}</div>`).join('');
+    const detalhes=document.createElement('details');
+    detalhes.innerHTML='<summary>Consultar a origem de cada dado extraído</summary>'+Object.entries(dados.origens || {}).map(([k,v])=>`<p><strong>${esc(k)}:</strong> ${esc(JSON.stringify(v))}</p>`).join('');
+    el('documentos-intimacao-fontes').append(detalhes);
+    el('documentos-intimacao-avisos').innerHTML=(dados.avisos || []).map(a=>`<p>${esc(a)}</p>`).join('');
+    el('documentos-intimacao-divergencias').innerHTML=(dados.inconsistencias || []).map(i=>`<p><strong>Divergência em ${esc(i.campo)}:</strong> ${Object.entries(i.fontes).map(([f,v])=>`${esc(f)}: ${esc(typeof v==='string'?v:JSON.stringify(v))}`).join(' · ')}. Confira os originais e corrija o campo.</p>`).join('');
+    el('doc-int-modelo-conferido').checked=false;el('doc-int-divergencias-conferidas').checked=false;
+    atualizarAlvo();el('documentos-intimacao-editor').hidden=false;
+    status('Leitura concluída. Confira dados, fontes e campos não identificados antes de gerar os textos.');
+}
+function pessoas(){return valor('devedores').split(/\r?\n/).filter(s=>s.trim()).map(s=>{const [nome,doc]=s.split('|');return{nome:nome.trim(),cpf:digitos(doc)};});}
+function atualizarAlvo(){const s=campo('devedor-alvo'),anterior=s.value;s.innerHTML=pessoas().map((p,i)=>`<option value="${i}">${esc(p.nome)}</option>`).join('');if([...s.options].some(o=>o.value===anterior))s.value=anterior;}
+
+async function tarefaRede(acao,selecao) {
+    const versao=geracao,item=atual;
+    const base=`/api/intimacoes/${item.id}/preparar-documentos-rede`;
+    const resposta=await requisicaoAeri(base,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fluxo:FLUXO,acao,selecao,referencia:valor('data-geracao')})});
+    const url=`${base}/${resposta.id}`;
+    if(versao!==geracao){await requisicaoAeri(url,{method:'DELETE',background:true});return null;}
+    trabalho=url;
+    try{
+        for(let n=0;n<420;n++){
+            if(versao!==geracao)return null;
+            await new Promise(r=>setTimeout(r,2000));
+            if(versao!==geracao)return null;
+            const r=await requisicaoAeri(url,{background:true});
+            if(versao!==geracao)return null;
+            if(r.estado==='PRONTO'){
+                if(r.dados?.fluxo!==FLUXO)throw Error('O executor retornou uma leitura antiga. Atualize-o para a versão dos três anexos antes de continuar.');
+                return r.dados;
             }
-            if (resposta.estado === 'ERRO') throw new Error(resposta.erro || 'Não foi possível ler a pasta do IN.');
-            status.textContent = `Lendo a pasta do IN no executor… (${tentativa + 1}/60)`;
+            if(r.estado==='ERRO')throw Error(r.erro || 'Não foi possível ler os anexos.');
+            status(acao==='listar'?'Localizando arquivos na pasta autorizada deste IN…':'Lendo os três anexos no executor; PDFs digitalizados podem exigir OCR local…');
         }
-        throw new Error('A leitura demorou mais de dois minutos. Confira o executor e tente novamente.');
-    } catch (erro) {
-        if (versao === versaoJanela) status.textContent = erro.message;
-    } finally {
-        leituraEmCurso = false;
-        botao.disabled = false;
-    }
+        throw Error('O executor não concluiu a leitura. Confira a máquina e tente novamente.');
+    } finally {if(trabalho===url)await descartarTrabalho();}
 }
 
-function centrar(texto) {
-    return `<p style="text-align:center;margin:0 0 10pt">${texto}</p>`;
+async function localizar() {
+    if(ocupado || !atual)return;
+    invalidar(true);ocupado=true;const versao=geracao;
+    status('Localizando a pasta deste IN pelo executor…');
+    try{
+        const dados=await tarefaRede('listar');if(!dados || versao!==geracao)return;
+        const arquivos=dados.arquivos || [];if(!arquivos.length)throw Error('A pasta está vazia ou não contém arquivos suportados.');
+        const painel=el('documentos-intimacao-arquivos-rede');painel.hidden=false;
+        painel.innerHTML=PAPEIS.map(p=>`<label><span>${esc(p)} · arquivo da pasta deste IN</span><select data-anexo-rede="${p}"><option value="">Selecione</option>${arquivos.map(a=>`<option value="${esc(a.id)}">${esc(a.nome)} · ${(a.tamanho/1024).toFixed(0)} KB</option>`).join('')}</select></label>`).join('');
+        for(const p of PAPEIS){const candidatos=arquivos.filter(a=>a.sugerido===p);if(candidatos.length===1)painel.querySelector(`[data-anexo-rede="${p}"]`).value=candidatos[0].id;}
+        origem='rede';status('Confira os três arquivos selecionados. Se houver mais de um candidato, escolha o documento correto.');
+    }catch(e){if(versao===geracao)status(e.message);}finally{if(versao===geracao)ocupado=false;}
 }
-
-function paragrafo(texto) {
-    return `<p style="text-align:justify;margin:0 0 10pt">${texto}</p>`;
-}
-
-function titulo(texto) {
-    return centrar(`<strong>${texto}</strong>`);
-}
-
-function moeda(valorBruto) {
-    const texto = String(valorBruto || '').trim();
-    const numero = Number(texto.includes(',') ? texto.replace(/\./g, '').replace(',', '.') : texto);
-    return Number.isFinite(numero) && numero >= 0
-        ? `R$${numero.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '';
-}
-
-function lerDados() {
-    const pessoas = pessoasDoFormulario();
-    const enderecos = enderecosDoFormulario();
-    const alvo = pessoas[Number(campo('devedor-alvo').value)] || pessoas[0] || null;
-    return {
-        in: leituraAtual?.protocoloIN || intimacaoAtual?.protocolo || '',
-        dataGeracao: leituraAtual?.dataGeracao || '',
-        processo: valor('processo'), oficio: valor('numero-oficio'),
-        protocolo: valor('protocolo-tri7'), dataProtocolo: valor('data-protocolo'),
-        matricula: numeroComPontos(valor('matricula')), registro: valor('registro-garantia'),
-        credor: valor('credor'), cnpj: cnpjFormatado(valor('cnpj')),
-        titulo: valor('titulo'), contrato: valor('contrato'), dataContrato: valor('data-contrato'),
-        pessoas, alvo, enderecoImovel: valor('endereco-imovel'), enderecos,
-        dataProjecao: valor('data-projecao'), valorProjecao: moeda(valor('valor-projecao')),
-        valorExtenso: valor('valor-extenso'),
-        signatario: valor('signatario'),
-    };
-}
-
-function pendencias(tipo, dados) {
-    const campos = [
-        ['processo do credor', dados.processo], ['protocolo Tri7', dados.protocolo],
-        ['data do protocolo', dataBrValida(dados.dataProtocolo)], ['matrícula', dados.matricula],
-        ['credor', dados.credor], ['CNPJ do credor', digitos(dados.cnpj).length === 14],
-        ['descrição do título', dados.titulo], ['número do contrato', dados.contrato],
-        ['data do contrato', dataBrValida(dados.dataContrato)], ['endereço do imóvel', dados.enderecoImovel],
-        ['escrevente', dados.signatario], ['devedores com nome e CPF', dados.pessoas.length && dados.pessoas.every(pessoa => pessoa.nome && pessoa.cpf.length === 11)],
-    ];
-    if (tipo === 'oficio') campos.push(
-        ['número sequencial do ofício no formato INT/AAAA/NNN',
-            new RegExp(`^INT/${dados.dataGeracao.slice(-4)}/\\d{3}$`, 'i').test(dados.oficio)],
-        ['registro da garantia', dados.registro],
-        ['valor da projeção', dados.valorProjecao], ['data da projeção', dataBrValida(dados.dataProjecao)],
-        ['valor por extenso', dados.valorExtenso],
-        ['projeção na data da minuta', dados.dataProjecao === dados.dataGeracao],
-        ['endereço em Morrinhos', dados.enderecos.some(endereco => /MORRINHOS/i.test(endereco))],
-        ['CEP de cada endereço de Morrinhos', dados.enderecos.filter(endereco => /MORRINHOS/i.test(endereco))
-            .every(endereco => /\bCEP\s*:?\s*\d{2}\.?\d{3}[-.]?\d{3}\b/i.test(endereco))],
-    );
-    if (tipo === 'convocacao') campos.push(['registro da garantia', dados.registro]);
-    if (tipo === 'autuacao') campos.push(['endereço de intimação', dados.enderecos.length]);
-    if ([dados.credor, dados.titulo, dados.enderecoImovel, ...dados.enderecos,
-        ...dados.pessoas.map(pessoa => pessoa.nome)].some(texto => String(texto).includes('�'))) {
-        campos.push(['correção dos caracteres ilegíveis extraídos do PDF', false]);
-    }
-    return campos.filter(([_nome, preenchido]) => !preenchido).map(([nome]) => nome);
-}
-
-export function gerarAutuacao(d) {
-    const pessoas = d.pessoas.map(p => `${seguro(p.nome)}, CPF n.º ${seguro(cpfFormatado(p.cpf))}`).join('; ');
-    const rotulo = d.pessoas.length === 1 ? 'DEVEDOR FIDUCIANTE' : 'DEVEDORES FIDUCIANTES';
-    return [
-        titulo(`PROCESSO N.º ${seguro(d.processo)}`),
-        centrar(`SAEC/ONR - ${seguro(d.in)}`),
-        paragrafo('<strong>PROCEDIMENTO:</strong> Intimação, art. 26 da Lei Federal n.º 9.514/1997.'),
-        paragrafo(`<strong>TÍTULO:</strong> ${seguro(d.titulo)} n.º ${seguro(d.contrato)}, datado de ${seguro(d.dataContrato)}.`),
-        paragrafo(`<strong>CREDORA FIDUCIÁRIA:</strong> ${seguro(d.credor)}.`),
-        paragrafo(`<strong>${rotulo}:</strong> ${pessoas}.`),
-        paragrafo(`<strong>ENDEREÇO:</strong> ${seguro(d.enderecos.join('; '))}.`),
-        titulo('AUTUAÇÃO'),
-        paragrafo(`Aos ${seguro(dataPorExtenso(d.dataGeracao))}, nesta cidade e Comarca de Morrinhos, Estado de Goiás, e neste Cartório do 1º Ofício de Notas e Registro de Imóveis, situado na Rua Maestro Vicente José Vieira, n.º 706, Loja 01, Centro, CEP 75.650-082, autuo o requerimento e demais documentos que o acompanham, protocolado em ${seguro(dataPorExtenso(d.dataProtocolo))} sob o n.º ${seguro(numeroComPontos(d.protocolo))}. Eu, ${seguro(d.signatario)}, Escrevente, lavrei o presente termo e assino digitalmente.`),
-    ].join('');
-}
-
-export function gerarOficio(d) {
-    const devedor = `${seguro(d.alvo.nome.toLocaleUpperCase('pt-BR'))}, CPF n.º ${seguro(cpfFormatado(d.alvo.cpf))}`;
-    const emMorrinhos = d.enderecos.filter(endereco => /MORRINHOS/i.test(endereco));
-    const enderecos = emMorrinhos.map((endereco, indice) => paragrafo(`${indice + 1}) ${seguro(endereco)}.`)).join('');
-    return [
-        '<section style="page-break-after:always;break-after:page">',
-        paragrafo(`Morrinhos-GO, ${seguro(dataPorExtenso(d.dataGeracao))}.`),
-        paragrafo(`Ofício n.º <strong>${seguro(d.oficio)}</strong>.`),
-        paragrafo(`Protocolo n.º ${seguro(numeroComPontos(d.protocolo))}, datado de ${seguro(dataPorExtenso(d.dataProtocolo))}.<br>Autuação Processo n.º ${seguro(d.processo)} - SAEC/ONR ${seguro(d.in)}.`),
-        paragrafo(`Ao Ilmo. Sr. <strong>${devedor}</strong>.`),
-        paragrafo('Prezado Senhor,'),
-        paragrafo(`Na qualidade de Escrevente do Cartório do 1º Ofício de Notas e Registro de Imóveis do Município e Comarca de Morrinhos-GO, e segundo as atribuições conferidas pelo art. 26 da Lei Federal n.º 9.514/1997, bem como pelo credor do ${seguro(d.titulo)} n.º ${seguro(d.contrato)}, firmado em ${seguro(d.dataContrato)}, garantido por alienação fiduciária registrada sob o ${seguro(d.registro)}, na Matrícula n.º ${seguro(d.matricula)}, deste Cartório, referente ao imóvel situado em ${seguro(d.enderecoImovel)}, venho intimar V.S.ª para cumprimento das obrigações contratuais relativas aos encargos vencidos.`),
-        paragrafo(`Informo que o valor desses encargos, posicionado em ${seguro(dataPorExtenso(d.dataProjecao))}, corresponde a <strong>${seguro(d.valorProjecao)} (${seguro(d.valorExtenso)})</strong>, sujeito à atualização monetária, aos juros de mora e às despesas de cobrança até o efetivo pagamento. Acrescem as parcelas que se vencerem no prazo desta intimação, as custas e os emolumentos cartoriais, conforme a planilha de projeção e os comprovantes anexos.`),
-        paragrafo(`Assim, procedo à INTIMAÇÃO de V.S.ª para que compareça ao Cartório do 1º Ofício de Notas e Registro de Imóveis, situado na Rua Maestro Vicente José Vieira, n.º 706, Loja 01, Centro, Morrinhos-GO, CEP 75.650-082, de segunda a sexta-feira, das 08h às 17h, a fim de promover a purgação da mora no prazo de 15 dias, contado do recebimento desta intimação, nos termos do art. 26, § 1º, da Lei Federal n.º 9.514/1997.`),
-        paragrafo(`Fica V.S.ª ciente de que o não cumprimento da obrigação no prazo legal poderá importar na consolidação da propriedade do imóvel em favor da credora fiduciária ${seguro(d.credor)}, inscrita no CNPJ sob o n.º ${seguro(d.cnpj)}, observadas as exigências legais aplicáveis.`),
-        paragrafo('Atenciosamente,'),
-        paragrafo(`Assinado digitalmente<br>${seguro(d.signatario)} - Escrevente`),
-        '</section><section style="page-break-after:always;break-after:page">',
-        titulo('CONTRA-FÉ'),
-        paragrafo('Declaro que, nesta data de ____/____/_______, às ______ horas, recebi o ofício retro.'),
-        paragrafo('________________________________________'),
-        titulo('CERTIDÃO'),
-        paragrafo('Certifico e dou fé, na qualidade de Escrevente responsável pelas diligências da intimação retro, que:'),
-        paragrafo('(  ) Compareci ao local indicado pela credora fiduciária em três dias e horários alternados: ____/____/_______, às ______; ____/____/_______, às ______; e ____/____/_______, às ______. Não encontrei o fiduciante nem seu representante, não havendo suspeita motivada de ocultação. Deixei uma via de inteiro teor da notificação na caixa de correspondências e uma convocação para comparecimento ao Cartório no prazo de 15 dias corridos, contado da última diligência.'),
-        paragrafo('(  ) No dia ____/____/_______, às ______, intimei pessoalmente o Sr. _______________________________________, conforme a contra-fé acima.'),
-        paragrafo('(  ) No dia ____/____/_______, às ______, comuniquei ao Sr. _______________________________________ o retorno ao endereço em ____/____/_______, às ______, para proceder à intimação por hora certa, solicitando que informasse o devedor.'),
-        paragrafo('(  ) No dia ____/____/_______, às ______, retornei ao endereço combinado, mas não encontrei o fiduciante nem seu representante. Deixei uma via de inteiro teor da notificação na caixa de correspondências do imóvel.'),
-        paragrafo('(  ) No dia ____/____/_______, às ______, retornei ao endereço combinado e, havendo suspeita motivada de ocultação, não encontrei o fiduciante nem seu representante. Deixei uma via de inteiro teor da notificação na caixa de correspondências do imóvel.'),
-        paragrafo('(  ) No dia ____/____/_______, às ______, intimei pessoalmente o devedor, que se recusou a receber o ofício acompanhado das planilhas e a dar contra-fé.'),
-        paragrafo('(  ) Compareci ao endereço indicado e não intimei pessoalmente o devedor por se encontrar em local ignorado ou incerto, após três tentativas em dias e horários alternados: ____/____/_______, às ______; ____/____/_______, às ______; e ____/____/_______, às ______.'),
-        '</section><section>',
-        paragrafo('Concluídas as diligências, devolvo a documentação ao Escrevente encarregado do procedimento de intimação.'),
-        paragrafo('Morrinhos-GO, ____ de ____________________ de ______.'),
-        paragrafo('________________________________________<br>Escrevente'),
-        paragrafo('<strong>Endereços para notificação nesta primeira remessa em Morrinhos:</strong>'),
-        enderecos,
-        paragrafo('<strong>OBSERVAÇÕES:</strong>'),
-        '</section>',
-    ].join('');
-}
-
-export function gerarConvocacao(d) {
-    return [
-        titulo('CONVOCAÇÃO'),
-        paragrafo('Ilmo Sr.'),
-        paragrafo(`<strong>${seguro(d.alvo.nome.toLocaleUpperCase('pt-BR'))}, CPF n.º ${seguro(cpfFormatado(d.alvo.cpf))}</strong>`),
-        paragrafo(`Pelo presente, após tentativa pessoal em seu domicílio, convoco V.S.ª a comparecer neste Cartório, situado na Rua Maestro Vicente José Vieira, n.º 706, Loja 01, Centro, Morrinhos-GO, CEP 75.650-082, no período das 08h às 17h, a fim de tratar de assunto de seu interesse relacionado ao ${seguro(d.titulo)} n.º ${seguro(d.contrato)}, datado de ${seguro(d.dataContrato)}, registrado sob o ${seguro(d.registro)} na Matrícula n.º ${seguro(d.matricula)}, deste Cartório, referente ao imóvel situado em ${seguro(d.enderecoImovel)}.`),
-        paragrafo('Atenciosamente,'),
-        paragrafo(`Assinado digitalmente<br>${seguro(d.signatario)} - Escrevente`),
-    ].join('');
-}
-
-function prepararDocumento(tipo) {
-    if (!leituraAtual) return;
-    const d = lerDados();
-    const hoje = new Intl.DateTimeFormat('pt-BR', {timeZone:'America/Sao_Paulo'}).format(new Date());
-    const faltando = d.dataGeracao === hoje ? pendencias(tipo, d) : ['nova leitura dos documentos na data de hoje'];
-    const status = document.getElementById('documentos-intimacao-status');
-    if (faltando.length) {
-        status.textContent = `Complete antes de preparar: ${faltando.join(', ')}.`;
-        return;
-    }
-    const geradores = {autuacao:gerarAutuacao, oficio:gerarOficio, convocacao:gerarConvocacao};
-    const rotulos = {autuacao:'Autuação', oficio:'Ofício Contra-Fé', convocacao:'Convocação'};
-    htmlAtual = geradores[tipo](d);
-    document.getElementById('documentos-intimacao-previa-conteudo').innerHTML = htmlAtual;
-    document.getElementById('documentos-intimacao-previa-titulo').textContent = `Prévia: ${rotulos[tipo]}`;
-    document.getElementById('documentos-intimacao-previa').hidden = false;
-    status.textContent = tipo === 'oficio'
-        ? 'Prévia para conferência: compare a redação jurídica, cláusulas específicas do contrato, selo, CEP e páginas 2 e 3 com o modelo da Tri7 antes de salvar. Confira se o PDF final tem três páginas.'
-        : 'Confira a prévia e cole no modelo correspondente na aba Texto da Tri7.';
-    document.getElementById('documentos-intimacao-previa').scrollIntoView({block:'nearest'});
-}
-
-async function copiarDocumento() {
-    if (!htmlAtual) return;
-    const texto = document.getElementById('documentos-intimacao-previa-conteudo').innerText;
-    const status = document.getElementById('documentos-intimacao-status');
-    try {
-        if (navigator.clipboard?.write && globalThis.ClipboardItem) {
-            await navigator.clipboard.write([new ClipboardItem({
-                'text/html':new Blob([htmlAtual], {type:'text/html'}),
-                'text/plain':new Blob([texto], {type:'text/plain'}),
-            })]);
-        } else {
-            await navigator.clipboard.writeText(texto);
+async function processar() {
+    if(ocupado || !atual)return;
+    if(!el('documentos-intimacao-confirmar-origem').checked){status('Confirme que os três anexos pertencem ao IN selecionado.');return;}
+    try{proximoOficio(valor('ultimo-oficio'),valor('data-geracao').slice(0,4));}catch(e){status(e.message);return;}
+    if(!/^INT\/\d{4}\/\d{3,6}$/.test(valor('numero-oficio'))){status('Confira o próximo número do ofício.');return;}
+    const versao=++geracao;rascunhos.clear();el('documentos-intimacao-previa').hidden=true;leitura=null;
+    ocupado=true;el('btn-analisar-documentos-intimacao').disabled=true;
+    el('documentos-intimacao-editor').hidden=true;status('Processando os três anexos…');
+    try{
+        let dados;
+        if(origem==='rede'){
+            const selecao=Object.fromEntries(PAPEIS.map(p=>[p,document.querySelector(`[data-anexo-rede="${p}"]`)?.value || '']));
+            if(Object.values(selecao).some(v=>!v) || new Set(Object.values(selecao)).size!==3)throw Error('Selecione três arquivos distintos na pasta do IN.');
+            dados=await tarefaRede('ler',selecao);
+        }else{
+            const arquivos=PAPEIS.map(p=>el(`documentos-intimacao-${p}`).files?.[0]);
+            if(arquivos.some(a=>!a))throw Error('Anexe o Recibo do Protocolo, o Ofício do Credor e a Planilha de Projeção.');
+            if(arquivos.some(a=>a.size>8_000_000) || arquivos.reduce((s,a)=>s+a.size,0)>4_000_000)throw Error('Use o executor para arquivos acima de 4 MB no total. O envio pelo navegador tem esse limite.');
+            const form=new FormData();PAPEIS.forEach((p,i)=>form.set(p,arquivos[i],arquivos[i].name));form.set('referencia',valor('data-geracao'));
+            controlador=new AbortController();
+            dados=await requisicaoAeri(`/api/intimacoes/${atual.id}/preparar-documentos`,{method:'POST',body:form,signal:controlador.signal});
         }
-        status.textContent = 'Texto copiado. Cole no modelo correspondente da Tri7 e confira o PDF gerado.';
-    } catch (_) {
-        status.textContent = 'O navegador não permitiu a cópia. Selecione a prévia e copie manualmente.';
-    }
+        if(dados && versao===geracao)preencher(dados);
+    }catch(e){if(versao===geracao)status(e.name==='AbortError'?'Leitura cancelada.':e.message);}
+    finally{if(versao===geracao){ocupado=false;el('btn-analisar-documentos-intimacao').disabled=false;}}
 }
 
+function dadosFormulario() {
+    const ps=pessoas();
+    return{in:atual.protocolo,dataGeracao:dataBr(valor('data-geracao')),oficio:valor('numero-oficio'),
+        processo:valor('processo'),protocolo:valor('protocolo-tri7'),dataProtocolo:valor('data-protocolo'),
+        matricula:pontos(valor('matricula')),registro:valor('registro-garantia'),credor:valor('credor'),
+        credorEncerramento:valor('credor-encerramento'),cnpj:valor('cnpj').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5'),
+        titulo:valor('titulo'),contrato:valor('contrato'),dataContrato:valor('data-contrato'),
+        dataTituloAutuacao:valor('data-titulo'),pessoas:ps,alvo:ps[+valor('devedor-alvo')],
+        enderecoImovel:valor('endereco-imovel'),enderecos:valor('enderecos').split(/\r?\n/).map(s=>s.trim()).filter(Boolean),
+        dataProjecao:valor('data-projecao'),valorProjecao:moedaLiteral(valor('valor-projecao')),
+        valorExtenso:valor('valor-extenso'),signatario:valor('signatario'),selo:valor('selo'),clausula:valor('clausula')};
+}
+export function pendencias(d,tipo=null) {
+    const nomes={processo:'processo do credor',protocolo:'protocolo RGI',matricula:'matrícula',registro:'registro da garantia',
+        credor:'credor',titulo:'título completo',contrato:'contrato',enderecoImovel:'endereço do imóvel',
+        valorProjecao:'valor projetado com duas casas decimais',valorExtenso:'valor por extenso',signatario:'escrevente',selo:'selo existente',clausula:'cláusula contratual'};
+    const campos={autuacao:['processo','protocolo','credor','titulo','contrato','enderecoImovel','signatario'],
+        oficio:Object.keys(nomes),convocacao:['titulo','contrato','registro','matricula','enderecoImovel','signatario']};
+    const exigidos=tipo?campos[tipo]:Object.keys(nomes);
+    const faltas=Object.entries(nomes).filter(([k])=>exigidos.includes(k) && !d[k]).map(([,v])=>v);
+    const datas={autuacao:['dataGeracao','dataProtocolo','dataTituloAutuacao'],oficio:['dataGeracao','dataProtocolo','dataContrato','dataProjecao'],convocacao:['dataGeracao','dataContrato']};
+    for(const k of tipo?datas[tipo]:['dataGeracao','dataProtocolo','dataContrato','dataTituloAutuacao','dataProjecao'])if(!dataValida(d[k]))faltas.push(k);
+    if((!tipo || tipo==='oficio') && d.dataProjecao!==d.dataGeracao)faltas.push('projeção para a data da preparação');
+    if(!d.pessoas.length || d.pessoas.some(p=>!p.nome || p.cpf.length!==11))faltas.push('nome e CPF de cada devedor');
+    if((!tipo || tipo==='oficio') && digitos(d.cnpj).length!==14)faltas.push('CNPJ do credor');
+    if((!tipo || tipo==='oficio') && !d.enderecos.length)faltas.push('endereços para notificação');
+    if((!tipo || tipo==='oficio') && !/^INT\/\d{4}\/\d{3,6}$/.test(d.oficio))faltas.push('número do ofício');
+    if(JSON.stringify(d).includes('\ufffd'))faltas.push('caracteres ilegíveis');
+    return faltas;
+}
+
+export function sanitizarHtml(html) {
+    const t=document.createElement('template');t.innerHTML=html;
+    const permitidas=new Set(['DIV','SECTION','P','SPAN','STRONG','B','EM','I','U','BR','TABLE','TBODY','TR','TD','UL','OL','LI']);
+    const estilos=new Set(['font-family','font-size','font-weight','line-height','color','background','text-align','text-indent','text-decoration','margin','margin-top','margin-bottom','width','max-width','height','vertical-align','border','border-collapse','padding','page-break-after','break-after']);
+    function limpar(n){
+        if(n.nodeType===3)return document.createTextNode(n.textContent);
+        if(n.nodeType!==1 || ['SCRIPT','STYLE','IFRAME','OBJECT','SVG','IMG'].includes(n.tagName))return document.createTextNode('');
+        if(!permitidas.has(n.tagName))return document.createTextNode(n.textContent);
+        const novo=document.createElement(n.tagName.toLowerCase());
+        for(const p of n.style)if(estilos.has(p) && !/url\(|expression|javascript|var\(/i.test(n.style.getPropertyValue(p)))novo.style.setProperty(p,n.style.getPropertyValue(p));
+        for(const filho of n.childNodes)novo.append(limpar(filho));
+        return novo;
+    }
+    const saida=document.createElement('div');for(const n of t.content.childNodes)saida.append(limpar(n));return saida.innerHTML;
+}
+function trocarAba(tipo){for(const t of Object.keys(ROTULOS)){el(`doc-int-painel-${t}`).hidden=t!==tipo;el(`doc-int-aba-${t}`).setAttribute('aria-selected',String(t===tipo));}}
+function gerar() {
+    if(!leitura || leitura.fontes?.length!==3){status('Processe os três anexos novamente.');return;}
+    const d=dadosFormulario();
+    if(!el('doc-int-modelo-conferido').checked || !el('doc-int-divergencias-conferidas').checked){status('Confirme a aplicabilidade do modelo e a conferência dos campos e divergências.');return;}
+    rascunhos.clear();
+    el('documentos-intimacao-abas').innerHTML=Object.entries(ROTULOS).map(([t,n])=>`<button type="button" role="tab" id="doc-int-aba-${t}" aria-controls="doc-int-painel-${t}" aria-selected="false" data-aba-documento="${t}">${n}</button>`).join('');
+    el('documentos-intimacao-previa-conteudo').innerHTML=Object.entries(ROTULOS).map(([t,n])=>{
+        const faltas=pendencias(d,t);
+        if(faltas.length)return `<section id="doc-int-painel-${t}" role="tabpanel" aria-labelledby="doc-int-aba-${t}" hidden><p class="doc-int-conflito">${n} bloqueada. Complete ou confira: ${faltas.map(esc).join(', ')}. Corrija os campos acima e prepare novamente.</p></section>`;
+        rascunhos.set(t,{aprovado:false,geracao});
+        return `<section id="doc-int-painel-${t}" role="tabpanel" aria-labelledby="doc-int-aba-${t}" hidden><p class="doc-int-limite">Fontes: ${leitura.fontes.map(f=>esc(f.nome)).join(' · ')}</p><article class="doc-int-papel" id="doc-int-texto-${t}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto de ${n}">${GERADORES[t](d)}</article><div class="doc-int-revisao-acoes"><label class="doc-int-confirmacao"><input type="checkbox" data-aprovar-documento="${t}"> Revisei integralmente esta versão de ${n} e conferi a numeração na Tri7.</label><button type="button" class="btn btn-primary" data-copiar-documento="${t}" disabled>Copiar ${n}</button><button type="button" class="rotina-btn-secondary" data-copiar-simples="${t}" disabled>Copiar texto simples</button></div><p id="doc-int-revisao-${t}" role="status">Revisão pendente.</p></section>`;
+    }).join('');
+    el('documentos-intimacao-previa').hidden=false;trocarAba('autuacao');
+    status(`${rascunhos.size} de 3 rascunhos preparados. As abas indicam os campos que faltam em cada texto. Revise individualmente; copiar ainda está bloqueado.`);
+}
+function bloquear(tipo){const r=rascunhos.get(tipo);if(r)r.aprovado=false;el(`doc-int-painel-${tipo}`).querySelector('[data-aprovar-documento]').checked=false;for(const b of el(`doc-int-painel-${tipo}`).querySelectorAll('button'))b.disabled=true;el(`doc-int-revisao-${tipo}`).textContent='Texto alterado: revise novamente.';}
+function eventoDocumento(tipo,acao){return requisicaoAeri(`/api/intimacoes/${atual.id}/documentos-evento`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo,acao,revisado:true,numeroOficio:valor('numero-oficio'),rascunhoHash:rascunhos.get(tipo)?.hash,fontes:leitura.fontes.map(f=>f.sha256)})});}
+async function aprovar(tipo,checkbox){
+    const r=rascunhos.get(tipo);if(!r)return;
+    if(!checkbox.checked){bloquear(tipo);return;}
+    const v=geracao,html=el(`doc-int-texto-${tipo}`).innerHTML;
+    checkbox.disabled=true;
+    try{r.hash=await hashTexto(sanitizarHtml(html));if(v!==geracao)return;
+        await eventoDocumento(tipo,'revisao');if(v!==geracao || !rascunhos.has(tipo))return;
+        if(html!==el(`doc-int-texto-${tipo}`).innerHTML){bloquear(tipo);return;}
+        r.aprovado=true;r.html=html;for(const b of el(`doc-int-painel-${tipo}`).querySelectorAll('button'))b.disabled=false;
+        el(`doc-int-revisao-${tipo}`).textContent='Revisão registrada. Cópia liberada para esta versão; número não reservado.';
+    }catch(e){checkbox.checked=false;status(e.message);}finally{checkbox.disabled=false;}
+}
+async function copiar(tipo,simples=false){
+    const r=rascunhos.get(tipo),artigo=el(`doc-int-texto-${tipo}`);
+    if(!r?.aprovado || r.geracao!==geracao || r.html!==artigo.innerHTML){status('Revise a versão atual antes de copiar.');return;}
+    const v=geracao;
+    try{
+        if(simples){if(!navigator.clipboard?.writeText)throw Error('Área de transferência indisponível neste navegador.');await navigator.clipboard.writeText(artigo.innerText);}
+        else{
+            if(!navigator.clipboard?.write || !globalThis.ClipboardItem)throw Error('Cópia formatada indisponível. Use o botão explícito de texto simples e ajuste a formatação na Tri7.');
+            const html=sanitizarHtml(artigo.innerHTML);
+            await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([artigo.innerText],{type:'text/plain'})})]);
+        }
+        if(v!==geracao)return;
+        status(`${ROTULOS[tipo]} copiada${simples?' em texto simples, sem formatação':''}. Cole na Tri7 e confira antes de salvar. Nenhum envio foi feito.`);
+        try{await eventoDocumento(tipo,'copia');}catch(e){status(`O texto foi copiado, mas o registro da cópia não foi confirmado: ${e.message}`);}
+    }catch(e){status(`Não foi possível copiar: ${e.message}`);}
+}
+
+// Compatibilidade com o envio RTD existente; esta bancada não o aciona.
 function enderecoParaRtd(original) {
     const cepMatch = original.match(/\bCEP\s*:?\s*(\d{5})[-.]?(\d{3})\b/i);
     const semCep = (cepMatch ? original.slice(0, cepMatch.index) : original).replace(/[,;\s]+$/, '');
@@ -406,64 +281,31 @@ function enderecoParaRtd(original) {
         Cidade:cidadeMatch?.[1]?.trim() || '', UF:cidadeMatch?.[2]?.toUpperCase() || '',
     };
 }
-
 export function montarParesRtd(pessoas, enderecos) {
     return pessoas.flatMap(pessoa => enderecos
         .filter(endereco => /MORRINHOS/i.test(endereco))
         .map(original => ({pessoa, endereco:enderecoParaRtd(original)})));
 }
 
-function prepararNotificacoes() {
-    if (!leituraAtual || !intimacaoAtual || !prepararRtd) return;
-    const pessoas = pessoasDoFormulario();
-    const enderecos = enderecosDoFormulario().filter(endereco => /MORRINHOS/i.test(endereco));
-    const status = document.getElementById('documentos-intimacao-status');
-    if (!pessoas.length || !enderecos.length) {
-        status.textContent = 'Informe devedores com CPF e ao menos um endereço de Morrinhos para esta primeira remessa.';
-        return;
-    }
-    const pares = montarParesRtd(pessoas, enderecos);
-    if (pares.length > 20 || pares.some(par => par.pessoa.cpf.length !== 11)) {
-        status.textContent = 'Revise os CPFs e limite esta preparação a 20 notificações individuais.';
-        return;
-    }
-    if (pares.some(par => !par.pessoa.nome || par.endereco.Cidade.toLocaleUpperCase('pt-BR') !== 'MORRINHOS'
-        || par.endereco.UF !== 'GO')) {
-        status.textContent = 'Revise os nomes e separe somente os endereços de Morrinhos-GO nesta primeira remessa.';
-        return;
-    }
-    if ([valor('credor'), ...pessoas.map(pessoa => pessoa.nome), ...enderecos].some(texto => texto.includes('�'))) {
-        status.textContent = 'Corrija os caracteres ilegíveis extraídos do PDF antes de preparar as notificações.';
-        return;
-    }
-    const itemId = intimacaoAtual.id;
-    const credor = valor('credor');
-    const cnpj = digitos(valor('cnpj'));
-    fecharDocumentosIntimacao();
-    prepararRtd(itemId, pares, {credor, cnpj});
+export function iniciarDocumentosIntimacao(_abrirRtdComPares){
+    el('btn-fechar-documentos-intimacao').addEventListener('click',fechar);
+    // Não fechar ao soltar o mouse fora do painel durante uma seleção de texto.
+    campo('ultimo-oficio').addEventListener('input',numerar);
+    campo('data-geracao').addEventListener('change',()=>{invalidar(true);numerar();});
+    campo('numero-oficio').addEventListener('input',()=>invalidar());
+    el('btn-abrir-pasta-documentos-intimacao').addEventListener('click',()=>{if(atual)window.location.href=`aeri-intimacao://abrir/${encodeURIComponent(atual.protocolo)}`;});
+    el('btn-ler-documentos-intimacao-rede').addEventListener('click',localizar);
+    el('documentos-intimacao-arquivos-rede').addEventListener('change',()=>{invalidar(true);origem='rede';});
+    for(const p of PAPEIS)el(`documentos-intimacao-${p}`).addEventListener('change',()=>{invalidar(true);origem='manual';});
+    el('btn-analisar-documentos-intimacao').addEventListener('click',processar);
+    el('btn-gerar-tres-documentos').addEventListener('click',gerar);
+    el('documentos-intimacao-editor').addEventListener('input',e=>{if(e.target.matches('input,textarea,select')){invalidar();if(e.target.id==='doc-int-devedores')atualizarAlvo();if(e.target.id==='doc-int-valor-projecao')campo('valor-extenso').value='';}});
+    el('documentos-intimacao-editor').addEventListener('change',e=>{if(e.target.matches('select,input[type=checkbox]'))invalidar();});
+    el('documentos-intimacao-abas').addEventListener('click',e=>{const t=e.target.closest('[data-aba-documento]')?.dataset.abaDocumento;if(t)trocarAba(t);});
+    const previa=el('documentos-intimacao-previa-conteudo');
+    previa.addEventListener('input',e=>{const artigo=e.target.closest('.doc-int-papel');if(artigo)bloquear(artigo.id.replace('doc-int-texto-',''));});
+    previa.addEventListener('paste',e=>{if(!e.target.closest('.doc-int-papel'))return;e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'));});
+    previa.addEventListener('drop',e=>e.preventDefault());
+    previa.addEventListener('change',e=>{const t=e.target.dataset.aprovarDocumento;if(t)aprovar(t,e.target);});
+    previa.addEventListener('click',e=>{const b=e.target.closest('button');if(b?.dataset.copiarDocumento)copiar(b.dataset.copiarDocumento);if(b?.dataset.copiarSimples)copiar(b.dataset.copiarSimples,true);});
 }
-
-export function iniciarDocumentosIntimacao(abrirRtdComPares) {
-    prepararRtd = abrirRtdComPares;
-    document.getElementById('btn-fechar-documentos-intimacao').addEventListener('click', fecharDocumentosIntimacao);
-    document.getElementById('modal-documentos-intimacao').addEventListener('click', evento => {
-        if (evento.target.id === 'modal-documentos-intimacao') fecharDocumentosIntimacao();
-    });
-    document.getElementById('btn-analisar-documentos-intimacao').addEventListener('click', lerDocumentos);
-    document.getElementById('btn-ler-documentos-intimacao-rede').addEventListener('click', lerDocumentosDaRede);
-    document.getElementById('doc-int-devedores').addEventListener('input', atualizarSeletorDevedor);
-    document.getElementById('documentos-intimacao-editor').addEventListener('input', evento => {
-        if (!evento.target.matches('input,textarea,select')) return;
-        if (evento.target.id === 'doc-int-valor-projecao') campo('valor-extenso').value = '';
-        htmlAtual = '';
-        document.getElementById('documentos-intimacao-previa').hidden = true;
-    });
-    document.getElementById('documentos-intimacao-editor').addEventListener('click', evento => {
-        const tipo = evento.target.closest('[data-documento-intimacao]')?.dataset.documentoIntimacao;
-        if (tipo) prepararDocumento(tipo);
-    });
-    document.getElementById('btn-copiar-documento-intimacao').addEventListener('click', copiarDocumento);
-    document.getElementById('btn-preparar-rtd-dados-intimacao').addEventListener('click', prepararNotificacoes);
-}
-
-export {abrirDocumentosIntimacao};

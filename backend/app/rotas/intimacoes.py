@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
 from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
 
@@ -30,6 +30,7 @@ from backend.app.servicos.documentos_intimacao import (
 from backend.app.servicos.contratos import cifrador, decifrar
 from backend.app.servicos.preparacao_intimacao import complementar_tri7
 from backend.app.servicos.rtd_uploads import ErroUploadRTD, baixar_pdf_assinado
+from backend.app.servicos.anexos_intimacao import analisar_tres_anexos, VERSAO as FLUXO_DOCUMENTAL
 
 
 router = APIRouter(
@@ -37,6 +38,26 @@ router = APIRouter(
     tags=["intimações"],
     dependencies=[Depends(preparar_banco)],
 )
+
+
+async def _json_documental(request: Request) -> dict:
+    import json
+    corpo = bytearray()
+    async for parte in request.stream():
+        if len(corpo) + len(parte) > 2048:
+            raise HTTPException(413, 'Solicitação documental muito grande.')
+        corpo.extend(parte)
+    if not corpo:
+        return {}
+    if request.headers.get('content-type', '').split(';')[0].strip().lower() != 'application/json':
+        raise HTTPException(415, 'Envie a solicitação em JSON.')
+    try:
+        dados = json.loads(corpo)
+        if not isinstance(dados, dict):
+            raise ValueError()
+        return dados
+    except (ValueError, UnicodeDecodeError):
+        raise HTTPException(422, 'Solicitação documental inválida.') from None
 
 
 def _analisar_versao_esperada(dados: dict) -> datetime:
@@ -74,8 +95,24 @@ def _data_certificacao_cursor(cursor, data_intimacao: date | None, andamento: st
 
 
 @router.post("/{identificador}/preparar-documentos-rede", dependencies=[Depends(proteger_csrf)], status_code=202)
-def solicitar_documentos_rede(identificador: UUID, request: Request,
+async def solicitar_documentos_rede(identificador: UUID, request: Request,
     usuario: str = Depends(exigir_permissao("alterar_intimacoes"))):
+    import re
+    from backend.app.servicos.contratos import cifrar
+    try:
+        opcoes = await _json_documental(request)
+        if not isinstance(opcoes, dict):
+            raise ValueError()
+        if opcoes:
+            if opcoes.get('fluxo') != FLUXO_DOCUMENTAL or opcoes.get('acao') not in {'listar', 'ler'}:
+                raise ValueError()
+            if opcoes.get('acao') == 'ler':
+                selecao = opcoes.get('selecao', {})
+                if set(selecao) != {'recibo', 'oficio', 'projecao'} or any(not re.fullmatch('[a-f0-9]{64}', str(v)) for v in selecao.values()):
+                    raise ValueError()
+                date.fromisoformat(opcoes['referencia'])
+    except (ValueError, KeyError, TypeError):
+        raise HTTPException(422, 'Seleção de anexos ou data inválida.') from None
     try:
         cifrador()
     except RuntimeError:
@@ -88,13 +125,18 @@ def solicitar_documentos_rede(identificador: UUID, request: Request,
                 raise HTTPException(404, "Intimação não encontrada.")
             if item['fase'] != 'INTIMACAO':
                 raise HTTPException(409, "Preparação disponível apenas na fase inicial.")
+            if opcoes:
+                cur.execute("""UPDATE preparacoes_intimacao_aeri SET estado='ERRO', dados_cifrados=NULL,
+                    erro='Leitura substituída por nova seleção.' WHERE intimacao_id=%s AND usuario=%s
+                    AND estado IN ('PENDENTE','LENDO')""", (identificador, usuario))
             cur.execute("""UPDATE preparacoes_intimacao_aeri SET estado='ERRO', erro='A leitura expirou. Solicite novamente.'
                 WHERE intimacao_id=%s AND usuario=%s AND estado IN ('PENDENTE','LENDO')
-                AND atualizado_em < NOW() - INTERVAL '5 minutes'""", (identificador, usuario))
-            cur.execute("""INSERT INTO preparacoes_intimacao_aeri(id,intimacao_id,usuario,estado)
-                VALUES(%s,%s,%s,'PENDENTE') ON CONFLICT(intimacao_id,usuario)
+                AND atualizado_em < NOW() - INTERVAL '5 minutes'
+                AND expira_em-criado_em > INTERVAL '20 minutes'""", (identificador, usuario))
+            cur.execute("""INSERT INTO preparacoes_intimacao_aeri(id,intimacao_id,usuario,estado,dados_cifrados,expira_em)
+                VALUES(%s,%s,%s,'PENDENTE',%s,NOW()+CASE WHEN %s THEN INTERVAL '15 minutes' ELSE INTERVAL '1 day' END) ON CONFLICT(intimacao_id,usuario)
                 WHERE estado IN ('PENDENTE','LENDO') DO UPDATE SET usuario=EXCLUDED.usuario RETURNING id,estado""",
-                (uuid4(), identificador, usuario))
+                (uuid4(), identificador, usuario, cifrar(opcoes) if opcoes else None, bool(opcoes)))
             trabalho = cur.fetchone()
             registrar_auditoria_cursor(cur, request, "solicitar_documentos_intimacao_rede", "sucesso", usuario, str(identificador), {})
         con.commit()
@@ -102,7 +144,7 @@ def solicitar_documentos_rede(identificador: UUID, request: Request,
 
 
 @router.get("/{identificador}/preparar-documentos-rede/{trabalho_id}")
-def consultar_documentos_rede(identificador: UUID, trabalho_id: UUID,
+def consultar_documentos_rede(identificador: UUID, trabalho_id: UUID, response: Response,
     usuario: str = Depends(exigir_permissao("alterar_intimacoes"))):
     with conectar() as con:
         with con.cursor() as cur:
@@ -114,7 +156,8 @@ def consultar_documentos_rede(identificador: UUID, trabalho_id: UUID,
     if not item:
         raise HTTPException(404, "Leitura não encontrada ou expirada.")
     dados = decifrar(item['dados_cifrados']) if item['estado'] == 'PRONTO' else None
-    if dados:
+    response.headers['Cache-Control'] = 'no-store'
+    if dados and dados.get('fluxo') != FLUXO_DOCUMENTAL:
         # O executor tem acesso à unidade T:, mas a credencial Tri7 normalmente
         # fica apenas no servidor. Este complemento é somente leitura.
         dados['avisos'] = [aviso for aviso in dados['avisos']
@@ -123,16 +166,29 @@ def consultar_documentos_rede(identificador: UUID, trabalho_id: UUID,
     return {"estado": item['estado'], "erro": item['erro'], "dados": dados}
 
 
+@router.delete('/{identificador}/preparar-documentos-rede/{trabalho_id}', dependencies=[Depends(proteger_csrf)])
+def descartar_leitura_documental(identificador: UUID, trabalho_id: UUID,
+    usuario: str = Depends(exigir_permissao('alterar_intimacoes'))):
+    with conectar() as con:
+        with con.cursor() as cur:
+            cur.execute('DELETE FROM preparacoes_intimacao_aeri WHERE id=%s AND intimacao_id=%s AND usuario=%s',
+                        (trabalho_id, identificador, usuario))
+        con.commit()
+    return Response(status_code=204)
+
+
 @router.post("/{identificador}/preparar-documentos", dependencies=[Depends(proteger_csrf)])
 async def analisar_documentos_intimacao(
     identificador: UUID,
     request: Request,
     oficio: UploadFile = File(...),
     projecao: UploadFile = File(...),
+    recibo: UploadFile = File(...),
+    referencia: date | None = Form(None),
     titulo_registrado: UploadFile | None = File(None),
     usuario: str = Depends(exigir_permissao("alterar_intimacoes")),
 ):
-    """Extrai dados de dois PDFs para uma prévia; não os persiste nem envia."""
+    """Extrai dados dos três anexos obrigatórios; não os persiste nem envia."""
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
@@ -148,21 +204,19 @@ async def analisar_documentos_intimacao(
 
     oficio_bytes = await oficio.read(LIMITE_PDF_INTIMACAO + 1)
     projecao_bytes = await projecao.read(LIMITE_PDF_INTIMACAO + 1)
-    titulo_bytes = await titulo_registrado.read(LIMITE_PDF_INTIMACAO + 1) if titulo_registrado else None
-    if sum(map(len, (oficio_bytes, projecao_bytes, titulo_bytes or b""))) > 4_000_000:
-        raise HTTPException(status_code=413, detail="Os PDFs selecionados ultrapassam 4 MB no total. Use a leitura da pasta pelo executor ou selecione apenas ofício e projeção.")
+    recibo_bytes = await recibo.read(LIMITE_PDF_INTIMACAO + 1)
+    for upload in (oficio, projecao, recibo, titulo_registrado):
+        if upload:
+            await upload.close()
+    if sum(map(len, (oficio_bytes, projecao_bytes, recibo_bytes))) > 4_000_000:
+        raise HTTPException(status_code=413, detail="Os três anexos passam de 4 MB no total. Utilize a leitura da pasta pelo executor, sem enviar os arquivos ao servidor.")
     try:
         from zoneinfo import ZoneInfo
         hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
-        resultado = analisar_pdfs_intimacao(
-            oficio_bytes,
-            projecao_bytes,
-            hoje,
-            intimacao["protocolo"],
-            intimacao["protocolo_tri7"] or "",
-            titulo_bytes,
-        )
-        complementar_tri7(resultado)
+        resultado = analisar_tres_anexos(
+            {'recibo': (recibo.filename, recibo_bytes), 'oficio': (oficio.filename, oficio_bytes),
+             'projecao': (projecao.filename, projecao_bytes)},
+            referencia or hoje, intimacao['protocolo'], intimacao['protocolo_tri7'] or '')
     except ErroDocumentoIntimacao as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
@@ -184,6 +238,44 @@ async def analisar_documentos_intimacao(
             )
         conexao.commit()
     return resultado
+
+
+@router.post('/{identificador}/documentos-evento', dependencies=[Depends(proteger_csrf)])
+async def registrar_revisao_documental(identificador: UUID, request: Request,
+    usuario: str = Depends(exigir_permissao('alterar_intimacoes'))):
+    import re
+    try:
+        dados = await _json_documental(request)
+        if dados.get('tipo') not in {'autuacao', 'oficio', 'convocacao'} or dados.get('acao') not in {'revisao', 'copia'}:
+            raise ValueError()
+        if dados.get('revisado') is not True or not re.fullmatch(r'INT/\d{4}/\d{3,6}', dados.get('numeroOficio', '')):
+            raise ValueError()
+        hashes = dados['fontes']
+        if not isinstance(hashes, list) or len(hashes) != 3 or any(not isinstance(h, str) or not re.fullmatch('[a-f0-9]{64}', h) for h in hashes) or len(set(hashes)) != 3:
+            raise ValueError()
+        if not re.fullmatch('[a-f0-9]{64}', str(dados.get('rascunhoHash', ''))):
+            raise ValueError()
+    except (ValueError, KeyError, TypeError, AttributeError):
+        raise HTTPException(422, 'Confirme a revisão da versão atual e seus três anexos.') from None
+    with conectar() as con:
+        with con.cursor() as cur:
+            cur.execute("SELECT id FROM intimacoes_aeri WHERE id=%s AND excluida_em IS NULL AND fase='INTIMACAO'", (identificador,))
+            if not cur.fetchone():
+                raise HTTPException(404, 'Intimação indisponível para preparar documentos.')
+            cur.execute("""SELECT EXISTS(SELECT 1 FROM auditoria_aeri WHERE acao='copiar_documento_intimacao'
+                AND recurso<>%s AND detalhes->>'numeroOficio'=%s) AS possivel_duplicidade""",
+                (str(identificador), dados['numeroOficio']))
+            duplicado = cur.fetchone()['possivel_duplicidade']
+            if duplicado:
+                raise HTTPException(409, 'Este número consta em uma cópia para outro IN no AERI. Confira a numeração oficial na Tri7 antes de continuar.')
+            registrar_auditoria_cursor(cur, request,
+                'revisar_documento_intimacao' if dados['acao'] == 'revisao' else 'copiar_documento_intimacao',
+                'sucesso', usuario, str(identificador),
+                {'tipo': dados['tipo'], 'numeroOficio': dados['numeroOficio'], 'fontes': hashes,
+                 'rascunhoHash': dados['rascunhoHash'],
+                 'numeroReservado': False, 'usoNaTri7Confirmado': False})
+        con.commit()
+    return {'registrado': True, 'numeroReservado': False}
 
 
 @router.post("/{identificador}/extrair-documento-rtd", dependencies=[Depends(proteger_csrf)])
