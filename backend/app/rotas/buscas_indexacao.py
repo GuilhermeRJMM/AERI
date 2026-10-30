@@ -7,6 +7,7 @@ auditoria e sincronização usam estas funções, mas o inverso não ocorre.
 import os
 import logging
 import threading
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import HTTPException, Request
@@ -604,26 +605,54 @@ def _executar_sincronizacao(modo: str, tamanho: int, limite: int, request: Reque
                 erros = []
                 for resultado in resultados:
                     numero = resultado["numero"]
-                    if resultado["status"] == "OK":
-                        indice, _novo, alterado, auditoria, complemento_executado = _salvar_indice(
-                            cursor, numero, resultado["texto"],
-                            permitir_complemento=complementos_executados < max_complementos_lote,
-                        )
-                        encontradas += 1
-                        alteradas += int(alterado)
-                        auditorias_validadas += int(auditoria["estado"] == "VALIDADA_AUTOMATICAMENTE")
-                        auditorias_revisar += int(auditoria["estado"] == "REVISAR")
-                        complementos_executados += int(complemento_executado)
-                        ativas += int(indice["situacao"] == "ATIVA")
-                        encerradas += int(indice["situacao"] == "ENCERRADA")
-                        maior_encontrada = max(maior_encontrada, numero)
-                    elif resultado["status"] in {"NAO_ENCONTRADA", "SEM_TEXTO"}:
-                        _salvar_ausencia(cursor, numero, resultado["status"])
-                        ausentes += 1
-                    else:
-                        _registrar_erro(cursor, numero, modo, resultado["erro"])
+                    try:
+                        # Uma falha desfaz apenas as gravações desta matrícula.
+                        # Em uma transação já aberta, psycopg usa um savepoint.
+                        with conexao.transaction():
+                            if resultado["status"] == "OK":
+                                indice, _novo, alterado, auditoria, complemento_executado = _salvar_indice(
+                                    cursor, numero, resultado["texto"],
+                                    permitir_complemento=complementos_executados < max_complementos_lote,
+                                )
+                                metricas = (
+                                    int(alterado),
+                                    int(auditoria["estado"] == "VALIDADA_AUTOMATICAMENTE"),
+                                    int(auditoria["estado"] == "REVISAR"),
+                                    int(complemento_executado),
+                                    int(indice["situacao"] == "ATIVA"),
+                                    int(indice["situacao"] == "ENCERRADA"),
+                                )
+                            elif resultado["status"] in {"NAO_ENCONTRADA", "SEM_TEXTO"}:
+                                _salvar_ausencia(cursor, numero, resultado["status"])
+                            else:
+                                _registrar_erro(cursor, numero, modo, resultado["erro"])
+                    except Exception as erro:
+                        # Não persistir str(erro) ou traceback com texto/valores
+                        # registrários: somente tipo, arquivo e linha do erro.
+                        pilha = traceback.extract_tb(erro.__traceback__)
+                        origem = f"{os.path.basename(pilha[-1].filename)}:{pilha[-1].lineno}" if pilha else "desconhecida"
+                        tipo = type(erro).__name__
+                        diagnostico = f"Falha interna no processamento ({tipo} em {origem}). Reprocessamento pendente."
+                        logger.warning("sincronizacao_buscas_erro modo=%s matricula=%s tipo=%s origem=%s",
+                                       modo, numero, tipo, origem)
+                        _registrar_erro(cursor, numero, modo, RuntimeError(diagnostico))
                         falhas += 1
-                        erros.append({"numero": numero, "erro": str(resultado["erro"])[:180]})
+                        erros.append({"numero": numero, "erro": diagnostico})
+                    else:
+                        if resultado["status"] == "OK":
+                            encontradas += 1
+                            alteradas += metricas[0]
+                            auditorias_validadas += metricas[1]
+                            auditorias_revisar += metricas[2]
+                            complementos_executados += metricas[3]
+                            ativas += metricas[4]
+                            encerradas += metricas[5]
+                            maior_encontrada = max(maior_encontrada, numero)
+                        elif resultado["status"] in {"NAO_ENCONTRADA", "SEM_TEXTO"}:
+                            ausentes += 1
+                        else:
+                            falhas += 1
+                            erros.append({"numero": numero, "erro": str(resultado["erro"])[:180]})
                     processados += 1
                     ultimo_processado = numero
 

@@ -1139,6 +1139,9 @@ def extrair_pessoas(texto_bloco):
     texto_bloco, conjuge_casamento, partes_coletivas = (
         _limpar_bloco_de_pessoas(texto_bloco)
     )
+    # A limpeza pode esvaziar um bloco que antes continha só qualificadores.
+    if not texto_bloco.strip():
+        return pessoas
 
     # Em atos com casal, cada cônjuge pode ter nome e CPF próprios no mesmo bloco.
     # Se não separarmos aqui, a limpeza abaixo remove o segundo cônjuge inteiro.
@@ -1176,6 +1179,8 @@ def extrair_pessoas(texto_bloco):
             )
             partes = [p.strip() for p in partes_conjuges if p.strip()]
             partes = [re.sub(r'\s+e\s+d[oa]\s+CPF', ' CPF', p, flags=re.I) for p in partes]
+            if not partes:
+                return pessoas
             padrao_pessoa_e = re.compile(
                 r'\s+e\s+(?=[A-ZÀ-Ú][^,]+,\s*brasileir[oa])'
             )
