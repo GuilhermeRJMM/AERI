@@ -57,3 +57,9 @@ O modelo institucional continua exigindo confirmação de aplicabilidade, especi
 - Impressão Chrome A4 validada com margem superior 52 mm, laterais 22,5 mm e inferior 20 mm. Medição de 165 × 225 mm por página bloqueia aprovação/cópia quando o texto excede o espaço, sem cortar informação. Testes cobrem caso sintético e caso real lido da rede/Tri7, sem emissão/salvamento na Tri7.
 - Editor nativo pode ignorar quebras do HTML ao colar: há alternativa para copiar cada página separadamente, sempre após aprovação/auditoria da mesma versão. Conferir as três páginas na Tri7 antes de salvar continua necessário.
 - Regressão geral: 1.575 testes e 278 subtestes passaram, 8 ignorados. Cinco falhas também reproduzidas em checkout isolado do commit anterior `0ff9bf0` (mock cifrado de Contratos, diretório ausente em dois testes do inventário e duas expectativas antigas de bloqueio das Buscas). Nenhuma foi mascarada ou alterada nesta entrega.
+
+### Modelo revisado pela gravação de 30/10, 20:12
+
+A gravação enviada posteriormente pelo operador passa a orientar a disposição: corpo dos três documentos em Arial 10; CONTRA-FÉ e CERTIDÃO em 10; a última opção da Certidão, incluindo as três tentativas, termina inteira na página 2. Página 3 começa pela devolução/assinatura e apresenta endereços antes do quadro de Observações, com divisórias. Esta ordem substitui a disposição anterior dos endereços ao final da página 3. Continuam válidos o filtro de Morrinhos, CEP confirmado ou branco, signatário padrão e credor literal.
+
+O vídeo mostra a régua e o tamanho da fonte, não o diálogo de margens/entrelinhas. Espaçamentos foram ajustados visualmente e verificados em impressão Chrome com o perfil A4 documentado; não se declara medição exata das margens da Tri7 nem colagem nativa homologada. Não são copiados dados do caso-modelo nem placeholders operacionais fixos para os novos casos.

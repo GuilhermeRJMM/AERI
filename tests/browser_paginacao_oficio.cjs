@@ -21,8 +21,9 @@ const {pathToFileURL}=require('url');const path=require('path');const fs=require
   assert(ps[0].includes('Luiz Fernando Ribeiro') && !ps[0].includes('CONTRA-FÉ'));
   assert(ps[0].trim().endsWith('Luiz Fernando Ribeiro - Escrevente'));
   assert(ps[1].includes('CONTRA-FÉ') && ps[1].includes('CERTIDÃO'));
+  assert(ps[1].includes('3ª tentativa:') && !ps[2].includes('3ª tentativa:'));
   if(!process.env.AERI_DADOS_STDIN)assert(ps[2].includes('Fazenda Exemplo') && !ps.join('').includes('Goiânia'));
-  assert(ps[2].indexOf('OBSERVAÇÕES')<ps[2].indexOf('Endereços para'));
-  console.log('Impressão: exatamente 3 páginas; assinatura encerra a primeira; CONTRA-FÉ na segunda; endereços locais encerram a terceira.');
+  assert(ps[2].indexOf('Endereços para')<ps[2].indexOf('OBSERVAÇÕES'));
+  console.log('Impressão: 3 páginas; assinatura encerra a primeira; Certidão completa na segunda; endereços locais antes das Observações na terceira.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

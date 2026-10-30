@@ -1,6 +1,6 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {escaparHtml} from './util.js';
-import {gerarAutuacao, gerarOficio, gerarConvocacao, proximoOficio, SIGNATARIO_PADRAO, enderecoDeMorrinhos} from './intimacao_modelos.js?v=20261030-enderecos-v2';
+import {gerarAutuacao, gerarOficio, gerarConvocacao, proximoOficio, SIGNATARIO_PADRAO, enderecoDeMorrinhos} from './intimacao_modelos.js?v=20261030-modelo-video-v3';
 export {gerarAutuacao, gerarOficio, gerarConvocacao, proximoOficio};
 
 const FLUXO='tres-anexos-20261030';
@@ -221,7 +221,7 @@ export function pendencias(d,tipo=null) {
 export function sanitizarHtml(html) {
     const t=document.createElement('template');t.innerHTML=html;
     const permitidas=new Set(['DIV','SECTION','P','SPAN','STRONG','B','EM','I','U','BR','TABLE','TBODY','TR','TD','UL','OL','LI']);
-    const estilos=new Set(['font-family','font-size','font-weight','line-height','color','background','text-align','text-indent','text-decoration','margin','margin-top','margin-bottom','width','max-width','height','vertical-align','border','border-collapse','padding','page-break-after','break-after','page-break-inside','break-inside']);
+    const estilos=new Set(['font-family','font-size','font-weight','line-height','color','background','text-align','text-indent','text-decoration','margin','margin-top','margin-bottom','width','max-width','height','vertical-align','border','border-bottom','border-collapse','padding','page-break-after','break-after','page-break-inside','break-inside']);
     function limpar(n){
         if(n.nodeType===3)return document.createTextNode(n.textContent);
         if(n.nodeType!==1 || ['SCRIPT','STYLE','IFRAME','OBJECT','SVG','IMG'].includes(n.tagName))return document.createTextNode('');
@@ -251,7 +251,7 @@ function gerar() {
         const previa={...d,credorEncerramento:d.credorEncerramento || d.credor};for(const k of Object.keys(previa))if(typeof previa[k]==='string' && !previa[k])previa[k]=`[PENDENTE: ${k}]`;
         if(!previa.pessoas.length)previa.pessoas=[{nome:'[DEVEDOR A CONFERIR]',cpf:''}];
         previa.alvo=previa.alvo || previa.pessoas[0];if(!previa.enderecos.length)previa.enderecos=['[ENDEREÇO PARA NOTIFICAÇÃO PENDENTE]'];
-        const paginas=t==='oficio'?'<p class="doc-int-limite">3 páginas: 1 · Ofício até a assinatura; 2 · Contrafé e Certidão; 3 · continuação, Observações e endereços de Morrinhos. Confirme as quebras na Tri7.</p><details><summary>Se a Tri7 remover as quebras, copiar uma página por vez</summary>'+[1,2,3].map(p=>`<button type="button" class="rotina-btn-secondary" data-copiar-pagina="${p}" disabled>Copiar página ${p}/3</button>`).join('')+'</details>':'';
+        const paginas=t==='oficio'?'<p class="doc-int-limite">3 páginas: 1 · Ofício até a assinatura; 2 · Contrafé e Certidão completa; 3 · devolução, endereços de Morrinhos e Observações. Corpo em Arial 10. Confirme as quebras na Tri7.</p><details><summary>Se a Tri7 remover as quebras, copiar uma página por vez</summary>'+[1,2,3].map(p=>`<button type="button" class="rotina-btn-secondary" data-copiar-pagina="${p}" disabled>Copiar página ${p}/3</button>`).join('')+'</details>':'';
         return `<section id="doc-int-painel-${t}" role="tabpanel" aria-labelledby="doc-int-aba-${t}" hidden>${faltas.length?`<p class="doc-int-divergencias">Rascunho incompleto · ${faltas.map(esc).join(', ')}. Cópia bloqueada; corrija as exceções.</p>`:''}<p class="doc-int-limite">Fontes: ${leitura.fontes.map(f=>esc(f.nome)).join(' · ')}${leitura.consultaAutomatica?.garantiaConfirmada?' · matrícula/garantia conferida na Tri7':''}</p><article class="doc-int-papel" id="doc-int-texto-${t}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto de ${n}">${GERADORES[t](previa)}</article><div class="doc-int-revisao-acoes"><label class="doc-int-confirmacao"><input type="checkbox" data-aprovar-documento="${t}" ${faltas.length?'disabled':''}> Revisei integralmente esta versão de ${n} e conferi a numeração na Tri7.</label><button type="button" class="btn btn-primary" data-copiar-documento="${t}" disabled>Copiar ${n}</button><button type="button" class="rotina-btn-secondary" data-copiar-simples="${t}" disabled>Copiar texto simples</button></div>${paginas}<p id="doc-int-revisao-${t}" role="status">${faltas.length?'Há campos pendentes.':'Revisão pendente.'}</p></section>`;
     }).join('');
     el('documentos-intimacao-previa').hidden=false;trocarAba('autuacao');

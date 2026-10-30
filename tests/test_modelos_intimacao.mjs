@@ -24,7 +24,7 @@ const aut=gerarAutuacao(d),of=gerarOficio(d),conv=gerarConvocacao(d);
 assert(aut.includes('19/10/2026') && !aut.includes('16/11/2023'));
 assert(of.includes('16/11/2023') && conv.includes('16/11/2023'));
 assert(aut.includes('font-family:Arial') && aut.includes('font-size:18pt'));
-assert(of.includes('font-size:9.96pt') && conv.includes('font-size:12pt'));
+for(const html of [aut,of,conv])assert(html.includes('font-family:Arial,sans-serif;font-size:10pt;'));
 assert.equal((of.match(/page-break-after:always/g)||[]).length,2);
 for(const s of ['CONTRA-FÉ','CERTIDÃO','OBSERVAÇÕES:','30 dias após o término','deixei de intimar pessoalmente'])assert(of.includes(s));
 assert(!aut.includes('MANIFESTO') && !of.includes('06364830102'));

@@ -38,7 +38,7 @@ export function gerarAutuacao(d) {
         p(`<strong><u>ENDEREÇO</u>:</strong> ${e(d.enderecoImovel)}.`,'margin-top:18pt;'),
         p('<strong style="font-size:18pt">AUTUAÇÃO</strong>','text-align:center;margin-top:20.76pt;'),
         p(`Aos ${e(dataExtenso(d.dataGeracao))}, nesta cidade e Comarca de Morrinhos, Estado de Goiás, e neste Cartório do 1º Ofício de Notas e Registro de Imóveis, situado na Rua Maestro Vicente José Vieira, 706, Loja 01, centro, CEP: 75.650-082, <strong>autuo o requerimento e demais documentos que o acompanham</strong>, protocolado em ${e(dataExtenso(d.dataProtocolo))} sob o n.º ${e(numero(d.protocolo))}. Eu, ${e(d.signatario || SIGNATARIO_PADRAO)}, Escrevente, lavrei o presente termo, e assino digitalmente.`,'margin-top:24pt;'),
-    ].join(''),12,1.73);
+    ].join(''),10,1.73);
 }
 
 export function gerarOficio(d) {
@@ -68,24 +68,23 @@ export function gerarOficio(d) {
         centro(`Assinado Digitalmente<br>${e(d.signatario || SIGNATARIO_PADRAO)} - Escrevente`),
         '</div></section><section data-oficio-pagina="2" style="page-break-after:always;break-after:page">',
         '<table style="width:100%;border-collapse:collapse;border:0.5pt solid #000"><tbody><tr><td>',
-        titulo('CONTRA-FÉ',11.04),
-        p('Declaro que, nesta data de ____/____/_______, às ___________ horas, recebi o ofício retro.'),
-        p('_________________________________________________.'),
-        titulo('CERTIDÃO',11.04),
-        p('Certifico e dou fé, na qualidade de Escrevente responsável pelas diligências da intimação retro, que:'),
-        ...certidoes.map(s=>p(s)),
-        p('(   ) Compareci no endereço indicado e <strong>deixei de intimar pessoalmente</strong> o(a) devedor(a); eis que evidenciado que o(a) mesmo(a) encontra-se em local ignorado ou incerto; isto depois de frustradas 03 (três) tentativas feitas nos seguintes dias e horários alternados: 1ª tentativa: dia ___/___/_____, às'),
+        p('<strong style="font-size:10pt"><u>CONTRA-FÉ</u></strong>','text-align:center;margin-bottom:12pt;'),
+        p('Declaro que, nesta data de ____/____/_______, às ___________ horas, recebi o ofício retro.','margin-bottom:10pt;'),
+        p('_________________________________________________.','margin-bottom:12pt;'),
+        p('<strong style="font-size:10pt"><u>CERTIDÃO</u></strong>','text-align:center;margin-bottom:12pt;'),
+        p('Certifico e dou fé, na qualidade de Escrevente responsável pelas diligências da intimação retro, que:','margin-bottom:10pt;'),
+        ...certidoes.map(s=>p(s,'margin-bottom:10pt;')),
+        p('(   ) Compareci no endereço indicado e <strong>deixei de intimar pessoalmente</strong> o(a) devedor(a); eis que evidenciado que o(a) mesmo(a) encontra-se em local ignorado ou incerto; isto depois de frustradas 03 (três) tentativas feitas nos seguintes dias e horários alternados: 1ª tentativa: dia ___/___/_____, às ___:___ horas; 2ª tentativa: dia ___/___/_____, às ___:___ horas; 3ª tentativa: dia ___/___/_____, às ___:___ horas.'),
         '</td></tr></tbody></table></section><section data-oficio-pagina="3">',
-        '<table style="width:100%;height:220mm;border-collapse:collapse;border:0.5pt solid #000"><tbody><tr><td>',
-        p('___:___ horas; 2ª tentativa: dia ___/___/_____, às ___:___ horas; 3ª tentativa: dia ___/___/_____, às ___:___ horas.'),
-        p('Concluída a(s) diligência(s), devolvo a presente documentação ao Escrevente encarregado do procedimento de intimação.'),
+        '<table style="width:100%;height:220mm;border-collapse:collapse;border:0.5pt solid #000"><tbody><tr><td style="height:44mm;vertical-align:top;border-bottom:0.5pt solid #000">',
+        p('Concluída a(s) diligência(s), devolvo a presente documentação ao Escrevente encarregado do procedimento de intimação.','margin-bottom:10pt;'),
         centro('Morrinhos-GO, ___ de _______________ de _____.<br><br>________________________________<br>Escrevente'),
-        '</td></tr><tr><td style="height:115mm;vertical-align:top">',
-        centro('<strong style="font-size:12pt"><u>OBSERVAÇÕES:</u></strong>'),
-        '</td></tr><tr><td style="vertical-align:bottom"><strong>Endereços para a primeira notificação · Morrinhos-GO:</strong><br>',
+        '</td></tr><tr><td style="vertical-align:top;border-bottom:0.5pt solid #000"><strong>Endereços para a primeira notificação · Morrinhos-GO:</strong><br>',
         enderecos.length?enderecos.map((s,i)=>`${i+1}) ${e(s)}.`).join('<br>'):'[PENDENTE: endereço de Morrinhos confirmado no Ofício]',
+        '</td></tr><tr><td style="height:135mm;vertical-align:top">',
+        centro('<strong style="font-size:12pt"><u>OBSERVAÇÕES:</u></strong>'),
         '</td></tr></tbody></table></section>',
-    ].join(''),9.96,1.3253,3);
+    ].join(''),10,1.3253,3);
 }
 
 export function gerarConvocacao(d) {
@@ -96,5 +95,5 @@ export function gerarConvocacao(d) {
         p(`Pelo presente, após tentativa pessoal em seu domicílio, convoco V.S.ª a comparecer neste Cartório, no endereço Rua Maestro Vicente José Vieira, 706, Loja 01, centro, CEP: 75.650-082, no período de 08:00 às 17:00 horas, a fim de tratar de assunto de seu interesse relacionado ao ${e(d.titulo)} n.º ${e(d.contrato)}, datado de ${e(d.dataContrato)}, registrado sob o ${e(d.registro)}, na Matrícula n.º ${e(d.matricula)}, deste Cartório, referente ao imóvel situado na ${e(d.enderecoImovel)}.`,'margin-top:32pt;'),
         centro('Atenciosamente,'),
         centro(`Assinado Digitalmente<br>${e(d.signatario || SIGNATARIO_PADRAO)} - Escrevente`),
-    ].join(''),12,1.15,13.8);
+    ].join(''),10,1.15,13.8);
 }
