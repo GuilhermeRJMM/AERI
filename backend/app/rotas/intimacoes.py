@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
+from starlette.concurrency import run_in_threadpool
 from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
 
@@ -148,8 +149,9 @@ def consultar_documentos_rede(identificador: UUID, trabalho_id: UUID, response: 
     usuario: str = Depends(exigir_permissao("alterar_intimacoes"))):
     with conectar() as con:
         with con.cursor() as cur:
-            cur.execute("""SELECT p.estado,p.dados_cifrados,p.erro FROM preparacoes_intimacao_aeri p
+            cur.execute("""SELECT p.estado,p.dados_cifrados,p.erro,u.nome AS nome_responsavel FROM preparacoes_intimacao_aeri p
                 JOIN intimacoes_aeri i ON i.id=p.intimacao_id
+                  LEFT JOIN usuarios_aeri u ON u.usuario=p.usuario
                 WHERE p.id=%s AND p.intimacao_id=%s AND p.usuario=%s AND p.expira_em>NOW()
                 AND i.excluida_em IS NULL AND i.fase='INTIMACAO'""", (trabalho_id, identificador, usuario))
             item = cur.fetchone()
@@ -157,7 +159,11 @@ def consultar_documentos_rede(identificador: UUID, trabalho_id: UUID, response: 
         raise HTTPException(404, "Leitura não encontrada ou expirada.")
     dados = decifrar(item['dados_cifrados']) if item['estado'] == 'PRONTO' else None
     response.headers['Cache-Control'] = 'no-store'
-    if dados and dados.get('fluxo') != FLUXO_DOCUMENTAL:
+    if dados and dados.get('fluxo') == FLUXO_DOCUMENTAL:
+        # As credenciais Tri7 permanecem no backend; o executor só lê a pasta.
+        from backend.app.servicos.enriquecimento_intimacao import complementar_preparacao
+        complementar_preparacao(dados, item.get('nome_responsavel', ''))
+    elif dados:
         # O executor tem acesso à unidade T:, mas a credencial Tri7 normalmente
         # fica apenas no servidor. Este complemento é somente leitura.
         dados['avisos'] = [aviso for aviso in dados['avisos']
@@ -192,9 +198,10 @@ async def analisar_documentos_intimacao(
     with conectar() as conexao:
         with conexao.cursor() as cursor:
             cursor.execute(
-                """SELECT protocolo, protocolo_tri7, fase FROM intimacoes_aeri
+                """SELECT protocolo, protocolo_tri7, fase,
+                    (SELECT nome FROM usuarios_aeri WHERE usuario=%s) AS nome_responsavel FROM intimacoes_aeri
                 WHERE id=%s AND excluida_em IS NULL""",
-                (identificador,),
+                (usuario, identificador),
             )
             intimacao = cursor.fetchone()
     if not intimacao:
@@ -219,6 +226,9 @@ async def analisar_documentos_intimacao(
             referencia or hoje, intimacao['protocolo'], intimacao['protocolo_tri7'] or '')
     except ErroDocumentoIntimacao as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
+
+    from backend.app.servicos.enriquecimento_intimacao import complementar_preparacao
+    await run_in_threadpool(complementar_preparacao, resultado, intimacao.get('nome_responsavel', ''))
 
     # A auditoria registra apenas a operação e as contagens, nunca o texto dos PDFs.
     with conectar() as conexao:

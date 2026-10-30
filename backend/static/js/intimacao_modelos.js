@@ -26,7 +26,7 @@ export function gerarAutuacao(d) {
         titulo(`PROCESSO N.° ${e(d.processo)}`,15),
         titulo(`SAEC/ONR - ${e(d.in)}`,15),
         p('<strong><u>PROCEDIMENTO</u>:</strong> Intimação (art.26 - Lei Federal n.º 9.514/1997).','margin-top:22pt;'),
-        p(`<strong><u>TÍTULO</u>:</strong> ${e(d.titulo)} ${e(d.contrato)}, datado de ${e(d.dataTituloAutuacao)}.`,'margin-top:20.76pt;'),
+        p(`<strong><u>TÍTULO</u>:</strong> ${e(d.titulo)}${/\bn[.º°o\s]*$/i.test(d.titulo)?'':' n.°'} ${e(d.contrato)}, datado de ${e(d.dataTituloAutuacao)}.`,'margin-top:20.76pt;'),
         p(`<strong><u>CREDOR(A) FIDUCIÁRIO(A)</u>:</strong> ${e(d.credor)}.`,'margin-top:18pt;'),
         p(`<strong><u>DEVEDOR(A)(ES) FIDUCIANTE(S)</u>:</strong> ${d.pessoas.map(x=>`${e(x.nome)}, (CPF: ${e(cpf(x.cpf))})`).join('; ')}.`,'margin-top:18pt;'),
         p(`<strong><u>ENDEREÇO</u>:</strong> ${e(d.enderecoImovel)}.`,'margin-top:18pt;'),

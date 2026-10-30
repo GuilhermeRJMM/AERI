@@ -298,3 +298,19 @@ def test_recibo_e_obrigatorio_tambem_na_api(cliente_autorizado):
     url='/api/intimacoes/00000000-0000-0000-0000-000000000001/preparar-documentos'
     resposta=cliente_autorizado.post(url,files={'oficio':('oficio.pdf',b'%PDF'), 'projecao':('projecao.pdf',b'%PDF')})
     assert resposta.status_code==422
+
+
+def test_resultado_do_executor_e_complementado_no_backend_com_usuario_autenticado(cliente_autorizado):
+    from unittest.mock import MagicMock
+    from backend.app.rotas import intimacoes as r
+    from backend.app.servicos import enriquecimento_intimacao as e
+    con=MagicMock();con.__enter__.return_value=con
+    cur=con.cursor.return_value.__enter__.return_value
+    cur.fetchone.return_value={'estado':'PRONTO','dados_cifrados':'cifrado','erro':None,'nome_responsavel':'Operador Exemplo'}
+    dados={'fluxo':a.VERSAO,'avisos':[]}
+    with patch.object(r,'conectar',return_value=con),patch.object(r,'decifrar',return_value=dados),patch.object(e,'complementar_preparacao') as completar:
+        resposta=cliente_autorizado.get('/api/intimacoes/00000000-0000-0000-0000-000000000001/preparar-documentos-rede/00000000-0000-0000-0000-000000000002')
+    assert resposta.status_code==200 and resposta.headers['cache-control']=='no-store'
+    completar.assert_called_once_with(dados,'Operador Exemplo')
+    assert cur.execute.call_args.args[1][-1]=='OPERADOR_TESTE'
+    assert all('SELECT' in c.args[0] for c in cur.execute.call_args_list)

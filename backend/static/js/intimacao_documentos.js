@@ -34,6 +34,7 @@ export function moedaLiteral(v) {
 
 function invalidar(fontes=false) {
     geracao++;
+    if(!fontes && leitura)el('btn-gerar-tres-documentos').hidden=false;
     ocupado=false;el('btn-analisar-documentos-intimacao').disabled=false;
     rascunhos.clear();
     el('documentos-intimacao-previa').hidden=true;
@@ -60,6 +61,7 @@ function fechar() {
     }
     campo('devedor-alvo').replaceChildren();
     el('documentos-intimacao-contexto').textContent='';
+    el('doc-int-resumo-automatico').textContent='';el('doc-int-protocolo-aviso').textContent='';
     el('modal-documentos-intimacao').classList.remove('aberta');
 }
 export function abrirDocumentosIntimacao(item) {
@@ -94,7 +96,7 @@ function preencher(dados) {
         'data-titulo':dados.dataTituloAutuacao,'endereco-imovel':dados.enderecoImovel,
         enderecos:(dados.enderecos || []).join('\n'),devedores:(dados.devedores || []).map(p=>`${p.nome} | ${p.cpf || p.cnpj || ''}`).join('\n'),
         'data-projecao':dados.projecao?.data,'valor-projecao':dados.projecao?.valor,'valor-extenso':dados.projecao?.extenso,
-        signatario:'',selo:'',clausula:'','credor-encerramento':''};
+        signatario:dados.signatario,selo:dados.selo,clausula:dados.clausula,'credor-encerramento':dados.credorEncerramento};
     for(const [id,v]of Object.entries(campos))campo(id).value=v || '';
     el('documentos-intimacao-fontes').innerHTML=(dados.fontes || []).map(f=>`<div><strong>${esc(f.papel)}:</strong> ${esc(f.nome)} · ${f.ocr?'OCR local — conferir':'texto extraído'}</div>`).join('');
     const detalhes=document.createElement('details');
@@ -104,8 +106,19 @@ function preencher(dados) {
     el('documentos-intimacao-divergencias').innerHTML=(dados.inconsistencias || []).map(i=>`<p><strong>Divergência em ${esc(i.campo)}:</strong> ${Object.entries(i.fontes).map(([f,v])=>`${esc(f)}: ${esc(typeof v==='string'?v:JSON.stringify(v))}`).join(' · ')}. Confira os originais e corrija o campo.</p>`).join('');
     el('doc-int-modelo-conferido').checked=false;el('doc-int-divergencias-conferidas').checked=false;
     atualizarAlvo();el('documentos-intimacao-editor').hidden=false;
-    status('Leitura concluída. Confira dados, fontes e campos não identificados antes de gerar os textos.');
+    el('doc-int-mostrar-todos').checked=false;
+    const ca=dados.consultaAutomatica || {};
+    el('doc-int-resumo-automatico').textContent=`Matrícula: ${ca.matriculaConsultada?'consultada na Tri7':'consulta não confirmada'} · Garantia: ${ca.garantiaConfirmada?'vinculada ao contrato e às partes':'conferência necessária'} · Protocolo: ${ca.protocoloConsultado?'consultado na Tri7':'consulta não confirmada'}. O responsável sugerido pelo cadastro deve ser conferido; nenhum selo é emitido aqui.`;
+    for(const label of el('doc-int-campos-extraidos').querySelectorAll('label')){
+        const input=label.querySelector('input,textarea,select');
+        const invalido=input.value.includes('\ufffd') || input.id.startsWith('doc-int-data-') && !dataValida(input.value) || input.id==='doc-int-cnpj' && digitos(input.value).length!==14 || input.id==='doc-int-valor-projecao' && !moedaLiteral(input.value);
+        label.dataset.excecao=String(input.id!=='doc-int-credor-encerramento' && (!input.value.trim() || invalido || input.id==='doc-int-devedor-alvo' && pessoas().length>1 || input.id==='doc-int-devedores' && pessoas().some(p=>p.cpf.length!==11)));
+    }
+    mostrarCampos();
+    el('doc-int-correcoes').open=[...el('doc-int-campos-extraidos').querySelectorAll('label')].some(l=>l.dataset.excecao==='true');
+    gerar();
 }
+function mostrarCampos(){for(const label of el('doc-int-campos-extraidos').querySelectorAll('label'))label.hidden=!el('doc-int-mostrar-todos').checked && label.dataset.excecao!=='true';}
 function pessoas(){return valor('devedores').split(/\r?\n/).filter(s=>s.trim()).map(s=>{const [nome,doc]=s.split('|');return{nome:nome.trim(),cpf:digitos(doc)};});}
 function atualizarAlvo(){const s=campo('devedor-alvo'),anterior=s.value;s.innerHTML=pessoas().map((p,i)=>`<option value="${i}">${esc(p.nome)}</option>`).join('');if([...s.options].some(o=>o.value===anterior))s.value=anterior;}
 
@@ -223,37 +236,41 @@ export function sanitizarHtml(html) {
 function trocarAba(tipo){for(const t of Object.keys(ROTULOS)){el(`doc-int-painel-${t}`).hidden=t!==tipo;el(`doc-int-aba-${t}`).setAttribute('aria-selected',String(t===tipo));}}
 function gerar() {
     if(!leitura || leitura.fontes?.length!==3){status('Processe os três anexos novamente.');return;}
-    if((leitura.inconsistencias || []).some(i=>i.campo==='protocoloTri7') && !el('doc-int-protocolo-conferido').checked){status('Confirme expressamente o protocolo do recibo antes de preparar os textos; ele difere do cadastro antigo.');return;}
     const d=dadosFormulario();
-    if(!el('doc-int-modelo-conferido').checked || !el('doc-int-divergencias-conferidas').checked){status('Confirme a aplicabilidade do modelo e a conferência dos campos e divergências.');return;}
     rascunhos.clear();
     el('documentos-intimacao-abas').innerHTML=Object.entries(ROTULOS).map(([t,n])=>`<button type="button" role="tab" id="doc-int-aba-${t}" aria-controls="doc-int-painel-${t}" aria-selected="false" data-aba-documento="${t}">${n}</button>`).join('');
     el('documentos-intimacao-previa-conteudo').innerHTML=Object.entries(ROTULOS).map(([t,n])=>{
         const faltas=pendencias(d,t);
-        if(faltas.length)return `<section id="doc-int-painel-${t}" role="tabpanel" aria-labelledby="doc-int-aba-${t}" hidden><p class="doc-int-conflito">${n} bloqueada. Complete ou confira: ${faltas.map(esc).join(', ')}. Corrija os campos acima e prepare novamente.</p></section>`;
-        rascunhos.set(t,{aprovado:false,geracao});
-        return `<section id="doc-int-painel-${t}" role="tabpanel" aria-labelledby="doc-int-aba-${t}" hidden><p class="doc-int-limite">Fontes: ${leitura.fontes.map(f=>esc(f.nome)).join(' · ')}</p><article class="doc-int-papel" id="doc-int-texto-${t}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto de ${n}">${GERADORES[t](d)}</article><div class="doc-int-revisao-acoes"><label class="doc-int-confirmacao"><input type="checkbox" data-aprovar-documento="${t}"> Revisei integralmente esta versão de ${n} e conferi a numeração na Tri7.</label><button type="button" class="btn btn-primary" data-copiar-documento="${t}" disabled>Copiar ${n}</button><button type="button" class="rotina-btn-secondary" data-copiar-simples="${t}" disabled>Copiar texto simples</button></div><p id="doc-int-revisao-${t}" role="status">Revisão pendente.</p></section>`;
+        rascunhos.set(t,{aprovado:false,geracao,faltas});
+        const previa={...d};for(const k of Object.keys(previa))if(typeof previa[k]==='string' && !previa[k])previa[k]=`[PENDENTE: ${k}]`;
+        if(!previa.pessoas.length)previa.pessoas=[{nome:'[DEVEDOR A CONFERIR]',cpf:''}];
+        previa.alvo=previa.alvo || previa.pessoas[0];if(!previa.enderecos.length)previa.enderecos=['[ENDEREÇO PARA NOTIFICAÇÃO PENDENTE]'];
+        return `<section id="doc-int-painel-${t}" role="tabpanel" aria-labelledby="doc-int-aba-${t}" hidden>${faltas.length?`<p class="doc-int-divergencias">Rascunho incompleto · ${faltas.map(esc).join(', ')}. Cópia bloqueada; corrija as exceções.</p>`:''}<p class="doc-int-limite">Fontes: ${leitura.fontes.map(f=>esc(f.nome)).join(' · ')}${leitura.consultaAutomatica?.garantiaConfirmada?' · matrícula/garantia conferida na Tri7':''}</p><article class="doc-int-papel" id="doc-int-texto-${t}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto de ${n}">${GERADORES[t](previa)}</article><div class="doc-int-revisao-acoes"><label class="doc-int-confirmacao"><input type="checkbox" data-aprovar-documento="${t}" ${faltas.length?'disabled':''}> Revisei integralmente esta versão de ${n} e conferi a numeração na Tri7.</label><button type="button" class="btn btn-primary" data-copiar-documento="${t}" disabled>Copiar ${n}</button><button type="button" class="rotina-btn-secondary" data-copiar-simples="${t}" disabled>Copiar texto simples</button></div><p id="doc-int-revisao-${t}" role="status">${faltas.length?'Há campos pendentes.':'Revisão pendente.'}</p></section>`;
     }).join('');
     el('documentos-intimacao-previa').hidden=false;trocarAba('autuacao');
-    status(`${rascunhos.size} de 3 rascunhos preparados. As abas indicam os campos que faltam em cada texto. Revise individualmente; copiar ainda está bloqueado.`);
+    el('btn-gerar-tres-documentos').hidden=true;
+    const completos=[...rascunhos.values()].filter(r=>!r.faltas.length).length;
+    status(`Três textos preparados automaticamente; ${completos} completos para revisão. Os demais indicam as exceções, sem inventar dados. A cópia exige aprovação individual.`);
 }
 function bloquear(tipo){const r=rascunhos.get(tipo);if(r)r.aprovado=false;el(`doc-int-painel-${tipo}`).querySelector('[data-aprovar-documento]').checked=false;for(const b of el(`doc-int-painel-${tipo}`).querySelectorAll('button'))b.disabled=true;el(`doc-int-revisao-${tipo}`).textContent='Texto alterado: revise novamente.';}
+function consentimentosOk(){return el('doc-int-modelo-conferido').checked && el('doc-int-divergencias-conferidas').checked && (!(leitura.inconsistencias || []).some(i=>i.campo==='protocoloTri7') || el('doc-int-protocolo-conferido').checked);}
 function eventoDocumento(tipo,acao){return requisicaoAeri(`/api/intimacoes/${atual.id}/documentos-evento`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo,acao,revisado:true,numeroOficio:valor('numero-oficio'),rascunhoHash:rascunhos.get(tipo)?.hash,fontes:leitura.fontes.map(f=>f.sha256)})});}
 async function aprovar(tipo,checkbox){
     const r=rascunhos.get(tipo);if(!r)return;
     if(!checkbox.checked){bloquear(tipo);return;}
+    if(r.faltas.length || !consentimentosOk()){checkbox.checked=false;status('Confira as exceções, a aplicabilidade do modelo e a divergência do protocolo antes de aprovar esta versão.');return;}
     const v=geracao,html=el(`doc-int-texto-${tipo}`).innerHTML;
     checkbox.disabled=true;
     try{r.hash=await hashTexto(sanitizarHtml(html));if(v!==geracao)return;
         await eventoDocumento(tipo,'revisao');if(v!==geracao || !rascunhos.has(tipo))return;
-        if(html!==el(`doc-int-texto-${tipo}`).innerHTML){bloquear(tipo);return;}
+        if(html!==el(`doc-int-texto-${tipo}`).innerHTML || !consentimentosOk()){bloquear(tipo);return;}
         r.aprovado=true;r.html=html;for(const b of el(`doc-int-painel-${tipo}`).querySelectorAll('button'))b.disabled=false;
         el(`doc-int-revisao-${tipo}`).textContent='Revisão registrada. Cópia liberada para esta versão; número não reservado.';
     }catch(e){checkbox.checked=false;status(e.message);}finally{checkbox.disabled=false;}
 }
 async function copiar(tipo,simples=false){
     const r=rascunhos.get(tipo),artigo=el(`doc-int-texto-${tipo}`);
-    if(!r?.aprovado || r.geracao!==geracao || r.html!==artigo.innerHTML){status('Revise a versão atual antes de copiar.');return;}
+    if(!r?.aprovado || r.geracao!==geracao || r.html!==artigo.innerHTML || !consentimentosOk()){status('Revise a versão atual antes de copiar.');return;}
     const v=geracao;
     try{
         if(simples){if(!navigator.clipboard?.writeText)throw Error('Área de transferência indisponível neste navegador.');await navigator.clipboard.writeText(artigo.innerText);}
@@ -303,9 +320,10 @@ export function iniciarDocumentosIntimacao(_abrirRtdComPares){
     el('documentos-intimacao-arquivos-rede').addEventListener('change',()=>{invalidar(true);origem='rede';});
     for(const p of PAPEIS)el(`documentos-intimacao-${p}`).addEventListener('change',()=>{invalidar(true);origem='manual';});
     el('btn-analisar-documentos-intimacao').addEventListener('click',processar);
-    el('btn-gerar-tres-documentos').addEventListener('click',gerar);
-    el('documentos-intimacao-editor').addEventListener('input',e=>{if(e.target.matches('input,textarea,select')){invalidar();if(e.target.id==='doc-int-devedores')atualizarAlvo();if(e.target.id==='doc-int-valor-projecao')campo('valor-extenso').value='';}});
-    el('documentos-intimacao-editor').addEventListener('change',e=>{if(e.target.matches('select,input[type=checkbox]'))invalidar();});
+    el('btn-gerar-tres-documentos').addEventListener('click',()=>gerar());
+    el('doc-int-mostrar-todos').addEventListener('change',mostrarCampos);
+    el('documentos-intimacao-editor').addEventListener('input',e=>{if(e.target.type==='checkbox'){if(e.target.id!=='doc-int-mostrar-todos' && !e.target.checked)for(const [tipo,r] of rascunhos)if(r.aprovado)bloquear(tipo);return;}if(e.target.matches('input,textarea,select')){invalidar();if(e.target.id==='doc-int-devedores')atualizarAlvo();if(e.target.id==='doc-int-valor-projecao')campo('valor-extenso').value='';}});
+    el('documentos-intimacao-editor').addEventListener('change',e=>{if(e.target.matches('select'))invalidar();});
     el('documentos-intimacao-abas').addEventListener('click',e=>{const t=e.target.closest('[data-aba-documento]')?.dataset.abaDocumento;if(t)trocarAba(t);});
     const previa=el('documentos-intimacao-previa-conteudo');
     previa.addEventListener('input',e=>{const artigo=e.target.closest('.doc-int-papel');if(artigo)bloquear(artigo.id.replace('doc-int-texto-',''));});

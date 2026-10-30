@@ -6,7 +6,7 @@
       <h2 id="documentos-intimacao-titulo">Autuação, Ofício Contrafé e Convocação</h2>
       <p id="documentos-intimacao-contexto"></p>
     </div>
-    <ol class="doc-int-etapas" aria-label="Etapas"><li>1 · IN e numeração</li><li>2 · Três anexos</li><li>3 · Conferir dados</li><li>4 · Revisar e copiar</li></ol>
+    <ol class="doc-int-etapas" aria-label="Etapas"><li>1 · IN e numeração</li><li>2 · Três anexos</li><li>3 · Textos preenchidos</li><li>4 · Revisar e copiar</li></ol>
     <section class="intimacao-documentos-origem">
       <div class="intimacao-documentos-campos">
         <label><span>IN selecionado</span><input id="doc-int-in" readonly></label>
@@ -24,16 +24,19 @@
         <label><span>3 · Planilha de Projeção · obrigatória</span><input id="documentos-intimacao-projecao" type="file" accept=".pdf,.xlsx,.xls" required></label>
       </div>
       <label class="intimacao-documentos-confirmacao"><input id="documentos-intimacao-confirmar-origem" type="checkbox"><span>Conferi que os três anexos pertencem ao IN selecionado.</span></label>
-      <button type="button" class="btn btn-primary" id="btn-analisar-documentos-intimacao">Processar os três documentos</button>
+      <button type="button" class="btn btn-primary" id="btn-analisar-documentos-intimacao">Processar e preparar os textos</button>
       <p id="documentos-intimacao-status" class="doc-int-status" role="status" aria-live="polite"></p>
     </section>
     <section id="documentos-intimacao-editor" class="intimacao-documentos-editor" hidden>
-      <h3>Confira os dados e suas fontes</h3>
+      <h3>Preparação automática · confira as fontes e os textos</h3>
+      <p id="doc-int-resumo-automatico" class="doc-int-limite" role="status"></p>
       <div id="documentos-intimacao-fontes" class="doc-int-fontes"></div>
       <div id="documentos-intimacao-avisos" class="intimacao-documentos-avisos"></div>
       <div id="documentos-intimacao-divergencias" class="doc-int-divergencias"></div>
       <label id="doc-int-confirmacao-protocolo" class="doc-int-confirmacao" hidden><input type="checkbox" id="doc-int-protocolo-conferido"><span id="doc-int-protocolo-aviso"></span></label>
-      <div class="intimacao-documentos-campos">
+      <details id="doc-int-correcoes"><summary>Exceções e correções · abrir somente se necessário</summary>
+      <label class="doc-int-confirmacao"><input type="checkbox" id="doc-int-mostrar-todos"> Mostrar todos os dados extraídos, inclusive os já preenchidos.</label>
+      <div class="intimacao-documentos-campos" id="doc-int-campos-extraidos">
         <label><span>Processo do credor</span><input id="doc-int-processo" maxlength="40"></label>
         <label><span>Protocolo do Registro de Imóveis</span><input id="doc-int-protocolo-tri7" maxlength="40"></label>
         <label><span>Data de entrada do protocolo</span><input id="doc-int-data-protocolo" maxlength="10" placeholder="dd/mm/aaaa"></label>
@@ -57,9 +60,10 @@
         <label><span>Selo já existente · não será emitido pelo AERI</span><input id="doc-int-selo" maxlength="40"></label>
         <label><span>Cláusula contratual citada · copiar do instrumento</span><input id="doc-int-clausula" maxlength="200" placeholder="Número e título da cláusula, após conferir"></label>
       </div>
+      </details>
       <label class="doc-int-confirmacao"><input id="doc-int-modelo-conferido" type="checkbox"> Confirmei no instrumento a cláusula e a aplicabilidade dos trechos do modelo, inclusive financiamento residencial. Os anexos não substituem essa conferência.</label>
       <label class="doc-int-confirmacao"><input id="doc-int-divergencias-conferidas" type="checkbox"> Conferi as fontes e corrigi os campos ausentes ou divergentes, inclusive as duas datas de título/contrato.</label>
-      <button type="button" class="btn btn-primary" id="btn-gerar-tres-documentos">Preparar os três textos para revisão</button>
+      <button type="button" class="btn btn-primary" id="btn-gerar-tres-documentos" hidden>Atualizar os textos após corrigir uma exceção</button>
     </section>
     <section id="documentos-intimacao-previa" class="intimacao-documentos-previa" hidden>
       <h3>Revisão individual</h3>

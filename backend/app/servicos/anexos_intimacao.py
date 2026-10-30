@@ -232,6 +232,13 @@ def analisar_tres_anexos(anexos, referencia, protocolo_in, protocolo_tri7='', pe
     dados['devedores'] = _devedores(textos['oficio'])
     dados['matricula'] = _matricula(textos['oficio']) or _matricula(recibo)
     dados['contrato'] = _dados_contrato(textos['oficio'])
+    registros = set(re.findall(r'Registro(?:\(s\)|s)?\s*:\s*(R[.\s-]*\d+)', textos['oficio'], re.I))
+    dados['registroIndicado'] = next(iter(registros)) if len(registros) == 1 else ''
+    outorga = re.search(r'OUTORGA.{0,800}?Cl[áa]usula\s+([IVXLCDM]+|\d+)\b', textos['oficio'], re.I|re.S)
+    dados['clausula'] = f'Cláusula {outorga[1]}' if outorga else ''
+    dados_imovel = re.search(r'Dados do Im[oó]vel\s+Endere[cç]o\s*:\s*(.*?)(?=\s*Matr[ií]cula\s*:)', textos['oficio'], re.I|re.S)
+    if not dados['enderecoImovel'] and dados_imovel and len(dados_imovel[1]) < 1500:
+        dados['enderecoImovel'] = re.sub(r'\s+', ' ', dados_imovel[1]).strip()
     if protocolo_divergente:
         fontes_protocolo = {'recibo': protocolo, 'cadastroAeri': str(protocolo_tri7)}
         dados['inconsistencias'].append(dict(campo='protocoloTri7', fontes=fontes_protocolo))
