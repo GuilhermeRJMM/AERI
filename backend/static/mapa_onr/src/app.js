@@ -69,6 +69,93 @@
 
   const X = global.ONR_EXTRATOR;
 
+  const normalizaQualificacao = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g,' ').trim();
+  const literalQualificacao = (s) => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+
+  // Histórico cronológico da qualificação, separado de titularidade e de papéis.
+  // Um CPF compartilhado pelo casal não permite trocar o nome de uma pessoa.
+  function qualificarPartesDoAto(texto, rotulo, historico) {
+    const t = String(texto || '').replace(/\s+/g,' '), nt = normalizaQualificacao(t);
+    const data = (X.extraiDataAto(texto) || {}).valor;
+    const anteriores = [...historico.values()];
+    const pessoas = X.extraiPessoas(texto).map(p => ({...p}));
+    for (const p of pessoas) {
+      const nome = normalizaQualificacao(p.nome_completo);
+      const pos = nome ? nt.indexOf(nome) : -1;
+      let ecExplicito = null;
+      let rompeRegimeAnterior = false;
+      if (pos >= 0 && !p.conjuge) {
+        // Qualificação entre o próprio nome e seu documento, não a esposa do vizinho.
+        const seguinte=pessoas.map(q=>normalizaQualificacao(q.nome_completo)).filter(n=>n && n!==nome)
+          .map(n=>nt.indexOf(n,pos+nome.length)).filter(i=>i>pos).sort((a,b)=>a-b)[0];
+        const propria = t.slice(pos,seguinte || pos+900)
+          .split(/\b(?:por compra feita [aà]|(?:Credor(?:a|es)?|Avalistas?|Intervenientes? Garantes?|Devedor(?:es)?|Emitentes?|T[ií]tulo|Objeto|Valor)\s*:)/i)[0];
+        rompeRegimeAnterior=/\b(?:novo casamento|novas nupcias|segundas nupcias|alteracao (?:do |de )?regime|mudanca (?:do |de )?regime)\b/.test(normalizaQualificacao(propria));
+        const ec = X._internos.estadoCivilDe(propria);
+        if (ec.estado_civil != null && ec.estado_civil !== 7) {
+          ecExplicito = ec.estado_civil;
+          p.estado_civil = ec.estado_civil;
+          p.evidencia_estado_civil = ec.trecho;
+          const rb = X._internos.regimeBensDe(propria, data);
+          p.regime_bens = rb.regime_bens;
+          p.regime_presumido = !!rb.presumido;p.regime_ambiguo = !!rb.ambiguo;p.evidencia_regime = rb.trecho;
+        }
+      }
+      const candidatos = anteriores.filter(h=>h.cpf_cnpj===p.cpf_cnpj && (!nome || normalizaQualificacao(h.nome_completo)===nome));
+      const h = candidatos.length===1 ? candidatos[0] : null;
+      if(h){
+        const herdados=[];
+        if(!p.nome_completo){p.nome_completo=h.nome_completo;herdados.push('nome');}
+        if(p.estado_civil==null){p.estado_civil=h.estado_civil;herdados.push('estado civil');}
+        if(!rompeRegimeAnterior && (p.estado_civil===2 || p.estado_civil===6 || p.estado_civil==null) && (p.regime_bens==null || p.regime_presumido && !h.regime_presumido) && h.regime_bens!=null){
+          p.regime_bens=h.regime_bens;p.regime_presumido=!!h.regime_presumido;p.regime_ambiguo=!!h.regime_ambiguo;p.evidencia_regime=h.evidencia_regime;herdados.push('regime de bens');
+        }
+        if(herdados.length)p.herdado=herdados.join(' e ')+' do ato '+h.ato_qualificacao;
+      }
+      if(ecExplicito===1 || ecExplicito===3 || ecExplicito===4 || ecExplicito===5){p.regime_bens=null;p.regime_presumido=false;p.regime_ambiguo=false;}
+    }
+    // Só recuperar partes mencionadas em seção própria e expressamente remetidas
+    // à qualificação anterior. Não importar proprietários só por aparecerem no texto.
+    const secoes=/(Devedor(?:es)?|Emitentes?|Intervenientes? Garantes?|Adquirentes?|Transmitentes?)\s*:\s*([\s\S]*?)(?=\b(?:Credor(?:a|es)?|Titulo|Título|Valor|Objeto|Forma de pagamento|Avalistas?|Intervenientes? Garantes?)\s*:|$)/gi;
+    let secao;
+    while((secao=secoes.exec(t))){
+      const bloco=normalizaQualificacao(secao[2]);
+      if(!/\b(?:ja|acima|anteriormente|todos) qualificad[oa]s?\b/.test(bloco))continue;
+      const nomes=new Map();
+      for(const h of anteriores){const n=normalizaQualificacao(h.nome_completo);if(n.split(' ').length<2)continue;if(!nomes.has(n))nomes.set(n,[]);nomes.get(n).push(h);}
+      for(const [nome, registros] of nomes){
+        if(new Set(registros.map(h=>h.cpf_cnpj)).size!==1)continue; // homônimo
+        const ref=new RegExp('(?:^|[^a-z])'+literalQualificacao(nome)+'(?=\\s*(?:[,;]|$|e\\b|ja\\b|todos\\b))');
+        let grafiaDivergente=false;
+        if(!ref.test(bloco)){
+          // Uma única letra repetida no nome do marido só é resolvida com
+          // esposa exata, casamento anterior e um único casal correspondente.
+          const casal=bloco.match(/^([^,;]{4,100}?)\s+e sua (?:mulher|esposa)\s+([^,;]{4,120})(?=,|;|$)/);
+          const umaInsercao=(a,b)=>a.length===b.length+1 && [...a].some((_,i)=>a.slice(0,i)+a.slice(i+1)===b);
+          const possiveis=casal?[...nomes.keys()].filter(n=>umaInsercao(casal[1],n)):[];
+          const esposa=casal && nomes.get(casal[2]);
+          const casalAnterior=registros.some(h=>/\bcasad/.test(h.texto_qualificacao || '') && (h.texto_qualificacao || '').includes(casal?.[2] || '\u0000'));
+          if(!casal || possiveis.length!==1 || possiveis[0]!==nome || !esposa || new Set(esposa.map(h=>h.cpf_cnpj)).size!==1 || !casalAnterior)continue;
+          grafiaDivergente=true;
+        }
+        const h=registros[registros.length-1];
+        if(pessoas.some(p=>normalizaQualificacao(p.nome_completo)===nome && p.cpf_cnpj!==h.cpf_cnpj))continue;
+        if(pessoas.some(p=>p.cpf_cnpj===h.cpf_cnpj && normalizaQualificacao(p.nome_completo)===nome))continue;
+        const transferencia=/adquirente|transmitente/i.test(secao[1]);
+        pessoas.push({...h,condicao_parte:transferencia?(/adquirente/i.test(secao[1])?2:1):null,
+          relacao_juridica:/devedor|emitente/i.test(secao[1])?8:transferencia?(/adquirente/i.test(secao[1])?1:null):18,
+          percentual:null,representante_legal:false,papel:secao[1],
+          herdado:'qualificação do ato '+h.ato_qualificacao+(grafiaDivergente?' (grafia divergente; casal anterior confirmado — confira)':' (mesmo nome, já qualificado)'),evidencia:secao[0]});
+      }
+    }
+    for(const p of pessoas){
+      if(!p.nome_completo || !p.cpf_cnpj || p.representante_legal)continue;
+      const chave=normalizaQualificacao(p.nome_completo)+'|'+p.cpf_cnpj;
+      historico.set(chave,{...p,texto_qualificacao:p.herdado ? (historico.get(chave)?.texto_qualificacao || nt.slice(0,2000)) : nt.slice(0,2000),ato_qualificacao:p.herdado ? (historico.get(chave)?.ato_qualificacao || rotulo) : rotulo});
+    }
+    return pessoas;
+  }
+
   /**
    * Apura o estado vigente do imovel varrendo o documento inteiro em ordem.
    * Regra: para cada campo vale o valor ROTULADO mais recente. Para a area,
@@ -561,10 +648,13 @@
 
     // -------------------------------------------------- ficha de cada ato
     estado.correcoes = [];
+    const historicoQualificacao = new Map();
+    if(doc.preambulo)qualificarPartesDoAto(doc.preambulo,'Abertura',historicoQualificacao);
     for (const a of estado.atos) {
       const e = X.extraiAto(a.texto);
       const pega = (x) => (x ? x.valor : null);
       const rotuloAto = a.ehAbertura ? 'Abertura' : (a.tipo === 1 ? 'R.' : 'AV.') + a.numero;
+      e.pessoas = qualificarPartesDoAto(a.texto,rotuloAto,historicoQualificacao);
       estado.fichasAto[a.numero] = {
         ehAbertura: !!a.ehAbertura,
         numero_ato: a.numero,
@@ -574,6 +664,7 @@
         // matricula.
         data_ato: pega(e.data_ato)
           || (a.ehAbertura ? pega(X.extraiAbertura(a.texto).data_matricula) : null),
+        decisao_jud: null,
         // A abertura e sempre "1: Abertura de matricula", independentemente do
         // que o texto da descricao mencione.
         ato: a.ehAbertura ? 1 : pega(e.ato),
@@ -587,25 +678,17 @@
         // Quem apenas representa a PJ nao e parte: vai para representante legal.
         representantes: e.pessoas.filter((p) => p.representante_legal),
         pessoas: e.pessoas.filter((p) => !p.representante_legal).map((p) => {
-          // Completa com o que outros atos disseram sobre a mesma pessoa.
-          const hist = (vigente.pessoas || {})[p.cpf_cnpj] || {};
-          // Regime declarado em qualquer ato vence o presumido pela lei da epoca:
-          // o casal proprietario e "comunhao universal" pelos R-12/R-32/R-40, mesmo
-          // que o R-15 e o R-26 digam apenas "casados".
-          const herdouRegime = (p.regime_bens == null || p.regime_presumido) && hist.regime_bens != null;
-          const herdouEstado = p.estado_civil == null && hist.estado_civil != null;
+          // Resolvida até este ato: não consultar a qualificação vigente futura.
           return {
           nome_completo: p.nome_completo,
           cpf_cnpj: p.cpf_cnpj,
           condicao_parte: p.condicao_parte,
           relacao_juridica: p.relacao_juridica,
-          estado_civil: herdouEstado ? hist.estado_civil : p.estado_civil,
-          regime_bens: herdouRegime ? hist.regime_bens : p.regime_bens,
-          herdado: (herdouRegime ? 'regime de bens do ato ' + hist.ato_regime : '')
-            + (herdouRegime && herdouEstado ? '; ' : '')
-            + (herdouEstado ? 'estado civil do ato ' + hist.ato_estado_civil : ''),
-          regime_ambiguo: p.regime_ambiguo && !herdouRegime,
-          regime_presumido: p.regime_presumido && !herdouRegime,
+          estado_civil: p.estado_civil,
+          regime_bens: p.regime_bens,
+          herdado: p.herdado || '',
+          regime_ambiguo: p.regime_ambiguo,
+          regime_presumido: p.regime_presumido,
           evidencia_regime: p.evidencia_regime,
           percentual: p.percentual,
           estrangeiro: p.estrangeiro,
@@ -1067,6 +1150,9 @@
       const setSemRender = (k) => (v) => { fa[k] = v; };
       const bloco = el('details', { className: 'ato', open: escolhidos.length <= 3 });
       const motivo = P.motivoEnvio(fa.data_ato);
+      const decisaoJudicial=campoBool(fa.decisao_jud,set('decisao_jud'));
+      decisaoJudicial.setAttribute('aria-label','Decisão Judicial do '+(a.ehAbertura?'ato de abertura':(a.tipo===1?'R.':'AV.')+a.numero));
+      decisaoJudicial.dataset.decisaoJudicialAto=String(a.numero);
       bloco.appendChild(el('summary', {}, [
         el('b', { textContent: a.ehAbertura ? 'Abertura da matricula' : (a.tipo === 1 ? 'R.' : 'AV.') + a.numero }),
         ' - ' + (fa.data_ato || 'sem data') + ' - motivo_envio '
@@ -1077,6 +1163,8 @@
         linha('tipo_ato', selectEnum('tipo_ato', fa.tipo_ato, setSemRender('tipo_ato'), false)),
         linha('numero_ato', campoTexto(fa.numero_ato, setSemRender('numero_ato'))),
         linha('data_ato', campoTexto(fa.data_ato, set('data_ato'), 'DD/MM/AAAA'), prova(fa, 'data_ato')),
+        linha('Decisão Judicial', decisaoJudicial,
+          'Por ato. Marque Sim somente após conferir a origem judicial. Exportação deste campo exige a versão 1.3.0; não preenche a decisão na Tri7.'),
         linha('ato', selectEnum('ato', fa.ato, set('ato')), prova(fa, 'ato')),
         linha('alteracao_titularidade', selectEnum('alteracao_titularidade', fa.alteracao_titularidade, setSemRender('alteracao_titularidade')),
           prova(fa, 'alteracao_titularidade')),
@@ -1224,7 +1312,7 @@
   }
 
   function pendenciasDeConferencia(r) {
-    return r.relatorio.flatMap((item, indiceAto) => item.pendencias.map((p) => {
+    return r.relatorio.flatMap((item, indiceAto) => item.pendencias.filter(p=>p.campo!=='decisao_jud').map((p) => {
       const pessoa = String(p.campo).match(/^dados_pessoa\[(\d+)\]/);
       const partes = (r.arquivo.imoveis[indiceAto] || {}).dados_pessoa || [];
       const nome = pessoa && partes[Number(pessoa[1])];
@@ -1297,6 +1385,7 @@
         numero_ato: fa.numero_ato,
         ato: fa.ato,
         data_ato: fa.data_ato,
+        decisao_jud: fa.decisao_jud,
         alteracao_titularidade: fa.alteracao_titularidade,
         alteracao_imovel: fa.alteracao_imovel,
         valor_transacao: fa.valor_transacao,

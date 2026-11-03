@@ -581,7 +581,7 @@
       }
     }
 
-    if (f.decisao_jud === true) imovel.decisao_jud = true;
+    if (typeof f.decisao_jud === 'boolean') imovel.decisao_jud = f.decisao_jud;
 
     // As pendencias sao avaliadas ANTES da limpeza, sobre a intencao declarada.
     // CNM com digito verificador errado: o schema so confere o formato.
@@ -598,6 +598,9 @@
       .concat(validaEnums(imovel, { tipo: opt.tipo }))
       .filter((p) => !(camposComDiagnostico.has(p.campo) && /^obrigatorio/.test(p.motivo)))
       .concat(pendenciasDoc);
+    if(f.decisao_jud===true && opt.versao===VERSAO_SCHEMA_PUBLICADO){
+      pendencias.push({campo:'decisao_jud',motivo:'Decisão Judicial = Sim exige versão 1.3.0; a versão 1.2.0 não admite esse campo. Não exportar ignorando a decisão.'});
+    }
 
     let saida = limpaObjeto(imovel) || {};
 
