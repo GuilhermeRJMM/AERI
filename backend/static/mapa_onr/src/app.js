@@ -72,6 +72,49 @@
   const normalizaQualificacao = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g,' ').trim();
   const literalQualificacao = (s) => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 
+  function decisaoJudicialDoTexto(texto) {
+    const original=String(texto || '').normalize('NFC').replace(/([a-zà-ÿ])-\s*\n\s*([a-zà-ÿ])/gi,'$1$2').replace(/\s+/g,' ').trim();
+    const t=normalizaQualificacao(original);
+    const achados=[];
+    function coletar(re,valor,peso){
+      for(const m of t.matchAll(new RegExp(re.source,'g'))){
+        const inicio=Math.max(t.lastIndexOf(';',m.index),t.lastIndexOf('. ',m.index),t.lastIndexOf('ato atual:',m.index))+1;
+        const antes=t.slice(Math.max(inicio,m.index-180),m.index),depois=t.slice(m.index+m[0].length).split(/[.;]/)[0].slice(0,110);
+        const historico=/\b(?:historico|historica|ato anterior|titulo anterior|registro anterior|referencia historica|mera mencao|simples referencia|apenas menciona)\b/.test(antes)
+          || /\b(?:referencia (?:ao|a)|consta no|menciona o|cita o) (?:r|av)\./.test(antes)
+          || /\b(?:no|do|ao|referente ao) (?:ato|registro|titulo) anterior\b/.test(depois);
+        const negado=/\bnao(?:\s+[a-z]+){0,6}\s*$/.test(antes)
+          || /\b(?:revogad[oa]|cancelad[oa]|indeferid[oa]|sem efeito)\b/.test(antes.slice(-60))
+          || /\b(?:nao (?:foi )?(?:expedid[oa]|emitid[oa]|julgad[oa]|homologad[oa])|revogad[oa]|cancelad[oa]|sem efeito)\b/.test(m[0])
+          || /^\s*(?:[,:(]\s*)?(?:revogad[oa]|cancelad[oa]|tornad[oa] sem efeito|sem efeito|indeferid[oa])\b/.test(depois);
+        if(historico || negado || /\b(?:ato anterior|titulo anterior|registro anterior|referencia historica)\b/.test(m[0]))continue;
+        achados.push({valor,peso,inicio:m.index,trecho:original.slice(m.index,m.index+m[0].length)});
+        if(achados.length>=40)break;
+      }
+    }
+    coletar(/\bdecisao judicial\s*[:=—-]\s*sim\b/,true,3);
+    coletar(/\bdecisao judicial\s*[:=—-]\s*nao(?: se aplica)?(?=\s*(?:[.;,]|$))/,false,3);
+    coletar(/\borigem(?: do ato| do titulo| atual)?\s*[:=—-]\s*judicial\b/,true,3);
+    coletar(/\borigem(?: do ato| do titulo| atual)?\s*[:=—-]\s*extrajudicial\b/,false,3);
+    coletar(/\b(?:em cumprimento|por forca|em obediencia|nos termos|em atendimento|em virtude|em razao|conforme) (?:a |ao |de |da |do |o )?(?:uma |um )?(?:decisao judicial|ordem judicial|sentenca(?: judicial)?|mandado judicial)\b/,true,2);
+    coletar(/\b(?:por ordem|por determinacao|em cumprimento a determinacao) d[oa] (?:mm\.?\s*)?(?:juiz[ao]?|juizo|vara|tribunal)\b/,true,2);
+    coletar(/\b(?:mandado|carta de sentenca|formal de partilha|carta de adjudicacao|carta de arrematacao)\b.{0,800}?\b(?:expedid[oa]|extraid[oa]|emitid[oa])\b.{0,250}?\b(?:juiz|juizo|vara|tribunal|autos)\b/,true,2);
+    coletar(/\b(?:formal de partilha|carta de sentenca|carta de adjudicacao|carta de arrematacao)\b.{0,800}?\b(?:julgad[oa]|homologad[oa]) por sentenca\b/,true,2);
+    coletar(/\b(?:titulo|documento)\s*:\s*(?:sentenca judicial|decisao judicial|mandado judicial|carta de sentenca|carta de arrematacao judicial)\b/,true,2);
+    coletar(/\b(?:pela |por |na )?via extrajudicial\b/,false,2);
+    coletar(/\bsem (?:necessidade de )?decisao judicial\b/,false,2);
+    coletar(/\bescritura (?:publica )?de (?:inventario|partilha|divorcio|separacao|compra e venda|doacao|permuta|cessao)\b/,false,1);
+    coletar(/\binstrumento particular de (?:compra e venda|cessao|alienacao fiduciaria|financiamento)\b/,false,1);
+    const sim=achados.filter(a=>a.valor).sort((a,b)=>b.peso-a.peso || a.inicio-b.inicio)[0];
+    const nao=achados.filter(a=>!a.valor).sort((a,b)=>b.peso-a.peso || a.inicio-b.inicio)[0];
+    let valor=null,conclusao='NAO_DECLARADO',rotulo='NÃO COMPROVADO — este ato não declara a base judicial ou extrajudicial; conferir o título de origem.';
+    let provas=[];
+    if(sim && nao && nao.peso>=2){conclusao='CONTRADICAO';rotulo='REVISÃO OBRIGATÓRIA — o mesmo ato contém bases judicial e extrajudicial incompatíveis.';provas=[sim,nao];}
+    else if(sim){valor=true;conclusao='JUDICIAL';rotulo='SIM — base judicial identificada no texto deste ato.';provas=[sim];}
+    else if(nao){valor=false;conclusao='EXTRAJUDICIAL';rotulo='NÃO — base extrajudicial ou negativa expressa identificada no texto deste ato.';provas=[nao];}
+    return {valor,conclusao,rotulo,trecho:provas.map(p=>p.trecho).join(' | '),evidencias:provas.map(p=>({trecho:p.trecho,valor:p.valor}))};
+  }
+
   // Histórico cronológico da qualificação, separado de titularidade e de papéis.
   // Um CPF compartilhado pelo casal não permite trocar o nome de uma pessoa.
   function qualificarPartesDoAto(texto, rotulo, historico) {
@@ -652,6 +695,7 @@
     if(doc.preambulo)qualificarPartesDoAto(doc.preambulo,'Abertura',historicoQualificacao);
     for (const a of estado.atos) {
       const e = X.extraiAto(a.texto);
+      e.decisao_jud = decisaoJudicialDoTexto(a.texto);
       const pega = (x) => (x ? x.valor : null);
       const rotuloAto = a.ehAbertura ? 'Abertura' : (a.tipo === 1 ? 'R.' : 'AV.') + a.numero;
       e.pessoas = qualificarPartesDoAto(a.texto,rotuloAto,historicoQualificacao);
@@ -664,7 +708,7 @@
         // matricula.
         data_ato: pega(e.data_ato)
           || (a.ehAbertura ? pega(X.extraiAbertura(a.texto).data_matricula) : null),
-        decisao_jud: null,
+        decisao_jud: pega(e.decisao_jud),
         // A abertura e sempre "1: Abertura de matricula", independentemente do
         // que o texto da descricao mencione.
         ato: a.ehAbertura ? 1 : pega(e.ato),
@@ -1151,8 +1195,16 @@
       const bloco = el('details', { className: 'ato', open: escolhidos.length <= 3 });
       const motivo = P.motivoEnvio(fa.data_ato);
       const decisaoJudicial=campoBool(fa.decisao_jud,set('decisao_jud'));
+      decisaoJudicial.options[0].textContent=fa.evidencias.decisao_jud?.conclusao==='CONTRADICAO'?'Revisão: bases incompatíveis':'Não declarado no ato';
       decisaoJudicial.setAttribute('aria-label','Decisão Judicial do '+(a.ehAbertura?'ato de abertura':(a.tipo===1?'R.':'AV.')+a.numero));
       decisaoJudicial.dataset.decisaoJudicialAto=String(a.numero);
+      const campoDecisao=linha('Decisão Judicial',decisaoJudicial,
+        (fa.evidencias.decisao_jud ? prova(fa,'decisao_jud')+' · ' : 'NÃO COMPROVADO — conferir o título de origem. ')
+        +'Análise do texto; seleção manual prevalece. Sim exige versão 1.3.0; não altera a Tri7.');
+      campoDecisao.dataset.conclusaoDecisao=fa.evidencias.decisao_jud?.conclusao || 'NAO_DECLARADO';
+      const explicacaoDecisao=campoDecisao.querySelector('small');
+      explicacaoDecisao.title=explicacaoDecisao.textContent;
+      Object.assign(explicacaoDecisao.style,{whiteSpace:'normal',overflow:'visible',textOverflow:'clip',maxHeight:'none'});
       bloco.appendChild(el('summary', {}, [
         el('b', { textContent: a.ehAbertura ? 'Abertura da matricula' : (a.tipo === 1 ? 'R.' : 'AV.') + a.numero }),
         ' - ' + (fa.data_ato || 'sem data') + ' - motivo_envio '
@@ -1163,8 +1215,7 @@
         linha('tipo_ato', selectEnum('tipo_ato', fa.tipo_ato, setSemRender('tipo_ato'), false)),
         linha('numero_ato', campoTexto(fa.numero_ato, setSemRender('numero_ato'))),
         linha('data_ato', campoTexto(fa.data_ato, set('data_ato'), 'DD/MM/AAAA'), prova(fa, 'data_ato')),
-        linha('Decisão Judicial', decisaoJudicial,
-          'Por ato. Marque Sim somente após conferir a origem judicial. Exportação deste campo exige a versão 1.3.0; não preenche a decisão na Tri7.'),
+        campoDecisao,
         linha('ato', selectEnum('ato', fa.ato, set('ato')), prova(fa, 'ato')),
         linha('alteracao_titularidade', selectEnum('alteracao_titularidade', fa.alteracao_titularidade, setSemRender('alteracao_titularidade')),
           prova(fa, 'alteracao_titularidade')),

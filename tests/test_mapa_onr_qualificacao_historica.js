@@ -6,7 +6,7 @@ function carregar(blocos){
  const texto=blocos.join('\n----------------------------------------------------------------------------\n');
  const c=vm.createContext({document:{querySelector:s=>({value:({'#texto':texto,'#tipo-imovel':'rural','#cns':'026187','#municipio':'Morrinhos'})[s]||''})}});
  for(const m of ['documento','enums','parser','extrator','builder','validator'])vm.runInContext(fs.readFileSync(path.join(raiz,m+'.js'),'utf8'),c);
- vm.runInContext(fs.readFileSync(path.join(raiz,'app.js'),'utf8').replace("document.addEventListener('DOMContentLoaded', iniciar);",'render=function(){};global.teste={lerMatricula,estado,qualificarPartesDoAto,pendenciasDeConferencia};'),c);
+ vm.runInContext(fs.readFileSync(path.join(raiz,'app.js'),'utf8').replace("document.addEventListener('DOMContentLoaded', iniciar);",'render=function(){};global.teste={lerMatricula,estado,qualificarPartesDoAto,pendenciasDeConferencia,decisaoJudicialDoTexto};'),c);
  c.teste.lerMatricula();return c;
 }
 const primeiro='R.01-1234 - Morrinhos, 01 de janeiro de 2020. Devedor: Carlos Teste da Silva, portador do CPF nº 111.444.777-35, brasileiro, casado sob o regime da comunhão universal de bens com Maria Teste Ribeiro. Credor: BANCO EXEMPLO.';
@@ -18,6 +18,27 @@ test('recupera casal já qualificado, sem atribuir seu casamento ao solteiro',()
  assert.equal(ps.length,3);
  for(const nome of ['Carlos Teste da Silva','Maria Teste Ribeiro']){const p=ps.find(p=>p.nome_completo===nome);assert.equal(p.regime_bens,2);assert.equal(p.estado_civil,2);assert.match(p.herdado,/qualificação do ato R\.0[12]/);assert.equal(p.relacao_juridica,8);}
  const p=ps.find(p=>p.nome_completo==='Pedro Teste de Souza');assert.equal(p.estado_civil,1);assert.equal(p.regime_bens,null);
+});
+test('decisão judicial detectada somente por indicação expressa e com evidência',()=>{
+ const c=carregar([]),detectar=c.teste.decisaoJudicialDoTexto;
+ for(const t of ['Em cumprimento ao mandado judicial, procede-se à averbação.',
+   'Nos termos da sentença judicial, procede-se ao registro.',
+   'Formal de Partilha extraído dos autos do inventário, julgado por sentença.',
+   'Mandado expedido pelo Juízo da Vara Cível.',
+   'Carta de arrematação emitida pela Vara Cível.',
+   'Decisão Judicial: Sim. Averbação.', 'Origem: Judicial. Registro.']){
+   const r=detectar(t);assert.equal(r?.valor,true,t);assert(r.trecho && r.rotulo);
+ }
+ for(const t of ['Origem: Extrajudicial.','Procedimento pela via extrajudicial.',
+   'Escritura pública de inventário e partilha.','Decisão Judicial: Não.','Sem necessidade de decisão judicial.'])assert.equal(detectar(t)?.valor,false,t);
+ for(const t of ['INVENTÁRIO. Averbação de óbito.','Processo nº 123. Referência ao Juízo.',
+   'Nos termos do contrato, procede-se ao registro.',
+   'Mera menção: em cumprimento ao mandado judicial no ato anterior.',
+   'Não foi realizado em cumprimento ao mandado judicial.',
+   'Decisão Judicial: Sim. Origem: Extrajudicial.'])assert.equal(detectar(t)?.valor ?? null,null,t);
+ const atos=carregar(['R.01-1234 - Morrinhos, 01 de janeiro de 2020. Em cumprimento ao mandado judicial, registro.',
+   'AV.02-1234 - Morrinhos, 02 de janeiro de 2020. Atualização cadastral.']);
+ assert.equal(ficha(atos,'01').decisao_jud,true);assert.equal(ficha(atos,'02').decisao_jud,null,'não herdar decisão de outro ato');
 });
 test('retoma qualificação acima qualificada e corrige uma letra só com casal anterior confirmado',()=>{
  const c=carregar([primeiro,esposa,referencia.replace('Carlos Teste','Carllos Teste').replace('já qualificados','acima qualificados')]);
