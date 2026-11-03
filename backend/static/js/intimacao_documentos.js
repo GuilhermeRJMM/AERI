@@ -234,6 +234,24 @@ export function sanitizarHtml(html) {
     const saida=document.createElement('div');for(const n of t.content.childNodes)saida.append(limpar(n));return saida.innerHTML;
 }
 function trocarAba(tipo){for(const t of Object.keys(ROTULOS)){el(`doc-int-painel-${t}`).hidden=t!==tipo;el(`doc-int-aba-${t}`).setAttribute('aria-selected',String(t===tipo));}}
+function montarFolhasOficio(){
+    const original=el('doc-int-texto-oficio'),raiz=original.firstElementChild;
+    const paginas=[...raiz.querySelectorAll(':scope > section')];
+    if(paginas.length!==3)return;
+    // Fonte canônica fica fora dos controles: cabeçalhos e botões nunca são copiados.
+    original.hidden=true;original.contentEditable='false';original.removeAttribute('role');original.removeAttribute('aria-multiline');
+    const folhas=document.createElement('div');folhas.className='doc-int-folhas';
+    const nomes=['Ofício · até a assinatura','Contrafé e Certidão','Devolução, endereços e Observações'];
+    folhas.innerHTML='<p class="doc-int-limite">Edite cada folha abaixo. Depois revise o documento completo para liberar as cópias. Uma alteração em qualquer página exige nova revisão das três.</p>';
+    paginas.forEach((pagina,i)=>{
+        const folha=document.createElement('section');folha.className='doc-int-folha';
+        folha.innerHTML=`<header class="doc-int-folha-cabecalho"><div><span>PÁGINA ${i+1} DE 3</span><h4 id="doc-int-folha-titulo-${i+1}">${nomes[i]}</h4></div><button type="button" class="btn btn-primary" data-copiar-pagina="${i+1}" disabled>Copiar página ${i+1}</button></header><div class="doc-int-folha-area"><article class="doc-int-papel doc-int-pagina-editor" id="doc-int-folha-editor-${i+1}" data-editar-pagina="${i+1}" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="doc-int-folha-titulo-${i+1}"></article></div>`;
+        const editor=folha.querySelector('[data-editar-pagina]');
+        editor.style.cssText=raiz.style.cssText;editor.innerHTML=pagina.innerHTML;
+        folhas.append(folha);
+    });
+    original.after(folhas);
+}
 export function validarPaginacaoOficio(html){
     const medidor=document.createElement('div');medidor.style.cssText='position:fixed;left:-20000px;top:0;width:165mm;visibility:hidden;pointer-events:none';
     medidor.innerHTML=sanitizarHtml(html);document.body.append(medidor);
@@ -251,9 +269,10 @@ function gerar() {
         const previa={...d,credorEncerramento:d.credorEncerramento || d.credor};for(const k of Object.keys(previa))if(typeof previa[k]==='string' && !previa[k])previa[k]=`[PENDENTE: ${k}]`;
         if(!previa.pessoas.length)previa.pessoas=[{nome:'[DEVEDOR A CONFERIR]',cpf:''}];
         previa.alvo=previa.alvo || previa.pessoas[0];if(!previa.enderecos.length)previa.enderecos=['[ENDEREÇO PARA NOTIFICAÇÃO PENDENTE]'];
-        const paginas=t==='oficio'?'<p class="doc-int-limite">3 páginas: 1 · Ofício até a assinatura; 2 · Contrafé e Certidão completa; 3 · devolução, endereços de Morrinhos e Observações. Corpo em Arial 10. Confirme as quebras na Tri7.</p><details><summary>Se a Tri7 remover as quebras, copiar uma página por vez</summary>'+[1,2,3].map(p=>`<button type="button" class="rotina-btn-secondary" data-copiar-pagina="${p}" disabled>Copiar página ${p}/3</button>`).join('')+'</details>':'';
+        const paginas=t==='oficio'?'<p class="doc-int-limite">Três folhas separadas · Arial 10. Os cabeçalhos da prévia não entram na cópia. Cole uma página por vez na Tri7 e confira a posição antes de salvar.</p>':'';
         return `<section id="doc-int-painel-${t}" role="tabpanel" aria-labelledby="doc-int-aba-${t}" hidden>${faltas.length?`<p class="doc-int-divergencias">Rascunho incompleto · ${faltas.map(esc).join(', ')}. Cópia bloqueada; corrija as exceções.</p>`:''}<p class="doc-int-limite">Fontes: ${leitura.fontes.map(f=>esc(f.nome)).join(' · ')}${leitura.consultaAutomatica?.garantiaConfirmada?' · matrícula/garantia conferida na Tri7':''}</p><article class="doc-int-papel" id="doc-int-texto-${t}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto de ${n}">${GERADORES[t](previa)}</article><div class="doc-int-revisao-acoes"><label class="doc-int-confirmacao"><input type="checkbox" data-aprovar-documento="${t}" ${faltas.length?'disabled':''}> Revisei integralmente esta versão de ${n} e conferi a numeração na Tri7.</label><button type="button" class="btn btn-primary" data-copiar-documento="${t}" disabled>Copiar ${n}</button><button type="button" class="rotina-btn-secondary" data-copiar-simples="${t}" disabled>Copiar texto simples</button></div>${paginas}<p id="doc-int-revisao-${t}" role="status">${faltas.length?'Há campos pendentes.':'Revisão pendente.'}</p></section>`;
     }).join('');
+    montarFolhasOficio();
     el('documentos-intimacao-previa').hidden=false;trocarAba('autuacao');
     el('btn-gerar-tres-documentos').hidden=true;
     const completos=[...rascunhos.values()].filter(r=>!r.faltas.length).length;
@@ -282,8 +301,8 @@ async function copiar(tipo,simples=false,pagina=null){
     const v=geracao;
     try{
         if(tipo==='oficio' && !validarPaginacaoOficio(artigo.innerHTML).ok)throw Error('O conteúdo não cabe nas três páginas. Revise sem cortar texto.');
-        let conteudo=artigo.innerHTML,texto=artigo.innerText;
-        if(pagina){const copia=document.createElement('div');copia.innerHTML=sanitizarHtml(conteudo);const parte=copia.querySelectorAll('section')[pagina-1],root=copia.firstElementChild;if(!parte)throw Error('Página não localizada. Gere os textos novamente.');conteudo=`<div style="${esc(root.getAttribute('style'))}">${parte.innerHTML}</div>`;texto=artigo.querySelectorAll('section')[pagina-1].innerText;}
+        let conteudo=artigo.innerHTML,texto=tipo==='oficio'?[...el('doc-int-painel-oficio').querySelectorAll('[data-editar-pagina]')].map(p=>p.innerText).join('\n\n'):artigo.innerText;
+        if(pagina){const copia=document.createElement('div');copia.innerHTML=sanitizarHtml(conteudo);const parte=copia.firstElementChild?.querySelectorAll(':scope > section')[pagina-1],root=copia.firstElementChild;if(!parte)throw Error('Página não localizada. Gere os textos novamente.');conteudo=`<div style="${esc(root.getAttribute('style'))}">${parte.innerHTML}</div>`;texto=el(`doc-int-folha-editor-${pagina}`).innerText;}
         if(simples){if(!navigator.clipboard?.writeText)throw Error('Área de transferência indisponível neste navegador.');await navigator.clipboard.writeText(texto);}
         else{
             if(!navigator.clipboard?.write || !globalThis.ClipboardItem)throw Error('Cópia formatada indisponível. Use o botão explícito de texto simples e ajuste a formatação na Tri7.');
@@ -337,7 +356,11 @@ export function iniciarDocumentosIntimacao(_abrirRtdComPares){
     el('documentos-intimacao-editor').addEventListener('change',e=>{if(e.target.matches('select'))invalidar();});
     el('documentos-intimacao-abas').addEventListener('click',e=>{const t=e.target.closest('[data-aba-documento]')?.dataset.abaDocumento;if(t)trocarAba(t);});
     const previa=el('documentos-intimacao-previa-conteudo');
-    previa.addEventListener('input',e=>{const artigo=e.target.closest('.doc-int-papel');if(artigo)bloquear(artigo.id.replace('doc-int-texto-',''));});
+    previa.addEventListener('input',e=>{
+        const pagina=e.target.closest('[data-editar-pagina]');
+        if(pagina){const original=el('doc-int-texto-oficio').firstElementChild.querySelectorAll(':scope > section')[+pagina.dataset.editarPagina-1];original.innerHTML=pagina.innerHTML;bloquear('oficio');return;}
+        const artigo=e.target.closest('.doc-int-papel');if(artigo)bloquear(artigo.id.replace('doc-int-texto-',''));
+    });
     previa.addEventListener('paste',e=>{if(!e.target.closest('.doc-int-papel'))return;e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'));});
     previa.addEventListener('drop',e=>e.preventDefault());
     previa.addEventListener('change',e=>{const t=e.target.dataset.aprovarDocumento;if(t)aprovar(t,e.target);});

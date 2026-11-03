@@ -25,4 +25,13 @@
 #modal-documentos-intimacao .doc-int-revisao-acoes { display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 0; }
 #modal-documentos-intimacao .doc-int-limite { font-size:.8rem;color:#445b70;line-height:1.55; }
 #modal-documentos-intimacao .doc-int-rede { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px; }
+#modal-documentos-intimacao .doc-int-folhas { display:grid;gap:24px; }
+#modal-documentos-intimacao .doc-int-folha { border:1px solid #b7cbd8;border-radius:12px;background:#fff;overflow:hidden; }
+#modal-documentos-intimacao .doc-int-folha-cabecalho { display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;background:#fff;border-bottom:2px solid #0a805c; }
+#modal-documentos-intimacao .doc-int-folha-cabecalho span { color:#087353;font-size:.7rem;letter-spacing:.08em;font-weight:750; }
+#modal-documentos-intimacao .doc-int-folha-cabecalho h4 { margin:4px 0 0;color:#102c49;font-size:1rem; }
+#modal-documentos-intimacao .doc-int-folha-area { overflow-x:auto;padding:24px;background:#fff; }
+#modal-documentos-intimacao .doc-int-pagina-editor { box-sizing:content-box;min-width:165mm;min-height:225mm;max-height:none;overflow:visible;padding:16mm 12mm;border:1px solid #c2d2de;border-radius:0;box-shadow:0 5px 18px #102c4910; }
+#modal-documentos-intimacao .doc-int-pagina-editor p { font-family:inherit; }
+@media(max-width:760px) { #modal-documentos-intimacao .doc-int-folha-cabecalho {align-items:flex-start;padding:12px;flex-wrap:wrap;} #modal-documentos-intimacao .doc-int-folha-area {padding:12px;} #modal-documentos-intimacao .doc-int-pagina-editor {padding:12mm;} }
 @media(max-width:760px) { #modal-documentos-intimacao .doc-int-anexos,#modal-documentos-intimacao .doc-int-rede { grid-template-columns:1fr; } #modal-documentos-intimacao .doc-int-papel {padding:14px;} }
