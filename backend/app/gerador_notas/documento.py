@@ -27,8 +27,12 @@ ENTRELINHAS_FUNDAMENTO = 240        # 1,0
 ESPACO_ANTES = 100                  # 5 pt
 
 FORMATO = {
-    "resumo_titulo": dict(tam=24, ind="", linha=280, antes=0, alinhamento="left", quebra=True, manter=True),
-    "resumo_item": dict(tam=ARIAL_10, ind="", linha=280, antes=180, alinhamento="left", manter=True),
+    "resumo_titulo": dict(tam=24, ind="", linha=280, antes=0, depois=300, alinhamento="center", quebra=True, manter=True),
+    "resumo_meta": dict(tam=ARIAL_10, ind="", linha=240, antes=0, depois=100, alinhamento="left"),
+    "resumo_item": dict(tam=ARIAL_10, ind="", linha=280, antes=240, alinhamento="left", manter=True),
+    "resumo_recuado": dict(tam=ARIAL_10, ind='<w:ind w:left="850"/>', linha=240, antes=280, depois=100),
+    "resumo_detalhe_inicio": dict(tam=ARIAL_10, ind='<w:ind w:left="850"/>', linha=240, antes=240, manter=True),
+    "resumo_detalhe": dict(tam=ARIAL_10, ind='<w:ind w:left="850"/>', linha=240, antes=0, manter=True),
     "resumo_texto": dict(tam=ARIAL_10, ind="", linha=280, antes=0, alinhamento="left", depois=100),
     "corpo":       dict(tam=ARIAL_10, ind=f'<w:ind w:firstLine="{RECUO_1A_LINHA}"/>',
                         linha=ENTRELINHAS_CORPO, antes=0),

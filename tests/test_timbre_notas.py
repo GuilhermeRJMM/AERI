@@ -32,7 +32,7 @@ def test_nota_e_resumo_preservam_timbre_a4_e_relacoes_validas():
         assert secao.find('w:footerReference',ns) is not None
         assert secao.find('w:pgSz',ns).get('{'+ns['w']+'}w') == '11907'
         assert secao.find('w:titlePg',ns) is None
-        assert 'Resumo para o cliente' in z.read('word/document.xml').decode()
+        assert '>RESUMO<' in z.read('word/document.xml').decode()
         for nome in z.namelist():
             if not nome.endswith('.rels'):
                 continue

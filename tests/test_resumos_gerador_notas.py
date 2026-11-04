@@ -57,7 +57,7 @@ def test_cada_item_nas_quatro_especies_tem_nota_e_resumo_no_mesmo_docx(e, especi
     with ZipFile(BytesIO(conteudo)) as z:
         raiz = ET.fromstring(z.read('word/document.xml'))
     ps = raiz.findall('w:body/w:p', NS)
-    pos = next(i for i,p in enumerate(ps) if paragrafo_texto(p) == 'Resumo para o cliente')
+    pos = next(i for i,p in enumerate(ps) if paragrafo_texto(p) == 'RESUMO')
     assert ps[pos].find('w:pPr/w:pageBreakBefore', NS) is not None
     # Todo o prefixo XML da nota formal permanece exatamente como antes.
     itens = [Item(e['id'], dados['itens'][0]['valores'])]
@@ -66,7 +66,7 @@ def test_cada_item_nas_quatro_especies_tem_nota_e_resumo_no_mesmo_docx(e, especi
         originais = ET.fromstring(z.read('word/document.xml')).findall('w:body/w:p', NS)
     assert [ET.tostring(p) for p in ps[:pos]] == [ET.tostring(p) for p in originais]
     texto = '\n'.join(paragrafo_texto(p) for p in ps[pos:])
-    assert 'Item 1 da nota' in texto and '186.999' in texto and resumo['vinculo'] in texto
+    assert 'ITEM 1 - ' in texto and '186.999' in texto and resumo['vinculo'] in texto
 
 
 def test_ordem_mesmos_dados_e_atualizacao_do_resumo():
@@ -139,7 +139,7 @@ def test_endpoint_entrega_par_conjunto_e_audita_sem_textos_pessoais():
     assert resultado['resumo_incluido'] is True
     assert len(resultado['resumo']['itens']) == 1
     with ZipFile(BytesIO(base64.b64decode(resultado['conteudo']))) as z:
-        assert 'Resumo para o cliente' in z.read('word/document.xml').decode()
+        assert '>RESUMO<' in z.read('word/document.xml').decode()
     detalhes = auditoria.call_args.args[-1]
     assert detalhes == {'especie':'devolutiva','quantidade_exigencias':1,'resumo_incluido':True,'versao_resumo':catalogo_resumos()['versao']}
 
@@ -156,3 +156,40 @@ def test_rotas_continuam_exigindo_sessao_e_csrf(rota):
     with TestClient(app) as client:
         r = client.post('/api/gerador-notas' + rota, json=dados_para(EXIGENCIAS[0]))
     assert r.status_code in (401,403)
+
+
+def test_layout_resumo_centralizado_rotulos_destacados_e_detalhes_separados():
+    e = next(e for e in EXIGENCIAS if e['id'] == 'art-area-nao-corresponde')
+    dados = dados_para(e)
+    dados['itens'][0]['valores'] = {'area_art':'94,2547 ha','area_memorial':'60,4500 ha','area_matricula':'94,5000 ha'}
+    r = previa(dados)
+    item = r['resumo']['itens'][0]
+    assert item['detalhes'] == [
+        {'rotulo':'Na ART', 'valor':'94,2547 ha'},
+        {'rotulo':'No memorial', 'valor':'60,4500 ha'},
+        {'rotulo':'Na matrícula', 'valor':'94,5000 ha'},
+    ]
+    assert '94,2547' not in item['pendencia']
+    assert '<h2>RESUMO</h2>' in r['html']
+    assert '<strong><u>Por que isso é necessário:</u></strong>' in r['html']
+    assert 'Resumo para o cliente' not in r['html']
+    _, conteudo, _, _ = gerar_documento_com_resumo(dados)
+    with ZipFile(BytesIO(conteudo)) as z:
+        ps = ET.fromstring(z.read('word/document.xml')).findall('w:body/w:p',NS)
+    titulo = next(p for p in ps if paragrafo_texto(p) == 'RESUMO')
+    w = '{'+NS['w']+'}'
+    assert titulo.find('w:pPr/w:jc',NS).get(w+'val') == 'center'
+    detalhe = next(p for p in ps if paragrafo_texto(p).startswith('Na ART:'))
+    assert detalhe.find('w:pPr/w:ind',NS).get(w+'left') == '850'
+    assert detalhe.find('w:r/w:rPr/w:b',NS) is not None
+    assert detalhe.find('w:r/w:rPr/w:u',NS) is not None
+
+
+def test_detalhes_opcionais_nao_sao_inventados():
+    e = next(e for e in EXIGENCIAS if e['id'] == 'art-area-nao-corresponde')
+    dados = dados_para(e)
+    dados['itens'][0]['valores'] = {'area_matricula':'94 ha'}
+    item = previa(dados)['resumo']['itens'][0]
+    assert item['detalhes'] == [{'rotulo':'Na matrícula','valor':'94 ha'}]
+    dados['itens'][0]['valores'] = {}
+    assert previa(dados)['resumo']['itens'][0]['detalhes'] == []

@@ -1,5 +1,5 @@
 {
-  "versao": "2026-11-04.1",
+  "versao": "2026-11-04.2",
   "itens": {
     "area-divergente-itcd": ["Corrigir a área no imposto", "O demonstrativo do ITCD informa {area_documento}, mas a matrícula informa {area_matricula}.", "É preciso conferir o imposto usando a área do imóvel que está sendo transmitido.", "Corrija o demonstrativo do ITCD para que informe a área da matrícula."],
     "art-area-nao-corresponde": ["Conferir a área do trabalho técnico", "A ART, documento que identifica o responsável pelo trabalho técnico, informa uma área diferente do memorial e da matrícula.[ Na ART: {area_art}.][ No memorial: {area_memorial}.][ Na matrícula: {area_matricula}.]", "A ART e o memorial devem se referir ao mesmo levantamento do imóvel.", "Peça ao responsável técnico que corrija a ART. Se o erro também estiver no memorial, ele deve ser corrigido para que os dois informem a mesma área levantada."],

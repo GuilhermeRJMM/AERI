@@ -2,6 +2,7 @@
 import hashlib
 import html
 import json
+import re
 from functools import lru_cache
 
 from .catalogo import BASE
@@ -27,10 +28,19 @@ def montar_resumo(dados, itens, motor, blocos_formais):
                          'ou digitalmente com certificado ICP-Brasil, verificável em https://validar.iti.gov.br/.')
         if '{protocolo_apartado}' in fonte:
             resolver += ' Esse pedido deve ser apresentado em protocolo separado.'
+        detalhes = []
+        def separar_detalhe(match):
+            campo = match[2]
+            if str(item.valores.get(campo) or '').strip():
+                detalhes.append({'rotulo': match[1].strip(), 'valor': str(item.valores[campo]).strip()})
+            return ''
+        # Somente segmentos rotulados do modelo editorial, nunca texto digitado.
+        pendencia = re.sub(r'\[\s*([^:{}\[\]]+):\s*\{(\w+)\}\.\]', separar_detalhe, pendencia)
         saida.append({
             'numero': numero, 'exigencia': item.exigencia,
             'titulo': motor._preenche(titulo, item.valores),
             'pendencia': motor._preenche(pendencia, item.valores),
+            'detalhes': detalhes,
             'motivo': motor._preenche(motivo, item.valores),
             'comoResolver': motor._preenche(resolver, item.valores),
         })
@@ -60,14 +70,20 @@ def montar_resumo(dados, itens, motor, blocos_formais):
 def blocos_resumo(resumo):
     def texto(valor, papel='resumo_texto', negrito=False):
         return Bloco(papel, partes=[(valor, {'negrito'} if negrito else set())])
-    blocos = [texto('Resumo para o cliente', 'resumo_titulo', True),
-              texto(f"{resumo['especie']} | Protocolo: {resumo['protocolo'] or 'não informado'} | Referência conjunta: {resumo['vinculo']}"),
-              texto('Documento apresentado: ' + resumo['titulo']), texto(resumo['aviso'])]
+    blocos = [texto('RESUMO', 'resumo_titulo', True),
+              Bloco('resumo_meta', partes=[(resumo['especie'], {'negrito'}), (' | ', set()),
+                    ('Protocolo: ', {'negrito'}), (resumo['protocolo'] or 'não informado', set()),
+                    (' | ', set()), ('Referência conjunta: ', {'negrito'}), (resumo['vinculo'], set())]),
+              Bloco('resumo_meta', partes=[('Documento apresentado: ', {'negrito'}), (resumo['titulo'], set())]),
+              texto(resumo['aviso'])]
     for item in resumo['itens']:
-        blocos.append(texto(f"Item {item['numero']} da nota - {item['titulo']}", 'resumo_item', True))
-        blocos.extend([texto('O que precisa ser resolvido: ' + item['pendencia']),
-                       texto('Por que isso é necessário: ' + item['motivo']),
-                       texto('Como resolver: ' + item['comoResolver'])])
+        blocos.append(texto(f"ITEM {item['numero']} - {item['titulo'].upper()}", 'resumo_item', True))
+        blocos.append(texto('O que precisa ser resolvido: ' + item['pendencia']))
+        for indice, detalhe in enumerate(item.get('detalhes', [])):
+            blocos.append(Bloco('resumo_detalhe_inicio' if indice == 0 else 'resumo_detalhe',
+                          partes=[(detalhe['rotulo'] + ':', {'negrito','sublinhado'}), (' ' + detalhe['valor'], set())]))
+        for rotulo, campo in [('Por que isso é necessário', 'motivo'), ('Como resolver', 'comoResolver')]:
+            blocos.append(Bloco('resumo_recuado', partes=[(rotulo + ':', {'negrito','sublinhado'}), (' ' + item[campo], set())]))
     blocos.extend([texto('Após a entrega dos documentos', 'resumo_item', True), texto(resumo['orientacaoFinal'])])
     return blocos
 
@@ -75,14 +91,20 @@ def blocos_resumo(resumo):
 def html_resumo(resumo):
     def escapar(v):
         return html.escape(str(v)).replace('«', '<span class="falta">«').replace('»', '»</span>')
-    partes = ['<section class="nota-resumo" aria-label="Resumo para o cliente">', '<h2>Resumo para o cliente</h2>',
-              f'<p>{escapar(resumo["especie"])} · Protocolo: {escapar(resumo["protocolo"] or "não informado")}</p>',
-              f'<p>Documento apresentado: {escapar(resumo["titulo"])}</p>',
+    partes = ['<section class="nota-resumo" aria-label="Resumo">', '<h2>RESUMO</h2>',
+              f'<p><strong>{escapar(resumo["especie"])}</strong> | <strong>Protocolo:</strong> {escapar(resumo["protocolo"] or "não informado")} | <strong>Referência conjunta:</strong> {escapar(resumo["vinculo"])}</p>',
+              f'<p><strong>Documento apresentado:</strong> {escapar(resumo["titulo"])}</p>',
               f'<p>{escapar(resumo["aviso"])}</p>']
     for item in resumo['itens']:
-        partes.append(f'<section class="nota-resumo-item" data-resumo-numero="{item["numero"]}"><h3>Item {item["numero"]} da nota · {escapar(item["titulo"])}</h3>')
-        for rotulo, campo in [('O que precisa ser resolvido', 'pendencia'), ('Por que isso é necessário', 'motivo'), ('Como resolver', 'comoResolver')]:
-            partes.append(f'<p><strong>{rotulo}:</strong> {escapar(item[campo])}</p>')
+        partes.append(f'<section class="nota-resumo-item" data-resumo-numero="{item["numero"]}"><h3>ITEM {item["numero"]} - {escapar(item["titulo"].upper())}</h3>')
+        partes.append(f'<p>O que precisa ser resolvido: {escapar(item["pendencia"])}</p>')
+        if item.get('detalhes'):
+            partes.append('<div class="nota-resumo-detalhes nota-resumo-recuo">')
+            for detalhe in item['detalhes']:
+                partes.append(f'<p><strong><u>{escapar(detalhe["rotulo"])}:</u></strong> {escapar(detalhe["valor"])}</p>')
+            partes.append('</div>')
+        for rotulo, campo in [('Por que isso é necessário', 'motivo'), ('Como resolver', 'comoResolver')]:
+            partes.append(f'<p class="nota-resumo-recuo"><strong><u>{rotulo}:</u></strong> {escapar(item[campo])}</p>')
         partes.append('</section>')
-    partes.extend([f'<p>{escapar(resumo["orientacaoFinal"])}</p>', f'<small>Referência conjunta: {escapar(resumo["vinculo"])}</small>', '</section>'])
+    partes.extend(['<h3>Após a entrega dos documentos</h3>', f'<p>{escapar(resumo["orientacaoFinal"])}</p>', '</section>'])
     return ''.join(partes)

@@ -14,6 +14,8 @@ A ordem dos itens é a mesma nos dois textos. A prévia se atualiza com os dados
 
 O botão gera somente um arquivo. O funcionário deve entregar o DOCX completo ou sua conversão integral para PDF. Não há integração de envio ao cliente, integração com o totem ou postagem na Tri7 nesta alteração.
 
+O anexo tem o título centralizado RESUMO, itens em maiúsculas e rótulos destacados. Detalhes opcionais previamente rotulados no modelo editorial, como Na ART, No memorial e Na matrícula, são exibidos em linhas recuadas quando seus valores estão preenchidos. Motivo e providência seguem o mesmo recuo. O texto formal e o timbre não são alterados por essa formatação.
+
 As rotas `/api/gerador-notas/previa` e `/api/gerador-notas/gerar` devolvem também o objeto `resumo`, com itens estruturados, para futura integração autenticada. Nenhuma rota pública de consulta foi criada, e não há armazenamento novo de dados pessoais. A auditoria registra espécie, quantidade e versão do resumo, sem seus textos.
 
 ## Validação
