@@ -87,6 +87,32 @@ def _cep_unico(resultados, logradouro, bairro):
     return f'{c[:2]}.{c[2:5]}-{c[5:]}'
 
 
+def completar_ceps_rtd(dados, *, buscar=None):
+    """Completa CEP ausente no formulário RTD com a mesma conferência do Contrafé.
+
+    Mantém CEP explícito do PDF. Não envia nomes/CPFs ao ViaCEP e não consulta
+    outra cidade através do serviço restrito a Morrinhos-GO.
+    """
+    buscar = buscar or consultar_viacep
+    cache = {}
+    for endereco in dados.get('enderecos', []):
+        if endereco.get('cep'):
+            continue
+        if _normal(endereco.get('cidade', '')) != 'morrinhos' or endereco.get('uf') != 'GO':
+            continue
+        rua, bairro = endereco.get('logradouro', ''), endereco.get('bairro', '')
+        if not rua or not bairro:
+            continue
+        chave = _normal(rua)
+        if chave not in cache and len(cache) < 6:
+            cache[chave] = buscar(rua)
+        cep = _cep_unico(cache.get(chave, []), rua, bairro)
+        if cep:
+            endereco['cep'] = re.sub(r'\D', '', cep)
+            endereco['origemCep'] = 'ViaCEP: logradouro, bairro e município correspondentes'
+    return dados
+
+
 def preparar_enderecos(dados, *, buscar=None):
     dados.setdefault('avisos', [])
     dados.setdefault('origens', {})

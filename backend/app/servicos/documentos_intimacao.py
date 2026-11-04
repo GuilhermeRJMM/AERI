@@ -157,7 +157,10 @@ def _enderecos_numerados_multilinha(bloco: str) -> list[str]:
         texto_linha = linha.strip()
         if not texto_linha:
             continue
-        item = re.match(r"^\s*\d+[.)-]\s*(.+?)\s*$", linha)
+        # CEP na linha seguinte (75.656-024 / 75656-024) é continuação,
+        # não o item "75." ou "75656-" de uma lista.
+        cep_continuacao = re.match(r"^\s*\d{2}\.?\d{3}-?\d{3}[.,;]?\s*$", linha)
+        item = None if cep_continuacao else re.match(r"^\s*\d+[.)-]\s*(.+?)\s*$", linha)
         if item:
             concluir()
             partes.append(item.group(1).strip())
@@ -278,7 +281,14 @@ def estruturar_endereco(endereco: str) -> dict:
         if partes_sem_numero:
             logradouro = partes_sem_numero[0]
             complemento = ", ".join(partes_sem_numero[1:])
-    logradouro = re.sub(r",\s*", " ", logradouro)
+    # Quadra e lote não fazem parte do nome pesquisável da rua.
+    partes_logradouro = [p.strip() for p in logradouro.split(',') if p.strip()]
+    if len(partes_logradouro) > 1 and re.match(r'^(?:Lote|Quadra)\b', partes_logradouro[1], re.I):
+        adicionais = ', '.join(partes_logradouro[1:])
+        complemento = ', '.join(p for p in (adicionais, complemento) if p)
+        logradouro = partes_logradouro[0]
+    else:
+        logradouro = re.sub(r",\s*", " ", logradouro)
     componentes = [parte.strip() for parte in complemento.split(",") if parte.strip()]
     bairro = componentes[-1] if componentes else ""
     if bairro:
@@ -296,6 +306,37 @@ def estruturar_endereco(endereco: str) -> dict:
     }
 
 
+_SAUDACAO_DESTINATARIO = re.compile(
+    r"\b(?:Ao|Aos|As|Às|À|A)\s+"
+    r"(?:ilm[oaºª]s?|ilustr[íi]ssim[oa]s?)\.?\s*(?:\((?:a|as|s)\))?\.?\s*"
+    r"(?:senhor(?:as|es|a)?|sras?|srs?)\.?\s*(?:\((?:a|as|s)\))?\.?(?=\s|:)\s*:?\s*",
+    re.IGNORECASE,
+)
+
+
+def _devedores_destinatarios(texto: str) -> list[dict]:
+    """Lê somente o destinatário do ofício, não CPFs de assinaturas/anexos."""
+    pessoas = []
+    for saudacao in _SAUDACAO_DESTINATARIO.finditer(texto):
+        bloco = texto[saudacao.end():saudacao.end() + 3000]
+        bloco = re.split(
+            r"\b(?:Prezado(?:s|a|as)?|Na\s+qualidade|CONTRA[\s-]*F[ÉE]|CERTID[ÃA]O|"
+            r"Endere[cç]os?|OBSERVA[CÇ][ÕO]ES|Atenciosamente|Assinado|Documento\s+Certificado)\b",
+            bloco, maxsplit=1, flags=re.I,
+        )[0]
+        bloco = _SAUDACAO_DESTINATARIO.sub('', bloco)
+        for m in re.finditer(
+            r"([A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ \t\r\n.'’\-]{2,150}?)"
+            r"\s*[,;\-–—]?\s*\(?\s*CPF\s*[:.]?\s*([\d.\-]{11,14})",
+            bloco, re.I,
+        ):
+            nome = _nome_arquivo(re.sub(r'\s+', ' ', m[1]))
+            cpf = _digitos(m[2])
+            if len(cpf) == 11 and nome:
+                pessoas.append({'nome': nome, 'cpf': cpf})
+    return pessoas
+
+
 def extrair_dados_documento_rtd(conteudo: bytes, protocolo_in: str) -> dict:
     """Lê o PDF que será enviado ao RTD, sem armazená-lo ou escolher dados incertos."""
     texto = _ler_pdf(conteudo, "Documentos RTD.pdf")
@@ -305,6 +346,12 @@ def extrair_dados_documento_rtd(conteudo: bytes, protocolo_in: str) -> dict:
 
     cnpj_credor = _extrair_cnpj_credor_rtd(texto)
     devedores = _extrair_devedores(texto)
+    for pessoa in _devedores_destinatarios(texto):
+        existentes = [p for p in devedores if p.get('cpf') == pessoa['cpf']]
+        if any(_nome_para_comparacao(p['nome']) != _nome_para_comparacao(pessoa['nome']) for p in existentes):
+            raise ErroDocumentoIntimacao("O PDF apresenta nomes diferentes para o mesmo CPF. Confira manualmente.")
+        if not existentes:
+            devedores.append(pessoa)
     texto_corrente = re.sub(r"\s+", " ", texto)
     padroes = (
         r"Ao\s+Ilmo\.?\s+Sr\.?\s+([A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ .'-]{2,100}?)\s*\(\s*CPF\s*:?\s*([\d.\-]{11,14})\s*\)",

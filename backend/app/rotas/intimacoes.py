@@ -326,6 +326,8 @@ async def extrair_documento_rtd(
         raise HTTPException(422, "O PDF recebido não corresponde ao arquivo selecionado. Selecione-o novamente.")
     try:
         dados = extrair_dados_documento_rtd(conteudo, item["protocolo"])
+        from backend.app.servicos.enderecos_documentos_intimacao import completar_ceps_rtd
+        dados = completar_ceps_rtd(dados)
     except ErroDocumentoIntimacao as exc:
         raise HTTPException(422, str(exc)) from None
     with conectar() as conexao:
