@@ -367,6 +367,7 @@ async function atualizaPrevia() {
       body: JSON.stringify({
         especie: $('especie').value,
         titulo: $('titulo').value.trim(),
+        protocolo: $('protocolo').value.trim(),
         judicial: $('judicial').checked,
         itens: montaItens(),
       }),
@@ -432,11 +433,12 @@ async function gerar() {
       }),
     });
 
+    if (res.resumo_incluido !== true) throw new Error('O documento não confirmou a inclusão do resumo. Atualize a página e tente novamente.');
     let html;
     if (res.conteudo) {
       // servidor sem disco: a nota volta embutida e o navegador a salva
       baixa(res.conteudo, res.arquivo);
-      html = `<p>Nota gerada e baixada:</p><div class="caminho">${escaparHtml(res.arquivo)}</div>`;
+      html = `<p>Nota formal e resumo do cliente gerados juntos. Entregue o documento completo:</p><div class="caminho">${escaparHtml(res.arquivo)}</div>`;
     } else {
       html = `<p>Nota gravada em:</p><div class="caminho">${escaparHtml(res.caminho)}</div>`;
     }
@@ -445,7 +447,7 @@ async function gerar() {
             + res.nao_revisadas.map(x => `<li>${escaparHtml(x)}</li>`).join('') + '</ul>'
             + '<p>Confira os artigos citados antes de expedir.</p>';
     }
-    avisa('Nota gerada', html, res.caminho);
+    avisa('Nota e resumo gerados', html, res.caminho);
   } catch (erro) {
     avisa('Não foi possível gerar', `<p>${escaparHtml(erro.message)}</p>`);
   } finally {

@@ -10,7 +10,7 @@ from backend.app.autenticacao import exigir_permissao, proteger_csrf
 from backend.app.database import preparar_banco
 from backend.app.gerador_notas.servico import (
     catalogo_para_tela,
-    gerar_documento,
+    gerar_documento_com_resumo,
     legislacao,
     previa,
     procurar_artigos,
@@ -112,7 +112,7 @@ def gerar_nota(
 ):
     carga = _validar_carga(dados, exigir_titulo=True)
     try:
-        nome, conteudo, nao_revisadas = gerar_documento(carga)
+        nome, conteudo, nao_revisadas, resumo = gerar_documento_com_resumo(carga)
     except (KeyError, ValueError, FileNotFoundError) as erro:
         raise HTTPException(status_code=422, detail=str(erro)) from erro
     registrar_auditoria(
@@ -121,11 +121,14 @@ def gerar_nota(
         "sucesso",
         usuario,
         carga.get("protocolo") or None,
-        {"especie": carga["especie"], "quantidade_exigencias": len(carga["itens"])},
+        {"especie": carga["especie"], "quantidade_exigencias": len(carga["itens"]),
+         "resumo_incluido": True, "versao_resumo": resumo['versao']},
     )
     return {
         "ok": True,
         "arquivo": nome,
         "conteudo": base64.b64encode(conteudo).decode("ascii"),
         "nao_revisadas": nao_revisadas,
+        "resumo": resumo,
+        "resumo_incluido": True,
     }

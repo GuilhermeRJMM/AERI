@@ -27,6 +27,9 @@ ENTRELINHAS_FUNDAMENTO = 240        # 1,0
 ESPACO_ANTES = 100                  # 5 pt
 
 FORMATO = {
+    "resumo_titulo": dict(tam=24, ind="", linha=280, antes=0, alinhamento="left", quebra=True, manter=True),
+    "resumo_item": dict(tam=ARIAL_10, ind="", linha=280, antes=180, alinhamento="left", manter=True),
+    "resumo_texto": dict(tam=ARIAL_10, ind="", linha=280, antes=0, alinhamento="left", depois=100),
     "corpo":       dict(tam=ARIAL_10, ind=f'<w:ind w:firstLine="{RECUO_1A_LINHA}"/>',
                         linha=ENTRELINHAS_CORPO, antes=0),
     "vazio":       dict(tam=ARIAL_10, ind="", linha=ENTRELINHAS_CORPO, antes=0),
@@ -60,9 +63,10 @@ def _run(texto, marcas, tam, tab=False):
 
 def _paragrafo(bloco):
     f = FORMATO[bloco.papel]
-    ppr = ('<w:pPr><w:jc w:val="both"/>' + f["ind"] +
+    extras = ('<w:pageBreakBefore/>' if f.get('quebra') else '') + ('<w:keepNext/>' if f.get('manter') else '')
+    ppr = (f'<w:pPr>{extras}<w:jc w:val="{f.get("alinhamento", "both")}"/>' + f["ind"] +
            f'<w:spacing w:line="{f["linha"]}" w:lineRule="auto" '
-           f'w:before="{f["antes"]}" w:after="0"/></w:pPr>')
+           f'w:before="{f["antes"]}" w:after="{f.get("depois", 0)}"/></w:pPr>')
     runs = ""
     if bloco.papel == "exigencia":
         runs += _run(f"{bloco.numero}.", set(), f["tam"])

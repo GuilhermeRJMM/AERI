@@ -18,6 +18,7 @@ from pathlib import Path
 from . import documento
 from .catalogo import BASE
 from .redator import Item, Redator
+from .resumo import montar_resumo, blocos_resumo, html_resumo
 
 
 MOLDE = BASE / "modelo" / "molde-nota.docx"
@@ -212,7 +213,7 @@ def previa(dados: dict) -> dict:
         itens.append(Item(item["exigencia"], valores))
 
     if not itens:
-        return {"html": "", "faltando": []}
+        return {"html": "", "html_formal": "", "resumo": None, "faltando": []}
 
     titulo = str(dados.get("titulo") or "").strip() or "«título apresentado»"
     blocos = motor.redige(
@@ -235,7 +236,10 @@ def previa(dados: dict) -> dict:
                 trecho = f"<strong>{trecho}</strong>"
             corpo += trecho
         partes.append(f'<div class="p-{bloco.papel}">{corpo}</div>')
-    return {"html": "".join(partes), "faltando": sorted(set(faltando))}
+    resumo = montar_resumo({**dados, 'titulo': titulo}, itens, motor, blocos)
+    formal = ''.join(partes)
+    return {"html": formal + html_resumo(resumo), "html_formal": formal,
+            "resumo": resumo, "faltando": sorted(set(faltando))}
 
 
 def nome_arquivo(protocolo: str, especie: str) -> str:
@@ -246,6 +250,11 @@ def nome_arquivo(protocolo: str, especie: str) -> str:
 
 
 def gerar_documento(dados: dict) -> tuple[str, bytes, list[str]]:
+    nome, conteudo, nao_revisadas, _resumo = gerar_documento_com_resumo(dados)
+    return nome, conteudo, nao_revisadas
+
+
+def gerar_documento_com_resumo(dados: dict) -> tuple[str, bytes, list[str], dict]:
     motor = redator()
     itens = [
         Item(str(item["exigencia"]), item.get("valores", {}))
@@ -258,5 +267,6 @@ def gerar_documento(dados: dict) -> tuple[str, bytes, list[str]]:
         judicial=bool(dados.get("judicial", False)),
     )
     nome = nome_arquivo(str(dados.get("protocolo", "")), dados["especie"])
-    conteudo = documento.em_bytes(blocos, MOLDE)
-    return nome, conteudo, motor.nao_revisadas(itens)
+    resumo = montar_resumo(dados, itens, motor, blocos)
+    conteudo = documento.em_bytes(blocos + blocos_resumo(resumo), MOLDE)
+    return nome, conteudo, motor.nao_revisadas(itens), resumo

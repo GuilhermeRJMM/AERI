@@ -102,12 +102,14 @@ function desenharCampos() {
 }
 
 let temporizadorPrevia;
+let sequenciaPrevia = 0;
 function solicitarPrevia() {
+    const sequencia = ++sequenciaPrevia;
     clearTimeout(temporizadorPrevia);
-    temporizadorPrevia = setTimeout(atualizarPrevia, 350);
+    temporizadorPrevia = setTimeout(() => atualizarPrevia(sequencia), 350);
 }
 
-async function atualizarPrevia() {
+async function atualizarPrevia(sequencia = ++sequenciaPrevia) {
     if (!selecionadas.size) {
         $('previa').innerHTML = vazio('A nota aparecerá aqui conforme as pendências forem selecionadas.');
         $('previa-aviso').textContent = '';
@@ -116,11 +118,13 @@ async function atualizarPrevia() {
     try {
         const resposta = await requisicaoAeri(`${API}/previa`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({especie: $('especie').value, titulo: $('titulo').value.trim(), judicial: $('judicial').checked, itens: montarItens()}),
+            body: JSON.stringify({especie: $('especie').value, titulo: $('titulo').value.trim(), protocolo: $('protocolo').value.trim(), judicial: $('judicial').checked, itens: montarItens()}),
         });
+        if (sequencia !== sequenciaPrevia) return;
         $('previa').innerHTML = resposta.html || vazio('A prévia ainda não possui conteúdo.');
         $('previa-aviso').textContent = resposta.faltando?.length ? `Falta preencher: ${resposta.faltando.join(', ')}` : '';
     } catch (erro) {
+        if (sequencia !== sequenciaPrevia) return;
         $('previa').innerHTML = vazio(identificarErro(erro));
     }
 }
@@ -150,17 +154,18 @@ async function gerar() {
         return;
     }
     $('gerar').disabled = true;
-    estado('', 'Gerando o documento…');
+    estado('', 'Gerando a nota formal e o resumo no mesmo documento…');
     try {
         const resposta = await requisicaoAeri(`${API}/gerar`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({especie: $('especie').value, titulo: $('titulo').value.trim(), protocolo: $('protocolo').value.trim(), judicial: $('judicial').checked, itens: montarItens()}),
         });
+        if (resposta.resumo_incluido !== true) throw new Error('O documento não confirmou a inclusão do resumo. Atualize a página e tente novamente; nenhum arquivo foi baixado.');
         baixarDocumento(resposta.conteudo, resposta.arquivo);
         estado('sucesso', `Documento ${resposta.arquivo} gerado com sucesso.`);
         const alerta = resposta.nao_revisadas?.length
             ? `<p><strong>Confira antes de expedir:</strong> ${resposta.nao_revisadas.map(escaparHtml).join(', ')}.</p>` : '';
-        abrirModal('Nota gerada', `<p>O arquivo <strong>${escaparHtml(resposta.arquivo)}</strong> foi baixado.</p>${alerta}`);
+        abrirModal('Nota e resumo gerados', `<p>O arquivo <strong>${escaparHtml(resposta.arquivo)}</strong> foi baixado com a nota formal e o resumo para o cliente, na mesma numeração. Entregue o documento completo.</p>${alerta}`);
     } catch (erro) {
         estado('erro', identificarErro(erro));
         abrirModal('Não foi possível gerar', `<p>${escaparHtml(identificarErro(erro))}</p>`);
@@ -292,7 +297,7 @@ export function iniciarGeradorNotas() {
     });
     $('filtro').addEventListener('input', desenharLista);
     $('apenas-selecionadas').addEventListener('click', () => { apenasSelecionadas = !apenasSelecionadas; desenharLista(); });
-    ['especie', 'titulo', 'judicial'].forEach(id => $(id).addEventListener(id === 'judicial' ? 'change' : 'input', solicitarPrevia));
+    ['especie', 'titulo', 'protocolo', 'judicial'].forEach(id => $(id).addEventListener(id === 'judicial' ? 'change' : 'input', solicitarPrevia));
     $('gerar').addEventListener('click', gerar);
     $('legislacao-filtro').addEventListener('input', () => legislacao && renderizarLegislacao());
     $('legislacao-lista').addEventListener('click', evento => {

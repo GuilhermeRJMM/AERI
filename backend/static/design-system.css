@@ -8,6 +8,12 @@
   --sync-verde-texto: var(--aeri-green);
 }
 body.sync-tema { font-family: var(--aeri-font); }
+.nota-resumo { margin-top: 28px; padding-top: 18px; border-top: 2px solid #047857; color: #10273c; background: #fff; }
+.nota-resumo h2 { margin: 0 0 12px; font-size: 19px; color: #10273c; }
+.nota-resumo-item { padding: 14px 0; border-bottom: 1px solid #d5e7e0; }
+.nota-resumo-item h3 { margin: 0 0 10px; font-size: 14px; color: #065f46; }
+.nota-resumo p { margin: 8px 0; line-height: 1.6; overflow-wrap: anywhere; }
+.nota-resumo small { display: block; margin-top: 12px; overflow-wrap: anywhere; }
 body.sync-tema .login-aeri { background: var(--aeri-canvas); }
 body.sync-tema .login-card {
   color: var(--aeri-navy); background: var(--aeri-white);
