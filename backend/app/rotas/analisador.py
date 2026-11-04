@@ -149,7 +149,7 @@ def _analise_juridica_json(item: dict, reutilizada: bool = False) -> dict:
         "fontes": item["fontes"],
         "criado_em": item["criado_em"].isoformat(),
         "reutilizada": reutilizada,
-        "aviso": "Análise automática fundamentada na base jurídica vigente do AERI.",
+        "aviso": "Análise automática fundamentada na base jurídica vigente do Analisador RGI.",
     }
 
 

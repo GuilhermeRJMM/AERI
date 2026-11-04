@@ -398,11 +398,11 @@ function exportarRelatorio() {
     conteudo?.querySelector('.feedback-analise')?.remove();
     conteudo?.querySelector('.resultado-ferramentas')?.remove();
     conteudo?.querySelectorAll('.tab-content').forEach(item => item.classList.add('active'));
-    const html = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>AERI - Matrícula ${escaparHtml(ultimoResultado.numero_matricula)}</title><style>body{font-family:Calibri,Arial,sans-serif;color:#111827;margin:32px}.tabs-container,.btn-copiar{display:none}.card,.imovel-linha,.imovel-resumo{border:1px solid #cbd5e1;padding:10px;margin:8px 0}.tab-content{display:block!important}summary{font-weight:700}blockquote{margin:8px 0;padding-left:12px;border-left:3px solid #64748b}</style><body>${conteudo?.innerHTML || ''}</body></html>`;
+    const html = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Analisador RGI - Matrícula ${escaparHtml(ultimoResultado.numero_matricula)}</title><style>body{font-family:Calibri,Arial,sans-serif;color:#111827;margin:32px}.tabs-container,.btn-copiar{display:none}.card,.imovel-linha,.imovel-resumo{border:1px solid #cbd5e1;padding:10px;margin:8px 0}.tab-content{display:block!important}summary{font-weight:700}blockquote{margin:8px 0;padding-left:12px;border-left:3px solid #64748b}</style><body>${conteudo?.innerHTML || ''}</body></html>`;
     const url = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `AERI-matricula-${ultimoResultado.numero_matricula}.html`;
+    link.download = `analisador-rgi-matricula-${ultimoResultado.numero_matricula}.html`;
     link.click();
     URL.revokeObjectURL(url);
 }

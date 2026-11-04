@@ -80,7 +80,7 @@
     const titulo = document.createElement('h3');
     titulo.textContent = itens.length
       ? `Conferência de confrontantes (${itens.length})`
-      : 'Confrontantes conferidos pelo AERI';
+      : 'Confrontantes conferidos pelo Analisador RGI';
     painel.appendChild(titulo);
 
     const introducao = document.createElement('p');

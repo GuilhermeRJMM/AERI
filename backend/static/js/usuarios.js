@@ -86,7 +86,7 @@ function senhaTemporaria() {
  * Mostra a senha temporária na própria página.
  *
  * Era window.prompt, que o Chrome bloqueia em iframe de outra origem
- * desde a versão 92 -- e o AERI roda dentro do SYNC. Ali o prompt
+ * desde a versão 92 -- e o Analisador RGI roda dentro do SYNC. Ali o prompt
  * devolve null na hora, sem exibir nada: quem criava o usuário não via
  * senha alguma e não recebia aviso de que algo tinha falhado.
  */

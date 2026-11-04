@@ -37,7 +37,7 @@ SERVIDORES_DE_TILE = " ".join((
     "https://tile.openstreetmap.org",       # OpenStreetMap (ruas)
 ))
 
-app = FastAPI(title="AERI")
+app = FastAPI(title="Analisador RGI")
 logger = logging.getLogger("aeri.http")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 

@@ -1,6 +1,6 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
-import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd, carregarDocumentosRtd} from './rtd_intimacoes.js?v=20261019-protocolo-rtd-visivel-v1';
+import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd, carregarDocumentosRtd} from './rtd_intimacoes.js?v=20261103-marca-rgi-v1';
 import {abrirDocumentosIntimacao, iniciarDocumentosIntimacao} from './intimacao_documentos.js?v=20261103-folhas-v1';
 
 let intimacoes = [];
@@ -186,8 +186,8 @@ function valorOuTraco(valor) {
 
 function renderizarCabecalho() {
     const titulos = [
-        'Situação AERI', 'Protocolo', 'Credor', 'Devedor', 'Andamento interno do AERI',
-        'Data do andamento AERI', 'RTD · somente fase inicial', 'Pasta', 'Ações',
+        'Situação Analisador RGI', 'Protocolo', 'Credor', 'Devedor', 'Andamento interno do Analisador RGI',
+        'Data do andamento Analisador RGI', 'RTD · somente fase inicial', 'Pasta', 'Ações',
     ];
     const tabela = document.querySelector('.rotina-table');
     tabela.classList.remove('rotina-table-fase-inicial');
@@ -233,7 +233,7 @@ function protocolosRtdIntimacao(item) {
 function proximaAcaoIntimacao(item) {
     if (temNovidadeRtd(item)) return {
         titulo:'Confira a atualização recebida no RTD',
-        texto:'Compare a situação e os documentos do RTD com o andamento registrado no AERI. Depois, abra os detalhes para marcar a atualização como vista e registrar a conferência diária, se aplicável.',
+        texto:'Compare a situação e os documentos do RTD com o andamento registrado no Analisador RGI. Depois, abra os detalhes para marcar a atualização como vista e registrar a conferência diária, se aplicável.',
         botao:'Revisar RTD e documentos', acao:'detalhes',
     };
     const situacao = situacaoIntimacao(item);
@@ -241,7 +241,7 @@ function proximaAcaoIntimacao(item) {
         const etapa = item.fase === 'EDITAL' ? 'edital' : 'consolidação';
         if (situacao.classe !== 'verde' && pode('conferir_intimacoes')) return {
             titulo:`Confira o andamento da fase de ${etapa}`,
-            texto:`Verifique as providências e os prazos do protocolo conforme o manual de ${etapa}; depois, registre a conferência no AERI.`,
+            texto:`Verifique as providências e os prazos do protocolo conforme o manual de ${etapa}; depois, registre a conferência no Analisador RGI.`,
             botao:'Conferir agora', acao:'conferir',
         };
         if (situacao.classe !== 'verde') return {
@@ -257,7 +257,7 @@ function proximaAcaoIntimacao(item) {
     }
     if (situacao.classe !== 'verde' && pode('conferir_intimacoes')) return {
         titulo:'Faça a conferência diária deste IN',
-        texto:'Consulte este protocolo no Ofício Eletrônico. Se houver andamento novo, registre-o no AERI; se não houver, confirme que o andamento atual permanece.',
+        texto:'Consulte este protocolo no Ofício Eletrônico. Se houver andamento novo, registre-o no Analisador RGI; se não houver, confirme que o andamento atual permanece.',
         botao:'Conferir agora', acao:'conferir',
     };
     if (situacao.classe !== 'verde') return {
@@ -311,8 +311,8 @@ function renderizarFocoIntimacao(item, fila) {
     const conferidoHoje = situacao.classe === 'verde' && !novidade;
     const pendente = intimacoesPendentes.has(item.id);
     const somenteLeitura = exibindoLixeira || !pode('conferir_intimacoes');
-    const avisoRtd = novidade ? `<div class="rotina-in-aviso-rtd"><strong>O AERI detectou uma novidade no RTD.</strong> Compare o andamento e consulte o histórico antes de concluir a conferência.<br><button type="button" data-acao="detalhes" data-id="${escaparHtml(item.id)}">Ver detalhes e documentos</button></div>` : '';
-    const dadosRtd = fase === 'INTIMACAO' ? `<section class="rotina-in-protocolo-rtd" aria-label="Número do protocolo RTD"><span>${protocolosRtd.length === 1 ? 'Número do protocolo RTD' : 'Protocolos RTD vinculados a este IN'}</span>${protocolosRtd.length ? protocolosRtd.map((protocolo, posicao) => `<strong class="rotina-in-protocolo-item">${escaparHtml(protocolo)}</strong>`).join('') : '<strong>Não informado no AERI</strong>'}</section>` : '';
+    const avisoRtd = novidade ? `<div class="rotina-in-aviso-rtd"><strong>O Analisador RGI detectou uma novidade no RTD.</strong> Compare o andamento e consulte o histórico antes de concluir a conferência.<br><button type="button" data-acao="detalhes" data-id="${escaparHtml(item.id)}">Ver detalhes e documentos</button></div>` : '';
+    const dadosRtd = fase === 'INTIMACAO' ? `<section class="rotina-in-protocolo-rtd" aria-label="Número do protocolo RTD"><span>${protocolosRtd.length === 1 ? 'Número do protocolo RTD' : 'Protocolos RTD vinculados a este IN'}</span>${protocolosRtd.length ? protocolosRtd.map((protocolo, posicao) => `<strong class="rotina-in-protocolo-item">${escaparHtml(protocolo)}</strong>`).join('') : '<strong>Não informado no Analisador RGI</strong>'}</section>` : '';
     const rascunho = rascunhosConferencia.get(item.id) || {modo:'', nome:'', data:hojeLocal()};
     const ativo = document.activeElement;
     const preservarFoco = ativo?.closest('[data-mesa-conferencia]')?.dataset.id === item.id
@@ -329,7 +329,7 @@ function renderizarFocoIntimacao(item, fila) {
             <fieldset ${pendente ? 'disabled' : ''}>
                 <legend>Como está o andamento no Ofício?</legend>
                 <div class="mesa-escolhas">
-                    <label><input type="radio" name="tipoConferencia" value="igual" data-mesa-modo ${rascunho.modo === 'igual' ? 'checked' : ''} required><span><strong>Mesmo andamento</strong><small>Está igual ao registro do AERI.</small></span></label>
+                    <label><input type="radio" name="tipoConferencia" value="igual" data-mesa-modo ${rascunho.modo === 'igual' ? 'checked' : ''} required><span><strong>Mesmo andamento</strong><small>Está igual ao registro do Analisador RGI.</small></span></label>
                     <label><input type="radio" name="tipoConferencia" value="mudou" data-mesa-modo ${mudou ? 'checked' : ''} required><span><strong>Novo andamento</strong><small>Encontrei uma movimentação diferente.</small></span></label>
                 </div>
                 <div class="mesa-novo-andamento" ${mudou ? '' : 'hidden'}>
@@ -347,7 +347,7 @@ function renderizarFocoIntimacao(item, fila) {
         ${dadosRtd}
         ${avisoRtd}
         <div class="mesa-comparacao">
-            <section class="mesa-referencia"><span class="mesa-rotulo">NO AERI</span><strong>${escaparHtml(item.nomeAndamento || 'Não informado')}</strong><small>Último andamento · ${formatarDataRotina(item.ultimoAndamento)}</small></section>
+            <section class="mesa-referencia"><span class="mesa-rotulo">NO Analisador RGI</span><strong>${escaparHtml(item.nomeAndamento || 'Não informado')}</strong><small>Último andamento · ${formatarDataRotina(item.ultimoAndamento)}</small></section>
             <section class="mesa-consulta"><span class="mesa-rotulo">NO OFÍCIO ELETRÔNICO</span><strong>Consulte antes de registrar</strong><p>Compare o andamento deste IN com o registro ao lado.</p><a href="https://www.oficioeletronico.onr.org.br" target="_blank" rel="noopener noreferrer">Abrir Ofício Eletrônico ↗</a></section>
         </div>
         ${botoesConferencia}
@@ -470,10 +470,10 @@ function detalhesFaseInicial(item) {
     };
     const listaEnvios = envios.length
         ? `<ul class="rtd-envios-lista">${envios.map(envio => `<li><strong>${escaparHtml(rotulosEnvio[envio.estado] || envio.estado)}</strong>${envio.ambiente === 'homologacao' ? '<span class="rtd-envio-ambiente">HOMOLOGAÇÃO</span>' : ''}${envio.protocolo ? `<span>Protocolo ${escaparHtml(envio.protocolo)}</span>` : ''}${envio.erro ? `<small>${escaparHtml(envio.erro)}</small>` : ''}<time>${new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'}).format(new Date(envio.criadoEm))}</time></li>`).join('')}</ul>`
-        : (enviosRtdCarregando.has(item.id) ? '<p>Carregando envios…</p>' : '<p>Nenhum envio feito pelo AERI.</p>');
+        : (enviosRtdCarregando.has(item.id) ? '<p>Carregando envios…</p>' : '<p>Nenhum envio feito pelo Analisador RGI.</p>');
     return `<div class="rotina-intimacao-detalhes">
         ${detalhesRtd(item)}
-        <div class="rotina-detalhes-separador"><span>CONTROLE INTERNO DO AERI</span><h3>Fase e conferências internas</h3></div>
+        <div class="rotina-detalhes-separador"><span>CONTROLE INTERNO DO Analisador RGI</span><h3>Fase e conferências internas</h3></div>
         <section class="rotina-card-grade rotina-card-identificacao">
             ${item.fase === 'INTIMACAO' ? campoCard('Protocolo RTD', valorOuTraco(item.protocoloRtd)) : ''}
             ${campoCard('N.º OS Tri7', valorOuTraco(item.numeroOsTri7))}
@@ -514,11 +514,11 @@ function detalhesFaseInicial(item) {
             <button type="button" class="rotina-gerar-desistencia" data-acao="preparar-documentos-intimacao" data-id="${item.id}">Preparar documentos</button>
         </section>` : ''}
         ${item.fase === 'INTIMACAO' ? `<section class="rtd-envios-historico">
-            <div class="rtd-envio-cabecalho"><div><span class="rtd-origem">SOLICITAÇÕES ENVIADAS PELO AERI</span><h3>Histórico de envios</h3></div>
+            <div class="rtd-envio-cabecalho"><div><span class="rtd-origem">SOLICITAÇÕES ENVIADAS PELO Analisador RGI</span><h3>Histórico de envios</h3></div>
                 ${pode('alterar_intimacoes') && item.fase === 'INTIMACAO' ? `<button type="button" data-acao="novo-envio-rtd" data-id="${item.id}">Preparar notificação</button>` : ''}
             </div>
             ${listaEnvios}
-            <p>Enviar uma notificação cria um novo pedido na Central RTD; isso não responde nem altera o andamento interno do AERI.</p>
+            <p>Enviar uma notificação cria um novo pedido na Central RTD; isso não responde nem altera o andamento interno do Analisador RGI.</p>
         </section>` : ''}
         <section class="rotina-historico-operacional">
             <h3>Histórico operacional</h3>
@@ -600,7 +600,7 @@ function atualizarFilaRtd() {
     document.getElementById('btn-adicionar-endereco-rtd').hidden = ativa;
     document.getElementById('rtd-fila-indicador').hidden = !ativa;
     document.getElementById('rtd-ajuda-notificados').textContent = ativa
-        ? 'Um envio por vez. Após a confirmação da Central, o AERI mostrará o próximo par de pessoa e endereço para nova revisão.'
+        ? 'Um envio por vez. Após a confirmação da Central, o Analisador RGI mostrará o próximo par de pessoa e endereço para nova revisão.'
         : 'Cadastre cada endereço como um destinatário separado. Se for a mesma pessoa em dois endereços, use o botão correspondente; os dados pessoais serão repetidos para conferência.';
     if (ativa) {
         const total = filaRtdSeparada.length;
@@ -746,7 +746,7 @@ async function extrairDocumentoRtdSelecionado(arquivoForcado = null) {
     let etapaExtracao = 'iniciar o envio seguro do PDF';
     try {
         if (uploadAnterior) await removerUploadRtd(uploadAnterior);
-        etapaExtracao = 'registrar o PDF temporário no AERI';
+        etapaExtracao = 'registrar o PDF temporário no Analisador RGI';
         const sessao = await requisicaoAeri('/api/rtd-intimacoes/uploads', opcoesJsonRtd({
             intimacao_id:id, nome_arquivo:arquivo.name, tamanho:arquivo.size,
         }, controlador.signal));
@@ -956,7 +956,7 @@ async function enviarNotificacaoRtd(evento) {
         } else if (resultado.estado === 'HOMOLOGACAO_OK') {
             status.textContent = `Teste aceito pela Central de homologação. Protocolo: ${resultado.protocolo}. Não entrou na fila de produção.`;
         } else {
-            status.textContent = `A Central respondeu, mas o AERI marcou o resultado para revisão. Protocolo: ${resultado.protocolo || 'não informado'}.`;
+            status.textContent = `A Central respondeu, mas o Analisador RGI marcou o resultado para revisão. Protocolo: ${resultado.protocolo || 'não informado'}.`;
         }
         await carregarEnviosRtd(document.getElementById('rtd-envio-intimacao-id').value, true);
         await carregarIntimacoes();
@@ -1320,7 +1320,7 @@ async function confirmarExclusaoRtd(evento) {
     }
     exclusaoRtdEmCurso = true;
     botao.disabled = true;
-    status.textContent = 'Validando a senha e removendo os vínculos RTD somente do AERI…';
+    status.textContent = 'Validando a senha e removendo os vínculos RTD somente do Analisador RGI…';
     try {
         const resultado = await requisicaoAeri(
             `/api/rtd-intimacoes/intimacao/${encodeURIComponent(item.id)}/excluir-protocolos`,
@@ -1332,8 +1332,8 @@ async function confirmarExclusaoRtd(evento) {
         await carregarIntimacoes();
         const removidos = Number(resultado.pedidos_rtd || 0) + Number(resultado.envios_com_protocolo || 0);
         alert(resultado.jaEstavaLimpo
-            ? `O IN ${item.protocolo} já estava sem protocolos RTD no AERI. A verificação foi registrada.`
-            : `Concluído: ${removidos} registro(s) RTD removido(s) do AERI para o ${item.protocolo}. A ação foi registrada; tentativas sem protocolo foram preservadas.`);
+            ? `O IN ${item.protocolo} já estava sem protocolos RTD no Analisador RGI. A verificação foi registrada.`
+            : `Concluído: ${removidos} registro(s) RTD removido(s) do Analisador RGI para o ${item.protocolo}. A ação foi registrada; tentativas sem protocolo foram preservadas.`);
     } catch (erro) {
         status.textContent = erro.message;
         if (erro.status === 401) {
@@ -1396,7 +1396,7 @@ async function atualizarChecklist(id) {
 
 function gerarNotaDesistencia(protocolo) {
     const confirmado = confirm(
-        `O AERI analisará os PDFs da pasta ${protocolo} e o "Pedido de Desistência" em "Recebido para Intimacao". O DOCX será aberto para conferir obrigatoriamente o signatário no ITI. Continuar?`,
+        `O Analisador RGI analisará os PDFs da pasta ${protocolo} e o "Pedido de Desistência" em "Recebido para Intimacao". O DOCX será aberto para conferir obrigatoriamente o signatário no ITI. Continuar?`,
     );
     if (!confirmado) return;
     window.location.href = `aeri-intimacao://gerar-desistencia/${encodeURIComponent(protocolo)}`;
@@ -1511,7 +1511,7 @@ function exportarIntimacoesCsv() {
         item.valorUsado ?? '', item.ultimaConferencia || '',
     ]
         .map(valor => `"${String(valor).replace(/"/g,'""')}"`).join(';'));
-    baixarArquivo('\uFEFF' + [cabecalho,...linhas].join('\n'), 'text/csv;charset=utf-8', `intimacoes-aeri-${hojeLocal()}.csv`);
+    baixarArquivo('\uFEFF' + [cabecalho,...linhas].join('\n'), 'text/csv;charset=utf-8', `intimacoes-analisador-rgi-${hojeLocal()}.csv`);
 }
 
 async function tratarAcaoTabela(evento) {

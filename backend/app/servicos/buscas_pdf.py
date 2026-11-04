@@ -96,6 +96,6 @@ def gerar_pdf_buscas(dados: dict, nome: str, documento: str, somente_ativos: boo
         writer.close()
     with pymupdf.open(stream=saida.getvalue(), filetype="pdf") as pdf:
         for i, folha in enumerate(pdf):
-            folha.insert_text((42, 817), f"AERI - Resultado da busca | Página {i + 1} de {len(pdf)}", fontsize=8, color=(.25, .35, .3))
-        pdf.set_metadata({"title": "Resultado da busca", "author": "AERI"})
+            folha.insert_text((42, 817), f"Analisador RGI - Resultado da busca | Página {i + 1} de {len(pdf)}", fontsize=8, color=(.25, .35, .3))
+        pdf.set_metadata({"title": "Resultado da busca", "author": "Analisador RGI"})
         return pdf.tobytes(garbage=4, deflate=True)

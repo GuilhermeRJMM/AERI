@@ -591,7 +591,7 @@
         // Recem-aberta por desmembramento: comeca em "IMOVEL:" e tem so o ato
         // de abertura, entao nao ha "MATRICULA N" nem cabecalho "AV.01-N" de
         // onde tirar o numero. Quando o texto na tela ainda e o que veio da
-        // consulta feita no AERI, o numero pedido a Tri7 e a fonte certa.
+        // consulta feita no Analisador RGI, o numero pedido a Tri7 e a fonte certa.
         f.numero_matricula = estado.numeroConsultado;
         estado.matriculaDaConsulta = true;
       }
@@ -1395,7 +1395,7 @@
   }
 
   function validarNoBackend(tipo, arquivo) {
-    // Na interface nativa a sessão do próprio AERI acompanha o fetch. A ponte
+    // Na interface nativa a sessão do próprio Analisador RGI acompanha o fetch. A ponte
     // permanece apenas para o conversor privado legado, ainda disponível para
     // compatibilidade e executado sob sandbox de origem opaca.
     if (estaNaInterfaceNativa() || global.parent === global) {
@@ -1719,8 +1719,8 @@
         caixa.appendChild(el('small', { textContent: motivoLegivel(item.pendencia.motivo) }));
         check.onchange = () => {
           if (!resultadoAtual(r)) { renderResultado(); return; }
-          // Sem confirm(): o AERI roda em iframe com sandbox sem allow-modals
-          // (e o proprio AERI ja vive sem modais dentro do SYNC, entao um
+          // Sem confirm(): o Analisador RGI roda em iframe com sandbox sem allow-modals
+          // (e o proprio Analisador RGI ja vive sem modais dentro do SYNC, entao um
           // sandbox aninhado nao recupera a permissao). Ali confirm() devolve
           // false calado e a pendencia nunca era ignorada. Marcar a caixa ja e
           // o ato explicito; o aviso do painel e o status "liberado com
@@ -1906,7 +1906,7 @@
     const origem = $('#origem-aeri');
     origem.hidden = false;
     origem.className = 'status ok';
-    origem.textContent = 'Aguardando uma consulta do AERI.';
+    origem.textContent = 'Aguardando uma consulta do Analisador RGI.';
     lerMatricula();
   }
 
@@ -1929,9 +1929,9 @@
   }
 
   function configurarIntegracaoAeri() {
-    // O AERI inteiro pode estar incorporado no SYNC. Isso não transforma o
+    // O Analisador RGI inteiro pode estar incorporado no SYNC. Isso não transforma o
     // conversor nativo em um iframe legado: ele continua usando a sessão do
-    // AERI e não conversa com o parent do SYNC.
+    // Analisador RGI e não conversa com o parent do SYNC.
     if (estaNaInterfaceNativa()) return;
     const incorporado = global.parent !== global
       && new URLSearchParams(global.location.search).get('embedded') === '1';
@@ -1980,7 +1980,7 @@
     global.parent.postMessage({ tipo: 'AERI_MAPA_ONR_CARREGADO' }, '*');
   }
 
-  // API pequena e explícita para a página nativa do AERI. O texto continua
+  // API pequena e explícita para a página nativa do Analisador RGI. O texto continua
   // transitório no navegador e não é persistido por esta integração.
   global.AERI_MAPA_ONR = {
     carregarMatricula: carregarMatriculaRecebida,

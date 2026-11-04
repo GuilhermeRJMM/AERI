@@ -7,13 +7,13 @@
  */
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {escaparHtml} from './util.js';
-import {CAMADAS, criarMapa} from './mapa/motor.js?v=20261013-camadas-v2';
+import {CAMADAS, criarMapa} from './mapa/motor.js?v=20261103-marca-rgi-v1';
 import {
     areaM2, azimuteGraus, centroide, descricaoLados, destinoGeodesico,
     distanciaM, formatarArea, formatarDistancia, formatarGms, ladosDoAnel,
     perimetroM,
 } from './mapa/geometria.js?v=20261008-poligonos-v14';
-import {montarKml} from './mapa/kml.js?v=20261008-poligonos-v14';
+import {montarKml} from './mapa/kml.js?v=20261103-marca-rgi-v1';
 import {montarDocumentoPoligonos} from './mapa/documento.js?v=20261013-confrontantes-na-planta-v1';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -334,7 +334,7 @@ function numeroDigitado(texto) {
 
 async function copiarCoordenadas() {
     const texto = textoDasCoordenadas();
-    // execCommand, e não navigator.clipboard: o AERI roda dentro de um
+    // execCommand, e não navigator.clipboard: o Analisador RGI roda dentro de um
     // iframe no SYNC, onde a API assíncrona de área de transferência é
     // bloqueada por permissão. Já passamos por isso na Pesquisa
     // Qualificada.

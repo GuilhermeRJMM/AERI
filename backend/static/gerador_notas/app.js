@@ -71,7 +71,7 @@ async function requisicao(caminho, opcoes = {}) {
   if (!['GET', 'HEAD', 'OPTIONS'].includes(metodo)) {
     if (!csrfToken) {
       const sessao = await fetch('/api/sessao', {credentials: 'same-origin'});
-      if (!sessao.ok) throw new Error('Sua sessão expirou. Entre novamente no AERI.');
+      if (!sessao.ok) throw new Error('Sua sessão expirou. Entre novamente no Analisador RGI.');
       csrfToken = (await sessao.json()).csrfToken || '';
     }
     headers.set('X-CSRF-Token', csrfToken);

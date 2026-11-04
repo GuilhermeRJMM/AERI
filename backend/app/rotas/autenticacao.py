@@ -143,10 +143,10 @@ async def _ler_ticket_sync(request: Request) -> str:
 
 @router.post("/login/sync")
 async def login_sync(request: Request):
-    """Abre a sessão AERI a partir de ticket assinado e de uso único do Sync.
+    """Abre a sessão Analisador RGI a partir de ticket assinado e de uso único do Sync.
 
     O endpoint não aceita senha nem usa sessão do Sync diretamente. O ticket
-    é validado com a chave pública e consumido no mesmo commit da sessão AERI.
+    é validado com a chave pública e consumido no mesmo commit da sessão Analisador RGI.
     """
     ticket_bruto = await _ler_ticket_sync(request)
     try:
@@ -183,7 +183,7 @@ async def login_sync(request: Request):
                 )
                 conta = cursor.fetchone()
                 if not conta:
-                    estado_erro = (403, "Seu usuário do Sync ainda não está habilitado no AERI.")
+                    estado_erro = (403, "Seu usuário do Sync ainda não está habilitado no Analisador RGI.")
                     registrar_auditoria_cursor(
                         cursor, request, "login_sync", "usuario_nao_habilitado", ticket.usuario,
                         detalhes={"origem": "SYNC"},
@@ -209,7 +209,7 @@ async def login_sync(request: Request):
     if estado_erro:
         raise HTTPException(status_code=estado_erro[0], detail=estado_erro[1])
     if not sessao_nova:
-        raise HTTPException(status_code=500, detail="Não foi possível iniciar a sessão do AERI.")
+        raise HTTPException(status_code=500, detail="Não foi possível iniciar a sessão do Analisador RGI.")
 
     token_sessao, _csrf = sessao_nova
     resposta = RedirectResponse("/", status_code=303)

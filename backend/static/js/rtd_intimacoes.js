@@ -147,7 +147,7 @@ export function detalhesRtd(item) {
     if (item?.fase && item.fase !== 'INTIMACAO') return '';
     if (!(item.rtd || []).length) return '';
     return `<section class="rtd-detalhes" aria-label="Acompanhamento externo da Central RTD">
-        <div class="rtd-detalhes-cabecalho"><div><span class="rtd-origem">CENTRAL RTD · DADO EXTERNO</span><h3>Acompanhamento RTD</h3></div><p>Este andamento vem da Central RTD e não altera a fase nem as conferências internas do AERI.</p></div>
+        <div class="rtd-detalhes-cabecalho"><div><span class="rtd-origem">CENTRAL RTD · DADO EXTERNO</span><h3>Acompanhamento RTD</h3></div><p>Este andamento vem da Central RTD e não altera a fase nem as conferências internas do Analisador RGI.</p></div>
         ${item.rtd.map(p => {
             const dados = p.dados || {};
             const dataUltimaMudanca = p.eventos?.[0]?.criado_em || p.alteradoEm;

@@ -18,7 +18,18 @@ body.sync-tema .login-card h1 { color: var(--aeri-navy); }
 body.sync-tema .login-card :is(p, label span) { color: var(--aeri-muted); }
 body.sync-tema .login-card .login-logo {
   display: block; width: 88px; height: 88px; object-fit: contain; margin: 0 auto 20px;
-  background: var(--aeri-navy); border-radius: var(--aeri-radius-12); padding: 12px;
+  background: transparent; border-radius: var(--aeri-radius-12); padding: 0;
+}
+body.sync-tema .navbar .logo-text {
+  display: flex; align-items: center; gap: 10px; color: #fff;
+  font-size: clamp(16px, 2vw, 22px); line-height: 1.15; white-space: nowrap;
+  text-shadow: none;
+}
+.marca-rgi-icone { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
+.splash-nome { display: block; margin-top: 16px; color: #fff; font-size: 26px; }
+@media (max-width: 600px) {
+  body.sync-tema .navbar-content { flex-wrap: wrap; gap: 12px; }
+  body.sync-tema .navbar-user { flex-wrap: wrap; }
 }
 body.sync-tema .login-card > .eyebrow { display: block; margin-bottom: 12px; }
 body.sync-tema .login-card input {

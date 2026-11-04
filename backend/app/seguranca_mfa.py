@@ -57,4 +57,4 @@ def validar_totp(segredo: str, codigo: object) -> bool:
 
 
 def uri_totp(usuario: str, segredo: str) -> str:
-    return f"otpauth://totp/{quote('AERI:' + usuario)}?secret={segredo}&issuer=AERI&algorithm=SHA1&digits=6&period=30"
+    return f"otpauth://totp/{quote('Analisador RGI:' + usuario)}?secret={segredo}&issuer=Analisador%20RGI&algorithm=SHA1&digits=6&period=30"

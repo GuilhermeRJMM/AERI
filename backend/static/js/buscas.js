@@ -1,5 +1,5 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
-import {mostrarPagina} from './navegacao.js?v=20261020-voltar-paginas-v1';
+import {mostrarPagina} from './navegacao.js?v=20261103-marca-rgi-v1';
 import {baixarArquivo, escaparHtml} from './util.js';
 
 let estadoAtual = null;
@@ -489,7 +489,7 @@ function montarHtmlPesquisa({solicitados, resultado, ressalvaNegativa, ressalvaV
 }
 
 // Copia selecionando um trecho real da página. É o caminho que o Word
-// entende melhor, e o único que funciona aqui dentro: o AERI roda em iframe
+// entende melhor, e o único que funciona aqui dentro: o Analisador RGI roda em iframe
 // no SYNC, e a API assíncrona de clipboard costuma ser bloqueada por
 // permissão nesse contexto -- era por isso que só o texto puro chegava.
 function copiarSelecionando(html) {

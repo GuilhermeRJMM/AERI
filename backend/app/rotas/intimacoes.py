@@ -117,7 +117,7 @@ async def solicitar_documentos_rede(identificador: UUID, request: Request,
     try:
         cifrador()
     except RuntimeError:
-        raise HTTPException(503, "Configure a chave de proteção no AERI e no executor para ler os documentos pela rede.") from None
+        raise HTTPException(503, "Configure a chave de proteção no Analisador RGI e no executor para ler os documentos pela rede.") from None
     with conectar() as con:
         with con.cursor() as cur:
             cur.execute("SELECT fase FROM intimacoes_aeri WHERE id=%s AND excluida_em IS NULL FOR SHARE", (identificador,))
@@ -277,7 +277,7 @@ async def registrar_revisao_documental(identificador: UUID, request: Request,
                 (str(identificador), dados['numeroOficio']))
             duplicado = cur.fetchone()['possivel_duplicidade']
             if duplicado:
-                raise HTTPException(409, 'Este número consta em uma cópia para outro IN no AERI. Confira a numeração oficial na Tri7 antes de continuar.')
+                raise HTTPException(409, 'Este número consta em uma cópia para outro IN no Analisador RGI. Confira a numeração oficial na Tri7 antes de continuar.')
             registrar_auditoria_cursor(cur, request,
                 'revisar_documento_intimacao' if dados['acao'] == 'revisao' else 'copiar_documento_intimacao',
                 'sucesso', usuario, str(identificador),

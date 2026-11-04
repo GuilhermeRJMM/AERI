@@ -1,5 +1,5 @@
 import {definirCsrfToken, requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
-import {mostrarPagina} from './navegacao.js?v=20261020-voltar-paginas-v1';
+import {mostrarPagina} from './navegacao.js?v=20261103-marca-rgi-v1';
 
 let autenticado = false;
 let aoEntrar = () => {};
@@ -83,9 +83,9 @@ function abrirLogin() {
     const viaHub = origemAutenticacao === 'HUB';
     document.getElementById('form-login').hidden = viaHub;
     document.getElementById('login-hub').hidden = !viaHub;
-    document.getElementById('login-titulo').textContent = viaHub ? 'Continue pelo Sync HUB' : 'Bem-vindo ao AERI';
+    document.getElementById('login-titulo').textContent = viaHub ? 'Continue pelo Sync HUB' : 'Bem-vindo ao Analisador RGI';
     document.getElementById('login-orientacao').textContent = viaHub
-        ? 'Não é necessário ter uma senha cadastrada no AERI.'
+        ? 'Não é necessário ter uma senha cadastrada no Analisador RGI.'
         : 'Entre com suas credenciais para acessar o sistema.';
     if (viaHub) solicitarEntradaHub();
     window.setTimeout(() => document.getElementById(viaHub ? 'btn-verificar-acesso-hub' : 'login-usuario').focus(), 80);

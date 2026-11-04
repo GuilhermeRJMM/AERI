@@ -152,7 +152,7 @@ def ler_pasta_processo(protocolo, protocolo_tri7='', referencia=None, pasta=None
     dados['avisos'].extend(avisos_rgi)
     if numero_rgi:
         if dados.get('protocoloTri7') and re.sub(r'\D', '', str(dados['protocoloTri7'])) != numero_rgi:
-            raise ErroDocumentoIntimacao('O protocolo RGI da pasta diverge do protocolo vinculado a este IN no AERI.')
+            raise ErroDocumentoIntimacao('O protocolo RGI da pasta diverge do protocolo vinculado a este IN no Analisador RGI.')
         dados['protocoloTri7'] = numero_rgi
         if data_rgi and not dados.get('dataProtocolo'):
             dados['dataProtocolo'] = data_rgi

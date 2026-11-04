@@ -153,7 +153,7 @@ def _consultar_documentos_pedido(protocolo):
             WHERE p.protocolo=%s AND i.excluida_em IS NULL''', (protocolo,))
         vinculo = cur.fetchone()
     if not vinculo:
-        raise HTTPException(404, 'Pedido RTD não vinculado a uma intimação ativa do AERI.')
+        raise HTTPException(404, 'Pedido RTD não vinculado a uma intimação ativa do Analisador RGI.')
 
     try:
         cliente = ClienteRTD(ambiente='producao')
@@ -247,7 +247,7 @@ def excluir_protocolos_rtd_intimacao(
     request: Request,
     usuario: str = Depends(exigir_perfis('ADMIN')),
 ):
-    """Remove do AERI os protocolos RTD deste IN e registra uma supressÃ£o auditÃ¡vel.
+    """Remove do Analisador RGI os protocolos RTD deste IN e registra uma supressÃ£o auditÃ¡vel.
 
     NÃ£o envia cancelamento Ã  Central RTD. As supressÃµes ficam no banco para
     impedir que a sincronizaÃ§Ã£o recrie protocolos que o cartÃ³rio removeu.
@@ -778,7 +778,7 @@ async def enviar_notificacao_rtd(
                     pendente=TRUE,tentar_em=NOW(),erro=NULL,alterado_em=NOW()
                     WHERE protocolo=%s''', (id_intimacao, protocolo))
             else:
-                dados_iniciais = {'Situacao': 'Enviado pelo AERI; aguardando consulta na Central'}
+                dados_iniciais = {'Situacao': 'Enviado pelo Analisador RGI; aguardando consulta na Central'}
                 cur.execute('''INSERT INTO rtd_pedidos_aeri
                     (protocolo,intimacao_id,vinculo,dados,resumo_hash,pendente,tentar_em)
                     VALUES (%s,%s,'ENVIO_AERI',%s,%s,TRUE,NOW())''',

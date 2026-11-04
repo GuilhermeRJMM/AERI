@@ -227,7 +227,7 @@ def _enderecos_do_oficio(texto):
 
 def analisar_tres_anexos(anexos, referencia, protocolo_in, protocolo_tri7='', permitir_ocr=False):
     if not re.fullmatch(r'IN\d{8}C', protocolo_in):
-        raise Erro('Selecione um IN válido cadastrado no AERI.')
+        raise Erro('Selecione um IN válido cadastrado no Analisador RGI.')
     if set(anexos) != set(PAPEIS):
         raise Erro('Recibo do Protocolo, Ofício do Credor e Planilha de Projeção são obrigatórios.')
     textos, fontes = {}, []
@@ -272,7 +272,7 @@ def analisar_tres_anexos(anexos, referencia, protocolo_in, protocolo_tri7='', pe
     if protocolo_divergente:
         fontes_protocolo = {'recibo': protocolo, 'cadastroAeri': str(protocolo_tri7)}
         dados['inconsistencias'].append(dict(campo='protocoloTri7', fontes=fontes_protocolo))
-        dados['avisos'].append(f'O recibo deste IN informa protocolo {protocolo}; o cadastro antigo do AERI contém {protocolo_tri7}. Confira a divergência antes de aprovar. O rascunho usa o recibo e o cadastro NÃO foi alterado.')
+        dados['avisos'].append(f'O recibo deste IN informa protocolo {protocolo}; o cadastro antigo do Analisador RGI contém {protocolo_tri7}. Confira a divergência antes de aprovar. O rascunho usa o recibo e o cadastro NÃO foi alterado.')
     if len({f['sha256'] for f in fontes}) != 3:
         raise Erro('Os três anexos precisam ser documentos distintos.')
     if not _devedores(textos['oficio']) or not dados['credor']['nome']:

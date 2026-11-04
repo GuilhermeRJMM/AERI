@@ -94,7 +94,7 @@ def extrair_documento_pdf(conteudo):
     except ErroRTD:
         raise
     except ImportError:
-        raise ErroRTD('RTD_PDF_BIBLIOTECA: instale as dependências do AERI para ler PDFs.') from None
+        raise ErroRTD('RTD_PDF_BIBLIOTECA: instale as dependências do Analisador RGI para ler PDFs.') from None
     except Exception:
         raise ErroRTD('RTD_PDF_LEITURA: não foi possível extrair o IN do PDF.') from None
 

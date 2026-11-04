@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AERI - Analisador Eletrônico</title>
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=20260706">
+    <title>Analisador RGI</title>
+    <meta name="application-name" content="Analisador RGI">
+    <link rel="icon" type="image/png" href="/static/analisador-rgi-logo.png?v=20261103">
+    <link rel="apple-touch-icon" href="/static/analisador-rgi-logo.png?v=20261103">
     <style>
         .nav-item { display: none !important; }
         .nav-item[data-autorizado="true"] { display: flex !important; }
@@ -13,7 +15,7 @@
     <link rel="stylesheet" href="/static/styles.css?v=20261029-hover-contraste-v2">
     <link rel="stylesheet" href="/static/painel.css?v=20260904-barra">
     <link id="sync-theme" rel="stylesheet" href="/static/sync-theme.css?v=20261029-componentes-v4">
-    <link rel="stylesheet" href="/static/design-system.css?v=20261029-hover-contraste-v4">
+    <link rel="stylesheet" href="/static/design-system.css?v=20261103-marca-rgi-v1">
     <link rel="stylesheet" href="/static/intimacoes-mesa.css?v=20261029-institucional-v1">
     <link rel="stylesheet" href="/static/intimacao-documentos.css?v=20261103-folhas-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -21,10 +23,11 @@
 <body class="sync-tema splash-active auth-pending">
     <a class="aeri-skip-link" href="#main-content">Pular para o conteúdo</a>
 
-    <div id="splash-aeri" class="splash-aeri" role="status" aria-label="Carregando AERI">
+    <div id="splash-aeri" class="splash-aeri" role="status" aria-label="Carregando Analisador RGI">
         <div class="splash-glow"></div>
         <div class="splash-brand">
-            <img src="/static/aeri-sidebar-transparent.png" alt="AERI — Analisador Eletrônico do Registro de Imóveis" class="splash-logo">
+            <img src="/static/analisador-rgi-logo.png?v=20261103" alt="Analisador RGI" class="splash-logo">
+            <strong class="splash-nome">Analisador RGI</strong>
             <div class="splash-progress"><span></span></div>
         </div>
         <button class="splash-skip" id="btn-fechar-splash" type="button">Entrar</button>
@@ -32,12 +35,12 @@
 
     <section id="login-aeri" class="login-aeri" aria-labelledby="login-titulo">
         <div class="login-card">
-            <img src="/static/aeri-sidebar-transparent.png" alt="AERI" class="login-logo">
+            <img src="/static/analisador-rgi-logo.png?v=20261103" alt="Analisador RGI" class="login-logo">
             <span class="eyebrow">ACESSO RESTRITO</span>
-            <h1 id="login-titulo">Bem-vindo ao AERI</h1>
+            <h1 id="login-titulo">Bem-vindo ao Analisador RGI</h1>
             <p id="login-orientacao">Entre com suas credenciais para acessar o sistema.</p>
             <div id="login-hub" hidden role="status" aria-live="polite">
-                <p>Seu acesso é feito pelo Sync HUB. Abra novamente o AERI pelo HUB para continuar, sem digitar uma senha do AERI.</p>
+                <p>Seu acesso é feito pelo Sync HUB. Abra novamente o Analisador RGI pelo HUB para continuar, sem digitar uma senha do Analisador RGI.</p>
                 <button id="btn-verificar-acesso-hub" class="btn btn-primary" type="button">Verificar acesso do HUB</button>
                 <p id="login-hub-status"></p>
             </div>
@@ -46,7 +49,7 @@
                 <label><span>Senha</span><input id="login-senha" type="password" autocomplete="current-password" required></label>
                 <label id="login-mfa-grupo" hidden><span>Código do autenticador</span><input id="login-mfa" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"></label>
                 <div id="login-erro" class="login-erro" role="alert"></div>
-                <button id="btn-login" class="btn btn-primary" type="submit">Entrar no AERI</button>
+                <button id="btn-login" class="btn btn-primary" type="submit">Entrar no Analisador RGI</button>
             </form>
         </div>
     </section>
@@ -59,7 +62,7 @@
                         <path d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
                 </button>
-                <div class="logo-text">AERI</div>
+                <div class="logo-text"><img src="/static/analisador-rgi-logo.png?v=20261103" alt="" class="marca-rgi-icone"><span>Analisador RGI</span></div>
             </div>
             <p id="saudacao-usuario" class="navbar-saudacao" aria-live="polite"></p>
             <div class="navbar-user">
@@ -92,7 +95,7 @@
 
         <aside class="sidebar" id="sidebar-aeri">
             <span class="sidebar-label">MÓDULOS</span>
-            <nav class="sidebar-nav" aria-label="Módulos do AERI">
+            <nav class="sidebar-nav" aria-label="Módulos do Analisador RGI">
                 <button class="nav-item" data-page="inicio" title="Início" type="button">Início</button>
                 <button class="nav-item" data-page="certidao" title="Certidão" hidden type="button">Certidão</button>
                 <button class="nav-item" data-page="rgi" title="RGI — Produção e Conferência" hidden type="button">RGI — Produção e Conferência</button>
@@ -197,7 +200,7 @@
 
                     <div class="hero">
                         <h1>Analisador Eletrônico do Registro de Imóveis</h1>
-                        <p>Informe o número da matrícula. O AERI busca o texto na Tri7 e realiza a análise completa automaticamente.</p>
+                        <p>Informe o número da matrícula. O Analisador RGI busca o texto na Tri7 e realiza a análise completa automaticamente.</p>
                     </div>
 
                     <div class="section-input-row">
@@ -221,7 +224,7 @@
                             <details id="contingencia-manual" class="contingencia-manual" hidden>
                                 <summary>Analisar texto manualmente <span class="contingencia-manual-badge">Somente ADM</span></summary>
                                 <form id="form-texto-manual">
-                                    <p>Use a qualquer momento. O AERI processa o conteúdo em memória e não armazena o texto integral.</p>
+                                    <p>Use a qualquer momento. O Analisador RGI processa o conteúdo em memória e não armazena o texto integral.</p>
                                     <label for="numero-matricula-manual">Número da matrícula (opcional)</label>
                                     <input id="numero-matricula-manual" name="numero_matricula_manual" type="text" inputmode="numeric" autocomplete="off" maxlength="14" pattern="[0-9. ]{1,14}" placeholder="Ex.: 29.774">
                                     <textarea id="texto-matricula-manual" maxlength="5000000" required placeholder="Cole aqui o texto completo da matrícula."></textarea>
@@ -616,7 +619,7 @@
 
                             <section class="poligonos-bloco">
                                 <h2>Planta e memorial</h2>
-                                <p class="poligonos-nota">Preencha os dados que devem aparecer no documento. Os confrontantes são informados por você; o AERI não os deduz pela imagem do mapa.</p>
+                                <p class="poligonos-nota">Preencha os dados que devem aparecer no documento. Os confrontantes são informados por você; o Analisador RGI não os deduz pela imagem do mapa.</p>
                                 <div class="poligonos-grade">
                                     <div><label for="poligonos-memorial-lote">Lote</label><input id="poligonos-memorial-lote" maxlength="80" placeholder="Ex.: 06"></div>
                                     <div><label for="poligonos-memorial-quadra">Quadra</label><input id="poligonos-memorial-quadra" maxlength="80" placeholder="Ex.: 02"></div>
@@ -678,7 +681,7 @@
                     <div class="hero hero-incra">
                         <span class="eyebrow">COMUNICAÇÃO MENSAL</span>
                         <h1>Protocolos para o INCRA</h1>
-                        <p>Envie o Relatório Rural em PDF. O AERI classifica os protocolos e consulta na Tri7 cancelamentos, matrículas e atos praticados.</p>
+                        <p>Envie o Relatório Rural em PDF. O Analisador RGI classifica os protocolos e consulta na Tri7 cancelamentos, matrículas e atos praticados.</p>
                     </div>
 
                     <div class="incra-upload-card">
@@ -702,7 +705,7 @@
                     <div class="hero hero-incra">
                         <span class="eyebrow">CONFERÊNCIA FINAL</span>
                         <h1>Livro de Protocolos</h1>
-                        <p>Escolha o dia do expediente. O AERI localiza os títulos apresentados e registrados nessa data e confere os atos diretamente na Tri7.</p>
+                        <p>Escolha o dia do expediente. O Analisador RGI localiza os títulos apresentados e registrados nessa data e confere os atos diretamente na Tri7.</p>
                     </div>
 
                     <div class="incra-upload-card livroproto-consulta-card">
@@ -929,7 +932,7 @@
                             <summary>Consultar agenda de prazos</summary>
                             <section class="rotina-agenda" aria-labelledby="rotina-agenda-titulo">
                                 <div class="rotina-agenda-cabecalho">
-                                    <div><span class="eyebrow">AGENDA DE PRAZOS</span><h2 id="rotina-agenda-titulo">Prazos e rotina diária</h2><p>Os prazos abaixo usam as datas registradas no AERI. A conferência diária inclui todos os INs ativos, em qualquer fase, com ou sem prazo calculado.</p></div>
+                                    <div><span class="eyebrow">AGENDA DE PRAZOS</span><h2 id="rotina-agenda-titulo">Prazos e rotina diária</h2><p>Os prazos abaixo usam as datas registradas no Analisador RGI. A conferência diária inclui todos os INs ativos, em qualquer fase, com ou sem prazo calculado.</p></div>
                                     <div class="rotina-agenda-controles" aria-label="Navegação da agenda"><button type="button" data-agenda-semana="-1" aria-label="Semana anterior">‹</button><strong id="rotina-agenda-periodo"></strong><button type="button" data-agenda-semana="1" aria-label="Próxima semana">›</button><button type="button" data-agenda-hoje>Hoje</button></div>
                                 </div>
                                 <div id="rotina-agenda-metricas" class="rotina-agenda-metricas" aria-live="polite"></div>
@@ -949,7 +952,7 @@
             <div id="page-usuarios" class="page">
                 <main class="layout usuarios-layout">
                     <div class="rotina-header">
-                        <div><span class="eyebrow">ADMINISTRAÇÃO</span><h1>Usuários e Acessos</h1><p>Crie contas individuais e limite o que cada pessoa pode fazer no AERI.</p></div>
+                        <div><span class="eyebrow">ADMINISTRAÇÃO</span><h1>Usuários e Acessos</h1><p>Crie contas individuais e limite o que cada pessoa pode fazer no Analisador RGI.</p></div>
                         <button class="btn btn-primary" id="btn-novo-usuario">Novo usuário</button>
                     </div>
                     <section class="rotina-painel">
@@ -1085,7 +1088,7 @@
                 </section>
                 <section class="rtd-envio-secao">
                     <h3>Documento e preenchimento</h3>
-                    <p class="rtd-envio-ajuda">Selecione o <strong>Documentos RTD.pdf</strong> deste IN. O AERI tentará preencher os devedores e os endereços do próprio arquivo; confira cada campo antes de enviar.</p>
+                    <p class="rtd-envio-ajuda">Selecione o <strong>Documentos RTD.pdf</strong> deste IN. O Analisador RGI tentará preencher os devedores e os endereços do próprio arquivo; confira cada campo antes de enviar.</p>
                     <button type="button" class="rotina-btn-secondary rtd-abrir-pasta" id="btn-abrir-pasta-rtd">Abrir pasta deste IN</button>
                     <label><span>Documentos RTD.pdf (PDF de até 25 MB)</span><input id="rtd-arquivo-notificacao" type="file" accept="application/pdf,.pdf" required></label>
                     <button type="button" class="rotina-btn-secondary" id="btn-repetir-envio-pdf-rtd" hidden>Tentar enviar o PDF novamente</button>
@@ -1132,13 +1135,13 @@
                         <label class="rtd-envio-checkbox"><input id="rtd-confirmar-documentos" type="checkbox" required><span>O PDF reúne os quatro documentos na ordem indicada.</span></label>
                         <label class="rtd-envio-checkbox"><input id="rtd-confirmar-assinatura" type="checkbox" required><span>O PDF foi assinado digitalmente depois de reunir os documentos.</span></label>
                     </div>
-                    <p class="rtd-envio-ajuda">Conforme o procedimento do cartório, o envio é feito sem requerimento extra. O AERI enviará somente este PDF.</p>
+                    <p class="rtd-envio-ajuda">Conforme o procedimento do cartório, o envio é feito sem requerimento extra. O Analisador RGI enviará somente este PDF.</p>
                     <div class="rtd-envio-linha">
                         <label><span>Credor / nome para recebimento</span><input id="rtd-credor-notificacao" maxlength="160" required></label>
                         <label><span>CNPJ do credor (14 números)</span><input id="rtd-credor-cnpj" maxlength="14" inputmode="numeric" pattern="[0-9]{14}" required></label>
                     </div>
                     <label><span>Observações adicionais (opcional)</span><textarea id="rtd-informacoes-adicionais" maxlength="4500" rows="3"></textarea></label>
-                    <p class="rtd-envio-ajuda">O AERI montará a frase “Recebido em nome de: [credor], inscrita no CNPJ: [CNPJ]”. Confira o CNPJ nos documentos antes de enviar.</p>
+                    <p class="rtd-envio-ajuda">O Analisador RGI montará a frase “Recebido em nome de: [credor], inscrita no CNPJ: [CNPJ]”. Confira o CNPJ nos documentos antes de enviar.</p>
                     <label class="rtd-envio-checkbox"><input id="rtd-entrega-destinatario" type="checkbox" required checked><span>Entregar somente ao destinatário ou representante legal (procedimento padrão).</span></label>
                 </section>
                 <label class="rtd-envio-confirmacao"><input id="rtd-confirmar-sem-duplicidade" type="checkbox" required><span>Conferi na Central RTD que não há um envio igual já em andamento ou concluído.</span></label>
@@ -1162,7 +1165,7 @@
                 <p id="rtd-exclusao-protocolo"></p>
             </div>
             <div class="rtd-exclusao-aviso">
-                <strong>Isso remove os vÃ­nculos RTD somente do AERI.</strong>
+                <strong>Isso remove os vÃ­nculos RTD somente do Analisador RGI.</strong>
                 <span>NÃ£o cancela nem altera pedidos na Central RTD. A aÃ§Ã£o ficarÃ¡ registrada, e os protocolos removidos nÃ£o voltarÃ£o pela sincronizaÃ§Ã£o automÃ¡tica.</span>
             </div>
             <form id="form-rtd-exclusao" class="rotina-form rtd-exclusao-form">
@@ -1178,7 +1181,7 @@
                 <p id="rtd-exclusao-status" class="rtd-exclusao-status" role="status" aria-live="polite"></p>
                 <div class="rotina-form-actions">
                     <button type="button" class="rotina-btn-secondary" id="btn-cancelar-rtd-exclusao">Cancelar</button>
-                    <button type="submit" class="rtd-exclusao-confirmar" id="btn-confirmar-rtd-exclusao">Excluir do AERI</button>
+                    <button type="submit" class="rtd-exclusao-confirmar" id="btn-confirmar-rtd-exclusao">Excluir do Analisador RGI</button>
                 </div>
             </form>
         </section>
@@ -1265,7 +1268,7 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261029-sistema-v4"></script>
+    <script type="module" src="/static/js/app.js?v=20261103-marca-rgi-v1"></script>
 </body>
 </html>
 

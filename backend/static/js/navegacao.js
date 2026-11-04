@@ -37,7 +37,7 @@ function atualizarBreadcrumb(pageId) {
     for (const id of ['inicio', ...(setor ? [setor] : []), ...(pageId !== 'inicio' ? [pageId] : [])]) {
         const botao = document.createElement('button');
         botao.type = 'button'; botao.dataset.destino = id;
-        botao.textContent = id === 'inicio' ? 'AERI' : document.querySelector(`.nav-item[data-page="${id}"]`)?.title || id;
+        botao.textContent = id === 'inicio' ? 'Analisador RGI' : document.querySelector(`.nav-item[data-page="${id}"]`)?.title || id;
         if (id === pageId) botao.setAttribute('aria-current','page');
         destino.append(botao);
     }

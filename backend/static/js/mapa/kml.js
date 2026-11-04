@@ -48,7 +48,7 @@ const CASAS = 8;   // ~1 mm; a exigência do manual é 8 cm
  * devem ser usados no cadastro de parcelas".
  *
  * Vale só para os atributos que vão ao Mapa. O nome exibido na tela do
- * AERI e a descrição legível do KML continuam acentuados -- tirar acento
+ * Analisador RGI e a descrição legível do KML continuam acentuados -- tirar acento
  * de texto que ninguém cadastra só piora a leitura.
  */
 export function semAcentos(texto) {
@@ -174,7 +174,7 @@ function atributos(dados) {
     const area = fechado ? areaM2(anel) : 0;
     const perimetro = perimetroM(anel, fechado);
 
-    // Preenchido é só o que o AERI realmente sabe. Os demais campos vão
+    // Preenchido é só o que o Analisador RGI realmente sabe. Os demais campos vão
     // vazios, e não ausentes: quem receber o arquivo vê a estrutura
     // inteira e sabe o que falta completar, em vez de descobrir depois
     // que o Mapa recusou por campo que ninguém percebeu que existia.

@@ -1,7 +1,7 @@
 /**
  * Motor de mapa deslizante (slippy map) do módulo Polígonos.
  *
- * Escrito à mão, sem biblioteca, porque a política de segurança do AERI
+ * Escrito à mão, sem biblioteca, porque a política de segurança do Analisador RGI
  * traz `script-src 'self'` -- nenhuma CDN carrega, e o projeto não tem
  * etapa de build para empacotar uma dependência. O que precisamos daqui
  * é pequeno e bem definido: projetar, mostrar tiles, arrastar, aproximar
@@ -26,7 +26,7 @@ export const CAMADAS = {
         // Endpoint interno do Google Maps, sem chave e sem contrato. É o
         // mesmo que o Mapa do Registro de Imóveis do ONR usa na camada
         // "Satélite" (resources/js/index-leaflet.js). Isso NÃO licencia o
-        // AERI: um eventual acordo do ONR cobriria a plataforma deles.
+        // Analisador RGI: um eventual acordo do ONR cobriria a plataforma deles.
         //
         // Fica registrado que a escolha foi do titular do cartório, ciente
         // de que os termos do Google restringem criar dado geoespacial
