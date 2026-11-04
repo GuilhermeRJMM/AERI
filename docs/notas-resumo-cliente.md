@@ -19,3 +19,9 @@ As rotas `/api/gerador-notas/previa` e `/api/gerador-notas/gerar` devolvem tamb�
 ## Validação
 
 Os testes cobrem os 72 itens nas quatro espécies, preservação exata dos parágrafos XML formais, preenchimento, ordem, alternativas, assinaturas, protocolo separado, escape de HTML, sessão/CSRF e geração conjunta. O navegador testa o motor real com dados fictícios. A inspeção do DOCX foi feita por conversão com Word instalado, pois o renderizador do pacote não encontrou LibreOffice.
+
+## Timbre do cartório
+
+O molde operacional `molde-nota-cartorio.docx` usa cabeçalho, rodapé, imagens, estilos e geometria A4 do arquivo aprovado da sede nova. As mesmas referências de cabeçalho e rodapé atendem todas as páginas, incluindo o resumo. Arial 10 é mantida nos textos do motor. As fontes binárias incorporadas e o customXml do Google Docs foram removidos da cópia operacional para reduzir o tamanho; os bytes da logo, do cabeçalho e do rodapé foram preservados. O arquivo original da rede não foi alterado.
+
+A importação pode ser reproduzida com `scripts/preparar_timbre_notas.py`, recebendo o caminho do modelo aprovado. A origem usada tem SHA256 `8d5ccec04193e188157a7fdd02e7a0cb76e97d4a8f5fcc71bae961be3e8db6cd`. Os testes verificam a identidade do timbre e se todos os relacionamentos internos continuam válidos.

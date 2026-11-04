@@ -21,7 +21,7 @@ from .redator import Item, Redator
 from .resumo import montar_resumo, blocos_resumo, html_resumo
 
 
-MOLDE = BASE / "modelo" / "molde-nota.docx"
+MOLDE = BASE / "modelo" / "molde-nota-cartorio.docx"
 
 
 @lru_cache(maxsize=1)
