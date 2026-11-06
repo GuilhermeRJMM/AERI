@@ -1,6 +1,7 @@
 """Rotas protegidas do módulo Gerador de Notas."""
 
 import base64
+import re
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -72,6 +73,43 @@ def abrir_revisao(_usuario: str = Depends(exigir_permissao("acessar_gerador_nota
 @router.get("/catalogo")
 def obter_catalogo(_usuario: str = Depends(exigir_permissao("acessar_gerador_notas"))):
     return catalogo_para_tela()
+
+
+@router.post("/consultar-protocolo", dependencies=[Depends(proteger_csrf)])
+def consultar_protocolo_nota(
+    dados: dict,
+    _usuario: str = Depends(exigir_permissao("acessar_gerador_notas")),
+):
+    """Consulta somente a descrição literal do título, sem expor partes ou GED."""
+    from backend.app.servicos.tri7 import (
+        cliente_tri7, ErroTri7, ProtocoloTri7NaoEncontrado,
+        ConfiguracaoTri7Invalida, normalizar_numero_matricula,
+    )
+    valor = dados.get("protocolo")
+    if not isinstance(valor, str) or not re.fullmatch(r"(?:[0-9]{1,10}|[0-9]{1,3}(?:\.[0-9]{3}){1,2})", valor.strip()):
+        raise HTTPException(422, "Informe um número de protocolo válido.")
+    try:
+        numero = normalizar_numero_matricula(valor)
+    except ValueError:
+        raise HTTPException(422, "Informe um número de protocolo válido.") from None
+    try:
+        protocolo = cliente_tri7().buscar_protocolo_completo(numero)["protocolo"]
+    except ProtocoloTri7NaoEncontrado:
+        raise HTTPException(404, "Protocolo não encontrado na Tri7. Confira o número ou preencha o título manualmente.") from None
+    except ConfiguracaoTri7Invalida:
+        raise HTTPException(503, "Consulta à Tri7 indisponível. O preenchimento manual continua disponível.") from None
+    except ErroTri7:
+        raise HTTPException(502, "Não foi possível consultar a Tri7. Tente novamente ou preencha o título manualmente.") from None
+    try:
+        if normalizar_numero_matricula(protocolo.get("protocolo_numero")) != numero:
+            raise ValueError()
+    except ValueError:
+        raise HTTPException(502, "A Tri7 não confirmou o protocolo solicitado. Nenhum campo foi preenchido.") from None
+    titulo = protocolo.get("descricao_titulo")
+    titulo = re.sub(r"\s+", " ", titulo).strip() if isinstance(titulo, str) else ""
+    if len(titulo) > 2000:
+        raise HTTPException(502, "A descrição do título excede o tamanho permitido. Preencha manualmente.")
+    return {"protocolo": numero, "titulo": titulo, "fonte": "Tri7 · descrição do título"}
 
 
 @router.get("/legislacao")

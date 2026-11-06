@@ -3,7 +3,7 @@ import {iniciarAutenticacao} from './autenticacao.js?v=20261103-marca-rgi-v1';
 import {carregarBuscas, iniciarBuscas, limparBuscas} from './buscas.js?v=20261103-marca-rgi-v1';
 import {iniciarIncra} from './incra.js?v=20260827-operacao-v1-api1';
 import {iniciarLivroProtocolos} from './livro_protocolos.js?v=20260831-setores-v1-api1';
-import {configurarAcessoGeradorNotas, iniciarGeradorNotas} from './gerador_notas.js?v=20261104-nota-resumo-v1';
+import {configurarAcessoGeradorNotas, iniciarGeradorNotas} from './gerador_notas.js?v=20261106-protocolo-v1';
 import {configurarAcessoMapaOnr, iniciarMapaOnr, limparMapaOnr} from './mapa_onr.js?v=20260901-nativo-v1-api1';
 import {carregarCustas, iniciarCustas, limparCustas} from './custas.js?v=20261021-negativa-simples-v1';
 import {carregarIntimacoes, iniciarIntimacoes, limparIntimacoes} from './intimacoes.js?v=20261103-marca-rgi-v1';
@@ -89,6 +89,7 @@ function aplicarAcessosDaSessao(dados) {
     );
     configurarAcessoGeradorNotas(
         !dados.deveTrocarSenha && permitido(dados, 'acessar_gerador_notas'),
+        dados.usuario,
     );
 }
 

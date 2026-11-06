@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="/static/styles.css?v=20261029-hover-contraste-v2">
     <link rel="stylesheet" href="/static/painel.css?v=20260904-barra">
     <link id="sync-theme" rel="stylesheet" href="/static/sync-theme.css?v=20261029-componentes-v4">
-    <link rel="stylesheet" href="/static/design-system.css?v=20261104-resumo-layout-v2">
+    <link rel="stylesheet" href="/static/design-system.css?v=20261106-protocolo-v1">
     <link rel="stylesheet" href="/static/intimacoes-mesa.css?v=20261029-institucional-v1">
     <link rel="stylesheet" href="/static/intimacao-documentos.css?v=20261103-folhas-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -270,9 +270,14 @@
                     <section id="gn-editor" class="gerador-notas-pagina" hidden>
                         <div class="aeri-card gerador-notas-dados">
                             <label><span>Espécie</span><select id="gn-especie"></select></label>
-                            <label><span>Protocolo</span><input id="gn-protocolo" placeholder="185.000" autocomplete="off"></label>
+                            <label><span>Protocolo</span><input id="gn-protocolo" placeholder="185.000" autocomplete="off" aria-describedby="gn-protocolo-aviso" maxlength="12"></label>
                             <label class="cresce"><span>Título apresentado</span><input id="gn-titulo" autocomplete="off" placeholder="Formal de Partilha, Escritura Pública, Mandado…"></label>
                             <label class="gerador-notas-chave"><input type="checkbox" id="gn-judicial"><span>Título judicial</span></label>
+                        </div>
+                        <div class="gerador-notas-rodape">
+                            <button id="gn-consultar-protocolo" type="button" class="rotina-btn-secondary">Consultar título na Tri7</button>
+                            <button id="gn-usar-titulo-tri7" type="button" class="rotina-btn-secondary" hidden>Usar descrição da Tri7</button>
+                            <span id="gn-protocolo-aviso" role="status" aria-live="polite">Ao informar o protocolo, o título é consultado automaticamente.</span>
                         </div>
                         <div class="gerador-notas-colunas">
                             <section class="aeri-card gerador-notas-coluna">
@@ -1268,7 +1273,7 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261104-nota-resumo-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20261106-protocolo-v1"></script>
 </body>
 </html>
 

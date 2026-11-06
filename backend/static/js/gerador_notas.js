@@ -1,8 +1,10 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {escaparHtml} from './util.js';
+import {iniciarConsultaProtocoloNota} from './nota_protocolo.js?v=20261106-protocolo-v1';
 
 const API = '/api/gerador-notas';
 let acessoPermitido = false;
+let consultaProtocolo = null;
 let iniciado = false;
 let catalogo = null;
 let legislacao = null;
@@ -273,12 +275,14 @@ function carregarSeNecessario() {
     if (document.querySelector('.nav-item.active')?.dataset.page === 'geradornotas') carregar();
 }
 
-export function configurarAcessoGeradorNotas(permitido) {
+export function configurarAcessoGeradorNotas(permitido, usuario = null) {
+    consultaProtocolo?.configurar(permitido, usuario);
     acessoPermitido = Boolean(permitido);
     carregarSeNecessario();
 }
 
 export function iniciarGeradorNotas() {
+    consultaProtocolo = iniciarConsultaProtocoloNota(solicitarPrevia);
     window.addEventListener('aeri:pagina-alterada', carregarSeNecessario);
     document.querySelectorAll('[data-gn-aba]').forEach(botao => botao.addEventListener('click', () => trocarAba(botao.dataset.gnAba)));
     $('lista').addEventListener('change', evento => {

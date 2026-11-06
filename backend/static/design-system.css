@@ -291,6 +291,7 @@ body.sync-tema .aeri-button[aria-busy="true"]::after {
   border-right-color: transparent; border-radius: 50%; animation: aeri-spin 800ms linear infinite;
 }
 @keyframes aeri-spin { to { transform: rotate(360deg); } }
+#gn-protocolo-aviso { color: #173d50; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) {
   body.sync-tema *, body.sync-tema *::before, body.sync-tema *::after {
     animation-duration: .01ms !important; transition-duration: .01ms !important;

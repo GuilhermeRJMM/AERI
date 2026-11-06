@@ -33,6 +33,7 @@ function motor(acao,dados={}){
    }
    if(u.pathname.startsWith('/api/gerador-notas/')){
     const acao=u.pathname.split('/').at(-1);
+    if(acao==='consultar-protocolo')return route.fulfill({contentType:'application/json',body:JSON.stringify({protocolo:route.request().postDataJSON().protocolo.replace(/\./g,''),titulo:''})});
     const dados=route.request().postDataJSON()||{};
     const r=motor(acao,dados);if(acao==='gerar'){gerados++;if(semResumo)delete r.resumo_incluido;}
     return route.fulfill({contentType:'application/json',body:JSON.stringify(r)});
