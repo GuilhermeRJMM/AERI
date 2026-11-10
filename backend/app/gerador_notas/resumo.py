@@ -70,41 +70,45 @@ def montar_resumo(dados, itens, motor, blocos_formais):
 def blocos_resumo(resumo):
     def texto(valor, papel='resumo_texto', negrito=False):
         return Bloco(papel, partes=[(valor, {'negrito'} if negrito else set())])
+    def com_icone(icone,valor,papel='resumo_texto',negrito=False):
+        return Bloco(papel,partes=[(icone,{'icone'}),(' '+valor,{'negrito'} if negrito else set())])
     blocos = [texto('RESUMO', 'resumo_titulo', True),
               Bloco('resumo_meta', partes=[(resumo['especie'], {'negrito'}), (' | ', set()),
                     ('Protocolo: ', {'negrito'}), (resumo['protocolo'] or 'não informado', set())]),
-              Bloco('resumo_meta', partes=[('Documento apresentado: ', {'negrito'}), (resumo['titulo'], set())]),
+              Bloco('resumo_meta', partes=[('📄',{'icone'}),(' Documento apresentado: ', {'negrito'}), (resumo['titulo'], set())]),
               texto(resumo['aviso'])]
     for item in resumo['itens']:
-        blocos.append(texto(f"ITEM {item['numero']} - {item['titulo'].upper()}", 'resumo_item', True))
-        blocos.append(texto('O que precisa ser resolvido: ' + item['pendencia'], 'resumo_balao'))
+        blocos.append(com_icone('📋',f"ITEM {item['numero']} - {item['titulo'].upper()}", 'resumo_item', True))
+        blocos.append(com_icone('🔎','O que precisa ser resolvido: ' + item['pendencia'], 'resumo_balao'))
         for indice, detalhe in enumerate(item.get('detalhes', [])):
             blocos.append(Bloco('resumo_detalhe_inicio' if indice == 0 else 'resumo_detalhe',
                           partes=[(detalhe['rotulo'] + ':', {'negrito','sublinhado'}), (' ' + detalhe['valor'], set())]))
-        for rotulo, campo in [('Por que isso é necessário', 'motivo'), ('Como resolver', 'comoResolver')]:
-            blocos.append(Bloco('resumo_recuado', partes=[(rotulo + ':', {'negrito','sublinhado'}), (' ' + item[campo], set())]))
-    blocos.extend([texto('Após a entrega dos documentos', 'resumo_item', True), texto(resumo['orientacaoFinal'])])
+        for icone,rotulo,campo in [('⚖️','Por que isso é necessário', 'motivo'), ('🛠️','Como resolver', 'comoResolver')]:
+            blocos.append(Bloco('resumo_recuado', partes=[(icone,{'icone'}),(' '+rotulo + ':', {'negrito','sublinhado'}), (' ' + item[campo], set())]))
+    blocos.extend([com_icone('📌','Após a entrega dos documentos', 'resumo_item', True), texto(resumo['orientacaoFinal'])])
     return blocos
 
 
 def html_resumo(resumo):
     def escapar(v):
         return html.escape(str(v)).replace('«', '<span class="falta">«').replace('»', '»</span>')
+    def icone(valor):
+        return f'<span class="nota-icone" aria-hidden="true">{valor}</span> '
     partes = ['<section class="nota-resumo" aria-label="Resumo">', '<h2>RESUMO</h2>',
               f'<p><strong>{escapar(resumo["especie"])}</strong> | <strong>Protocolo:</strong> {escapar(resumo["protocolo"] or "não informado")}</p>',
-              f'<p><strong>Documento apresentado:</strong> {escapar(resumo["titulo"])}</p>',
+              f'<p>{icone("📄")}<strong>Documento apresentado:</strong> {escapar(resumo["titulo"])}</p>',
               f'<p>{escapar(resumo["aviso"])}</p>']
     for item in resumo['itens']:
-        partes.append(f'<section class="nota-resumo-item" data-resumo-numero="{item["numero"]}"><h3>ITEM {item["numero"]} - {escapar(item["titulo"].upper())}</h3>')
-        partes.append(f'<div class="nota-resumo-balao"><strong>O que precisa ser resolvido</strong><p>{escapar(item["pendencia"])}</p></div>')
+        partes.append(f'<section class="nota-resumo-item" data-resumo-numero="{item["numero"]}"><h3>{icone("📋")}ITEM {item["numero"]} - {escapar(item["titulo"].upper())}</h3>')
+        partes.append(f'<div class="nota-resumo-balao">{icone("🔎")}<strong>O que precisa ser resolvido</strong><p>{escapar(item["pendencia"])}</p></div>')
         if item.get('detalhes'):
             partes.append('<div class="nota-resumo-detalhes nota-resumo-recuo">')
             for detalhe in item['detalhes']:
                 partes.append(f'<p><strong><u>{escapar(detalhe["rotulo"])}:</u></strong> {escapar(detalhe["valor"])}</p>')
             partes.append('</div>')
-        for rotulo, campo in [('Por que isso é necessário', 'motivo'), ('Como resolver', 'comoResolver')]:
-            partes.append(f'<p class="nota-resumo-recuo"><strong><u>{rotulo}:</u></strong> {escapar(item[campo])}</p>')
+        for simbolo,rotulo,campo in [('⚖️','Por que isso é necessário', 'motivo'), ('🛠️','Como resolver', 'comoResolver')]:
+            partes.append(f'<p class="nota-resumo-recuo">{icone(simbolo)}<strong><u>{rotulo}:</u></strong> {escapar(item[campo])}</p>')
         partes.append('</section>')
-    partes.extend(['<h3>Após a entrega dos documentos</h3>', f'<p>{escapar(resumo["orientacaoFinal"])}</p>',
+    partes.extend([f'<h3>{icone("📌")}Após a entrega dos documentos</h3>', f'<p>{escapar(resumo["orientacaoFinal"])}</p>',
         f'<footer class="nota-referencia">Referência conjunta: {escapar(resumo["vinculo"])}</footer>', '</section>'])
     return ''.join(partes)

@@ -11,6 +11,7 @@
 [data-gn-erro] { display:block; color:#a52424; font-size:12px; }
 #page-geradornotas .gn-matriculas button { color:#075e49; background:#fff; border:1px solid #b8d9cd; border-radius:6px; padding:7px 10px; cursor:pointer; }
 .nota-resumo { color:#10243a; background:#fff; font-family:Arial,sans-serif; }
+.nota-resumo .nota-icone { display:inline-block; font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif; font-size:1.15em; line-height:1; vertical-align:-.06em; margin-right:.15em; }
 #page-geradornotas .nota-resumo p, #page-geradornotas .nota-resumo-balao p,
 .nota-resumo-balao p { color:#10243a; font-family:Arial,sans-serif; }
 #page-geradornotas .nota-resumo .nota-resumo-recuo { font-family:Arial,sans-serif; }

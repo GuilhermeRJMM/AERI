@@ -55,7 +55,8 @@ def _esc(t):
 
 
 def _run(texto, marcas, tam, tab=False):
-    prop = f'<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="{tam}"/><w:szCs w:val="{tam}"/>'
+    fonte='Segoe UI Emoji' if 'icone' in marcas else 'Arial'
+    prop = f'<w:rFonts w:ascii="{fonte}" w:hAnsi="{fonte}" w:cs="{fonte}"/><w:sz w:val="{tam}"/><w:szCs w:val="{tam}"/>'
     if "negrito" in marcas:
         prop += "<w:b/>"
     if "sublinhado" in marcas:
