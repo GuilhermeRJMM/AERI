@@ -6,6 +6,7 @@
 <title>Gerador de Notas — Analisador RGI</title>
 <link rel="stylesheet" href="/static/tokens.css?v=20261029-sistema-v1">
 <link rel="stylesheet" href="/static/gerador_notas/estilo.css?v=20261029-sistema-v2">
+<link rel="stylesheet" href="/static/nota-resumo.css?v=20261110-notas-v1">
 </head>
 <body>
 
@@ -57,6 +58,7 @@
         </div>
       </div>
       <div id="lista" class="lista"></div>
+      <div class="gn-filtro-contexto"><p id="contexto-titulo" role="status"></p><button id="todas-pendencias" type="button" hidden>Ver todas as pendências</button></div>
     </section>
 
     <section class="cartao coluna">
@@ -90,6 +92,6 @@
   </div>
 </div>
 
-<script src="/static/gerador_notas/app.js?v=20261104-nota-resumo-v1"></script>
+<script type="module" src="/static/gerador_notas/app.js?v=20261110-notas-v1"></script>
 </body>
 </html>

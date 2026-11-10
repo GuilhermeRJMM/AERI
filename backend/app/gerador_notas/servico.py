@@ -19,6 +19,8 @@ from . import documento
 from .catalogo import BASE
 from .redator import Item, Redator
 from .resumo import montar_resumo, blocos_resumo, html_resumo
+from .campos import preparar_campos, NUMERICOS, MULTIPLOS
+from .contextos import PERFIS, contextos
 
 
 MOLDE = BASE / "modelo" / "molde-nota-cartorio.docx"
@@ -40,6 +42,9 @@ def sem_acento(texto: str) -> str:
 def catalogo_para_tela() -> dict:
     motor = redator()
     cru = json.loads((BASE / "dados" / "exigencias.json").read_text(encoding="utf-8"))
+    for campo in NUMERICOS | MULTIPLOS:
+        cru['campos'][campo]['tipo']='matriculas' if campo in MULTIPLOS else 'matricula'
+        cru['campos'][campo]['exemplo']='10100' if campo in MULTIPLOS else '12345'
     exigencias = sorted(
         motor.cat.exigencias.values(),
         key=lambda exigencia: (exigencia["assunto"], exigencia["rotulo"]),
@@ -48,6 +53,7 @@ def catalogo_para_tela() -> dict:
         # No AERI a validação também é somente leitura: alterações jurídicas
         # precisam entrar no repositório-fonte e passar pelos validadores.
         "somente_leitura": True,
+        "filtros_titulo": {"perfis":PERFIS},
         "especies": [
             {"id": identificador, "rotulo": especie["rotulo"]}
             for identificador, especie in motor.modelo["especies"].items()
@@ -56,6 +62,7 @@ def catalogo_para_tela() -> dict:
         "exigencias": [
             {
                 "id": exigencia["id"],
+                "contextos": contextos(exigencia),
                 "rotulo": exigencia["rotulo"],
                 "assunto": exigencia["assunto"],
                 "defeito": exigencia["defeito"],
@@ -196,6 +203,7 @@ def revisao() -> list[dict]:
 
 
 def previa(dados: dict) -> dict:
+    dados=preparar_campos(dados)
     motor = redator()
     cru = json.loads((BASE / "dados" / "exigencias.json").read_text(encoding="utf-8"))
     rotulos = {campo: item.get("rotulo", campo) for campo, item in cru.get("campos", {}).items()}
@@ -238,7 +246,8 @@ def previa(dados: dict) -> dict:
         partes.append(f'<div class="p-{bloco.papel}">{corpo}</div>')
     resumo = montar_resumo({**dados, 'titulo': titulo}, itens, motor, blocos)
     formal = ''.join(partes)
-    return {"html": formal + html_resumo(resumo), "html_formal": formal,
+    formal='<section class="nota-formal" aria-label="Nota formal">'+formal+'</section>'
+    return {"html": html_resumo(resumo) + formal, "html_formal": formal,
             "resumo": resumo, "faltando": sorted(set(faltando))}
 
 
@@ -255,6 +264,7 @@ def gerar_documento(dados: dict) -> tuple[str, bytes, list[str]]:
 
 
 def gerar_documento_com_resumo(dados: dict) -> tuple[str, bytes, list[str], dict]:
+    dados=preparar_campos(dados)
     motor = redator()
     itens = [
         Item(str(item["exigencia"]), item.get("valores", {}))
@@ -268,5 +278,6 @@ def gerar_documento_com_resumo(dados: dict) -> tuple[str, bytes, list[str], dict
     )
     nome = nome_arquivo(str(dados.get("protocolo", "")), dados["especie"])
     resumo = montar_resumo(dados, itens, motor, blocos)
-    conteudo = documento.em_bytes(blocos + blocos_resumo(resumo), MOLDE)
+    conteudo = documento.em_bytes(blocos_resumo(resumo) + blocos, MOLDE,
+        referencia=resumo['vinculo'], inicio_formal=len(blocos_resumo(resumo)))
     return nome, conteudo, motor.nao_revisadas(itens), resumo

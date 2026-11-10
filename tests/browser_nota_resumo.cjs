@@ -61,7 +61,7 @@ function motor(acao,dados={}){
   assert.equal(await page.locator('[data-resumo-numero="1"]').count(),1);
   const download=page.waitForEvent('download');await page.locator('#gn-gerar').click();
   assert((await download).suggestedFilename().endsWith('.docx'));
-  await page.locator('#gn-modal-titulo').filter({hasText:'Nota e resumo gerados'}).waitFor();
+  await page.locator('#gn-modal-titulo').filter({hasText:'Resumo e nota gerados'}).waitFor();
   await page.locator('#gn-modal-ok').click();
   // Resposta antiga/incompleta nunca é baixada como nota sem resumo.
   semResumo=true;let extras=0;page.on('download',()=>extras++);

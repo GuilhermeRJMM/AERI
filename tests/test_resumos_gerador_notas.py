@@ -56,17 +56,24 @@ def test_cada_item_nas_quatro_especies_tem_nota_e_resumo_no_mesmo_docx(e, especi
     assert e['id'] in avisos  # não muda a revisão jurídica original
     with ZipFile(BytesIO(conteudo)) as z:
         raiz = ET.fromstring(z.read('word/document.xml'))
+        rodapes=''.join(z.read(p).decode() for p in z.namelist() if p.startswith('word/footer') and p.endswith('.xml'))
     ps = raiz.findall('w:body/w:p', NS)
     pos = next(i for i,p in enumerate(ps) if paragrafo_texto(p) == 'RESUMO')
-    assert ps[pos].find('w:pPr/w:pageBreakBefore', NS) is not None
-    # Todo o prefixo XML da nota formal permanece exatamente como antes.
+    assert pos==0
+    assert ps[pos].find('w:pPr/w:pageBreakBefore', NS) is None
+    # A nota formal agora vem depois do resumo, sem mudar texto/fundamentação.
     itens = [Item(e['id'], dados['itens'][0]['valores'])]
     formal = redator().redige(especie, dados['titulo'], itens)
     with ZipFile(BytesIO(documento.em_bytes(formal, MOLDE))) as z:
         originais = ET.fromstring(z.read('word/document.xml')).findall('w:body/w:p', NS)
-    assert [ET.tostring(p) for p in ps[:pos]] == [ET.tostring(p) for p in originais]
-    texto = '\n'.join(paragrafo_texto(p) for p in ps[pos:])
-    assert 'ITEM 1 - ' in texto and '186.999' in texto and resumo['vinculo'] in texto
+    inicio=next(i for i,p in enumerate(ps) if paragrafo_texto(p)==paragrafo_texto(originais[0]))
+    quebra=ps[inicio].find('w:pPr/w:pageBreakBefore',NS)
+    assert quebra is not None
+    ps[inicio].find('w:pPr',NS).remove(quebra)
+    assert [ET.tostring(p) for p in ps[inicio:]] == [ET.tostring(p) for p in originais]
+    texto=''.join(raiz.itertext())
+    assert 'ITEM 1 - ' in texto and '186.999' in texto
+    assert resumo['vinculo'] not in texto and resumo['vinculo'] in rodapes
 
 
 def test_ordem_mesmos_dados_e_atualizacao_do_resumo():

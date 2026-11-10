@@ -1,11 +1,13 @@
 // Tela da nota devolutiva. Conversa com o servidor local em notadev/servidor.py.
 'use strict';
+import {perfisDoTitulo,pertinenteAoTitulo,numeroDigitado,listaMatriculas} from '/static/js/nota_regras.js?v=20261110-notas-v1';
 
 const API = '/api/gerador-notas';
 let csrfToken = '';
 let CAT = null;                    // catalogo vindo do servidor
 const selecionadas = new Set();
 let apenasSelecionadas = false;            // filtro: esconder o que ainda não foi selecionado
+let mostrarTodas=false,assinaturaFiltro='';
 const valores = new Map();         // "exigencia|campo" -> texto digitado
 
 const $ = (id) => document.getElementById(id);
@@ -112,6 +114,8 @@ async function iniciar() {
   desenhaCampos();
 
   $('filtro').addEventListener('input', desenhaLista);
+  $('titulo').addEventListener('input',desenhaLista);
+  $('todas-pendencias').addEventListener('click',()=>{mostrarTodas=!mostrarTodas;desenhaLista();});
   $('apenas-selecionadas').addEventListener('click', () => {
     apenasSelecionadas = !apenasSelecionadas;
     desenhaLista();
@@ -125,15 +129,22 @@ async function iniciar() {
 }
 
 function desenhaLista() {
+  const perfis=perfisDoTitulo($('titulo').value,CAT.filtros_titulo);
+  const assinatura=perfis.map(p=>p.id).join('|');
+  if (assinatura!==assinaturaFiltro) { assinaturaFiltro=assinatura;mostrarTodas=false; }
   const termo = $('filtro').value.trim().toLowerCase();
   const lista = $('lista');
   lista.textContent = '';
 
   const visiveis = CAT.exigencias.filter(e =>
+    (mostrarTodas || selecionadas.has(e.id) || pertinenteAoTitulo(e,perfis)) &&
     (!apenasSelecionadas || selecionadas.has(e.id)) &&
     (!termo || (e.rotulo + ' ' + e.assunto + ' ' + e.defeito).toLowerCase().includes(termo)));
 
   atualizaAlternador();
+  $('contexto-titulo').textContent=perfis.length?perfis.map(p=>p.rotulo).join(' + '):'Título não específico: todas as pendências.';
+  $('todas-pendencias').hidden=!perfis.length;
+  $('todas-pendencias').textContent=mostrarTodas?'Voltar ao filtro do título':'Ver todas as pendências';
 
   if (!visiveis.length) {
     lista.innerHTML = '<div class="vazio">'
@@ -309,7 +320,24 @@ function desenhaCampos() {
       }
 
       // campo com lista fechada vira <select>; os demais, caixa de texto
+      if (info.tipo==='matriculas') {
+        const chave=e.id+'|'+c,numeros=listaMatriculas(valores.get(chave));
+        const grupo=document.createElement('div');
+        for (const [indice,valor] of numeros.entries()) {
+          const inp=document.createElement('input');inp.value=valor;inp.inputMode='numeric';inp.pattern='[0-9]*';inp.maxLength=12;inp.dataset.numero='true';
+          inp.placeholder='10100';inp.setAttribute('aria-label','Matrícula '+(indice+1));
+          inp.addEventListener('input',()=>{
+            const v=numeroDigitado(inp.value);inp.setCustomValidity(v===null?'Use somente números, uma matrícula por campo.':'');
+            if (v===null) { inp.value=listaMatriculas(valores.get(chave))[indice]||'';return; }
+            inp.value=v;const lista=listaMatriculas(valores.get(chave));lista[indice]=v;valores.set(chave,lista);pedePrevia();
+          });grupo.append(inp);
+        }
+        const adicionar=document.createElement('button');adicionar.type='button';adicionar.textContent='+ Outra matrícula';
+        adicionar.addEventListener('click',()=>{const lista=listaMatriculas(valores.get(chave));if(lista.length>=40)return;lista.push('');valores.set(chave,lista);desenhaCampos();});
+        grupo.append(adicionar);linha.append(lab,grupo);g.append(linha);continue;
+      }
       const inp = document.createElement(info.opcoes ? 'select' : 'input');
+      if (info.tipo==='matricula') { inp.inputMode='numeric';inp.pattern='[0-9]*';inp.maxLength=12;inp.dataset.numero='true'; }
       if (info.opcoes) {
         const vazio = document.createElement('option');
         vazio.value = ''; vazio.textContent = opcional ? '— não informar —' : '— escolha —';
@@ -326,6 +354,10 @@ function desenhaCampos() {
       inp.title = info.padrao ? `Em branco, a nota diz: "${info.padrao}"`
                               : (opcional ? 'Em branco, o trecho não entra na nota.' : '');
       inp.addEventListener(info.opcoes ? 'change' : 'input', () => {
+        if (info.tipo==='matricula') {
+          const numero=numeroDigitado(inp.value);inp.setCustomValidity(numero===null?'Use somente números.':'');
+          if(numero===null){inp.value=valores.get(e.id+'|'+c)||'';return;}inp.value=numero;
+        }
         valores.set(e.id + '|' + c, inp.value);
         pedePrevia();
       });
@@ -349,7 +381,7 @@ function montaItens() {
   return [...selecionadas].map(id => {
     const e = CAT.exigencias.find(x => x.id === id);
     const v = {};
-    for (const c of e.campos) v[c] = (valores.get(id + '|' + c) || '').trim();
+    for (const c of e.campos) {const valor=valores.get(id+'|'+c);v[c]=Array.isArray(valor)?valor.filter(Boolean):(valor||'').trim();}
     return { exigencia: id, valores: v };
   });
 }
@@ -414,6 +446,7 @@ function avisa(titulo, html, caminho) {
 }
 
 async function gerar() {
+  const invalido=$('campos').querySelector('input:invalid');if(invalido){invalido.reportValidity();return;}
   if (!selecionadas.size) return avisa('Nota vazia', '<p>Selecione ao menos uma pendência.</p>');
   if (!$('titulo').value.trim())
     return avisa('Falta o título', '<p>Informe o título apresentado — ele entra no preâmbulo.</p>');
@@ -438,7 +471,7 @@ async function gerar() {
     if (res.conteudo) {
       // servidor sem disco: a nota volta embutida e o navegador a salva
       baixa(res.conteudo, res.arquivo);
-      html = `<p>Nota formal e resumo do cliente gerados juntos. Entregue o documento completo:</p><div class="caminho">${escaparHtml(res.arquivo)}</div>`;
+      html = `<p>Resumo primeiro, seguido da nota formal. Entregue o documento completo:</p><div class="caminho">${escaparHtml(res.arquivo)}</div>`;
     } else {
       html = `<p>Nota gravada em:</p><div class="caminho">${escaparHtml(res.caminho)}</div>`;
     }
@@ -447,7 +480,7 @@ async function gerar() {
             + res.nao_revisadas.map(x => `<li>${escaparHtml(x)}</li>`).join('') + '</ul>'
             + '<p>Confira os artigos citados antes de expedir.</p>';
     }
-    avisa('Nota e resumo gerados', html, res.caminho);
+    avisa('Resumo e nota gerados', html, res.caminho);
   } catch (erro) {
     avisa('Não foi possível gerar', `<p>${escaparHtml(erro.message)}</p>`);
   } finally {

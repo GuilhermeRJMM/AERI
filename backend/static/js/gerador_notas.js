@@ -1,6 +1,7 @@
 import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {escaparHtml} from './util.js';
 import {iniciarConsultaProtocoloNota} from './nota_protocolo.js?v=20261106-protocolo-v1';
+import {perfisDoTitulo,pertinenteAoTitulo,numeroDigitado,listaMatriculas} from './nota_regras.js?v=20261110-notas-v1';
 
 const API = '/api/gerador-notas';
 let acessoPermitido = false;
@@ -11,6 +12,8 @@ let legislacao = null;
 let legislacaoAtual = null;
 let base = null;
 let apenasSelecionadas = false;
+let mostrarTodas = false;
+let assinaturaFiltro = '';
 let temporizadorArtigos;
 let sequenciaArtigos = 0;
 const selecionadas = new Set();
@@ -52,7 +55,8 @@ function montarItens() {
         return {
             exigencia: id,
             valores: Object.fromEntries(exigencia.campos.map(campo => [
-                campo, (valores.get(`${id}|${campo}`) || '').trim(),
+                campo, Array.isArray(valores.get(`${id}|${campo}`))
+                    ? valores.get(`${id}|${campo}`).filter(Boolean) : (valores.get(`${id}|${campo}`) || '').trim(),
             ])),
         };
     });
@@ -69,11 +73,22 @@ function atualizarResumo() {
 }
 
 function desenharLista() {
+    if (!catalogo) return;
+    const perfis=perfisDoTitulo($('titulo').value,catalogo.filtros_titulo);
+    const assinatura=perfis.map(p=>p.id).join('|');
+    if (assinatura!==assinaturaFiltro) { mostrarTodas=false; assinaturaFiltro=assinatura; }
     const termo = $('filtro').value.trim().toLocaleLowerCase('pt-BR');
     const visiveis = catalogo.exigencias.filter(item =>
         (!apenasSelecionadas || selecionadas.has(item.id))
+        && (mostrarTodas || selecionadas.has(item.id) || pertinenteAoTitulo(item,perfis))
         && (!termo || `${item.rotulo} ${item.assunto} ${item.defeito}`.toLocaleLowerCase('pt-BR').includes(termo))
     );
+    $('contexto-titulo').textContent=perfis.length
+        ? `${perfis.map(p=>p.rotulo).join(' + ')} · ${visiveis.length} de ${catalogo.exigencias.length} pendências. Seleções anteriores são mantidas.`
+        : 'Título não específico: exibindo todas as pendências disponíveis.';
+    $('todas-pendencias').textContent=mostrarTodas?'Voltar ao filtro do título':'Ver todas as pendências';
+    $('todas-pendencias').hidden=!perfis.length;
+    $('todas-pendencias').setAttribute('aria-pressed',String(mostrarTodas));
     $('apenas-selecionadas').classList.toggle('ativo', apenasSelecionadas);
     $('apenas-selecionadas').textContent = selecionadas.size
         ? `Selecionadas (${selecionadas.size})` : 'Apenas selecionadas';
@@ -95,10 +110,14 @@ function desenharCampos() {
             const definicao = catalogo.campos[campo] || {};
             const opcional = !(item.obrigatorios || []).includes(campo);
             const valor = valores.get(`${item.id}|${campo}`) || '';
+            if (definicao.tipo==='matriculas') {
+                const numeros=listaMatriculas(valor);
+                return `<div class="gerador-notas-campo"><label>${escaparHtml(definicao.rotulo||campo)}${opcional?' (opcional)':''}</label><div class="gn-matriculas">${numeros.map((n,i)=>`<div class="gn-matricula-linha"><input inputmode="numeric" pattern="[0-9]*" maxlength="12" data-gn-numerico data-gn-campo="${campo}" data-gn-item="${item.id}" data-gn-indice="${i}" value="${escaparHtml(n)}" placeholder="10100" aria-label="Matrícula ${i+1}">${numeros.length>1?`<button type="button" data-gn-remover-matricula="${campo}" data-gn-item="${item.id}" data-gn-indice="${i}" aria-label="Remover matrícula ${i+1}">Remover</button>`:''}</div>`).join('')}<button type="button" data-gn-adicionar-matricula="${campo}" data-gn-item="${item.id}">+ Outra matrícula</button><small data-gn-erro role="status"></small></div></div>`;
+            }
             const controle = definicao.opcoes
                 ? `<select data-gn-campo="${campo}" data-gn-item="${item.id}"><option value="">${opcional ? '— não informar —' : '— escolha —'}</option>${definicao.opcoes.map(opcao => `<option ${opcao === valor ? 'selected' : ''}>${escaparHtml(opcao)}</option>`).join('')}</select>`
-                : `<input data-gn-campo="${campo}" data-gn-item="${item.id}" value="${escaparHtml(valor)}" placeholder="${escaparHtml(item.exemplos?.[campo] || definicao.exemplo || '')}">`;
-            return `<div class="gerador-notas-campo"><label>${escaparHtml(definicao.rotulo || campo)}${opcional ? ' (opcional)' : ''}</label>${controle}</div>`;
+                : `<input ${definicao.tipo==='matricula'?'inputmode="numeric" pattern="[0-9]*" maxlength="12" data-gn-numerico':''} data-gn-campo="${campo}" data-gn-item="${item.id}" value="${escaparHtml(valor)}" placeholder="${escaparHtml(definicao.tipo==='matricula'?'12345':item.exemplos?.[campo] || definicao.exemplo || '')}">`;
+            return `<div class="gerador-notas-campo"><label>${escaparHtml(definicao.rotulo || campo)}${opcional ? ' (opcional)' : ''}</label>${controle}<small data-gn-erro role="status"></small></div>`;
         }).join('') : '<div class="gerador-notas-vazio">Esta pendência não pede dados adicionais.</div>'}
     </section>`).join('');
 }
@@ -144,6 +163,8 @@ function baixarDocumento(base64, nome) {
 }
 
 async function gerar() {
+    const invalido=$('campos').querySelector('input:invalid');
+    if (invalido) { invalido.reportValidity(); invalido.focus(); estado('erro','Corrija o número da matrícula antes de gerar.'); return; }
     if (!selecionadas.size) {
         estado('erro', 'Selecione ao menos uma pendência para gerar o DOCX.');
         abrirModal('Nota vazia', '<p>Selecione ao menos uma pendência.</p>');
@@ -156,7 +177,7 @@ async function gerar() {
         return;
     }
     $('gerar').disabled = true;
-    estado('', 'Gerando a nota formal e o resumo no mesmo documento…');
+    estado('', 'Gerando o resumo e a nota formal no mesmo documento…');
     try {
         const resposta = await requisicaoAeri(`${API}/gerar`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -167,7 +188,7 @@ async function gerar() {
         estado('sucesso', `Documento ${resposta.arquivo} gerado com sucesso.`);
         const alerta = resposta.nao_revisadas?.length
             ? `<p><strong>Confira antes de expedir:</strong> ${resposta.nao_revisadas.map(escaparHtml).join(', ')}.</p>` : '';
-        abrirModal('Nota e resumo gerados', `<p>O arquivo <strong>${escaparHtml(resposta.arquivo)}</strong> foi baixado com a nota formal e o resumo para o cliente, na mesma numeração. Entregue o documento completo.</p>${alerta}`);
+        abrirModal('Resumo e nota gerados', `<p>O arquivo <strong>${escaparHtml(resposta.arquivo)}</strong> foi baixado com o resumo primeiro e a nota formal em seguida, na mesma numeração. Entregue o documento completo.</p>${alerta}`);
     } catch (erro) {
         estado('erro', identificarErro(erro));
         abrirModal('Não foi possível gerar', `<p>${escaparHtml(identificarErro(erro))}</p>`);
@@ -282,7 +303,7 @@ export function configurarAcessoGeradorNotas(permitido, usuario = null) {
 }
 
 export function iniciarGeradorNotas() {
-    consultaProtocolo = iniciarConsultaProtocoloNota(solicitarPrevia);
+    consultaProtocolo = iniciarConsultaProtocoloNota(() => {desenharLista();solicitarPrevia();});
     window.addEventListener('aeri:pagina-alterada', carregarSeNecessario);
     document.querySelectorAll('[data-gn-aba]').forEach(botao => botao.addEventListener('click', () => trocarAba(botao.dataset.gnAba)));
     $('lista').addEventListener('change', evento => {
@@ -294,12 +315,35 @@ export function iniciarGeradorNotas() {
     $('campos').addEventListener('input', evento => {
         const campo = evento.target.closest('[data-gn-campo]');
         if (!campo) return;
-        valores.set(`${campo.dataset.gnItem}|${campo.dataset.gnCampo}`, campo.value); solicitarPrevia();
+        const chave=`${campo.dataset.gnItem}|${campo.dataset.gnCampo}`;
+        if (campo.hasAttribute('data-gn-numerico')) {
+            const numero=numeroDigitado(campo.value);
+            const aviso=campo.closest('.gerador-notas-campo').querySelector('[data-gn-erro]');
+            campo.setCustomValidity(numero===null?'Use somente números, uma matrícula por campo.':'');
+            aviso.textContent=numero===null?'Use somente números, uma matrícula por campo.':'';
+            if (numero===null) { campo.value=campo.dataset.gnIndice!==undefined?listaMatriculas(valores.get(chave))[Number(campo.dataset.gnIndice)]||'':valores.get(chave)||''; return; }
+            campo.value=numero;
+        }
+        if (campo.dataset.gnIndice!==undefined) {
+            const lista=listaMatriculas(valores.get(chave));lista[Number(campo.dataset.gnIndice)]=campo.value;valores.set(chave,lista);
+        } else valores.set(chave,campo.value);
+        solicitarPrevia();
+    });
+    $('campos').addEventListener('click',evento=>{
+        const botao=evento.target.closest('[data-gn-adicionar-matricula],[data-gn-remover-matricula]');
+        if (!botao) return;
+        const campo=botao.dataset.gnAdicionarMatricula||botao.dataset.gnRemoverMatricula;
+        const chave=`${botao.dataset.gnItem}|${campo}`,lista=listaMatriculas(valores.get(chave));
+        if (botao.dataset.gnAdicionarMatricula) { if (lista.length>=40) return; lista.push(''); }
+        else lista.splice(Number(botao.dataset.gnIndice),1);
+        valores.set(chave,lista);desenharCampos();solicitarPrevia();
     });
     $('campos').addEventListener('change', evento => {
         if (evento.target.matches('select[data-gn-campo]')) evento.target.dispatchEvent(new Event('input', {bubbles: true}));
     });
     $('filtro').addEventListener('input', desenharLista);
+    $('titulo').addEventListener('input',desenharLista);
+    $('todas-pendencias').addEventListener('click',()=>{mostrarTodas=!mostrarTodas;desenharLista();});
     $('apenas-selecionadas').addEventListener('click', () => { apenasSelecionadas = !apenasSelecionadas; desenharLista(); });
     ['especie', 'titulo', 'protocolo', 'judicial'].forEach(id => $(id).addEventListener(id === 'judicial' ? 'change' : 'input', solicitarPrevia));
     $('gerar').addEventListener('click', gerar);

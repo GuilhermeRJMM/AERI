@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="/static/design-system.css?v=20261106-protocolo-v1">
     <link rel="stylesheet" href="/static/intimacoes-mesa.css?v=20261110-consulta-v1">
     <link rel="stylesheet" href="/static/intimacao-documentos.css?v=20261103-folhas-v1">
+    <link rel="stylesheet" href="/static/nota-resumo.css?v=20261110-notas-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="sync-tema splash-active auth-pending">
@@ -252,7 +253,7 @@
                         <div>
                             <span class="eyebrow">QUALIFICAÇÃO REGISTRAL</span>
                             <h1>Gerador de Notas</h1>
-                            <p>Monte a nota formal e o resumo para o cliente juntos, com a mesma numeração. O DOCX inclui os dois textos.</p>
+                            <p>Monte o resumo e a nota formal juntos, com a mesma numeração. O DOCX começa pelo resumo e mantém todos os fundamentos na nota.</p>
                         </div>
                         <span id="gn-contagem" class="gerador-notas-contagem">Nenhuma pendência selecionada</span>
                     </div>
@@ -282,6 +283,7 @@
                         <div class="gerador-notas-colunas">
                             <section class="aeri-card gerador-notas-coluna">
                                 <header><h2>Pendências</h2><div><button id="gn-apenas-selecionadas" type="button" class="rotina-btn-secondary">Apenas selecionadas</button><input id="gn-filtro" placeholder="Filtrar…" autocomplete="off"></div></header>
+                                <div class="gn-filtro-contexto"><p id="gn-contexto-titulo" role="status"></p><button id="gn-todas-pendencias" type="button" class="rotina-btn-secondary" hidden>Ver todas as pendências</button></div>
                                 <div id="gn-lista" class="gerador-notas-lista"></div>
                             </section>
                             <section class="aeri-card gerador-notas-coluna">
@@ -289,11 +291,11 @@
                                 <div id="gn-campos" class="gerador-notas-campos"></div>
                             </section>
                             <section class="aeri-card gerador-notas-coluna gerador-notas-previa-coluna">
-                                <header><h2>Nota e resumo</h2><span id="gn-previa-aviso"></span></header>
+                                <header><h2>Resumo e nota</h2><span id="gn-previa-aviso"></span></header>
                                 <div id="gn-previa" class="gerador-notas-previa"></div>
                             </section>
                         </div>
-                        <footer class="gerador-notas-rodape"><span id="gn-aviso"></span><button id="gn-gerar" type="button" class="btn btn-primary">Gerar nota e resumo em DOCX</button></footer>
+                        <footer class="gerador-notas-rodape"><span id="gn-aviso"></span><button id="gn-gerar" type="button" class="btn btn-primary">Gerar resumo e nota em DOCX</button></footer>
                     </section>
 
                     <section id="gn-legislacao" class="gerador-notas-pagina aeri-card gerador-notas-consulta" hidden>
@@ -1293,7 +1295,7 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261110-consulta-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20261110-notas-v1"></script>
 </body>
 </html>
 

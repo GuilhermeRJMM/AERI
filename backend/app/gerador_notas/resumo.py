@@ -72,13 +72,12 @@ def blocos_resumo(resumo):
         return Bloco(papel, partes=[(valor, {'negrito'} if negrito else set())])
     blocos = [texto('RESUMO', 'resumo_titulo', True),
               Bloco('resumo_meta', partes=[(resumo['especie'], {'negrito'}), (' | ', set()),
-                    ('Protocolo: ', {'negrito'}), (resumo['protocolo'] or 'não informado', set()),
-                    (' | ', set()), ('Referência conjunta: ', {'negrito'}), (resumo['vinculo'], set())]),
+                    ('Protocolo: ', {'negrito'}), (resumo['protocolo'] or 'não informado', set())]),
               Bloco('resumo_meta', partes=[('Documento apresentado: ', {'negrito'}), (resumo['titulo'], set())]),
               texto(resumo['aviso'])]
     for item in resumo['itens']:
         blocos.append(texto(f"ITEM {item['numero']} - {item['titulo'].upper()}", 'resumo_item', True))
-        blocos.append(texto('O que precisa ser resolvido: ' + item['pendencia']))
+        blocos.append(texto('O que precisa ser resolvido: ' + item['pendencia'], 'resumo_balao'))
         for indice, detalhe in enumerate(item.get('detalhes', [])):
             blocos.append(Bloco('resumo_detalhe_inicio' if indice == 0 else 'resumo_detalhe',
                           partes=[(detalhe['rotulo'] + ':', {'negrito','sublinhado'}), (' ' + detalhe['valor'], set())]))
@@ -92,12 +91,12 @@ def html_resumo(resumo):
     def escapar(v):
         return html.escape(str(v)).replace('«', '<span class="falta">«').replace('»', '»</span>')
     partes = ['<section class="nota-resumo" aria-label="Resumo">', '<h2>RESUMO</h2>',
-              f'<p><strong>{escapar(resumo["especie"])}</strong> | <strong>Protocolo:</strong> {escapar(resumo["protocolo"] or "não informado")} | <strong>Referência conjunta:</strong> {escapar(resumo["vinculo"])}</p>',
+              f'<p><strong>{escapar(resumo["especie"])}</strong> | <strong>Protocolo:</strong> {escapar(resumo["protocolo"] or "não informado")}</p>',
               f'<p><strong>Documento apresentado:</strong> {escapar(resumo["titulo"])}</p>',
               f'<p>{escapar(resumo["aviso"])}</p>']
     for item in resumo['itens']:
         partes.append(f'<section class="nota-resumo-item" data-resumo-numero="{item["numero"]}"><h3>ITEM {item["numero"]} - {escapar(item["titulo"].upper())}</h3>')
-        partes.append(f'<p>O que precisa ser resolvido: {escapar(item["pendencia"])}</p>')
+        partes.append(f'<div class="nota-resumo-balao"><strong>O que precisa ser resolvido</strong><p>{escapar(item["pendencia"])}</p></div>')
         if item.get('detalhes'):
             partes.append('<div class="nota-resumo-detalhes nota-resumo-recuo">')
             for detalhe in item['detalhes']:
@@ -106,5 +105,6 @@ def html_resumo(resumo):
         for rotulo, campo in [('Por que isso é necessário', 'motivo'), ('Como resolver', 'comoResolver')]:
             partes.append(f'<p class="nota-resumo-recuo"><strong><u>{rotulo}:</u></strong> {escapar(item[campo])}</p>')
         partes.append('</section>')
-    partes.extend(['<h3>Após a entrega dos documentos</h3>', f'<p>{escapar(resumo["orientacaoFinal"])}</p>', '</section>'])
+    partes.extend(['<h3>Após a entrega dos documentos</h3>', f'<p>{escapar(resumo["orientacaoFinal"])}</p>',
+        f'<footer class="nota-referencia">Referência conjunta: {escapar(resumo["vinculo"])}</footer>', '</section>'])
     return ''.join(partes)

@@ -1,0 +1,17 @@
+/* Visual Law inspirado no modelo fornecido, com a identidade do cartório. */
+.nota-resumo .nota-resumo-balao { position:relative; background:#b4c7db; color:#10243a; border-radius:14px; padding:16px 20px; margin:18px 0 24px; border:0; overflow-wrap:anywhere; }
+.nota-resumo-balao::after { content:""; position:absolute; bottom:-10px; left:24px; border-top:12px solid #b4c7db; border-right:14px solid transparent; }
+.nota-resumo-balao p { margin:7px 0 0; }
+.nota-referencia { margin-top:24px; padding-top:10px; border-top:1px solid #b4c7db; font:10px Arial,sans-serif; color:#29445c; overflow-wrap:anywhere; text-align:center; }
+.nota-formal { border-top:2px solid #0b6c55; padding-top:24px; margin-top:34px; }
+.gn-filtro-contexto { padding:10px 14px; border-bottom:1px solid #dae5ec; background:#fff; color:#24435a; font-size:12px; }
+.gn-filtro-contexto p { margin:0 0 6px; line-height:1.5; }
+.gn-matricula-linha { display:flex; gap:8px; margin-bottom:6px; }
+.gn-matricula-linha input { min-width:0; flex:1; }
+[data-gn-erro] { display:block; color:#a52424; font-size:12px; }
+#page-geradornotas .gn-matriculas button { color:#075e49; background:#fff; border:1px solid #b8d9cd; border-radius:6px; padding:7px 10px; cursor:pointer; }
+.nota-resumo { color:#10243a; background:#fff; font-family:Arial,sans-serif; }
+#page-geradornotas .nota-resumo p, #page-geradornotas .nota-resumo-balao p,
+.nota-resumo-balao p { color:#10243a; font-family:Arial,sans-serif; }
+#page-geradornotas .nota-resumo .nota-resumo-recuo { font-family:Arial,sans-serif; }
+@media print { .nota-formal { break-before:page; border:0; } }

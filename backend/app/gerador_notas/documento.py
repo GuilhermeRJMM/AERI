@@ -27,7 +27,8 @@ ENTRELINHAS_FUNDAMENTO = 240        # 1,0
 ESPACO_ANTES = 100                  # 5 pt
 
 FORMATO = {
-    "resumo_titulo": dict(tam=24, ind="", linha=280, antes=0, depois=300, alinhamento="center", quebra=True, manter=True),
+    "resumo_titulo": dict(tam=24, ind="", linha=280, antes=0, depois=300, alinhamento="center", manter=True),
+    "resumo_balao": dict(tam=ARIAL_10, ind="", linha=280, antes=160, depois=120, alinhamento="left"),
     "resumo_meta": dict(tam=ARIAL_10, ind="", linha=240, antes=0, depois=100, alinhamento="left"),
     "resumo_item": dict(tam=ARIAL_10, ind="", linha=280, antes=240, alinhamento="left", manter=True),
     "resumo_recuado": dict(tam=ARIAL_10, ind='<w:ind w:left="850"/>', linha=240, antes=280, depois=100),
@@ -80,6 +81,21 @@ def _paragrafo(bloco):
     return f"<w:p>{ppr}{runs}</w:p>"
 
 
+def _bloco_xml(bloco):
+    paragrafo=_paragrafo(bloco)
+    if bloco.papel!='resumo_balao':
+        return paragrafo
+    # Célula com fundo azul: texto editável, que pode fluir por páginas.
+    # Não usar caixa flutuante de altura fixa, que cortaria exigências longas.
+    return ('<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/>'
+        '<w:tblBorders>'+''.join(f'<w:{lado} w:val="nil"/>' for lado in ['top','left','bottom','right','insideH','insideV'])+
+        '</w:tblBorders><w:tblCellMar><w:top w:w="120" w:type="dxa"/>'
+        '<w:left w:w="180" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/>'
+        '<w:right w:w="180" w:type="dxa"/></w:tblCellMar></w:tblPr>'
+        '<w:tr><w:tc><w:tcPr><w:tcW w:w="5000" w:type="pct"/>'
+        '<w:shd w:val="clear" w:fill="B4C7DB"/></w:tcPr>'+paragrafo+'</w:tc></w:tr></w:tbl>')
+
+
 def _sect_pr(molde_xml):
     """Papel e margens do molde. Sem isso a nota sairia em Letter."""
     m = re.search(r"<w:sectPr[ >].*?</w:sectPr>", molde_xml, re.S)
@@ -96,7 +112,7 @@ def grava(blocos, molde, destino):
         pecas = [(i, z.read(i.filename)) for i in z.infolist()
                  if i.filename != "word/document.xml"]
 
-    corpo = "".join(_paragrafo(b) for b in blocos)
+    corpo = "".join(_bloco_xml(b) for b in blocos)
     doc = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
            f"<w:document {NS}><w:body>{corpo}{_sect_pr(original)}</w:body></w:document>")
 
@@ -108,7 +124,7 @@ def grava(blocos, molde, destino):
     return destino
 
 
-def em_bytes(blocos, molde):
+def em_bytes(blocos, molde, *, referencia=None, inicio_formal=None):
     """Gera o DOCX integralmente em memória para uso seguro no serverless."""
     molde = Path(molde)
     if not molde.is_file():
@@ -122,7 +138,12 @@ def em_bytes(blocos, molde):
             if item.filename != "word/document.xml"
         ]
 
-    corpo = "".join(_paragrafo(bloco) for bloco in blocos)
+    corpo=''
+    for indice,bloco in enumerate(blocos):
+        trecho=_bloco_xml(bloco)
+        if indice==inicio_formal:
+            trecho=trecho.replace('<w:pPr>','<w:pPr><w:pageBreakBefore/>',1)
+        corpo+=trecho
     doc = (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         f"<w:document {NS}><w:body>{corpo}{_sect_pr(original)}</w:body></w:document>"
@@ -130,6 +151,10 @@ def em_bytes(blocos, molde):
     memoria = io.BytesIO()
     with zipfile.ZipFile(memoria, "w", zipfile.ZIP_DEFLATED) as arquivo:
         for item, dados in pecas:
+            if referencia and item.filename.startswith('word/footer') and item.filename.endswith('.xml'):
+                rodape=('<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="80" w:after="0"/></w:pPr>'
+                    +_run('Referência conjunta: '+str(referencia),set(),16)+'</w:p>')
+                dados=dados.decode('utf-8').replace('</w:ftr>',rodape+'</w:ftr>').encode('utf-8')
             arquivo.writestr(item, dados)
         arquivo.writestr("word/document.xml", doc.encode("utf-8"))
     return memoria.getvalue()
