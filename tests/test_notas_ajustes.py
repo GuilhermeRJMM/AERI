@@ -5,7 +5,7 @@ import pytest
 
 from backend.app.gerador_notas.servico import previa, gerar_documento_com_resumo, catalogo_para_tela
 from backend.app.gerador_notas.campos import preparar_campos
-from backend.app.gerador_notas.documento import _bloco_xml
+from backend.app.gerador_notas.documento import _bloco_xml,NS as DOCUMENT_NS
 from backend.app.gerador_notas.redator import Bloco
 from test_resumos_gerador_notas import dados_para, EXIGENCIAS, NS
 
@@ -22,7 +22,7 @@ def test_resumo_primeiro_referencia_somente_rodape_e_caixa_visual_law():
         assert ''.join(t.text or '' for t in corpo[0].findall('.//w:t',NS))=='RESUMO'
         assert resumo['vinculo'] not in ''.join(raiz.itertext())
         assert any(resumo['vinculo'] in z.read(p).decode() for p in z.namelist() if p.startswith('word/footer') and p.endswith('.xml'))
-        assert raiz.find('.//w:shd',NS) is not None
+        assert raiz.find('.//{http://schemas.openxmlformats.org/drawingml/2006/main}prstGeom').get('prst')=='wedgeRoundRectCallout'
 
 
 @pytest.mark.parametrize('campo',['matricula','matricula_confrontante'])
@@ -50,9 +50,13 @@ def test_metadados_de_campos_e_filtros_explicitos():
     assert all('contextos' in e for e in c['exigencias'])
 
 
-def test_balao_longo_nao_usa_caixa_de_altura_fixa():
+def test_balao_longo_e_dividido_em_formas_editaveis_sem_imagem():
     texto='Explicação extensa e editável. '*100
     xml=_bloco_xml(Bloco('resumo_balao',partes=[(texto,set())]))
-    assert xml.startswith('<w:tbl>')
-    assert 'roundrect' not in xml
-    assert texto in xml
+    raiz=ET.fromstring('<w:document '+DOCUMENT_NS+ '><w:body>'+xml+'</w:body></w:document>')
+    assert xml.count('prst="wedgeRoundRectCallout"')>1
+    assert '<w:tbl>' not in xml and '<a:blip' not in xml
+    ns={'w':'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+        'mc':'http://schemas.openxmlformats.org/markup-compatibility/2006'}
+    for branch in ['Choice','Fallback']:
+        assert ''.join(t.text or '' for e in raiz.findall('.//mc:'+branch,ns) for t in e.findall('.//w:t',ns))==texto

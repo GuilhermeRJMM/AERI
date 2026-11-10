@@ -13,6 +13,8 @@ import re
 import shutil
 import zipfile
 from pathlib import Path
+from xml.etree import ElementTree as ET
+from .baloes import renderizar_baloes
 
 NS = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
       'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"')
@@ -82,19 +84,17 @@ def _paragrafo(bloco):
     return f"<w:p>{ppr}{runs}</w:p>"
 
 
-def _bloco_xml(bloco):
-    paragrafo=_paragrafo(bloco)
+def _bloco_xml(bloco,largura_pt=466,identificador=10000):
     if bloco.papel!='resumo_balao':
-        return paragrafo
-    # Célula com fundo azul: texto editável, que pode fluir por páginas.
-    # Não usar caixa flutuante de altura fixa, que cortaria exigências longas.
-    return ('<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/>'
-        '<w:tblBorders>'+''.join(f'<w:{lado} w:val="nil"/>' for lado in ['top','left','bottom','right','insideH','insideV'])+
-        '</w:tblBorders><w:tblCellMar><w:top w:w="120" w:type="dxa"/>'
-        '<w:left w:w="180" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/>'
-        '<w:right w:w="180" w:type="dxa"/></w:tblCellMar></w:tblPr>'
-        '<w:tr><w:tc><w:tcPr><w:tcW w:w="5000" w:type="pct"/>'
-        '<w:shd w:val="clear" w:fill="B4C7DB"/></w:tcPr>'+paragrafo+'</w:tc></w:tr></w:tbl>')
+        return _paragrafo(bloco)
+    return renderizar_baloes(bloco.partes,_run,largura_pt,identificador)
+
+
+def _largura_util(original):
+    w='{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+    sec=ET.fromstring(original).find('.//'+w+'sectPr')
+    pagina=sec.find(w+'pgSz'); margem=sec.find(w+'pgMar')
+    return (int(pagina.get(w+'w'))-int(margem.get(w+'left'))-int(margem.get(w+'right')))/20-2
 
 
 def _sect_pr(molde_xml):
@@ -113,7 +113,8 @@ def grava(blocos, molde, destino):
         pecas = [(i, z.read(i.filename)) for i in z.infolist()
                  if i.filename != "word/document.xml"]
 
-    corpo = "".join(_bloco_xml(b) for b in blocos)
+    largura=_largura_util(original)
+    corpo = "".join(_bloco_xml(b,largura,10000+i*1000) for i,b in enumerate(blocos))
     doc = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
            f"<w:document {NS}><w:body>{corpo}{_sect_pr(original)}</w:body></w:document>")
 
@@ -140,8 +141,9 @@ def em_bytes(blocos, molde, *, referencia=None, inicio_formal=None):
         ]
 
     corpo=''
+    largura=_largura_util(original)
     for indice,bloco in enumerate(blocos):
-        trecho=_bloco_xml(bloco)
+        trecho=_bloco_xml(bloco,largura,10000+indice*1000)
         if indice==inicio_formal:
             trecho=trecho.replace('<w:pPr>','<w:pPr><w:pageBreakBefore/>',1)
         corpo+=trecho

@@ -26,8 +26,11 @@ def test_docx_icones_com_fonte_propria_e_corpo_arial():
     textos=''.join(raiz.itertext())
     for icone in ICONES:
         assert icone in textos
+    mc='{http://schemas.openxmlformats.org/markup-compatibility/2006}'
+    for alternative in raiz.iter(mc+'AlternateContent'):
+        alternative.remove(alternative.find(mc+'Fallback'))
     runs=raiz.findall('.//w:r',NS)
-    icones=[r for r in runs if any(i in ''.join(r.itertext()) for i in ICONES)]
+    icones=[r for r in runs if any(i in ''.join(t.text or '' for t in r.findall('w:t',NS)) for i in ICONES)]
     assert len(icones)==6
     for r in icones:
         assert r.find('w:rPr/w:rFonts',NS).get('{'+NS['w']+'}hAnsi')=='Segoe UI Emoji'
