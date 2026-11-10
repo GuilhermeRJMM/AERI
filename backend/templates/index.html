@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="/static/painel.css?v=20260904-barra">
     <link id="sync-theme" rel="stylesheet" href="/static/sync-theme.css?v=20261029-componentes-v4">
     <link rel="stylesheet" href="/static/design-system.css?v=20261106-protocolo-v1">
-    <link rel="stylesheet" href="/static/intimacoes-mesa.css?v=20261029-institucional-v1">
+    <link rel="stylesheet" href="/static/intimacoes-mesa.css?v=20261110-consulta-v1">
     <link rel="stylesheet" href="/static/intimacao-documentos.css?v=20261103-folhas-v1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -891,6 +891,26 @@
                         </div>
                     </div>
 
+                    <details class="oficio-consulta-painel">
+                        <summary>Consultar Ofício Eletrônico</summary>
+                        <p>Consulte o status externo de cada IN pelo Chrome autorizado deste computador. Seus andamentos e conferências continuam separados.</p>
+                        <div id="oficio-consulta-acoes" hidden>
+                            <button id="oficio-consultar-agora" class="rotina-btn-secondary" type="button">Consultar agora</button>
+                            <details><summary>Conexão deste computador</summary>
+                                <p>Conecte sua conta uma vez no programa local e mantenha-o aberto. O Chrome pode pedir autorização. Não são necessários arquivos de importação.</p>
+                                <button id="oficio-conectar-computador" class="rotina-btn-secondary" type="button">Gerar código de conexão</button>
+                                <button id="oficio-revogar-conector" class="rotina-btn-secondary" type="button">Desconectar conector</button>
+                                <div id="oficio-conector-pareamento" hidden>
+                                    <label for="oficio-conector-codigo">Código válido por 5 minutos — cole somente no conector local</label>
+                                    <input id="oficio-conector-codigo" type="password" readonly autocomplete="off" aria-label="Código de conexão do computador">
+                                    <button id="oficio-copiar-codigo" class="rotina-btn-secondary" type="button">Copiar código</button>
+                                </div>
+                            </details>
+                        </div>
+                        <p id="oficio-consulta-aviso" role="status" aria-live="polite"></p>
+                        <p>Somente consulta: não envia documentos, não abre mensagens, não muda pedidos nem registra conferências. Prepare a listagem completa no Ofício antes de consultar.</p>
+                    </details>
+
                     <section class="rotina-cobertura" aria-labelledby="rotina-cobertura-titulo">
                         <div class="rotina-cobertura-conteudo">
                             <span class="eyebrow">CONFERÊNCIA DIÁRIA</span>
@@ -1273,7 +1293,7 @@
     </div>
 
 
-    <script type="module" src="/static/js/app.js?v=20261106-protocolo-v1"></script>
+    <script type="module" src="/static/js/app.js?v=20261110-consulta-v1"></script>
 </body>
 </html>
 

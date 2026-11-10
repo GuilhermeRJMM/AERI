@@ -2,6 +2,7 @@ import {requisicaoAeri} from './api.js?v=20260902-arquivo-v1';
 import {baixarArquivo, escaparHtml, hojeLocal} from './util.js';
 import {temNovidadeRtd, ordenarNovidadesRtd, resumoRtd, detalhesRtd, carregarDocumentosRtd} from './rtd_intimacoes.js?v=20261103-marca-rgi-v1';
 import {abrirDocumentosIntimacao, iniciarDocumentosIntimacao} from './intimacao_documentos.js?v=20261103-folhas-v1';
+import {iniciarConsultaOficio, carregarConsultaOficio, limparConsultaOficio, statusOficioHtml} from './oficio_consultas.js?v=20261110-consulta-v1';
 
 let intimacoes = [];
 const intimacoesPendentes = new Set();
@@ -348,7 +349,7 @@ function renderizarFocoIntimacao(item, fila) {
         ${avisoRtd}
         <div class="mesa-comparacao">
             <section class="mesa-referencia"><span class="mesa-rotulo">NO Analisador RGI</span><strong>${escaparHtml(item.nomeAndamento || 'Não informado')}</strong><small>Último andamento · ${formatarDataRotina(item.ultimoAndamento)}</small></section>
-            <section class="mesa-consulta"><span class="mesa-rotulo">NO OFÍCIO ELETRÔNICO</span><strong>Consulte antes de registrar</strong><p>Compare o andamento deste IN com o registro ao lado.</p><a href="https://www.oficioeletronico.onr.org.br" target="_blank" rel="noopener noreferrer">Abrir Ofício Eletrônico ↗</a></section>
+            ${statusOficioHtml(item.protocolo)}
         </div>
         ${botoesConferencia}
         <div class="mesa-ferramentas"><button type="button" data-acao="detalhes" data-id="${escaparHtml(item.id)}" aria-expanded="${detalhesAbertos.has(item.id)}">${detalhesAbertos.has(item.id) ? 'Fechar histórico e documentos' : 'Histórico e documentos'}</button>${botaoPastaIntimacao(item, true)}${pode('alterar_intimacoes') && !exibindoLixeira ? `<button type="button" data-acao="editar" data-id="${escaparHtml(item.id)}">Editar cadastro</button>` : ''}${pode('alterar_intimacoes') && fase === 'INTIMACAO' && !exibindoLixeira ? `<button type="button" data-acao="preparar-documentos-intimacao" data-id="${escaparHtml(item.id)}">Preparar Documentos</button><button type="button" data-acao="novo-envio-rtd" data-id="${escaparHtml(item.id)}">Preparar envio ao RTD</button>` : ''}</div>
@@ -1004,6 +1005,7 @@ function renderizarIntimacoes() {
     renderizarCabecalho();
     document.querySelector('label[for="importar-intimacoes"]').hidden = !(pode('criar_intimacoes') && pode('alterar_intimacoes'));
     document.getElementById('btn-nova-intimacao').hidden = !pode('criar_intimacoes');
+    document.getElementById('oficio-consulta-acoes').hidden = !pode('alterar_intimacoes');
     const termo = document.getElementById('busca-intimacao').value.trim();
     const daFase = intimacoes.filter(item => faseAtiva === 'TODAS' || item.fase === faseAtiva);
     const filtradas = daFase.filter(item => correspondeBuscaIntimacao(item, termo))
@@ -1053,6 +1055,8 @@ function renderizarIntimacoes() {
 }
 
 export async function carregarIntimacoes(opcoes = {}) {
+    iniciarConsultaOficio(renderizarIntimacoes, () => pode('alterar_intimacoes'));
+    void carregarConsultaOficio();
     try {
         const recebidas = await requisicaoAeri(
             `/api/intimacoes${exibindoLixeira ? '?lixeira=true' : ''}`,
@@ -1079,6 +1083,7 @@ export async function carregarIntimacoes(opcoes = {}) {
 }
 
 export function limparIntimacoes() {
+    limparConsultaOficio();
     intimacoes = [];
     rascunhosConferencia.clear();
     filaConferenciaAtual = [];

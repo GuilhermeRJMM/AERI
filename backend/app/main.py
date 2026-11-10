@@ -20,6 +20,7 @@ from backend.app.rotas import (
 from backend.app.seguranca_web import politica_frame_ancestors
 from backend.app.database import conectar
 from backend.app.rotas import painel, contratos, executor_hash, rtd_intimacoes, sso_hub
+from backend.app.rotas import oficio_consultas, oficio_direto
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -63,6 +64,8 @@ app.include_router(painel.router)
 app.include_router(contratos.router)
 app.include_router(executor_hash.router)
 app.include_router(rtd_intimacoes.router)
+app.include_router(oficio_consultas.router)
+app.include_router(oficio_direto.router)
 
 
 @app.middleware("http")

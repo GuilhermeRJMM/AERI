@@ -146,3 +146,10 @@
     #page-rotina .rotina-in-cartao { padding: 20px; }
     #page-rotina .rotina-header-actions > * { flex: 1 1 auto; }
 }
+/* Consulta externa: superfície branca e contraste independente do tema legado. */
+.oficio-consulta-painel { background:#fff; color:#10243a; border:1px solid #cbdde8; border-radius:14px; padding:18px 22px; margin:0 0 18px; }
+.oficio-consulta-painel summary { color:#075e49; font-weight:700; cursor:pointer; }
+.oficio-consulta-painel p { line-height:1.6; font-size:.9rem; color:#29445c; margin:12px 0; }
+.oficio-consulta-painel .rotina-btn-secondary { display:inline-flex; white-space:normal; cursor:pointer; background:#fff; color:#075e49; border:1px solid #5bb593; }
+.oficio-consulta-painel .rotina-btn-secondary:hover { background:#ecfdf5; color:#054d3b; }
+.mesa-consulta small { display:block; line-height:1.5; color:#075e49; font-weight:600; }
