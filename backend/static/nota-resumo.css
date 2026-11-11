@@ -1,6 +1,6 @@
 /* Visual Law inspirado no modelo fornecido, com a identidade do cartório. */
-.nota-resumo .nota-resumo-balao { position:relative; background:#b4c7db; color:#10243a; border-radius:14px; padding:16px 20px; margin:18px 0 24px; border:0; overflow-wrap:anywhere; }
-.nota-resumo-balao::after { content:""; position:absolute; bottom:-10px; left:24px; border-top:12px solid #b4c7db; border-right:14px solid transparent; }
+.nota-resumo .nota-resumo-balao { position:relative; background:#eaf4ff; color:#10243a; border-radius:14px; padding:16px 20px; margin:18px 0 24px; border:0; overflow-wrap:anywhere; }
+.nota-resumo-balao::after { content:""; position:absolute; bottom:-10px; left:24px; border-top:12px solid #eaf4ff; border-right:14px solid transparent; }
 .nota-resumo-balao p { margin:7px 0 0; }
 .nota-referencia { margin-top:24px; padding-top:10px; border-top:1px solid #b4c7db; font:10px Arial,sans-serif; color:#29445c; overflow-wrap:anywhere; text-align:center; }
 .nota-formal { border-top:2px solid #0b6c55; padding-top:24px; margin-top:34px; }
@@ -14,5 +14,15 @@
 .nota-resumo .nota-icone { display:inline-block; font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif; font-size:1.15em; line-height:1; vertical-align:-.06em; margin-right:.15em; }
 #page-geradornotas .nota-resumo p, #page-geradornotas .nota-resumo-balao p,
 .nota-resumo-balao p { color:#10243a; font-family:Arial,sans-serif; }
-#page-geradornotas .nota-resumo .nota-resumo-recuo { font-family:Arial,sans-serif; }
+#page-geradornotas .nota-resumo .nota-resumo-recuo,
+.nota-resumo .nota-resumo-recuo { font-family:Arial,sans-serif; margin-left:.75cm; margin-top:14px; text-align:left; }
+.nota-resumo { font-size:10pt; line-height:1.4; }
+.nota-resumo h2, .nota-resumo h3 { font-family:Arial,sans-serif; letter-spacing:normal; line-height:1.4; break-after:avoid; }
+.nota-resumo h2 { font-size:12pt; text-align:center; }
+.nota-resumo h3 { font-size:10pt; text-align:left; }
+#page-geradornotas .nota-resumo p, .nota-resumo p { line-height:1.4; text-align:left; }
+#page-geradornotas .nota-resumo .nota-resumo-meta,
+.nota-resumo .nota-resumo-meta { text-align:center; margin:0 0 7px; break-after:avoid; }
+.nota-resumo .nota-resumo-detalhes p { margin:0; }
+@media (max-width:520px) { #page-geradornotas .nota-resumo .nota-resumo-recuo, .nota-resumo .nota-resumo-recuo { margin-left:0; } }
 @media print { .nota-formal { break-before:page; border:0; } }

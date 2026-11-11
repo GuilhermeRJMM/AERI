@@ -51,7 +51,10 @@ function motor(acao,dados={}) {
     await matricula.fill('18552');
     await p.waitForFunction(()=>document.querySelector('.nota-resumo-balao')?.textContent.includes('18.552'));
     assert(await p.locator('#gn-previa').evaluate(e=>e.firstElementChild.classList.contains('nota-resumo')));
-    assert.equal(await p.locator('.nota-resumo-balao').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(180, 199, 219)');
+    assert.equal(await p.locator('.nota-resumo-balao').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(234, 244, 255)');
+    assert.equal(await p.locator('.nota-resumo h2').evaluate(e=>getComputedStyle(e).textAlign),'center');
+    assert.deepEqual(await p.locator('.nota-resumo-meta').evaluateAll(es=>es.map(e=>getComputedStyle(e).textAlign)),['center','center']);
+    assert.equal(await p.locator('.nota-resumo-recuo').first().evaluate(e=>getComputedStyle(e).textAlign),'left');
     assert.equal(await p.locator('.nota-resumo-balao p').evaluate(e=>getComputedStyle(e).color),'rgb(16, 36, 58)');
     assert.equal(await p.locator('.nota-resumo > p').first().textContent().then(t=>t.includes('Referência conjunta')),false);
     assert(await p.locator('.nota-referencia').isVisible());

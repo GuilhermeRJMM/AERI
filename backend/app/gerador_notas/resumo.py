@@ -24,9 +24,9 @@ def montar_resumo(dados, itens, motor, blocos_formais):
         e = motor.cat.exigencia(item.exigencia)
         fonte = e['defeito'] + ' ' + e['providencia']
         if '{assinatura}' in fonte:
-            resolver += (' As assinaturas devem seguir a modalidade admitida para esse documento, '
-                         'com reconhecimento de firma somente quando exigível. Assinaturas eletrônicas '
-                         'devem permitir verificar autoria e integridade, pela modalidade legalmente aceita para o ato.')
+            resolver += (' Se for exigido reconhecimento de firma neste caso, providencie-o em um tabelionato. '
+                         'Se a assinatura for eletrônica, entregue o arquivo original com a validação aceita '
+                         'para esse documento, que permita conferir quem assinou e se o arquivo foi alterado.')
         if '{protocolo_apartado}' in fonte:
             resolver += ' Esse pedido deve ser apresentado em protocolo separado.'
         detalhes = []
@@ -46,13 +46,13 @@ def montar_resumo(dados, itens, motor, blocos_formais):
             'comoResolver': motor._preenche(resolver, item.valores),
         })
     especie = dados.get('especie', 'devolutiva')
-    final = ('O documento apresentado foi devolvido por impossibilidade de registro, pelos motivos da nota formal.'
+    final = ('A nota formal explica por que o documento foi devolvido sem possibilidade de registro na forma apresentada.'
              if especie == 'impossibilidade' else
-             'Após o cumprimento dos itens, o cartório poderá prosseguir com a análise para o registro.')
+             'Depois que você entregar o que foi pedido, o cartório fará nova conferência dos documentos.')
     if especie == 'devolutiva':
-        final += ' O valor de eventual pagamento complementar será informado após a superação das exigências e a análise de aptidão para registro.'
+        final += ' Se houver saldo de taxas a pagar, o valor será informado após a conferência de que o documento está pronto para registro.'
     if motor.modelo['especies'][especie].get('ressalva'):
-        final += ' A análise dos documentos novos ou corrigidos poderá identificar outras exigências.'
+        final += ' Se os documentos novos ou corrigidos trouxerem outro problema, ele será informado.'
     if dados.get('judicial'):
         final += ' Mesmo quando o documento vem da Justiça, o cartório confere sua forma e sua ligação com o registro, sem rever o mérito da decisão.'
     resumo = {
@@ -60,7 +60,7 @@ def montar_resumo(dados, itens, motor, blocos_formais):
         'titulo': str(dados.get('titulo') or '«título apresentado»').strip(),
         'especie': motor.modelo['especies'][especie]['rotulo'], 'itens': saida,
         'orientacaoFinal': final,
-        'aviso': 'Este resumo explica os mesmos itens da nota formal que o acompanha. Leia os dois juntos; a nota formal mantém as exigências e os fundamentos completos.',
+        'aviso': 'Veja o que falta e como resolver. Leia também a nota formal que acompanha este resumo: ela contém as exigências e as bases legais do seu pedido.',
     }
     # Identifica o par produzido na mesma geração. Não persiste o conteúdo.
     fonte = {'resumo': resumo, 'formal': [[b.papel, b.numero, [p[0] for p in b.partes]] for b in blocos_formais]}
@@ -96,8 +96,8 @@ def html_resumo(resumo):
     def icone(valor):
         return f'<span class="nota-icone" aria-hidden="true">{valor}</span> '
     partes = ['<section class="nota-resumo" aria-label="Resumo">', '<h2>RESUMO</h2>',
-              f'<p><strong>{escapar(resumo["especie"])}</strong> | <strong>Protocolo:</strong> {escapar(resumo["protocolo"] or "não informado")}</p>',
-              f'<p>{icone("📄")}<strong>Documento apresentado:</strong> {escapar(resumo["titulo"])}</p>',
+              f'<p class="nota-resumo-meta"><strong>{escapar(resumo["especie"])}</strong> | <strong>Protocolo:</strong> {escapar(resumo["protocolo"] or "não informado")}</p>',
+              f'<p class="nota-resumo-meta">{icone("📄")}<strong>Documento apresentado:</strong> {escapar(resumo["titulo"])}</p>',
               f'<p>{escapar(resumo["aviso"])}</p>']
     for item in resumo['itens']:
         partes.append(f'<section class="nota-resumo-item" data-resumo-numero="{item["numero"]}"><h3>{icone("📋")}ITEM {item["numero"]} - {escapar(item["titulo"].upper())}</h3>')

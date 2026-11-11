@@ -31,11 +31,11 @@ ESPACO_ANTES = 100                  # 5 pt
 FORMATO = {
     "resumo_titulo": dict(tam=24, ind="", linha=280, antes=0, depois=300, alinhamento="center", manter=True),
     "resumo_balao": dict(tam=ARIAL_10, ind="", linha=280, antes=160, depois=120, alinhamento="left"),
-    "resumo_meta": dict(tam=ARIAL_10, ind="", linha=240, antes=0, depois=100, alinhamento="left"),
+    "resumo_meta": dict(tam=ARIAL_10, ind="", linha=280, antes=0, depois=100, alinhamento="center", manter=True),
     "resumo_item": dict(tam=ARIAL_10, ind="", linha=280, antes=240, alinhamento="left", manter=True),
-    "resumo_recuado": dict(tam=ARIAL_10, ind='<w:ind w:left="850"/>', linha=240, antes=280, depois=100),
-    "resumo_detalhe_inicio": dict(tam=ARIAL_10, ind='<w:ind w:left="850"/>', linha=240, antes=240, manter=True),
-    "resumo_detalhe": dict(tam=ARIAL_10, ind='<w:ind w:left="850"/>', linha=240, antes=0, manter=True),
+    "resumo_recuado": dict(tam=ARIAL_10, ind='<w:ind w:left="425"/>', linha=280, antes=200, depois=100, alinhamento="left"),
+    "resumo_detalhe_inicio": dict(tam=ARIAL_10, ind='<w:ind w:left="425"/>', linha=280, antes=200, alinhamento="left", manter=True),
+    "resumo_detalhe": dict(tam=ARIAL_10, ind='<w:ind w:left="425"/>', linha=280, antes=0, alinhamento="left", manter=True),
     "resumo_texto": dict(tam=ARIAL_10, ind="", linha=280, antes=0, alinhamento="left", depois=100),
     "corpo":       dict(tam=ARIAL_10, ind=f'<w:ind w:firstLine="{RECUO_1A_LINHA}"/>',
                         linha=ENTRELINHAS_CORPO, antes=0),
@@ -72,6 +72,8 @@ def _run(texto, marcas, tam, tab=False):
 def _paragrafo(bloco):
     f = FORMATO[bloco.papel]
     extras = ('<w:pageBreakBefore/>' if f.get('quebra') else '') + ('<w:keepNext/>' if f.get('manter') else '')
+    if bloco.papel.startswith('resumo_'):
+        extras += '<w:keepLines/>'
     ppr = (f'<w:pPr>{extras}<w:jc w:val="{f.get("alinhamento", "both")}"/>' + f["ind"] +
            f'<w:spacing w:line="{f["linha"]}" w:lineRule="auto" '
            f'w:before="{f["antes"]}" w:after="{f.get("depois", 0)}"/></w:pPr>')

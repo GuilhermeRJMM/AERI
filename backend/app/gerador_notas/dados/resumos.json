@@ -1,437 +1,437 @@
 {
-  "versao": "2026-11-11.1",
+  "versao": "2026-11-11.2",
   "itens": {
     "area-divergente-itcd": [
-      "Conferir a área usada no imposto",
-      "O ITCD informa {area_documento}, enquanto a matrícula informa {area_matricula}.",
-      "Os documentos precisam permitir identificar o mesmo imóvel e a parcela transmitida.",
-      "Confira qual documento está incorreto e corrija o demonstrativo do ITCD ou o título, conforme o caso."
+      "Conferir a área do imóvel no ITCD",
+      "O documento do ITCD informa uma área de {area_documento}, mas a matrícula informa {area_matricula}.",
+      "É preciso confirmar que o imposto foi calculado para o mesmo imóvel e a mesma parte que está sendo transmitida.",
+      "Leve os dois documentos a quem preparou o ITCD. Peça a conferência da diferença e a correção do documento que estiver errado. Depois, entregue a versão corrigida ao cartório."
     ],
     "art-area-nao-corresponde": [
-      "Conferir a responsabilidade pelo levantamento",
-      "A responsabilidade técnica e o memorial indicam áreas incompatíveis.[ Na ART: {area_art}.][ No memorial: {area_memorial}.][ Na matrícula: {area_matricula}.]",
-      "O profissional precisa responder pelo levantamento que foi entregue. A área antiga da matrícula pode ser corrigida no próprio procedimento.",
-      "Peça ao profissional que esclareça o serviço e ajuste a ART ou o memorial, conforme o erro. Não basta exigir que o levantamento repita a área antiga."
+      "Corrigir os dados do trabalho técnico",
+      "A ART, documento que identifica quem responde pelo serviço, não corresponde ao levantamento apresentado.[ Na ART: {area_art}.][ No memorial: {area_memorial}.][ Na matrícula: {area_matricula}.]",
+      "O profissional precisa assumir a responsabilidade pelo trabalho que realmente foi entregue. A área antiga da matrícula pode mudar quando o pedido é justamente para corrigi-la.",
+      "Peça ao profissional que fez o levantamento para conferir a ART e o memorial, explicar a diferença e corrigir o que estiver errado. Entregue os documentos ajustados."
     ],
     "art-nao-apresentada": [
-      "Apresentar a responsabilidade técnica",
-      "Faltou o documento que identifica quem responde pelo trabalho apresentado[ de {peca_tecnica}].",
-      "O serviço precisa estar vinculado a um profissional habilitado.",
-      "Apresente a ART ou o documento equivalente admitido para esse profissional e esse serviço."
+      "Entregar a responsabilidade técnica",
+      "Não veio o documento que identifica o profissional responsável pelo serviço[ de {peca_tecnica}].",
+      "O cartório precisa saber quem responde pelo levantamento ou pela obra apresentados.",
+      "Peça ao profissional que fez o trabalho a ART correspondente ao serviço, ou o documento equivalente aceito para sua profissão. Entregue esse documento ao cartório."
     ],
     "art-sem-assinatura": [
-      "Comprovar a validade da ART",
-      "É necessário conferir a subscrição {signatario_art} e a regularidade da ART.",
-      "Um documento eletrônico válido não precisa ser tratado como inválido apenas por não trazer assinatura à caneta.",
-      "Apresente a validação eletrônica da ART ou regularize a assinatura exigida para essa modalidade."
+      "Comprovar a assinatura na ART",
+      "Falta comprovar a assinatura {signatario_art} na ART apresentada.",
+      "A ART precisa permitir conferir quem assumiu a responsabilidade pelo serviço. Se ela for eletrônica, a conferência pode ser feita pelo registro digital.",
+      "Peça ao profissional o arquivo original e o meio de conferir a ART no conselho profissional. Se a assinatura realmente estiver faltando e for exigida nesse documento, peça sua regularização."
     ],
     "faixa-dominio-sem-declaracao": [
       "Esclarecer os limites junto à via pública",
-      "As peças não demonstram o respeito à faixa de domínio de {via_confrontante}.",
-      "O levantamento deve respeitar a área pública e as restrições aplicáveis.",
-      "Peça ao responsável técnico que esclareça esses limites nas próprias peças ou em declaração complementar."
+      "O imóvel fica ao lado de {via_confrontante}, mas as peças entregues não esclarecem o respeito à área reservada à via e à eventual faixa onde não se pode construir.",
+      "O levantamento não pode incluir como área particular o espaço da via pública nem ignorar suas restrições.",
+      "Peça ao responsável pelo levantamento que esclareça esses limites na planta, no memorial ou em declaração complementar. Entregue as peças com o esclarecimento solicitado."
     ],
     "art-dados-divergentes": [
-      "Esclarecer os dados do imóvel",
-      "{dado_divergente} aparece como “{valor_documento}” nos documentos técnicos e “{valor_matricula}” na matrícula.",
-      "É preciso saber se o erro está no trabalho técnico ou se a matrícula precisa ser atualizada.",
-      "Peça o esclarecimento da diferença e corrija o documento ou solicite a atualização registral adequada."
+      "Conferir o dado diferente na planta",
+      "Há diferença em {dado_divergente}: a planta e a ART informam “{valor_documento}”, enquanto a matrícula informa “{valor_matricula}”.",
+      "É preciso saber se o erro está no trabalho técnico ou se o registro do imóvel precisa ser atualizado.",
+      "Mostre a diferença ao profissional que preparou os documentos. Peça que ele explique qual informação está correta e ajuste as peças erradas. Se o dado antigo da matrícula precisar mudar, apresente a documentação dessa alteração."
     ],
     "car-nao-averbado": [
-      "Informar a inscrição no CAR",
-      "A matrícula n.º {matricula} não informa o código do CAR.",
-      "Esse cadastro deve ser atualizado na hipótese prevista para o primeiro registro voluntário após a norma de 2025. O CAR não prova propriedade.",
-      "Apresente o comprovante da inscrição para a atualização cabível junto ao título."
+      "Informar o código do CAR",
+      "Não foi encontrado o código do CAR, Cadastro Ambiental Rural, na matrícula n.º {matricula}.",
+      "Esse cadastro ambiental precisa ser relacionado ao imóvel na atualização indicada na nota. O CAR, sozinho, não prova quem é o proprietário.",
+      "Entregue o comprovante de inscrição do imóvel no CAR. O cartório conferirá os dados e a atualização necessária para o pedido apresentado."
     ],
     "casamento-data-nao-comprovada": [
-      "Comprovar a data e o regime do casamento",
-      "Os documentos disponíveis não esclarecem a data do casamento e o regime de bens.",
-      "A lei da época do casamento, eventual pacto e alterações comprovadas precisam ser considerados.",
-      "Apresente a certidão necessária para completar os dados, observadas as exceções legais de validade."
+      "Entregar a certidão de casamento",
+      "Os documentos disponíveis não esclarecem a data do casamento e o regime de bens do proprietário.",
+      "Essas informações ajudam a definir os direitos de cada cônjuge sobre o imóvel. O regime depende da época do casamento e dos documentos que o comprovam.",
+      "Apresente a certidão de casamento que esclareça esses dados. Se houver pacto ou mudança de regime, apresente também sua comprovação. Documentos já disponíveis no cartório serão aproveitados."
     ],
     "cci-nao-averbado": [
-      "Informar o cadastro municipal do imóvel",
-      "A matrícula n.º {matricula} não informa o cadastro urbano estabelecido pelo município.",
-      "O cadastro deve permitir relacionar o imóvel da matrícula ao cadastro municipal, quando existente e exigível.",
-      "Apresente o documento municipal para a atualização cabível, sem presumir um protocolo autônomo em todos os casos."
+      "Informar o cadastro do imóvel na prefeitura",
+      "A matrícula n.º {matricula} não informa o número do cadastro urbano estabelecido pela prefeitura.",
+      "Esse número permite relacionar o imóvel do cartório ao imóvel cadastrado na prefeitura.",
+      "Peça à prefeitura um documento que identifique o cadastro desse imóvel e entregue-o ao cartório para a atualização indicada na nota."
     ],
     "ccir-divergente-da-matricula": [
-      "Conferir os dados do CCIR",
-      "O CCIR, Certificado de Cadastro de Imóvel Rural, diverge da matrícula no dado: {dado_ccir}.[ No CCIR: {ccir_consta}.][ Na matrícula: {matricula_consta}.]",
-      "O cadastro rural e a matrícula precisam identificar o mesmo imóvel.",
-      "Solicite a correção do CCIR no INCRA ou apresente um documento que esclareça essa diferença."
+      "Conferir a diferença no CCIR",
+      "O CCIR, certificado do cadastro rural no INCRA, diverge da matrícula em {dado_ccir}.[ No CCIR: {ccir_consta}.][ Na matrícula: {matricula_consta}.]",
+      "Os documentos precisam permitir identificar o mesmo imóvel. Uma diferença não significa automaticamente que a matrícula ou o cadastro estejam corretos.",
+      "Confira os documentos com o responsável pelo cadastro rural. Se o erro estiver no CCIR, peça a correção no INCRA; se estiver no registro do imóvel, apresente os documentos que comprovem a alteração necessária."
     ],
     "ccir-ausente": [
-      "Apresentar o CCIR",
-      "Faltou o CCIR, Certificado de Cadastro de Imóvel Rural[ da matrícula {matricula}].",
-      "Esse documento é exigido na nota para o ato referente ao imóvel rural.",
-      "Apresente o CCIR vigente e quitado[ do imóvel da matrícula {matricula}]."
+      "Entregar o certificado do cadastro rural",
+      "Não foi apresentado o CCIR, Certificado de Cadastro de Imóvel Rural[ da matrícula n.º {matricula}].",
+      "Esse documento do INCRA é necessário para conferir o cadastro rural no ato indicado na nota.",
+      "Providencie o CCIR correspondente ao imóvel e a comprovação exigida de sua regularidade. Entregue-o ao cartório. Se houver dispensa aplicável ao seu caso, apresente o documento que a comprove."
     ],
     "cep-nao-averbado": [
       "Completar o CEP do imóvel",
-      "A matrícula n.º {matricula} não informa o CEP disponível.",
-      "O CEP ajuda a localizar o imóvel. A averbação que apenas inclui o CEP é gratuita.",
-      "Informe o CEP correto para completar a descrição."
+      "O registro do imóvel, matrícula n.º {matricula}, não informa o CEP disponível para sua localização.",
+      "O CEP ajuda a identificar o endereço corretamente. A atualização que apenas acrescenta o CEP é gratuita.",
+      "Informe o CEP correto do imóvel e apresente o documento de endereço necessário à atualização. Se não houver CEP específico para o local, esclareça isso ao cartório."
     ],
     "certidao-rcpn-vencida": [
-      "Conferir a validade da certidão",
-      "{certidao} ultrapassa a antecedência de 90 dias prevista para essa averbação.",
-      "A contagem considera a formalização do título. Certidão de óbito e certidão que instrui título judicial têm exceção.",
-      "Apresente certidão atualizada somente se o caso não estiver nas exceções."
+      "Atualizar a certidão apresentada",
+      "A certidão {certidao} ultrapassa a antecedência de 90 dias considerada para a atualização pedida na nota.",
+      "O prazo é conferido em relação à data em que o documento do negócio foi formalizado, não apenas ao dia da entrega. Certidões de óbito e as usadas em documentos judiciais têm exceções.",
+      "Peça uma nova certidão ao cartório de registro civil se o prazo realmente estiver vencido para este caso. Se for certidão de óbito ou documento usado em título judicial, apresente essa informação para a conferência da exceção."
     ],
     "cnd-nao-apresentada": [
-      "Conferir a prova fiscal exigível",
-      "É necessário conferir {documento_fiscal} e se sua exigência é cabível neste ato.",
-      "Uma regra sobre certidões não torna toda certidão obrigatória. CND previdenciária de obra não pode ser exigida para averbar construção na hipótese indicada.",
-      "Se houver obrigação legal aplicável, apresente certidão negativa ou positiva com efeitos de negativa válida."
+      "Entregar a certidão fiscal indicada na nota",
+      "Falta comprovar {documento_fiscal}, se essa certidão for exigida para o ato solicitado.",
+      "A certidão informa a situação dos débitos. A exigência precisa corresponder ao seu caso; não se exige certidão previdenciária da obra para a averbação de construção indicada na nota formal.",
+      "Confira a certidão especificada na nota e apresente a versão válida, negativa ou positiva com efeitos de negativa. Documentos eletrônicos devem vir com o meio de conferir sua autenticidade. Não providencie certidões que não tenham sido exigidas para seu caso."
     ],
     "incorporacao-sem-memorial-registrado": [
-      "Registrar primeiro a incorporação",
-      "Foi solicitada a venda ou a constituição de garantia sobre uma parte do terreno ligada a uma futura unidade, mas o memorial de incorporação ainda não está registrado.",
-      "Esse registro precisa ser feito antes do negócio indicado na nota.",
-      "Providencie primeiro o registro do memorial de incorporação, com os documentos exigidos para esse procedimento."
+      "Registrar a incorporação antes da venda",
+      "O documento prevê vender ou dar em garantia uma parte do terreno ligada a uma futura unidade, mas o memorial de incorporação ainda não está registrado.",
+      "O memorial reúne os dados e documentos do empreendimento. Seu registro precisa vir antes do negócio indicado na nota.",
+      "Peça ao responsável pela incorporação que providencie o registro do memorial com a documentação exigida. Depois de resolvida essa etapa, o negócio apresentado poderá voltar à análise."
     ],
     "condominio-fracoes-nao-somam": [
-      "Corrigir as partes do terreno atribuídas às unidades",
-      "A soma das frações ideais, que são as partes do terreno atribuídas às unidades, chegou a {soma_fracoes}.",
-      "Essas partes devem somar exatamente 100% do terreno.",
-      "Corrija o documento de instituição do condomínio para que a soma corresponda a 100%."
+      "Corrigir a soma das frações do condomínio",
+      "A soma das partes do terreno atribuídas às unidades chegou a {soma_fracoes}, em vez de corresponder ao terreno inteiro.",
+      "O documento deve distribuir corretamente a totalidade do terreno entre as unidades, sem faltar nem sobrar uma parte.",
+      "Peça a quem preparou a instituição do condomínio que confira os cálculos e corrija as frações. Entregue o documento com a soma correspondente a 100% do terreno."
     ],
     "declaracao-confrontacao-divergente": [
-      "Conferir a divisa descrita",
-      "A declaração[ da matrícula n.º {matricula_confrontante}] e o memorial divergem em {dado_declaracao}.",
-      "A concordância precisa corresponder à divisa atingida pelo trabalho técnico.",
-      "Corrija a peça incorreta. A anuência pode constar da planta, do memorial ou de documento separado, quando exigível."
+      "Corrigir a descrição da divisa",
+      "A declaração sobre a divisa e o memorial têm informações diferentes em {dado_declaracao}[, na matrícula vizinha n.º {matricula_confrontante}].[ Foi apontado: {detalhe_declaracao}.]",
+      "Quem concorda com uma divisa precisa estar concordando com a mesma linha descrita no levantamento.",
+      "Peça ao profissional que elaborou o levantamento para conferir a diferença e corrigir a peça errada. Apresente a manifestação correspondente à divisa correta, se ela for exigida no seu caso."
     ],
     "declaracao-limites-sem-assinatura": [
-      "Regularizar a manifestação do confrontante",
-      "Não foi comprovada a manifestação necessária sobre a divisa atingida.",
-      "A lei admite anuência em documentos diferentes, notificação e hipóteses de dispensa.",
-      "Confira primeiro se há dispensa. Se não houver, apresente a manifestação válida ou peça a notificação do confrontante."
+      "Regularizar a assinatura sobre os limites",
+      "Não foi comprovada a assinatura {signatario_declaracao}[, {signatario_nome}], na manifestação sobre os limites da(s) matrícula(s) n.º {matriculas_confrontantes}.",
+      "Quando essa concordância é exigida, a assinatura precisa permitir identificar quem concordou com a divisa. Há situações em que a lei dispensa a concordância.",
+      "Se a assinatura for necessária, apresente a manifestação válida na planta, no memorial ou em declaração. Se não conseguir a concordância do vizinho, peça ao cartório a notificação prevista para o procedimento. Antes, confira se há dispensa para este caso."
     ],
     "confrontante-sem-declaracao": [
-      "Regularizar a manifestação do confrontante",
-      "Não foi comprovada a manifestação necessária sobre a divisa atingida.",
-      "A lei admite anuência em documentos diferentes, notificação e hipóteses de dispensa.",
-      "Confira primeiro se há dispensa. Se não houver, apresente a manifestação válida ou peça a notificação do confrontante."
+      "Resolver a manifestação do vizinho",
+      "Não foi comprovada a concordância necessária sobre a divisa da matrícula vizinha n.º {matricula_confrontante}[, de {proprietario}].",
+      "A alteração de uma divisa pode exigir que o vizinho se manifeste. A concordância pode estar na planta, no memorial ou em documento separado; também existem dispensas legais.",
+      "Apresente a concordância exigida, se ela ainda não constar de outra peça válida. Se não for possível obtê-la, peça ao cartório a notificação do vizinho. Informe eventual dispensa aplicável para que seja conferida."
     ],
     "continuidade-titulo-anterior": [
-      "Registrar o documento anterior primeiro",
+      "Registrar primeiro o documento anterior",
       "O documento anterior, {titulo_anterior}, ainda não foi registrado.",
-      "As transmissões precisam aparecer no registro na sequência correta.",
-      "Providencie primeiro o registro desse documento anterior para dar continuidade ao atual."
+      "O registro precisa mostrar a sequência dos direitos. O documento atual depende de um direito anterior que ainda não consta do registro.",
+      "Providencie o registro de {titulo_anterior} e resolva as exigências dessa etapa. Depois, o cartório poderá dar sequência ao pedido atual."
     ],
     "documento-copia-simples": [
-      "Apresentar documento verificável",
-      "{documento} veio em reprodução sem autenticação ou validação comprovada.",
-      "O cartório precisa conferir sua autenticidade; documentos eletrônicos validáveis e arquivos já existentes podem ser aproveitados nas hipóteses admitidas.",
-      "Apresente a versão válida ou o meio de conferência permitido para esse documento."
+      "Entregar uma versão verificável do documento",
+      "Foi entregue uma cópia de {documento}, mas não foi possível conferir sua autenticidade.",
+      "O cartório precisa confirmar que o documento apresentado corresponde ao original.",
+      "Apresente o original, uma cópia autenticada ou um documento eletrônico com validação verificável. Se o documento já estiver arquivado em situação que dispense nova entrega, informe onde ele pode ser localizado."
     ],
     "dare-parcelamento-sem-quitacao": [
-      "Comprovar a regularidade do ITCD",
-      "Os documentos não comprovam uma das formas admitidas de regularidade do ITCD.",
-      "Parcelamento regular com garantia real pode permitir o registro; não é obrigatório quitar tudo em toda situação.",
-      "Apresente a quitação, a prova do parcelamento regular com a garantia exigida, ou o reconhecimento de não incidência, imunidade ou isenção."
+      "Entregar a comprovação do ITCD",
+      "Os documentos entregues não comprovam o pagamento do ITCD nem o atendimento das condições exigidas para usar o parcelamento neste registro.",
+      "Antes de concluir o registro, o cartório precisa conferir a comprovação do imposto. O pedido de parcelamento, sozinho, não comprova que essas exigências foram atendidas.",
+      "Para comprovar o pagamento, apresente o DARE, o demonstrativo do ITCD e o comprovante de quitação. Se apresentar parcelamento, solicite à Secretaria de Estado da Economia o documento que comprove sua regularização e apresente a prova de que a garantia está registrada, em valor que cubra o total do imposto. O cartório precisa conferir esses documentos. Se houver dispensa do imposto reconhecida pelo órgão responsável, apresente o respectivo comprovante."
     ],
     "doacao-instrumento-particular": [
-      "Conferir a forma da doação",
-      "A doação foi apresentada em instrumento particular numa hipótese que pode exigir escritura pública.",
-      "A exigência depende do valor do imóvel e das exceções previstas em lei.",
-      "Confirmada a exigência, formalize a doação por escritura pública."
+      "Conferir se a doação exige escritura pública",
+      "A doação foi apresentada em documento particular, numa situação em que pode ser necessária escritura pública.",
+      "A forma exigida depende do valor do imóvel e das exceções previstas em lei. Assinar um documento particular não substitui a escritura quando ela é obrigatória.",
+      "Confirme com quem preparou a doação o valor do imóvel e a forma exigida para esse caso. Se a escritura for necessária, providencie-a em um tabelionato de notas e apresente-a ao registro."
     ],
     "emolumentos-nao-complementados": [
-      "Conferir o saldo das custas",
-      "Foi apurado saldo de custas para um título considerado apto ao registro.",
-      "O pagamento deve respeitar o orçamento, as gratuidades e a opção legal de depósito posterior.",
-      "Confira o orçamento discriminado e recolha o saldo no prazo aplicável; na opção legal de depósito posterior, são cinco dias úteis após a aptidão."
+      "Conferir e pagar o saldo das taxas",
+      "Depois da análise do documento, foi apurado um valor de taxas ainda não recolhido.",
+      "O cartório precisa informar o valor discriminado e respeitar os descontos, as gratuidades e a forma de pagamento aplicáveis ao pedido.",
+      "Confira o orçamento do cartório e pague o saldo no prazo informado. Na opção legal de pagamento posterior, o prazo é de cinco dias úteis após a conclusão de que o documento está pronto para registro."
     ],
     "desconto-50-nao-declarado": [
-      "Esclarecer o direito ao desconto do SFH",
-      "Os documentos não esclarecem a condição para o desconto de 50%.",
-      "A regra considera a primeira aquisição residencial financiada pelo SFH; aquisição anterior por outra forma não afasta, por si só, o benefício segundo a norma goiana.",
-      "Apresente o esclarecimento por declaração ou documento idôneo, aproveitando os dados já existentes no título."
+      "Comprovar o direito ao desconto do SFH",
+      "Os documentos entregues não esclarecem se a compra atende às condições do desconto de 50% para a primeira aquisição residencial financiada pelo SFH, Sistema Financeiro da Habitação.",
+      "Essa informação é necessária para calcular as taxas corretamente. Uma aquisição anterior feita de outra forma não afasta, por si só, o desconto previsto na norma goiana.",
+      "Apresente a declaração ou o documento que esclareça se essa é a primeira aquisição residencial financiada pelo SFH. Se essa informação já estiver no contrato ou nos documentos entregues, indique onde ela consta."
     ],
     "desconto-50-declaracao-ambigua": [
-      "Marcar apenas uma opção na declaração do desconto",
-      "A declaração do desconto está com as duas opções marcadas.",
-      "Não é possível identificar qual situação o comprador declarou.",
-      "Esclareça a declaração contraditória por correção ou documento idôneo, para apurar o benefício conforme as condições legais."
+      "Corrigir a declaração sobre o desconto",
+      "A declaração está com duas opções contraditórias marcadas sobre o direito ao desconto de 50%.",
+      "Não é possível usar respostas opostas para conferir se o desconto é devido.",
+      "Confira qual resposta corresponde à sua situação e corrija a declaração, ou entregue outro documento que esclareça a informação. O cartório usará os dados para conferir o benefício."
     ],
     "fiduciaria-sem-anuencia-credor": [
-      "Regularizar a transmissão dos direitos do financiamento",
-      "O título pretende transferir os direitos do devedor enquanto a alienação fiduciária está ativa.",
-      "Essa transmissão depende de anuência expressa do credor, na hipótese da lei, ou da resolução da garantia.",
-      "Apresente a anuência para a transmissão com assunção das obrigações, ou a documentação de quitação e cancelamento."
+      "Obter a autorização para transferir o financiamento",
+      "O documento pretende transferir os direitos e as obrigações do devedor, mas não veio a autorização do credor enquanto a alienação fiduciária está ativa[ no ato {ato_matricula}].",
+      "Na alienação fiduciária, o imóvel fica vinculado à garantia da dívida. A transferência indicada na nota depende de autorização expressa do credor.",
+      "Peça ao credor a autorização para a transferência, com a responsabilidade do adquirente pelas obrigações. Se a dívida já estiver quitada, apresente a documentação necessária ao cancelamento da garantia."
     ],
     "assinatura-digital-nao-validavel": [
-      "Conferir a assinatura eletrônica",
-      "Não foi possível comprovar a validade da assinatura de {documento}.",
-      "É preciso conferir o arquivo original e o tipo de assinatura admitido para esse ato; uma falha de consulta não prova, sozinha, que a assinatura é inválida.",
-      "Apresente o arquivo original e sua validação. Se necessário, regularize a assinatura por uma modalidade aceita para esse documento."
+      "Entregar o arquivo que permita validar a assinatura",
+      "Não foi possível confirmar a assinatura eletrônica de {documento}.",
+      "O cartório precisa conferir quem assinou e se o arquivo foi alterado. Um erro no site de validação não prova, sozinho, que a assinatura seja inválida.",
+      "Envie o arquivo eletrônico original, sem imprimir e digitalizar novamente, junto com o meio de validar a assinatura. Se houver problema na assinatura, peça ao responsável para refazê-la por uma forma aceita para esse documento."
     ],
     "requerimento-sem-assinatura": [
       "Regularizar a assinatura do documento",
-      "{documento} não comprova a subscrição exigível.",
-      "A forma necessária depende do documento; nem toda assinatura exige reconhecimento de firma.",
-      "Regularize a assinatura por meio admitido para esse documento, observadas as dispensas legais."
+      "Em {documento}, falta comprovar a assinatura necessária ou o reconhecimento de firma exigido para esse caso.",
+      "É preciso identificar quem assinou e confirmar a autoria pela forma aceita para esse documento.",
+      "Providencie a assinatura que falta. Reconheça firma somente se isso for exigido para esse documento; se a assinatura for eletrônica, entregue o arquivo original com o meio de validação aceito."
     ],
     "geo-area-divergente": [
-      "Conferir as áreas dos documentos",
-      "{documento} indica {area_documento}, mas o memorial certificado indica {area_memorial}.",
-      "Os documentos precisam se referir ao mesmo levantamento; a certificação não prova o domínio nem impede retificação justificada.",
-      "Esclareça a diferença e corrija o documento ou o levantamento que estiver incorreto."
+      "Esclarecer a diferença de área no documento",
+      "{documento} informa uma área de {area_documento}, mas o memorial certificado informa {area_memorial}.",
+      "Os documentos precisam permitir identificar o mesmo imóvel e o levantamento apresentado.",
+      "Peça a quem preparou o documento e ao responsável pelo levantamento que confiram a diferença. Entregue a explicação e a versão corrigida da peça que estiver errada."
     ],
     "bem-de-incapaz-sem-alvara": [
-      "Comprovar a autorização para o ato",
-      "Não foi comprovada a autorização judicial exigível para o ato relativo a {incapaz}.",
-      "A exigência depende do regime concreto de representação ou assistência. Deficiência não significa, por si só, incapacidade.",
-      "Apresente a autorização necessária ao caso ou o documento que demonstre que ela não é exigível."
+      "Comprovar a autorização para dispor do imóvel",
+      "Não foi apresentada a autorização judicial necessária ao ato relativo a {incapaz}, conforme a situação indicada na nota.",
+      "Há casos em que vender ou dar em garantia um imóvel exige autorização do juiz, em razão das regras de representação da pessoa. Deficiência, sozinha, não significa incapacidade.",
+      "Apresente a autorização judicial para esse ato ou o documento que demonstre que ela não é exigida na situação concreta. Quem representa a pessoa deve observar os limites da decisão aplicável."
     ],
     "itbi-adquirentes-divergentes": [
-      "Conferir os adquirentes no ITBI",
-      "O título aponta {adquirentes}, enquanto a guia informa {adquirentes_guia}.",
-      "O documento municipal deve identificar o título e as partes da transmissão, conforme o §3º do art.810.",
-      "Solicite ao município a correção ou o esclarecimento. Só há pagamento complementar se a autoridade fiscal apurar diferença devida."
+      "Conferir quem recebe o imóvel no ITBI",
+      "No documento do negócio, quem recebe o imóvel é {adquirentes}. Na guia do ITBI, consta {adquirentes_guia}.",
+      "O documento do imposto precisa identificar as pessoas e a transmissão a que ele se refere.",
+      "Peça ao setor de tributos da prefeitura a correção ou o esclarecimento dos nomes de quem recebe o imóvel. Entregue o documento ajustado ao cartório. Só haverá complemento de imposto se a prefeitura apurar uma diferença devida."
     ],
     "itbi-transmitentes-divergentes": [
-      "Conferir os transmitentes no ITBI",
-      "O título informa {transmitentes}, mas a guia informa {transmitentes_guia}.",
-      "O §3º do art.810 exige que o documento municipal identifique o título e os nomes dos transmitentes e adquirentes.",
-      "Solicite ao município a correção ou o esclarecimento dos transmitentes para que o documento corresponda ao título."
+      "Corrigir os nomes dos transmitentes no ITBI",
+      "No documento do negócio, quem transmite o imóvel é {transmitentes}. Na guia do ITBI, consta {transmitentes_guia}.",
+      "O cartório precisa confirmar que a guia corresponde às mesmas pessoas e à mesma transmissão do documento apresentado.",
+      "Peça ao setor de tributos da prefeitura a correção ou o esclarecimento dos nomes de quem transmite o imóvel. Depois, entregue ao cartório o documento emitido pela prefeitura."
     ],
     "itbi-nao-apresentado": [
-      "Comprovar a regularidade do ITBI",
-      "Faltou comprovar a regularidade do ITBI relativo à transmissão.",
-      "A norma admite pagamento ou reconhecimento de não incidência, imunidade ou isenção.",
-      "Apresente o documento municipal de avaliação e o comprovante de pagamento, ou o reconhecimento administrativo cabível."
+      "Entregar os comprovantes do ITBI",
+      "Não foram apresentados os documentos que comprovem o pagamento do ITBI ou outra situação reconhecida pela prefeitura que dispense esse pagamento.",
+      "O cartório precisa conferir o imposto referente à transmissão apresentada, com a identificação do imóvel e das partes.",
+      "Apresente o documento municipal de avaliação e o comprovante de pagamento do ITBI. Se a prefeitura reconhecer que o imposto não é devido, entregue o documento dessa decisão."
     ],
     "itcd-minuta": [
-      "Apresentar a comprovação definitiva do ITCD",
-      "O ITCD do espólio de {espolio} foi apresentado apenas em minuta.",
-      "A minuta, sozinha, não comprova a regularidade tributária.",
-      "Apresente a documentação definitiva de quitação, parcelamento regular com garantia real ou reconhecimento de não incidência, imunidade ou isenção."
+      "Entregar o documento definitivo do ITCD",
+      "O ITCD do espólio de {espolio} foi apresentado apenas em minuta, sem os documentos que comprovem a situação do imposto.",
+      "A minuta é uma versão de preparação. Ela não substitui a comprovação fiscal necessária ao registro.",
+      "Providencie os documentos definitivos do ITCD junto à Secretaria de Estado da Economia e entregue os comprovantes correspondentes ao seu caso. Se apresentar parcelamento ou dispensa do pagamento, entregue também os documentos exigidos para essa situação; a minuta, sozinha, não basta."
     ],
     "itr-ausente": [
-      "Comprovar a regularidade do ITR",
-      "Não foi comprovada a regularidade do ITR; recibo de entrega da declaração, sozinho, não comprova pagamento.",
-      "A comprovação deve observar os últimos cinco exercícios e as hipóteses legais de inexigibilidade ou dispensa.",
-      "Apresente certidão fiscal idônea ou comprovantes admitidos referentes aos cinco últimos exercícios, observadas as dispensas legais. Não é necessário juntar pagamentos individualizados se uma prova fiscal adequada já comprovar a regularidade."
+      "Entregar a comprovação do ITR",
+      "Foi apresentado apenas o recibo de entrega da declaração do ITR[ da {tipo_folio} n.º {numero_folio}]. Esse recibo mostra que a declaração foi enviada, mas não comprova o pagamento.",
+      "Para o ato indicado na nota, é preciso conferir a situação do imposto dos cinco últimos exercícios, observadas as dispensas legais.",
+      "Apresente uma certidão fiscal válida que comprove a situação do imóvel ou os comprovantes aceitos referentes aos cinco últimos exercícios. Se houver dispensa legal, entregue sua comprovação. Uma certidão suficiente evita juntar pagamentos individuais desnecessários."
     ],
     "itr-nao-apresentado": [
-      "Comprovar a regularidade do ITR",
-      "Não foi comprovada a regularidade do ITR; recibo de entrega da declaração, sozinho, não comprova pagamento.",
-      "A comprovação deve observar os últimos cinco exercícios e as hipóteses legais de inexigibilidade ou dispensa.",
-      "Apresente certidão fiscal idônea ou comprovantes admitidos referentes aos cinco últimos exercícios, observadas as dispensas legais. Não é necessário juntar pagamentos individualizados se uma prova fiscal adequada já comprovar a regularidade."
+      "Comprovar a situação do imposto rural",
+      "Não foi apresentada a comprovação do ITR, Imposto sobre a Propriedade Territorial Rural[ da {tipo_folio} n.º {numero_folio}].",
+      "A situação do imposto dos cinco últimos exercícios precisa ser conferida no caso indicado na nota, consideradas as dispensas legais.",
+      "Providencie uma certidão fiscal válida ou os comprovantes aceitos referentes aos cinco últimos exercícios e entregue-os ao cartório. Se o caso tiver dispensa legal, apresente o documento que a comprove."
     ],
     "levantamento-numero-ausente": [
-      "Identificar o levantamento usado",
-      "Não foi possível vincular com segurança o título ao levantamento da matrícula n.º {matricula}.",
-      "O problema é a identificação insuficiente, não a falta de um número que já possa ser suprido pelos demais documentos.",
-      "Apresente os dados ou documento necessários à vinculação; corrija o título somente quando isso for necessário."
+      "Identificar o levantamento usado no pedido",
+      "Não foi possível relacionar com segurança o documento apresentado ao levantamento da matrícula n.º {matricula}.",
+      "É preciso saber qual levantamento foi usado para descrever ou atualizar esse imóvel.",
+      "Entregue os dados ou o documento que permitam identificar o levantamento correto. Se as informações já estiverem nas peças apresentadas, indique onde constam; a falta de um número, sozinha, não exige refazer um documento que possa ser identificado."
     ],
     "parcelamento-memorial-sem-origem": [
-      "Identificar a origem das parcelas",
-      "As peças não permitem vincular com segurança as parcelas à matrícula de origem e ao cadastro rural.",
-      "É necessário identificar o imóvel de origem; a norma não impõe uma frase ou posição única para esses dados.",
-      "Complete os elementos de identificação que faltarem, aproveitando os dados já constantes dos documentos."
+      "Identificar de qual imóvel saem as parcelas",
+      "Os memoriais e mapas não permitem ligar com segurança as parcelas à matrícula de origem e ao cadastro rural.",
+      "O cartório precisa identificar o imóvel original antes de registrar os imóveis que vão resultar da divisão.",
+      "Peça ao profissional que elaborou o parcelamento para completar os dados de identificação que faltam nas peças. Não é necessário colocar a informação numa frase específica se ela já estiver clara nos documentos."
     ],
     "loteamento-documentos-incompletos": [
-      "Completar os documentos do parcelamento",
-      "Na documentação do loteamento ou desmembramento, faltou: {documento_faltante}.",
-      "Sem essa documentação não é possível concluir a análise do parcelamento.",
-      "Apresente a documentação faltante indicada acima para o registro do parcelamento do solo."
+      "Entregar o documento que falta no parcelamento",
+      "Na documentação do loteamento ou desmembramento, não foi apresentado: {documento_faltante}.",
+      "Esse documento foi apontado na nota como necessário à análise do parcelamento apresentado.",
+      "Providencie {documento_faltante} com o responsável pelo projeto ou com o órgão que deve emiti-lo. Entregue-o ao cartório para a análise. Se houver dispensa aplicável, apresente a comprovação correspondente."
     ],
     "memorial-denominacao-divergente": [
-      "Esclarecer a denominação do confrontante",
-      "O memorial denomina a matrícula n.º {matricula_confrontante} “{denominacao_memorial}”, mas o registro informa “{denominacao_matricula}”.",
-      "É preciso identificar o mesmo imóvel, sem exigir alteração indevida em matrícula de outra pessoa.",
-      "Corrija o memorial se ele estiver errado ou apresente a comprovação oficial da mudança de denominação."
+      "Conferir o nome do imóvel vizinho",
+      "O memorial chama o imóvel da matrícula n.º {matricula_confrontante} de “{denominacao_memorial}”, mas o registro informa “{denominacao_matricula}”.",
+      "É preciso confirmar que os dois nomes se referem ao mesmo imóvel vizinho e identificar de onde veio a diferença.",
+      "Peça ao profissional que fez o memorial para conferir a identificação. Se houver erro no memorial, corrija-o; se o nome do imóvel tiver mudado, apresente a comprovação da mudança. Não altere registro de terceiro sem o pedido e os documentos necessários."
     ],
     "obito-nao-averbado": [
-      "Comprovar a atuação do espólio",
-      "O pedido foi feito em nome do espólio de {falecido}.",
-      "É necessário conferir o óbito e quem pode representar o espólio. Averbar o óbito não substitui o registro da partilha.",
-      "Apresente a prova que ainda faltar, aproveitando os documentos existentes. A certidão de óbito não perde validade apenas por sua data."
+      "Comprovar o óbito e quem representa o espólio",
+      "O pedido foi feito em nome do espólio de {falecido}, mas ainda é necessário comprovar o falecimento e quem pode agir pelo espólio.",
+      "Espólio é o conjunto de bens deixados pela pessoa falecida. O cartório precisa conferir quem pode representá-lo. Informar o óbito não substitui o registro da partilha.",
+      "Apresente a certidão de óbito e a prova da representação do espólio que ainda faltarem. Documentos já entregues serão aproveitados. Não é necessário renovar a certidão de óbito apenas por ser antiga."
     ],
     "hipoteca-ativa": [
-      "Conferir o efeito da hipoteca neste ato",
-      "A matrícula n.º {matricula} tem hipoteca ativa.",
-      "Hipoteca comum não impede, por si só, a venda. É preciso distinguir cancelamento pedido de garantia sujeita a regra especial.",
-      "Se houver pedido de cancelamento, apresente seu documento. Se a garantia tiver regra especial, cumpra essa regra. Não é necessário cancelar hipoteca comum apenas para vender o imóvel."
+      "Esclarecer o tratamento da hipoteca",
+      "A matrícula n.º {matricula} tem uma hipoteca ativa[ no ato {ato_matricula}], mas o pedido precisa esclarecer se pretende mantê-la ou cancelá-la.",
+      "A hipoteca vincula o imóvel à garantia de uma dívida. Algumas garantias têm regras específicas, e o cancelamento exige documento próprio; sua existência não deve ser confundida com cancelamento automático.",
+      "Confira com quem preparou o negócio se a garantia será mantida. Se o pedido incluir cancelamento, apresente o documento de quitação ou autorização necessário. Se a hipoteca tiver regra especial, entregue a autorização ou a solução apontada na nota formal."
     ],
     "pacto-antenupcial-ausente": [
-      "Comprovar o pacto quando exigível",
-      "A qualificação de {parte}, no regime da {regime}, precisa ser conferida quanto à existência de pacto exigível.",
-      "Nem todo regime exige pacto. A lei da época do casamento e o caráter legal ou convencional do regime precisam ser considerados.",
-      "Se o pacto for exigível, apresente a escritura e a prova do registro para a atualização cabível."
+      "Apresentar o pacto antenupcial necessário",
+      "A documentação de {parte}, no regime da {regime}, não comprova o pacto antenupcial quando exigido para esse casamento.",
+      "O pacto é a escritura que define regras patrimoniais escolhidas pelo casal. Nem todo regime exige esse documento; é preciso conferir o caso.",
+      "Se o regime exigir pacto, apresente a escritura e a certidão de seu registro no Registro de Imóveis do domicílio do casal. Se esses documentos já tiverem sido entregues, indique onde estão para a conferência."
     ],
     "penhor-grau-divergente": [
-      "Esclarecer a prioridade da garantia",
-      "O grau indicado na cédula não corresponde à prioridade identificada no registro competente.",
-      "A ordem de apresentação e os direitos já registrados precisam ser respeitados.",
-      "Esclareça a prioridade e corrija o título ou o registro que estiver incorreto."
+      "Conferir a prioridade da garantia",
+      "A ordem da garantia indicada na cédula não corresponde à prioridade identificada no registro.",
+      "Uma garantia pode ter preferência sobre outra. O documento precisa respeitar a prioridade dos direitos já registrados.",
+      "Peça à instituição que emitiu a cédula que confira a ordem das garantias com os registros existentes. Apresente o esclarecimento e a correção necessária, se o erro estiver na cédula; se for erro do registro, entregue a comprovação para a análise do cartório."
     ],
     "pj-atos-constitutivos-ausentes": [
-      "Comprovar os poderes da pessoa jurídica",
-      "É necessário conferir os poderes de quem representa {pessoa_juridica}.",
-      "Documentos já qualificados na escritura ou disponíveis em repositório admitido podem dispensar nova apresentação.",
-      "Apresente apenas os atos necessários que ainda não estejam comprovados, conforme a estrutura dessa pessoa jurídica."
+      "Comprovar quem pode representar a pessoa jurídica",
+      "Os documentos disponíveis não comprovam suficientemente quem pode assinar por {pessoa_juridica}.",
+      "É preciso confirmar que a pessoa que assinou tinha poderes para fazer esse negócio em nome da empresa ou entidade.",
+      "Apresente os documentos que comprovem esses poderes, como o contrato social, o estatuto ou a ata pertinente ao caso. Não é necessário entregar novamente o que já estiver comprovado na escritura ou em arquivo que possa ser aproveitado."
     ],
     "prenotacao-vencida": [
-      "Conferir a validade da prenotação",
-      "A tramitação indica possível cessação da prenotação por falta de atendimento pelo interessado.",
-      "A regra considera dias úteis e exige conferir prorrogações e hipóteses especiais; demora do cartório não equivale à inércia do interessado.",
-      "Somente se a cessação estiver confirmada será necessária nova apresentação."
+      "Conferir o prazo de prioridade do pedido",
+      "A tramitação indica que o prazo de prioridade do pedido pode ter terminado por falta de atendimento das exigências pelo interessado.",
+      "Esse prazo é contado em dias úteis e pode ser prorrogado nas situações previstas em lei. A demora do cartório, sozinha, não equivale à falta de atendimento pelo cliente.",
+      "Confira com o cartório a contagem e as prorrogações aplicáveis. Se o encerramento do prazo estiver confirmado, reapresente o documento para novo protocolo. Enquanto o prazo estiver válido, a prioridade deve ser preservada."
     ],
     "procuracao-poderes-ausente": [
-      "Comprovar os poderes de representação",
-      "Precisam ser conferidos os poderes de {representante} para agir por {representado}.",
-      "A procuração deve permitir o ato praticado, mas não é necessário reapresentar a procuração já identificada e qualificada na escritura na hipótese de dispensa.",
-      "Apresente a prova dos poderes que ainda faltar, na forma exigida para esse ato."
+      "Comprovar os poderes de quem assinou",
+      "Falta esclarecer se {representante} tem os poderes necessários para agir em nome de {representado} neste negócio.",
+      "A procuração precisa autorizar o ato praticado e seguir a forma exigida para ele.",
+      "Apresente a procuração e a transferência de poderes, se houver, no que ainda faltar comprovar. Se o tabelião já identificou e conferiu esses documentos na escritura, indique essa informação para que o cartório verifique a dispensa de nova entrega."
     ],
     "protocolo-vinculado-a-outro": [
-      "Resolver primeiro o protocolo relacionado",
-      "Este pedido depende da conclusão do protocolo {protocolo_dependido}[, referente a {ato_dependido}].",
-      "O registro atual depende de uma etapa que ainda não foi concluída na matrícula.",
-      "Cumpra as exigências do protocolo {protocolo_dependido} e aguarde a prática do ato correspondente. Depois disso, este pedido poderá seguir."
+      "Resolver primeiro o pedido anterior",
+      "Este pedido depende do ato ainda pendente no protocolo n.º {protocolo_dependido}[, referente a {ato_dependido}].",
+      "O registro atual depende de uma alteração anterior que ainda precisa ser concluída.",
+      "Cumpra as exigências do protocolo n.º {protocolo_dependido} e acompanhe a conclusão desse ato. Depois, o cartório dará sequência ao pedido atual, observadas as regras de prazo e prioridade."
     ],
     "qualificacao-divergente-do-titulo": [
-      "Esclarecer o dado pessoal divergente",
-      "A qualificação {parte_qualificada} diverge quanto a {dado_pessoal}.",
-      "Os documentos devem permitir identificar corretamente a pessoa, aproveitando dados oficiais já disponíveis.",
-      "Apresente {documento_saneador} no que faltar. Pedido específico só será necessário se a atualização não estiver solicitada no próprio título."
+      "Esclarecer o dado pessoal diferente",
+      "Os dados {parte_qualificada} não coincidem entre o documento apresentado e a matrícula quanto a {dado_pessoal}.",
+      "O cartório precisa identificar corretamente a pessoa e saber qual informação deve constar do registro.",
+      "Apresente {documento_saneador}[, {forma_documento}], no que ainda faltar comprovar. Se o pedido de atualização já estiver no documento apresentado, ele poderá ser aproveitado; se não estiver, será necessário solicitá-la na forma indicada na nota."
     ],
     "qualificacao-endereco-ausente": [
-      "Completar os dados pessoais",
-      "Falta dado necessário à qualificação de {parte}.",
-      "O registro precisa identificar a pessoa corretamente, sem pedir novamente o que já estiver comprovado.",
-      "Complemente o dado por documento oficial ou declaração admitida e solicite a atualização necessária."
+      "Informar o endereço da pessoa",
+      "Não foi possível confirmar o endereço de {parte} nos documentos e nas informações disponíveis no cartório.",
+      "O endereço faz parte dos dados necessários para identificar a pessoa no registro.",
+      "Informe o endereço de {parte} por documento oficial ou declaração aceita para esse caso. Se a informação já tiver sido entregue ao cartório, indique em qual documento ela consta."
     ],
     "qualificacao-profissao-ausente": [
-      "Completar os dados pessoais",
-      "Falta dado necessário à qualificação de {parte}.",
-      "O registro precisa identificar a pessoa corretamente, sem pedir novamente o que já estiver comprovado.",
-      "Complemente o dado por documento oficial ou declaração admitida e solicite a atualização necessária."
+      "Informar a profissão da pessoa",
+      "A profissão de {parte} não está suficientemente informada no documento nem nos dados disponíveis no cartório.",
+      "A profissão integra a identificação da pessoa exigida para o ato apresentado.",
+      "Informe a profissão de {parte} por documento oficial ou declaração aceita para esse caso. Se ela já constar de documento entregue ao cartório, indique esse documento para que a informação seja aproveitada."
     ],
     "requerimento-nao-apresentado": [
-      "Apresentar o pedido necessário",
-      "Não foi identificado pedido para {tipo_requerimento}, quando dependente da iniciativa do interessado.",
-      "Um pedido já incluído no título pode ser aproveitado. Há atos que a lei permite praticar de ofício.",
-      "Apresente o pedido apenas se ele for necessário e ainda não estiver no título, com a documentação e assinatura cabíveis."
+      "Apresentar o pedido que falta",
+      "Não foi localizado o pedido para {tipo_requerimento}, quando essa providência depende de solicitação do interessado.",
+      "O cartório precisa identificar o que você está solicitando. Um pedido já incluído no documento apresentado pode ser aproveitado.",
+      "Apresente a solicitação de {tipo_requerimento}, assinada e acompanhada dos documentos indicados na nota. Se esse pedido já estiver no documento entregue, informe onde ele aparece para evitar uma solicitação repetida."
     ],
     "reserva-legal-insuficiente": [
-      "Esclarecer a reserva legal nas parcelas",
-      "As peças não permitem identificar a reserva legal correspondente às parcelas resultantes.",
-      "O fracionamento deve considerar a área original e a documentação ambiental aplicável. A inscrição no CAR pode dispensar averbação autônoma da reserva.",
-      "Peça o esclarecimento ou a correção das peças, com os documentos ambientais cabíveis."
+      "Esclarecer a reserva legal após a divisão",
+      "As peças da divisão do imóvel não esclarecem onde fica e como se distribui a reserva legal nas parcelas.",
+      "A reserva legal é a área de vegetação protegida. A divisão precisa ser conferida com a área original e com os documentos ambientais, como o CAR.",
+      "Peça ao responsável pelo trabalho técnico que esclareça a localização e as áreas nas parcelas, com os documentos ambientais correspondentes. Corrija as peças que estiverem erradas, sem pedir nova averbação que seja dispensada pela inscrição no CAR."
     ],
     "retificacao-acima-do-limite": [
-      "Esclarecer a diferença de área",
-      "A matrícula registra {area_registrada}, o levantamento indica {area_levantada} e a diferença é {diferenca}.",
-      "Não existe um teto legal universal de 10% que impeça toda retificação. É preciso verificar se o levantamento retrata o mesmo imóvel.",
-      "Apresente o esclarecimento técnico e os documentos da origem da diferença. Se houver aquisição de área alheia ao título, ela precisa do procedimento jurídico próprio."
+      "Explicar de onde vem a diferença de área",
+      "O registro informa {area_registrada}, enquanto o levantamento indica {area_levantada}. A diferença é de {diferenca}.",
+      "É preciso verificar se o levantamento apenas corrige a descrição do mesmo imóvel ou se inclui terreno que não pertence ao registro apresentado.",
+      "Peça ao profissional que explique a diferença e apresente os documentos que a sustentam. Se houver aquisição de terreno fora do registro, será necessário o procedimento próprio para essa aquisição; uma simples correção de área não o substitui."
     ],
     "sefaz-valor-divergente": [
-      "Esclarecer a avaliação do ITCD",
-      "O demonstrativo indica {valor_declarado}, enquanto a avaliação fiscal indica {valor_sefaz}.",
-      "A autoridade fiscal deve esclarecer a diferença e apurar eventual imposto devido.",
-      "Solicite a correção ou o esclarecimento fiscal e apresente a prova da regularidade. O cartório não fixa, por conta própria, imposto suplementar."
+      "Esclarecer a diferença na avaliação do ITCD",
+      "O demonstrativo do ITCD informa {valor_declarado}, mas a avaliação fiscal informa {valor_sefaz}.",
+      "O órgão responsável pelo imposto precisa esclarecer a diferença. O cartório não calcula um imposto complementar por conta própria.",
+      "Peça à Secretaria de Estado da Economia a conferência dos valores e a correção ou o esclarecimento do documento. Se o órgão apurar complemento de imposto, entregue também a comprovação correspondente."
     ],
     "selo-divergente": [
-      "Corrigir os dados do selo eletrônico",
-      "O selo eletrônico apresenta {dado_selo} em desacordo com o documento do ato notarial.",
-      "Os dados do selo precisam corresponder ao ato que foi realizado.",
-      "Providencie a correção do selo eletrônico para que ele corresponda ao ato praticado."
+      "Pedir a conferência do selo eletrônico",
+      "O selo eletrônico informa {dado_selo} em desacordo com o documento do ato notarial.",
+      "Os dados do selo precisam corresponder ao ato a que ele está vinculado.",
+      "Entre em contato com o cartório que emitiu o documento. Peça que confira o selo e, se houver erro, faça a correção pelo procedimento próprio. Depois, apresente o esclarecimento ou o documento corrigido."
     ],
     "servidao-cancelamento-sem-credor": [
-      "Apresentar a autorização do credor para cancelar a servidão",
-      "Foi solicitado o cancelamento de uma servidão, mas o imóvel beneficiado por ela está hipotecado e não veio a autorização do credor.",
-      "A nota exige a concordância do credor da hipoteca para esse cancelamento.",
-      "Apresente a autorização expressa do credor hipotecário para cancelar a servidão."
+      "Entregar a autorização para cancelar a servidão",
+      "Foi pedido o cancelamento de uma servidão, mas não veio a autorização do credor da hipoteca quando exigida para esse caso.",
+      "A servidão beneficia outro imóvel, como um direito de passagem. Se ela integrar a garantia do credor, seu cancelamento exige a concordância prevista na nota.",
+      "Apresente a autorização expressa do credor para o cancelamento, na forma indicada na nota. O cartório precisa conferir a hipoteca e a relação dela com a servidão antes de concluir o ato."
     ],
     "sig-nao-lancado": [
-      "Conferir o lançamento do levantamento no mapa",
-      "As coordenadas de {imovel} não foram localizadas no SIG-RI para a hipótese consultada.",
-      "A responsabilidade varia: novos trabalhos técnicos e atualização do acervo antigo não são a mesma hipótese.",
-      "Quando cabível ao procedimento e disponível a plataforma, solicite o lançamento ou a importação das coordenadas ao profissional. Não atribua ao cliente atualização de acervo que caiba ao cartório."
+      "Conferir o envio das coordenadas ao mapa",
+      "As coordenadas de {imovel} não foram localizadas no mapa do registro para a situação consultada.",
+      "As coordenadas mostram a posição e os limites do imóvel. É preciso distinguir o envio de um novo trabalho da atualização de informações antigas do cartório.",
+      "Se o envio fizer parte do novo trabalho apresentado e a função estiver disponível, peça ao profissional que lance ou importe as coordenadas. Se for atualização do acervo antigo a cargo do cartório, ela não deve ser transferida ao cliente."
     ],
     "sig-marcos-divergentes": [
-      "Conferir os marcos e as coordenadas",
-      "O lançamento de {imovel} no mapa diverge do memorial apresentado.",
-      "É necessário identificar o erro; uma diferença de lançamento não significa, sozinha, que a descrição registral seja inválida.",
-      "Peça o esclarecimento técnico e a correção do mapa ou da peça incorreta. A descrição inválida exige o procedimento específico previsto na norma."
+      "Conferir as coordenadas que foram lançadas",
+      "As coordenadas de {imovel} lançadas no mapa não correspondem às do memorial apresentado.",
+      "É preciso identificar a origem da diferença para que o mapa e o trabalho técnico se refiram aos mesmos limites.",
+      "Peça ao responsável pelo levantamento que compare o lançamento com o memorial, explique a diferença e corrija o que estiver errado. Se o problema estiver na descrição registrada do imóvel, siga a providência específica da nota formal."
     ],
     "sobreposicao-de-area": [
-      "Esclarecer a sobreposição indicada no mapa",
-      "O mapa indica coincidência total ou parcial entre áreas.",
-      "A norma distingue conflito material de pequenas diferenças formais e prevê tolerância técnica. A simples observação ou averbação de sobreposição não bloqueia, por si só, a transmissão ou oneração.",
-      "Solicite a análise técnica e o saneamento correspondente à natureza do problema. A indicação no mapa, sozinha, não prova conflito de propriedade."
+      "Esclarecer a coincidência de áreas no mapa",
+      "O mapa indica que parte da área apresentada coincide com a área de outro imóvel.",
+      "Essa indicação precisa ser conferida por análise técnica: ela pode refletir um conflito real ou uma diferença de levantamento dentro da tolerância admitida.",
+      "Peça ao profissional a análise da coincidência de áreas e apresente os esclarecimentos ao cartório. A nota formal indica o tratamento conforme o resultado; a simples indicação no mapa não determina, sozinha, bloqueio ou liberação do registro."
     ],
     "sig-area-divergente": [
       "Conferir a área lançada no mapa",
-      "O SIG-RI informa {area_sig}, mas o memorial indica {area_memorial}.",
-      "É preciso identificar a origem da diferença, considerando a descrição e as tolerâncias técnicas.",
-      "Peça o esclarecimento e corrija o lançamento ou o documento que estiver errado."
+      "O mapa informa {area_sig}, mas o memorial descreve {area_memorial}.",
+      "O profissional precisa identificar se a diferença vem do lançamento, do documento ou da forma de cálculo e das tolerâncias técnicas.",
+      "Peça ao responsável pelo levantamento que confira as duas áreas e explique a diferença. Entregue a correção do lançamento ou do documento que estiver errado."
     ],
     "transcricao-sem-caracterizacao": [
-      "Completar a identificação do imóvel transcrito",
-      "O imóvel ainda está em transcrição e faltam elementos suficientes à sua identificação.",
-      "A abertura de matrícula depende de segurança sobre o imóvel, a localização e o proprietário.",
-      "Apresente os elementos necessários para completar a descrição. Documento equivalente idôneo pode suprir a informação, sem formulário único obrigatório."
+      "Completar a identificação do imóvel antigo",
+      "O imóvel está num registro antigo, chamado transcrição, sem informações suficientes para abrir sua matrícula individual.",
+      "É preciso identificar com segurança o imóvel, sua localização e quem consta como proprietário.",
+      "Apresente os documentos necessários para completar a descrição indicada na nota. Pode ser aproveitado documento equivalente que comprove os dados faltantes; não basta trocar o nome do documento sem esclarecer o imóvel."
     ],
     "uniao-estavel-nao-declarada": [
-      "Esclarecer a situação patrimonial relevante",
-      "Há informação de {parte} a esclarecer quanto à repercussão de eventual união estável neste ato.",
-      "Não se exige declaração negativa de todos apenas porque o título ficou em silêncio. O dado precisa ser relevante para o bem e o negócio.",
-      "Apresente o esclarecimento necessário à titularidade ou ao regime patrimonial efetivamente envolvidos."
+      "Esclarecer a união estável relacionada ao imóvel",
+      "Falta esclarecer uma informação de {parte} sobre eventual união estável que pode influenciar os direitos sobre este imóvel.",
+      "O pedido de esclarecimento deve ter relação com o bem ou com o negócio apresentado. O silêncio do documento, sozinho, não prova que exista união estável.",
+      "Apresente o documento ou a declaração que esclareça a situação patrimonial apontada na nota. Não é uma exigência de declaração negativa para todas as pessoas, mas de esclarecimento da informação relevante neste caso."
     ],
     "usufruto-ativo-sem-anuencia": [
-      "Conferir o que o título faz com o usufruto",
-      "Há usufruto ativo em favor de {usufrutuario}.",
-      "É possível transmitir apenas a nua-propriedade mantendo o usufruto. A existência do direito não exige anuência em toda venda.",
-      "Confira se o título preserva o usufruto. Se pretender propriedade plena ou cancelamento, apresente a prova e os documentos adequados à extinção."
+      "Esclarecer se o usufruto será mantido",
+      "Há usufruto em favor de {usufrutuario}[ no ato {ato_matricula}], e o documento precisa ser conferido quanto ao tratamento desse direito.",
+      "O usufruto permite a uma pessoa usar o imóvel e receber seus rendimentos. Transmitir apenas a propriedade mantendo esse direito é diferente de transmitir o imóvel livre dele.",
+      "Confira com quem preparou o negócio se o usufruto continuará. Se o documento pretender propriedade plena ou cancelamento, apresente a prova da extinção do usufruto e os documentos necessários. Se ele for mantido, o documento deve respeitar esse direito."
     ],
     "indisponibilidade-ativa": [
-      "Conferir o alcance da indisponibilidade",
-      "A matrícula n.º {matricula} tem indisponibilidade vigente.",
-      "O alcance da ordem precisa ser conferido. Pedido simples do interessado não cancela a restrição, e alguns atos são expressamente permitidos pela norma.",
-      "Quando necessário, apresente a determinação competente. Nos atos admitidos sem autorização, observe o transporte da restrição e a comunicação previstos na norma."
+      "Conferir a restrição sobre o imóvel",
+      "A matrícula n.º {matricula} tem uma ordem de indisponibilidade ainda ativa[ no ato {ato_matricula}].",
+      "Essa ordem restringe atos sobre o imóvel e não é cancelada por simples pedido do proprietário. Seu alcance precisa ser conferido antes do registro.",
+      "Se o ato depender de liberação, apresente a determinação da autoridade competente para autorizar o ato ou levantar a restrição. Nas operações que a norma admite sem essa autorização, o cartório precisa conferir os requisitos e as providências de manutenção da restrição nas novas matrículas."
     ],
     "bloqueio-matricula-ativo": [
-      "Obter autorização para a matrícula bloqueada",
-      "A matrícula {matricula} permanece bloqueada por ordem judicial[ no ato {ato_matricula}].",
-      "Nenhum ato pode ser praticado nela sem autorização do juiz. A nota informa que o prazo da prenotação fica prorrogado até a solução do bloqueio.",
-      "Apresente a autorização judicial para o ato ou o mandado que determine a retirada do bloqueio."
+      "Obter a determinação sobre a matrícula bloqueada",
+      "A matrícula n.º {matricula} continua bloqueada por ordem judicial[ no ato {ato_matricula}].",
+      "O cartório precisa respeitar o bloqueio e conferir se o juiz autorizou o ato apresentado. A nota informa as regras de preservação do protocolo durante o bloqueio.",
+      "Apresente a autorização judicial para o ato ou a determinação de levantamento do bloqueio, conforme o pedido. O cartório conferirá a decisão e o prazo do protocolo."
     ],
     "cib-nao-averbado": [
       "Informar o cadastro rural na Receita Federal",
-      "A matrícula n.º {matricula} não informa o identificador rural aplicável, NIRF ou CIB.",
-      "A identificação depende da implantação e da substituição cadastral, e a atualização deve seguir a hipótese da norma.",
-      "Apresente o comprovante do identificador aplicável para a atualização cabível."
+      "A matrícula n.º {matricula} não informa o identificador do imóvel rural na Receita Federal, NIRF ou CIB conforme o cadastro aplicável.",
+      "Esse número permite relacionar o imóvel registrado ao cadastro fiscal rural. A identificação usada depende da implantação e da substituição dos cadastros.",
+      "Entregue o comprovante do cadastro rural correspondente a esse imóvel na Receita Federal. O cartório conferirá o identificador e a atualização necessária ao pedido."
     ],
     "alienacao-fiduciaria-ativa": [
-      "Conferir o ato diante da alienação fiduciária",
-      "A matrícula n.º {matricula} tem alienação fiduciária ativa.",
-      "A exigência depende do ato: transferir os direitos do devedor e cancelar a garantia são situações diferentes.",
-      "Apresente a anuência para a transmissão, quando exigível, ou a documentação de resolução e cancelamento, se este for o pedido."
+      "Esclarecer o pedido com a garantia ainda ativa",
+      "A matrícula n.º {matricula} tem alienação fiduciária ativa[ no ato {ato_matricula}], e o documento precisa ser conferido quanto ao efeito sobre essa garantia.",
+      "A garantia vincula o imóvel à dívida. Transferir os direitos do devedor, cancelar a garantia ou pedir outro ato são situações diferentes, com documentos próprios.",
+      "Se o pedido for de cancelamento, apresente a documentação de quitação e cancelamento. Se for transferência dos direitos e obrigações do devedor, apresente a anuência do credor quando exigida. O cartório precisa conferir os requisitos do ato concreto."
     ],
     "desmembramento-benfeitoria-sem-gleba": [
-      "Identificar a edificação após o parcelamento",
-      "As peças do desmembramento rural não mostram em qual parcela ficará a edificação ou benfeitoria.",
-      "Cada imóvel resultante precisa ser identificado corretamente.",
-      "Peça ao profissional que esclareça a localização nas peças ou em declaração, com responsabilidade técnica correspondente. Não é necessário novo registro de responsabilidade se o existente já abranger esse esclarecimento."
+      "Indicar em qual gleba fica a benfeitoria",
+      "O levantamento da divisão rural não mostra em qual das glebas ficará a benfeitoria existente[ na matrícula n.º {matricula}].",
+      "Cada imóvel resultante precisa ser descrito com as características que realmente permanecerão nele.",
+      "Peça ao profissional do levantamento que identifique a gleba e a benfeitoria nas peças técnicas ou em declaração complementar. A responsabilidade técnica deve abranger esse esclarecimento, sem novo registro se o documento existente já o cobrir."
     ],
     "desmembramento-edificacao-sem-lote": [
-      "Identificar a edificação após o parcelamento",
-      "As peças do desmembramento urbano não mostram em qual parcela ficará a edificação ou benfeitoria.",
-      "Cada imóvel resultante precisa ser identificado corretamente.",
-      "Peça ao profissional que esclareça a localização nas peças ou em declaração, com responsabilidade técnica correspondente. Não é necessário novo registro de responsabilidade se o existente já abranger esse esclarecimento."
+      "Indicar em qual lote fica a construção",
+      "As peças da divisão urbana não mostram em qual dos lotes ficará a construção existente[ na matrícula n.º {matricula}].",
+      "O cartório precisa descrever cada lote com a construção que permanecerá nele.",
+      "Peça ao profissional que preparou a divisão que indique o lote e a construção nas peças ou em declaração complementar. O esclarecimento deve estar coberto pela responsabilidade técnica do trabalho, sem repetir registro que já o abranja."
     ],
     "construcao-sem-habite-se": [
-      "Comprovar a conclusão da construção",
-      "Falta a comprovação da conclusão da obra[ da matrícula n.º {matricula}] ou de sua dispensa legal.",
-      "A norma admite documento municipal equivalente e prevê hipótese de dispensa de habite-se.",
-      "Apresente o habite-se, certificado de conclusão ou documento equivalente, ou comprove a dispensa aplicável. Não é exigível CND previdenciária para essa averbação."
+      "Comprovar a conclusão da obra",
+      "Não foi apresentado o documento que comprova a conclusão da construção[ na matrícula n.º {matricula}], nem a comprovação de dispensa aplicável.",
+      "O cartório precisa comprovar a construção que será acrescentada ao registro do imóvel.",
+      "Peça à prefeitura o habite-se, a certidão de conclusão da obra ou outro documento equivalente aceito e entregue-o ao cartório. Se a obra se enquadrar numa dispensa legal, apresente os documentos que comprovem esse enquadramento. Não é exigida CND previdenciária para essa averbação."
     ]
   }
 }

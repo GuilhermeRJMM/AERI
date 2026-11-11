@@ -127,14 +127,14 @@ def test_todos_os_72_juntos_com_assinatura_protocolo_e_alternativas():
     for e in EXIGENCIAS:
         acao = por_id[e['id']]['comoResolver']
         if '{assinatura}' in e['defeito'] + e['providencia']:
-            assert 'modalidade admitida' in acao and 'quando exigível' in acao
-            assert 'autoria e integridade' in acao
+            assert 'Se for exigido reconhecimento de firma' in acao
+            assert 'arquivo original' in acao and 'quem assinou' in acao
         if '{protocolo_apartado}' in e['defeito'] + e['providencia']:
             assert 'protocolo separado' in acao
     assert 'cinco últimos exercícios' in por_id['itr-ausente']['comoResolver']
     assert 'ou' in por_id['usufruto-ativo-sem-anuencia']['comoResolver']
-    assert 'se a autoridade fiscal apurar' in por_id['itbi-adquirentes-divergentes']['comoResolver']
-    assert 'procedimento jurídico próprio' in por_id['retificacao-acima-do-limite']['comoResolver']
+    assert 'se a prefeitura apurar' in por_id['itbi-adquirentes-divergentes']['comoResolver']
+    assert 'procedimento próprio' in por_id['retificacao-acima-do-limite']['comoResolver']
 
 
 def test_endpoint_entrega_par_conjunto_e_audita_sem_textos_pessoais():
@@ -188,7 +188,8 @@ def test_layout_resumo_centralizado_rotulos_destacados_e_detalhes_separados():
     w = '{'+NS['w']+'}'
     assert titulo.find('w:pPr/w:jc',NS).get(w+'val') == 'center'
     detalhe = next(p for p in ps if paragrafo_texto(p).startswith('Na ART:'))
-    assert detalhe.find('w:pPr/w:ind',NS).get(w+'left') == '850'
+    assert detalhe.find('w:pPr/w:ind',NS).get(w+'left') == '425'
+    assert detalhe.find('w:pPr/w:jc',NS).get(w+'val') == 'left'
     assert detalhe.find('w:r/w:rPr/w:b',NS) is not None
     assert detalhe.find('w:r/w:rPr/w:u',NS) is not None
 
