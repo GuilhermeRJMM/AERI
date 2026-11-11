@@ -127,13 +127,14 @@ def test_todos_os_72_juntos_com_assinatura_protocolo_e_alternativas():
     for e in EXIGENCIAS:
         acao = por_id[e['id']]['comoResolver']
         if '{assinatura}' in e['defeito'] + e['providencia']:
-            assert 'firma reconhecida' in acao and 'ICP-Brasil' in acao
+            assert 'modalidade admitida' in acao and 'quando exigível' in acao
+            assert 'autoria e integridade' in acao
         if '{protocolo_apartado}' in e['defeito'] + e['providencia']:
             assert 'protocolo separado' in acao
     assert 'cinco últimos exercícios' in por_id['itr-ausente']['comoResolver']
     assert 'ou' in por_id['usufruto-ativo-sem-anuencia']['comoResolver']
-    assert 'se houver' in por_id['itbi-adquirentes-divergentes']['comoResolver']
-    assert 'não serve para adquirir' in por_id['retificacao-acima-do-limite']['comoResolver']
+    assert 'se a autoridade fiscal apurar' in por_id['itbi-adquirentes-divergentes']['comoResolver']
+    assert 'procedimento jurídico próprio' in por_id['retificacao-acima-do-limite']['comoResolver']
 
 
 def test_endpoint_entrega_par_conjunto_e_audita_sem_textos_pessoais():

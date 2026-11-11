@@ -82,7 +82,20 @@ def catalogo_para_tela() -> dict:
 @lru_cache(maxsize=1)
 def indice_artigos() -> dict:
     caminho = BASE / "dados" / "artigos.json"
-    return json.loads(caminho.read_text(encoding="utf-8")) if caminho.exists() else {}
+    indice = json.loads(caminho.read_text(encoding="utf-8")) if caminho.exists() else {}
+    # A legislação exibida não pode contradizer o recorte oficial usado na nota.
+    # Preserva o acervo não revisado, sobrepondo somente dispositivos conferidos.
+    for dispositivo in redator().cat.dispositivos.values():
+        if not dispositivo.get('url_oficial') or not dispositivo.get('conferido_em'):
+            continue
+        lista = indice.setdefault(dispositivo['norma'], [])
+        artigo = next((x for x in lista if x['artigo'] == dispositivo['artigo']), None)
+        if artigo is None:
+            artigo = {'artigo': dispositivo['artigo']}
+            lista.append(artigo)
+        artigo.update(texto=dispositivo['texto'], fonte=dispositivo['url_oficial'],
+                      conferido_em=dispositivo['conferido_em'])
+    return indice
 
 
 @lru_cache(maxsize=1)
@@ -95,7 +108,8 @@ def legislacao() -> list[dict]:
             "nome": norma["nome"],
             "referencia": norma.get("referencia", ""),
             "esfera": norma.get("esfera", ""),
-            "arquivo": norma["fonte"] + ".pdf",
+            "arquivo": norma.get("url_oficial") or norma["fonte"] + ".pdf",
+            "url_oficial": norma.get("url_oficial"),
             "tem_pdf": True,
             "artigos": len(indice.get(norma["id"], [])),
         }

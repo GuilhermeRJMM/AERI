@@ -24,8 +24,9 @@ def montar_resumo(dados, itens, motor, blocos_formais):
         e = motor.cat.exigencia(item.exigencia)
         fonte = e['defeito'] + ' ' + e['providencia']
         if '{assinatura}' in fonte:
-            resolver += (' As assinaturas exigidas neste item devem ser feitas em papel com firma reconhecida '
-                         'ou digitalmente com certificado ICP-Brasil, verificável em https://validar.iti.gov.br/.')
+            resolver += (' As assinaturas devem seguir a modalidade admitida para esse documento, '
+                         'com reconhecimento de firma somente quando exigível. Assinaturas eletrônicas '
+                         'devem permitir verificar autoria e integridade, pela modalidade legalmente aceita para o ato.')
         if '{protocolo_apartado}' in fonte:
             resolver += ' Esse pedido deve ser apresentado em protocolo separado.'
         detalhes = []

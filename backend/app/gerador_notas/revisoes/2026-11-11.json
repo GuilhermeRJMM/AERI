@@ -1,0 +1,783 @@
+{
+  "data": "2026-11-11",
+  "escopo": "72/72 pendências do catálogo",
+  "metodo": "Confronto entre hipótese, providência e dispositivo oficial; preservar condições, dispensas e hierarquia dos recortes. Revisão técnica não equivale à homologação jurídica.",
+  "fontes": [
+    {
+      "norma": "CC",
+      "url": "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html",
+      "sha256": "6ed7c19586b21355e998746a0620cea5c2f3e6a24036d7f3743b7d30330e5d90",
+      "artigos": 2031
+    },
+    {
+      "norma": "LRP",
+      "url": "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+      "sha256": "a1e9c31547cbec54a7d410a881d7ef3718a269384b726a3ff17a576049d18791",
+      "artigos": 314
+    },
+    {
+      "norma": "CNN-CNJ",
+      "url": "https://atos.cnj.jus.br/atos/detalhar/5243",
+      "sha256": "fdbad1dd5159ea092037ed7a134e3034d0e1b0bedd4fd1556ff33e94563b8dd5",
+      "artigos": 911
+    },
+    {
+      "norma": "DEC4449",
+      "url": "https://www2.camara.leg.br/legin/fed/decret/2002/decreto-4449-30-outubro-2002-484374-normaatualizada-pe.html",
+      "sha256": "b0ee8d9ad7b421a80f9596be2ccc458e4db3e2ecfaeffb004b869a071b256ac6",
+      "artigos": 17
+    },
+    {
+      "norma": "L6496",
+      "url": "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6496-7-dezembro-1977-366461-publicacaooriginal-1-pl.html",
+      "sha256": "9bf9909c711959177f188963469ea622a6a21d076d264b8ec589d5fddd051532",
+      "artigos": 20
+    },
+    {
+      "norma": "L4947",
+      "url": "https://www2.camara.leg.br/legin/fed/lei/1960-1969/lei-4947-6-abril-1966-350664-normaatualizada-pl.html",
+      "sha256": "d7573eb63ffcf3ced40f0b1fc5a2daf0ed4b2f8e1327f384e927733adb7d6e45",
+      "artigos": 27
+    },
+    {
+      "norma": "CFLO",
+      "url": "https://www2.camara.leg.br/legin/fed/lei/2012/lei-12651-25-maio-2012-613076-normaatualizada-pl.html",
+      "sha256": "78c98fcf8e0ee779a1a6a6d66568a6d6693f376fd9756e477381af2d795d5288",
+      "artigos": 90
+    },
+    {
+      "norma": "L9393",
+      "url": "https://www2.camara.leg.br/legin/fed/lei/1996/lei-9393-19-dezembro-1996-372239-normaatualizada-pl.html",
+      "sha256": "5eeb37d3f3a0509fbd2939e87a60bd3c95bd3f88217d1baa92609cd928893065",
+      "artigos": 24
+    },
+    {
+      "norma": "L9514",
+      "url": "https://www2.camara.leg.br/legin/fed/lei/1997/lei-9514-20-novembro-1997-365383-normaatualizada-pl.html",
+      "sha256": "1ae9b4de46a2bba249e28f0b499f5438266ac2741947ebec94769a6d687353ce",
+      "artigos": 45
+    },
+    {
+      "norma": "L4591",
+      "url": "https://www2.camara.leg.br/legin/fed/lei/1960-1969/lei-4591-16-dezembro-1964-368909-normaatualizada-pl.html",
+      "sha256": "9fe29e3f62e8ff5c1f76822425fe65944c0fb0e0413e31374d75048caf2419c3",
+      "artigos": 86
+    },
+    {
+      "norma": "L6766",
+      "url": "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6766-19-dezembro-1979-366130-normaatualizada-pl.html",
+      "sha256": "ad34f733620a503b08ab88e6406e519181590cbab42e00e0df7c1837894d8aea",
+      "artigos": 66
+    },
+    {
+      "norma": "CTN",
+      "url": "https://www2.camara.leg.br/legin/fed/lei/1960-1969/lei-5172-25-outubro-1966-358971-normaatualizada-pl.html",
+      "sha256": "dc32f69ddba5b4c0cdd7952091c74d755c1e0e699a444aa3566819b94422b650",
+      "artigos": 224
+    },
+    {
+      "norma": "CNPFE-GO",
+      "url": "https://tjdocs.tjgo.jus.br/documentos/913955",
+      "sha256": "2465f7a4a0fcf77c6e78dd3268b3ed4a2265d67602413c6b640695793f0114d8",
+      "artigos": 1530,
+      "versao": "Até Provimento 202/2026"
+    }
+  ],
+  "itens": [
+    {
+      "id": "area-divergente-itcd",
+      "correcao": "Inclui o §4º com a possibilidade de corrigir o título OU o demonstrativo, e o caput vigente.",
+      "aplicabilidade": "Divergência material que impeça identificar o bem ou a fração efetivamente tributada; não impõe alteração automática para a matrícula se esta estiver desatualizada.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "art-area-nao-corresponde",
+      "correcao": "Vincula responsabilidade técnica ao levantamento; retificação pode justamente alterar a área antiga da matrícula.",
+      "aplicabilidade": "Incompatibilidade entre o escopo/área da responsabilidade técnica e o trabalho apresentado, não mera diferença em relação à área registral anterior.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6496-7-dezembro-1977-366461-publicacaooriginal-1-pl.html",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "art-nao-apresentada",
+      "correcao": "Remove a extensão automática da ART a todas as profissões e a exigência genérica de reconhecimento de firma na ART.",
+      "aplicabilidade": "Trabalho técnico sujeito a registro de responsabilidade; aceitar RRT/TRT equivalente quando legalmente cabível ao profissional e ao serviço.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6496-7-dezembro-1977-366461-publicacaooriginal-1-pl.html",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "art-sem-assinatura",
+      "correcao": "Retira art.805 como suposta regra de assinatura da ART; distingue autenticação eletrônica de ausência de assinatura.",
+      "aplicabilidade": "Assinatura efetivamente exigível na modalidade de documento apresentada; conferir registro eletrônico e regras do conselho antes de exigir assinatura manuscrita.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6496-7-dezembro-1977-366461-publicacaooriginal-1-pl.html",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://atos.cnj.jus.br/atos/detalhar/5243"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "faixa-dominio-sem-declaracao",
+      "correcao": "Cita a dispensa de anuência de via pública e a condição de respeito à faixa; não inventa documento autônomo obrigatório para todo caso.",
+      "aplicabilidade": "Retificação confrontante com via pública, quando as peças não demonstrarem o respeito aos limites e restrições aplicáveis.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "art-dados-divergentes",
+      "correcao": "Substitui assinatura eletrônica por especialidade do imóvel; admite que a própria matrícula contenha dado a atualizar.",
+      "aplicabilidade": "Divergência material sem justificativa no procedimento; não exigir simples cópia da matrícula em levantamento retificatório.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6496-7-dezembro-1977-366461-publicacaooriginal-1-pl.html",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "car-nao-averbado",
+      "correcao": "Corrige o momento de averbação: primeiro registro voluntário posterior à vigência; CAR não é prova de domínio.",
+      "aplicabilidade": "Matrícula rural abrangida pelo cadastro e hipótese do §3º do art.440-AQ; não impõe atualização em todo e qualquer ato.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243",
+        "https://www2.camara.leg.br/legin/fed/lei/2012/lei-12651-25-maio-2012-613076-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "casamento-data-nao-comprovada",
+      "correcao": "Não presume o regime exclusivamente por uma data-limite; aplica a lei vigente no casamento e eventuais alterações posteriores.",
+      "aplicabilidade": "Data ou regime necessários à qualificação e ausentes do título e do acervo.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955",
+        "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "cci-nao-averbado",
+      "correcao": "Inclui o item do cadastro urbano com seus pais e o momento do §3º; elimina protocolo separado automático.",
+      "aplicabilidade": "Designação municipal existente e hipótese legal de atualização; não exigir cadastro inexistente.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "ccir-divergente-da-matricula",
+      "correcao": "Inclui os requisitos de identificação rural, sem confundir cadastro e prova de domínio.",
+      "aplicabilidade": "Divergência que prejudique a correspondência entre o CCIR e o imóvel; esclarecer qual documento está incorreto.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1960-1969/lei-4947-6-abril-1966-350664-normaatualizada-pl.html",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "ccir-ausente",
+      "correcao": "Inclui caput e hipóteses dos §§1º e 2º, antes omitidos; não fundamenta a apresentação apenas em § sobre outros dados.",
+      "aplicabilidade": "Atos para os quais o art.22 exige CCIR, observadas inexigibilidade e documentação de quitação cabível.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1960-1969/lei-4947-6-abril-1966-350664-normaatualizada-pl.html",
+        "https://www2.camara.leg.br/legin/fed/decret/2002/decreto-4449-30-outubro-2002-484374-normaatualizada-pe.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "cep-nao-averbado",
+      "correcao": "Inclui regra de descrição e gratuidade da averbação exclusivamente de CEP; remove cobrança/protocolo separado como regra universal.",
+      "aplicabilidade": "CEP existente e complemento de descrição efetivamente necessário, observada a gratuitidade quando único elemento.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "certidao-rcpn-vencida",
+      "correcao": "Inclui as exceções de óbito e certidão que instrui título judicial.",
+      "aplicabilidade": "Certidão usada em averbação, fora do prazo contado da formalização do título, sem incidência das exceções.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "cnd-nao-apresentada",
+      "correcao": "Distingue forma de prova fiscal da existência de dever de exigir; inclui a vedação de exigir CND de obra para averbação.",
+      "aplicabilidade": "Apenas certidão tributária legalmente exigível para o ato; os arts.205/206 não criam, sozinhos, essa obrigação.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1960-1969/lei-5172-25-outubro-1966-358971-normaatualizada-pl.html",
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "incorporacao-sem-memorial-registrado",
+      "correcao": "Mantém a proibição pertinente, imprimindo o comando do caput e §1º em vez de recorte insuficiente.",
+      "aplicabilidade": "Negociação de fração ideal vinculada a futura unidade autônoma, não venda ordinária de fração ideal sem incorporação.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1960-1969/lei-4591-16-dezembro-1964-368909-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "condominio-fracoes-nao-somam",
+      "correcao": "Acrescenta o inciso II do art.1332 que exige a determinação das frações no instrumento.",
+      "aplicabilidade": "Instituição que deve distribuir integralmente as frações ideais, sem confundir erro de soma com arredondamento meramente expositivo.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "declaracao-confrontacao-divergente",
+      "correcao": "Admite anuência na planta ou no memorial, declarações apartadas facultativas e dispensas legais.",
+      "aplicabilidade": "Declaração e levantamento efetivamente incompatíveis na divisa atingida; observar dispensa de anuência.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "declaracao-limites-sem-assinatura",
+      "correcao": "Inclui dispensa legal de anuência, meios alternativos de declaração e possibilidade de notificação; não exige documento apartado sempre.",
+      "aplicabilidade": "Retificação em divisa atingida, quando não houver anuência válida nem dispensa; distinguir mera adequação georreferenciada de alteração de limites.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "confrontante-sem-declaracao",
+      "correcao": "Inclui dispensa legal de anuência, meios alternativos de declaração e possibilidade de notificação; não exige documento apartado sempre.",
+      "aplicabilidade": "Retificação em divisa atingida, quando não houver anuência válida nem dispensa; distinguir mera adequação georreferenciada de alteração de limites.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "continuidade-titulo-anterior",
+      "correcao": "Usa as regras próprias da continuidade registral, não apenas regra dirigida ao tabelião.",
+      "aplicabilidade": "Falta de registro do direito do transmitente ou direito anterior indispensável; observar hipóteses especiais legais.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "documento-copia-simples",
+      "correcao": "Distingue título registrável de documento comprobatório e contempla validação eletrônica e documento já arquivado.",
+      "aplicabilidade": "Cópia sem meio idôneo de autenticação quando a comprovação é exigível; não recusar reprodução verificável apenas por ser eletrônica.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "dare-parcelamento-sem-quitacao",
+      "correcao": "Elimina a contradição com o parcelamento admitido pelo Provimento186/2026 e atualiza o caput.",
+      "aplicabilidade": "Ausência de prova da regularidade tributária; aceitar quitação, parcelamento com garantia real e demais alternativas do art.811.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "doacao-instrumento-particular",
+      "correcao": "Explicita o limite de valor e as exceções legais; doação particular não é inválida em todas as hipóteses.",
+      "aplicabilidade": "Imóvel cujo valor supere trinta salários mínimos e sem forma especial admitida por lei.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "emolumentos-nao-complementados",
+      "correcao": "Inclui opção de depósito posterior, prazo de cinco dias úteis após aptidão e manutenção da prenotação.",
+      "aplicabilidade": "Título apto, com diferença legalmente devida e sem gratuidade; respeitar a opção do usuário e exceções de faturamento.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "desconto-50-nao-declarado",
+      "correcao": "Elimina regra de financiamento de outro artigo como condição extra; não cria formulário exclusivo obrigatório.",
+      "aplicabilidade": "Primeira aquisição residencial financiada pelo SFH; dados já constantes do título ou do acervo não precisam ser novamente exigidos.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "desconto-50-declaracao-ambigua",
+      "correcao": "Inclui a condição completa de concessão para não negar desconto devido apenas por formulário ambíguo.",
+      "aplicabilidade": "Contradição não esclarecida pelo título ou pelos demais documentos; permitir correção ou esclarecimento.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "fiduciaria-sem-anuencia-credor",
+      "correcao": "Substitui arts.22/23, que só definem a garantia, pela autorização expressa do art.29 e alternativa de quitação.",
+      "aplicabilidade": "Transmissão dos direitos e obrigações do fiduciante ou outro ato que dependa de consentimento; não trata qualquer averbação como alienação.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1997/lei-9514-20-novembro-1997-365383-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "assinatura-digital-nao-validavel",
+      "correcao": "Não confunde falha do verificador com invalidade; contempla assinatura avançada nas hipóteses em que é admitida.",
+      "aplicabilidade": "Autoria ou integridade não verificável após conferência do arquivo original e da modalidade de assinatura cabível.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955",
+        "https://atos.cnj.jus.br/atos/detalhar/5243",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "requerimento-sem-assinatura",
+      "correcao": "Distingue ausência de assinatura de reconhecimento dispensado; não cita conceito de reconhecimento como obrigação universal.",
+      "aplicabilidade": "Documento cuja espécie exige subscrição e, quando aplicável, reconhecimento de firma, ressalvadas dispensas legais.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955",
+        "https://atos.cnj.jus.br/atos/detalhar/5243",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "geo-area-divergente",
+      "correcao": "Inclui os §§2º a 4º que distinguem certificação, limites e alteração da área antiga; não exige coincidência cega.",
+      "aplicabilidade": "Documentos do mesmo levantamento incompatíveis, salvo diferença justificada no procedimento retificatório.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/decret/2002/decreto-4449-30-outubro-2002-484374-normaatualizada-pe.html",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "bem-de-incapaz-sem-alvara",
+      "correcao": "Distingue regime de representação de filhos menores, tutela e curatela; não presume incapacidade pela deficiência.",
+      "aplicabilidade": "Alienação ou oneração sujeita a autorização judicial segundo o regime concreto de representação ou assistência.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "itbi-adquirentes-divergentes",
+      "correcao": "Inclui expressamente §3º: identificação do título e nomes de transmitentes e adquirentes; não presume imposto complementar.",
+      "aplicabilidade": "Divergência efetiva de partes no documento de arrecadação, não mera abreviação que permita identificação segura.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "itbi-transmitentes-divergentes",
+      "correcao": "Corrige o caso do print: o caput sozinho trata de quitação; §3º trata dos nomes e do título, §2º da comprovação.",
+      "aplicabilidade": "Divergência efetiva dos transmitentes no documento municipal, relevante à correspondência com o título.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "itbi-nao-apresentado",
+      "correcao": "Inclui §2º e §3º, admite as alternativas do caput e não impõe DUAM/extrato como único formato legal.",
+      "aplicabilidade": "Transmissão tributável não comprovada, ressalvadas não incidência, imunidade e isenção reconhecidas.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "itcd-minuta",
+      "correcao": "Inclui §1º relativo aos documentos definitivos e todas as alternativas legais de regularidade.",
+      "aplicabilidade": "Minuta que não permita comprovar regularidade da transmissão, não mero rótulo do arquivo.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "itr-ausente",
+      "correcao": "Inclui hipóteses de dispensa e admite certidão fiscal idônea; recibo de entrega não se confunde com pagamento.",
+      "aplicabilidade": "Ato rural sujeito a prova tributária, observados inexigibilidade, dispensa e meios admitidos de comprovação.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1996/lei-9393-19-dezembro-1996-372239-normaatualizada-pl.html",
+        "https://www2.camara.leg.br/legin/fed/decret/2002/decreto-4449-30-outubro-2002-484374-normaatualizada-pe.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "itr-nao-apresentado",
+      "correcao": "Inclui hipóteses de dispensa e admite certidão fiscal idônea; recibo de entrega não se confunde com pagamento.",
+      "aplicabilidade": "Ato rural sujeito a prova tributária, observados inexigibilidade, dispensa e meios admitidos de comprovação.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1996/lei-9393-19-dezembro-1996-372239-normaatualizada-pl.html",
+        "https://www2.camara.leg.br/legin/fed/decret/2002/decreto-4449-30-outubro-2002-484374-normaatualizada-pe.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "levantamento-numero-ausente",
+      "correcao": "A norma exige identificação suficiente do imóvel, não um número de certidão universalmente obrigatório.",
+      "aplicabilidade": "Falta de referência que efetivamente impeça vincular a atualização ao levantamento, e não ausência formal sem prejuízo.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "parcelamento-memorial-sem-origem",
+      "correcao": "Inclui os requisitos concretos do imóvel rural e não só o caput sobre o Livro2.",
+      "aplicabilidade": "Peças de parcelamento rural sem vínculo seguro com imóvel de origem e cadastro exigível.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://www2.camara.leg.br/legin/fed/decret/2002/decreto-4449-30-outubro-2002-484374-normaatualizada-pe.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "loteamento-documentos-incompletos",
+      "correcao": "Inclui o artigo completo com ressalvas; a falta deve ser especificada e corresponder à espécie de parcelamento.",
+      "aplicabilidade": "Registro de parcelamento urbano sujeito à Lei6766/1979, observadas as dispensas legais e o documento efetivamente faltante.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6766-19-dezembro-1979-366130-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "memorial-denominacao-divergente",
+      "correcao": "Não obriga o apresentante a alterar matrícula de terceiro por possível erro do próprio memorial.",
+      "aplicabilidade": "Denominação divergente que prejudique identificar o imóvel confrontante; conferir antes os dados oficiais.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://tjdocs.tjgo.jus.br/documentos/913955",
+        "https://atos.cnj.jus.br/atos/detalhar/5243"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "obito-nao-averbado",
+      "correcao": "Não trata óbito como transferência registral; distingue atualização e prova da representação do espólio.",
+      "aplicabilidade": "Fato necessário à qualificação e à legitimidade do requerente, observada eventual suficiência da documentação do título.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955",
+        "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "hipoteca-ativa",
+      "correcao": "Corrige a premissa: hipoteca comum não impede a venda; distingue garantias especiais e cancelamento pretendido.",
+      "aplicabilidade": "Cancelamento requerido sem documentação, ou hipoteca de regime especial impeditivo sem solução legal; não usar só porque há hipoteca comum.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html",
+        "https://tjdocs.tjgo.jus.br/documentos/913955",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "pacto-antenupcial-ausente",
+      "correcao": "Distingue regime convencional que exige pacto de regime legal, e registro no domicílio de averbação nos imóveis.",
+      "aplicabilidade": "Regime convencional comprovadamente dependente de pacto; não presumir pacto em todo casamento após1977.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html",
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "penhor-grau-divergente",
+      "correcao": "Restringe a correção à divergência relevante de preferência e identifica o fólio correto da garantia.",
+      "aplicabilidade": "Grau contratual incompatível com prioridades existentes; penhor pode estar no Livro3, não necessariamente na matrícula.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "pj-atos-constitutivos-ausentes",
+      "correcao": "Retira requisitos notariais como obrigação registral automática; inclui dispensa da escritura e dos documentos arquivados.",
+      "aplicabilidade": "Poderes não comprovados pelos documentos aproveitáveis; observar escritura pública e repositórios.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "prenotacao-vencida",
+      "correcao": "Corrige dias úteis, omissão do interessado e prorrogações legais; mero decurso de20dias não é motivo universal.",
+      "aplicabilidade": "Cessação efetiva após contagem correta, por inércia do interessado, sem suspensão, prorrogação ou hipótese especial.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "procuracao-poderes-ausente",
+      "correcao": "Inclui dispensa de nova procuração já identificada e qualificada em escritura; distingue poderes gerais de especiais.",
+      "aplicabilidade": "Representação insuficiente e não suprida pela escritura ou acervo, com forma de mandato correspondente ao ato.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955",
+        "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "protocolo-vinculado-a-outro",
+      "correcao": "Usa continuidade e prioridade; contempla prorrogação durante retificação, não associação administrativa genérica.",
+      "aplicabilidade": "Dependência jurídica efetiva de ato anterior, não simples vínculo cadastral entre protocolos.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "qualificacao-divergente-do-titulo",
+      "correcao": "Inclui §§1º a3º do809 e dispensa de pedido específico quando já solicitado no título.",
+      "aplicabilidade": "Divergência material da pessoa que dependa de comprovação, aproveitando documentos oficiais e acervo.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "qualificacao-endereco-ausente",
+      "correcao": "Inclui item4 e requisitos do registro com contexto; não usa alínea solta nem obriga protocolo apartado em todo caso.",
+      "aplicabilidade": "Dado necessário que não conste do título ou do acervo, permitindo documento oficial ou declaração cabível.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "qualificacao-profissao-ausente",
+      "correcao": "Inclui item4 e requisitos do registro com contexto; não usa alínea solta nem obriga protocolo apartado em todo caso.",
+      "aplicabilidade": "Dado necessário que não conste do título ou do acervo, permitindo documento oficial ou declaração cabível.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "requerimento-nao-apresentado",
+      "correcao": "Retira a afirmação de que nenhuma averbação pode ser de ofício; distingue atos obrigatórios e pedido expresso no título.",
+      "aplicabilidade": "Ato dependente de iniciativa sem solicitação aproveitável; ressalvar atos praticáveis de ofício.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "reserva-legal-insuficiente",
+      "correcao": "Distingue área de referência anterior ao fracionamento e identificação ambiental, sem transformar toda irregularidade ambiental em bloqueio.",
+      "aplicabilidade": "Desmembramento cujas peças reduzam ou desloquem indevidamente reserva já identificada; considerar CAR e regularização ambiental aplicável.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/2012/lei-12651-25-maio-2012-613076-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "retificacao-acima-do-limite",
+      "correcao": "Remove teto universal inexistente de10% e precedentes particulares sem validação; não transforma diferença percentual em impossibilidade automática.",
+      "aplicabilidade": "Diferença de área que exija esclarecimento sobre limites e origem; vedada aquisição de terreno alheio por retificação.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://www2.camara.leg.br/legin/fed/decret/2002/decreto-4449-30-outubro-2002-484374-normaatualizada-pe.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "sefaz-valor-divergente",
+      "correcao": "Exige esclarecimento fiscal sem o registrador arbitrar valor ou imposto suplementar por conta própria.",
+      "aplicabilidade": "Divergência relevante entre demonstrativo e avaliação fiscal que afete a regularidade da transmissão.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "selo-divergente",
+      "correcao": "Inclui procedimentos completos de correção do selo, sem presumir falsidade ou nulidade do ato.",
+      "aplicabilidade": "Erro de dado do selo efetivamente relevante e confirmado, cuja correção caiba ao emissor.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "servidao-cancelamento-sem-credor",
+      "correcao": "Troca o artigo de constituição de servidão pelo de cancelamento e consentimento do credor.",
+      "aplicabilidade": "Cancelamento de servidão com prédio dominante hipotecado, considerados o título hipotecário e a norma estadual.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html",
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "sig-nao-lancado",
+      "correcao": "Distingue lançamento técnico em novos procedimentos, importação do SIGEF e responsabilidade do registrador por acervo antigo.",
+      "aplicabilidade": "Procedimento técnico abrangido pelo art343-G e disponibilidade operacional da plataforma; não transferir atualização de acervo ao usuário.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "sig-marcos-divergentes",
+      "correcao": "Não presume que toda divergência de marca signifique polígono inválido; admite corrigir lançamento ou peça conforme a origem.",
+      "aplicabilidade": "Diferença relevante e comprovada; aplicação do440-BD só quando não formar polígono ou não localizar o imóvel.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "sobreposicao-de-area",
+      "correcao": "Inclui a norma de tratamento e a distinção de sobreposição formal/material e tolerância.",
+      "aplicabilidade": "Sobreposição confirmada por análise técnica, sem presumir conflito dominial em diferença formal dentro da tolerância.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "sig-area-divergente",
+      "correcao": "Exige diagnosticar a origem, não pressupõe que o mapa esteja errado e o memorial correto.",
+      "aplicabilidade": "Divergência efetiva entre o levantamento e o lançamento, ressalvadas métricas/tolerâncias técnicas.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "transcricao-sem-caracterizacao",
+      "correcao": "Inclui abertura obrigatória e exceções; não impõe certidão municipal específica como única prova.",
+      "aplicabilidade": "Registro relativo a imóvel transcrito sem elementos suficientes para identificar imóvel, localização e titular.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "uniao-estavel-nao-declarada",
+      "correcao": "A omissão não prova união nem cria dever universal de declaração negativa; vincula o pedido à repercussão patrimonial concreta.",
+      "aplicabilidade": "Informação relevante e insuficiente no título/acervo para identificar titularidade ou regime do bem.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955",
+        "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "usufruto-ativo-sem-anuencia",
+      "correcao": "Corrige impedimento genérico: venda de nua-propriedade com usufruto preservado não exige anuência só pela existência do usufruto.",
+      "aplicabilidade": "Título que pretenda dispor do direito de usufruto ou transmitir propriedade plena sem comprovar sua extinção.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/2002/lei-10406-10-janeiro-2002-432893-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "indisponibilidade-ativa",
+      "correcao": "Corrige inciso: indisponibilidade é VI, não V; exclui cancelamento por mero requerimento e inclui atos permitidos pelo320-H.",
+      "aplicabilidade": "Alienação/oneração efetivamente atingida por ordem vigente; observar atos de reorganização sem autorização e transporte da restrição.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955",
+        "https://atos.cnj.jus.br/atos/detalhar/5243"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "bloqueio-matricula-ativo",
+      "correcao": "Inclui §§3º e4º completos, preservando prenotação e prazo prorrogado; distingue bloqueio de indisponibilidade.",
+      "aplicabilidade": "Bloqueio judicial vigente cujo conteúdo alcance o ato apresentado; verificar decisão e autorização concreta.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "cib-nao-averbado",
+      "correcao": "Distingue NIRF/CIB, implantação do cadastro e momento de atualização; retira protocolo apartado automático.",
+      "aplicabilidade": "Cadastro rural pertinente e hipótese do§3º; admitir identificador substituído conforme implantação efetiva.",
+      "fontes": [
+        "https://atos.cnj.jus.br/atos/detalhar/5243",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "alienacao-fiduciaria-ativa",
+      "correcao": "Vincula consentimento ao ato concreto e evita proibir toda oneração em função da existência da garantia.",
+      "aplicabilidade": "Transmissão ou disposição que atinja a titularidade fiduciária e não se enquadre em hipótese especial admitida por lei.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1997/lei-9514-20-novembro-1997-365383-normaatualizada-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "desmembramento-benfeitoria-sem-gleba",
+      "correcao": "A fundamentação passa a ser a identificação das parcelas e responsabilidade técnica; não impõe nova ART específica se o trabalho já abranger o esclarecimento.",
+      "aplicabilidade": "Edificação/benfeitoria registrada cuja distribuição não possa ser identificada nas peças do parcelamento.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6496-7-dezembro-1977-366461-publicacaooriginal-1-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "desmembramento-edificacao-sem-lote",
+      "correcao": "A fundamentação passa a ser a identificação das parcelas e responsabilidade técnica; não impõe nova ART específica se o trabalho já abranger o esclarecimento.",
+      "aplicabilidade": "Edificação/benfeitoria registrada cuja distribuição não possa ser identificada nas peças do parcelamento.",
+      "fontes": [
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6015-31-dezembro-1973-357511-normaatualizada-pl.html",
+        "https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-6496-7-dezembro-1977-366461-publicacaooriginal-1-pl.html"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    },
+    {
+      "id": "construcao-sem-habite-se",
+      "correcao": "Inclui documento equivalente, dispensa de habite-se no§1º do919 e inexigibilidade de CND; não cita apenas averbação genérica.",
+      "aplicabilidade": "Construção cuja conclusão deva ser demonstrada e não esteja na dispensa legal aplicável.",
+      "fontes": [
+        "https://tjdocs.tjgo.jus.br/documentos/913955"
+      ],
+      "validacao": "Revisão técnica de pertinência e redação; pendente de aprovação do registrador."
+    }
+  ]
+}
