@@ -985,7 +985,7 @@
    "assunto": "dare",
    "revisado": false,
    "campos": [],
-   "defeito": "Verifica-se que os documentos juntados não comprovam a quitação nem a regularidade do parcelamento do ITCD com garantia real, e tampouco demonstram não incidência, imunidade ou isenção. O parcelamento regular com garantia real é alternativa expressamente admitida, não sendo exigível quitação integral em todos os casos.",
+   "defeito": "Verifica-se que os documentos juntados não comprovam a quitação nem a regularidade do parcelamento do ITCD com garantia real, e tampouco demonstram não incidência, imunidade ou isenção. O pedido de parcelamento, por si só, não autoriza o registro. Nos casos autorizados pela legislação estadual, exige-se documento expedido pela Secretaria de Estado da Economia que comprove a regularização do parcelamento e prova de que a garantia real esteja registrada no Cartório de Registro de Imóveis, em valor total equivalente ou superior ao do tributo. O atendimento dessas condições será conferido na qualificação registral, sem dispensa das demais exigências aplicáveis ao título.",
    "providencia": "a comprovação da regularidade do ITCD por uma das alternativas legais: quitação; documento da Secretaria de Estado da Economia que comprove a regularização do parcelamento com garantia real, observados o registro e o valor da garantia exigidos; ou reconhecimento de não incidência, imunidade ou isenção",
    "fecho": "fecho",
    "fundamentos": [

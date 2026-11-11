@@ -21,6 +21,18 @@ def test_itcd_parcelado_nao_exige_quitacao_integral_incondicional():
     assert 'todos os dares' not in s
     assert 'alternativamente' in base('dare-parcelamento-sem-quitacao').lower()
 
+def test_itcd_formal_condiciona_parcelamento_sem_liberacao_automatica():
+    from backend.app.gerador_notas.servico import previa
+    r = previa({'especie':'devolutiva', 'protocolo':'999001', 'titulo':'Exemplo sem validade',
+                'itens':[{'exigencia':'dare-parcelamento-sem-quitacao', 'valores':{}}]})
+    formal = r['html'].split('<section class="nota-formal"', 1)[1].lower()
+    assert 'não sendo exigível quitação integral em todos os casos' not in formal
+    assert 'por si só, não autoriza o registro' in formal
+    assert 'documento expedido pela secretaria de estado da economia' in formal
+    assert 'garantia real esteja registrada no cartório de registro de imóveis' in formal
+    assert 'valor total equivalente ou superior ao do tributo' in formal
+    assert 'qualificação registral' in formal and 'demais exigências' in formal
+
 def test_itbi_cita_documentacao_e_identificacao_das_partes():
     for id_ in ['itbi-adquirentes-divergentes','itbi-transmitentes-divergentes','itbi-nao-apresentado']:
         b=base(id_).lower()
