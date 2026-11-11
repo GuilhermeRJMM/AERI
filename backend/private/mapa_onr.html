@@ -123,8 +123,8 @@
       </div>
       <div class="campo"><label for="versao">version do arquivo</label>
         <select id="versao">
-          <option value="1.2.0" selected>1.2.0 - aceito pelo schema publicado</option>
-          <option value="1.3.0">1.3.0 - manual atual (schema ainda nao publicado)</option>
+          <option value="1.3.0" selected>1.3.0 - oficial atual</option>
+          <option value="1.2.0">1.2.0 - compatibilidade com arquivos antigos</option>
         </select>
       </div>
     </div>
@@ -175,13 +175,15 @@
 
 <script src="src/enums.js"></script>
 <script src="src/documento.js"></script>
-<script src="src/validator.js"></script>
+<script src="src/validator.js?v=20261111-schema130"></script>
 <script src="src/parser.js?v=20260826-upstream-1101b3b"></script>
 <script src="src/extrator.js?v=20260901-nomes-classificacao-valor"></script>
-<script src="src/builder.js?v=20261103-decisao-judicial-v1"></script>
+<script src="src/builder.js?v=20261111-schema130"></script>
 <script src="/static/js/mapa_onr_hibrido.js?v=20261103-marca-rgi-v1"></script>
-<script src="schemas/rural.schema.js"></script>
-<script src="schemas/urbano.schema.js"></script>
-<script src="src/app.js?v=20261103-marca-rgi-v1"></script>
+<script src="schemas/rural.schema.js?v=20261111-schema130"></script>
+<script src="schemas/urbano.schema.js?v=20261111-schema130"></script>
+<script src="schemas/rural-legado.schema.js?v=20261111-schema130"></script>
+<script src="schemas/urbano-legado.schema.js?v=20261111-schema130"></script>
+<script src="src/app.js?v=20261111-judicial130"></script>
 </body>
 </html>

@@ -12,11 +12,11 @@
 (function (global) {
   'use strict';
 
-  const VERSAO_SCHEMA_PUBLICADO = '1.2.0'; // const do Anexo II
-  const VERSAO_MANUAL = '1.3.0';           // Anexo I + ERRATA 01
+  const VERSAO_SCHEMA_PUBLICADO = '1.3.0'; // pacote ativo do Anexo II
+  const VERSAO_MANUAL = '1.3.0';
+  const VERSAO_LEGADA = '1.2.0';
 
-  // Campos que so existem a partir do manual 1.3.0 e que o schema publicado
-  // (1.2.0) rejeita por additionalProperties: false.
+  // Campos introduzidos em 1.3.0, rejeitados pelos arquivos legados 1.2.0.
   const CAMPOS_SOMENTE_130 = ['decisao_jud', 'nao_CPF'];
 
   // ---------------------------------------------------------------- normalizacao
@@ -157,9 +157,12 @@
     const p = [];
     const falta = (campo, motivo) => { if (vazio(imovel[campo])) p.push({ campo, motivo }); };
 
-    // decisao_jud = true dispensa tudo menos identificacao (manual v1.3.0).
+    // O ramo judicial dispensa dados materiais, não a identificação da remessa.
     if (imovel.decisao_jud === true) {
       falta('tipo_imovel', 'sempre obrigatorio');
+      falta(rural ? 'contexto_rural' : 'contexto_urbano', 'sempre obrigatorio');
+      falta('motivo_envio', 'sempre obrigatorio');
+      falta('tipo_matricula_transcricao', 'sempre obrigatorio');
       if (vazio(imovel.numero_matricula) && vazio(imovel.numero_transcricao)) {
         p.push({ campo: 'numero_matricula', motivo: 'obrigatorio (ou numero_transcricao) mesmo com decisao_jud' });
       }
@@ -598,20 +601,22 @@
       .concat(validaEnums(imovel, { tipo: opt.tipo }))
       .filter((p) => !(camposComDiagnostico.has(p.campo) && /^obrigatorio/.test(p.motivo)))
       .concat(pendenciasDoc);
-    if(f.decisao_jud===true && opt.versao===VERSAO_SCHEMA_PUBLICADO){
+    if(f.decisao_jud===true && opt.versao===VERSAO_LEGADA){
       pendencias.push({campo:'decisao_jud',motivo:'Decisão Judicial = Sim exige versão 1.3.0; a versão 1.2.0 não admite esse campo. Não exportar ignorando a decisão.'});
     }
 
     let saida = limpaObjeto(imovel) || {};
 
-    if (opt.versao === VERSAO_SCHEMA_PUBLICADO) {
+    if (!rural && opt.versao !== VERSAO_LEGADA) delete saida.certificacao_incra;
+
+    if (opt.versao === VERSAO_LEGADA) {
       for (const campo of CAMPOS_SOMENTE_130) {
         if (saida[campo] !== undefined) {
           delete saida[campo];
           avisos.push({
             campo,
             motivo: 'removido: existe no manual ' + VERSAO_MANUAL + ' mas o schema publicado ('
-              + VERSAO_SCHEMA_PUBLICADO + ') rejeita campos nao previstos',
+              + VERSAO_LEGADA + ') rejeita campos nao previstos',
           });
         }
       }

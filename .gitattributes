@@ -1,0 +1,4 @@
+# Preservar os bytes dos esquemas oficiais (hashes de origem-oficial.json),
+# inclusive em checkouts Windows com core.autocrlf.
+backend/static/mapa_onr/schemas/*.schema.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+backend/static/mapa_onr/schemas/v1.2.0/*.schema.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

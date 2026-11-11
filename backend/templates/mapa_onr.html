@@ -47,7 +47,7 @@
                             </select>
                         </div>
                         <div class="campo"><label for="versao">Versão do arquivo</label>
-                            <select id="versao"><option value="1.2.0" selected>1.2.0 - schema publicado</option><option value="1.3.0">1.3.0 - manual atual</option></select>
+                            <select id="versao"><option value="1.3.0" selected>1.3.0 - oficial atual</option><option value="1.2.0">1.2.0 - compatibilidade antiga</option></select>
                         </div>
                     </div>
                     <div id="origem-aeri" class="status ok" hidden>Aguardando uma consulta do Analisador RGI.</div>
@@ -99,11 +99,13 @@
 
 <script src="/static/mapa_onr/src/enums.js"></script>
 <script src="/static/mapa_onr/src/documento.js"></script>
-<script src="/static/mapa_onr/src/validator.js"></script>
+<script src="/static/mapa_onr/src/validator.js?v=20261111-schema130"></script>
 <script src="/static/mapa_onr/src/parser.js?v=20260826-upstream-1101b3b"></script>
 <script src="/static/mapa_onr/src/extrator.js?v=20260901-nomes-classificacao-valor"></script>
-<script src="/static/mapa_onr/src/builder.js?v=20261103-decisao-judicial-v1"></script>
+<script src="/static/mapa_onr/src/builder.js?v=20261111-schema130"></script>
   <script src="/static/js/mapa_onr_hibrido.js?v=20261103-marca-rgi-v1"></script>
-<script src="/static/mapa_onr/schemas/rural.schema.js"></script>
-<script src="/static/mapa_onr/schemas/urbano.schema.js"></script>
-<script src="/static/mapa_onr/src/app.js?v=20261103-marca-rgi-v1"></script>
+<script src="/static/mapa_onr/schemas/rural.schema.js?v=20261111-schema130"></script>
+<script src="/static/mapa_onr/schemas/urbano.schema.js?v=20261111-schema130"></script>
+<script src="/static/mapa_onr/schemas/rural-legado.schema.js?v=20261111-schema130"></script>
+<script src="/static/mapa_onr/schemas/urbano-legado.schema.js?v=20261111-schema130"></script>
+<script src="/static/mapa_onr/src/app.js?v=20261111-judicial130"></script>

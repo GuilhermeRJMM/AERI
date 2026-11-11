@@ -4,6 +4,28 @@ Converte o texto de uma matrícula (Livro 2) no arquivo JSON de importação exi
 pela ITN 003/2025 do ONR, e valida o resultado contra o **schema oficial** antes
 de liberar o download.
 
+## Integração atual no Analisador RGI (11/11/2026)
+
+Na aplicação integrada, use MAPA-ONR autenticado: o download exige validação
+local e no servidor. O esquema padrão é **1.3.0**, obtido do catálogo público
+do RI Digital; a versão **1.2.0** permanece somente para compatibilidade.
+`schemas/origem-oficial.json` registra URLs, lançamento e hashes. Os JSONs são
+cópias intactas; `scripts/atualizar_schemas_mapa_onr.py` na raiz do repositório
+confere a fonte e, com `--instalar`, regenera mecanicamente os wrappers.
+
+O cumprimento de decisão judicial é identificado **no próprio ato**, com
+evidência exibida, inclusive em alvarás, acórdãos, formais, cartas, autos e
+termos com origem judicial demonstrada. A decisão não é herdada de outros atos.
+Sentença arbitral isolada, certidão de ajuizamento, autorização para escritura,
+referência histórica e ordem revogada não autorizam presumir cumprimento.
+Ausência de evidência continua pendente; a escolha manual é preservada.
+O esquema oficial judicial dispensa campos materiais, mas ainda exige
+identificação, contexto e motivo da remessa. O reconhecimento não realiza
+envios à ONR, não altera registros da Tri7 e não substitui a conferência do título.
+
+As seções abaixo documentam o conversor estático original; na integração atual
+há consulta autenticada à Tri7 e validação no backend.
+
 ## Como usar
 
 Abra o **`index.html`** no navegador, ou acesse a versão publicada. Não precisa

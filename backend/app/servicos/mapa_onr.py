@@ -194,7 +194,15 @@ def validar_json_mapa_onr(tipo: str, arquivo: dict) -> dict:
         raise ValueError("O conteúdo do MAPA-ONR deve ser um objeto JSON.")
     if len(json.dumps(arquivo, ensure_ascii=False)) > 5_000_000:
         raise ValueError("O JSON excede o limite de 5 MB.")
-    schema = json.loads(SCHEMAS_MAPA_ONR[tipo].read_text(encoding="utf-8"))
+    versao = arquivo.get('version')
+    if not isinstance(versao, str) or versao not in {'1.3.0', '1.2.0'}:
+        return {'valido': False, 'tipo': tipo, 'errosTotal': 1,
+                'erros': [{'caminho': 'version', 'regra': 'enum',
+                           'mensagem': 'Versão não suportada. Use 1.3.0; 1.2.0 é aceita somente para compatibilidade.'}]}
+    caminho = SCHEMAS_MAPA_ONR[tipo]
+    if versao == '1.2.0':
+        caminho = caminho.parent / 'v1.2.0' / caminho.name
+    schema = json.loads(caminho.read_text(encoding="utf-8-sig"))
     erros = sorted(Draft7Validator(schema).iter_errors(arquivo), key=lambda erro: list(erro.path))
     return {
         "valido": not erros,

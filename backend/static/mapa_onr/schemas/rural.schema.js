@@ -1,12 +1,12 @@
-// Gerado por tools/gerar-schemas-js.ps1 a partir de schemas/imoveis-rurais-onr.schema.json.
-// Nao editar a mao: altere o .json oficial e rode o script.
+// Gerado mecanicamente de JSON Schema oficial. Não editar à mão.
+// Fonte e hashes: origem-oficial.json. Legado preservado em v1.2.0/.
 window.ONR_SCHEMA_RURAL = {
   "description": "Schema JSON para validação de arquivos de importação de imóveis rurais para o ONR.",
   "type": "object",
   "properties": {
     "version": {
       "type": "string",
-      "const": "1.2.0"
+      "const": "1.3.0"
     },
     "cns": {
       "type": "string",
@@ -19,6 +19,127 @@ window.ONR_SCHEMA_RURAL = {
         "allOf": [
           {
             "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "tipo_imovel": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "contexto_rural": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          },
+                          {
+                            "type": "number",
+                            "const": 3
+                          }
+                        ]
+                      },
+                      "decisao_jud": {
+                        "type": "boolean",
+                        "const": true
+                      },
+                      "motivo_envio": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          }
+                        ]
+                      },
+                      "tipo_matricula_transcricao": {
+                        "type": "number",
+                        "const": 1
+                      },
+                      "numero_matricula": {
+                        "type": "string",
+                        "pattern": "^\\d{1,10}$"
+                      }
+                    },
+                    "required": [
+                      "tipo_imovel",
+                      "contexto_rural",
+                      "decisao_jud",
+                      "motivo_envio",
+                      "tipo_matricula_transcricao",
+                      "numero_matricula"
+                    ],
+                    "additionalProperties": {}
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "tipo_imovel": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "contexto_rural": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          },
+                          {
+                            "type": "number",
+                            "const": 3
+                          }
+                        ]
+                      },
+                      "decisao_jud": {
+                        "type": "boolean",
+                        "const": true
+                      },
+                      "motivo_envio": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          }
+                        ]
+                      },
+                      "tipo_matricula_transcricao": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "numero_transcricao": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 10
+                      }
+                    },
+                    "required": [
+                      "tipo_imovel",
+                      "contexto_rural",
+                      "decisao_jud",
+                      "motivo_envio",
+                      "tipo_matricula_transcricao",
+                      "numero_transcricao"
+                    ],
+                    "additionalProperties": {}
+                  }
+                ]
+              },
               {
                 "type": "object",
                 "properties": {
@@ -52,8 +173,7 @@ window.ONR_SCHEMA_RURAL = {
                   },
                   "numero_matricula": {
                     "type": "string",
-                    "minLength": 1,
-                    "maxLength": 10
+                    "pattern": "^\\d{1,10}$"
                   },
                   "data_matricula": {
                     "anyOf": [
@@ -160,7 +280,7 @@ window.ONR_SCHEMA_RURAL = {
                           "anyOf": [
                             {
                               "type": "string",
-                              "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
+                              "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
                             },
                             {
                               "type": "null"
@@ -199,6 +319,9 @@ window.ONR_SCHEMA_RURAL = {
                                   "maxLength": 150
                                 },
                                 "estrangeiro": {
+                                  "type": "boolean"
+                                },
+                                "nao_CPF": {
                                   "type": "boolean"
                                 },
                                 "cpf_cnpj": {
@@ -477,7 +600,7 @@ window.ONR_SCHEMA_RURAL = {
                                   "anyOf": [
                                     {
                                       "type": "string",
-                                      "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
+                                      "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
                                     },
                                     {
                                       "type": "null"
@@ -741,8609 +864,3671 @@ window.ONR_SCHEMA_RURAL = {
                   "contexto_rural",
                   "ato",
                   "tipo_matricula_transcricao",
-                  "numero_matricula"
-                ],
-                "additionalProperties": {}
-              },
-              {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "motivo_envio": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "const": 1
-                          },
-                          {
-                            "type": "number",
-                            "const": 2
-                          }
-                        ]
-                      },
-                      "georreferenciamento": {
-                        "type": "boolean"
-                      },
-                      "sistema_coordenadas": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "fuso_zona": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "sistema_referencia": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "coordenadas": {
-                        "anyOf": [
-                          {
-                            "description": "Lista de coordenadas formatada como string (Geo/UTM/GMS) conforme Manual Unificado.",
-                            "type": "string",
-                            "maxLength": 3000
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_poligono": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 1
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "certificacao_incra": {
-                        "type": "boolean"
-                      },
-                      "imovel_possui_nome": {
-                        "type": "boolean"
-                      },
-                      "tipo_matricula_transcricao": {
-                        "type": "number",
-                        "const": 1
-                      },
-                      "protocolo_prenotacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 1
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "data_protocolo_prenotacao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "categoria_poligono": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "ccir": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{11}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "cod_sncr": {
-                        "type": "string",
-                        "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
-                      },
-                      "cib": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z0-9]{8}|[A-Za-z0-9]{7}-[A-Za-z0-9])$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "car": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z]{2}-\\d{7}-[A-Za-z0-9]{32}|[A-Za-z0-9]{41})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "nome_imovel": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 100
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "dados_confrontantes": {
-                        "anyOf": [
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "numero_matricula_confrontante": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                      "maxLength": 800
-                                    },
-                                    {
-                                      "type": "number"
-                                    }
-                                  ]
-                                },
-                                "nome_proprietario_confrontante": {
-                                  "type": "string",
-                                  "maxLength": 800
-                                }
-                              },
-                              "additionalProperties": false
-                            }
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "tipo_ato": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_ato": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "ato": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "data_ato": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "alteracao_titularidade": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              },
-                              {
-                                "type": "number",
-                                "const": 10
-                              },
-                              {
-                                "type": "number",
-                                "const": 11
-                              },
-                              {
-                                "type": "number",
-                                "const": 12
-                              },
-                              {
-                                "type": "number",
-                                "const": 13
-                              },
-                              {
-                                "type": "number",
-                                "const": 14
-                              },
-                              {
-                                "type": "number",
-                                "const": 15
-                              },
-                              {
-                                "type": "number",
-                                "const": 16
-                              },
-                              {
-                                "type": "number",
-                                "const": 17
-                              },
-                              {
-                                "type": "number",
-                                "const": 18
-                              },
-                              {
-                                "type": "number",
-                                "const": 19
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "alteracao_imovel": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              },
-                              {
-                                "type": "number",
-                                "const": 10
-                              },
-                              {
-                                "type": "number",
-                                "const": 11
-                              },
-                              {
-                                "type": "number",
-                                "const": 12
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "valor_imposto": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "valor_transacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "tipo_imovel": {
-                        "type": "number",
-                        "const": 2
-                      },
-                      "contexto_rural": {
-                        "type": "number",
-                        "const": 1
-                      },
-                      "dados_imovel": {
-                        "minItems": 1,
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "logradouro": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "maxLength": 150
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "complemento": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "maxLength": 100
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "cep": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "cod_ibge_municipio": {
-                              "type": "number",
-                              "minimum": 1000000,
-                              "maximum": 9999999
-                            },
-                            "uf": {
-                              "type": "number",
-                              "minimum": 11,
-                              "maximum": 53
-                            }
-                          },
-                          "required": [
-                            "cod_ibge_municipio",
-                            "uf"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "dados_pessoa": {
-                        "anyOf": [
-                          {
-                            "type": "array",
-                            "items": {
-                              "allOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "nome_completo": {
-                                      "type": "string",
-                                      "maxLength": 150
-                                    },
-                                    "estrangeiro": {
-                                      "type": "boolean"
-                                    },
-                                    "cpf_cnpj": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^(?:\\d{11}|\\d{14}|[A-Za-z0-9]{11}|[A-Za-z0-9]{14}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}|\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}-[A-Za-z0-9]{2}|[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\/[A-Za-z0-9]{4}-[A-Za-z0-9]{2})$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "nacionalidade": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "estado_civil": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "regime_bens": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "relacao_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 8
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 9
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 10
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 11
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 12
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 13
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 14
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 15
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 16
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 17
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 18
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_inicio_rel_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_fim_rel_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "percentual": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number",
-                                          "minimum": 0,
-                                          "maximum": 100
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "tipo_logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number",
-                                          "minimum": 1,
-                                          "maximum": 311
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 150
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "numero_logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 10
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "complemento": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 100
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "bairro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 50
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "cep": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "cod_ibge_municipio": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "uf": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "condicao_parte": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 20
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "emissor_rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 50
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "passaporte": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 20
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "genero": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "filhos_brasileiros": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "estrangeiro",
-                                    "estado_civil"
-                                  ],
-                                  "additionalProperties": false
-                                },
-                                {
-                                  "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "relacao_juridica": {
-                                          "type": "null"
-                                        }
-                                      },
-                                      "additionalProperties": {}
-                                    },
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "relacao_juridica": {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 8
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 9
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 10
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 11
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 12
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 13
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 14
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 15
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 16
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 17
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 18
-                                            }
-                                          ]
-                                        },
-                                        "data_inicio_rel_juridica": {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        }
-                                      },
-                                      "required": [
-                                        "relacao_juridica",
-                                        "data_inicio_rel_juridica"
-                                      ],
-                                      "additionalProperties": {}
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "area_terreno_total": {
-                        "anyOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "valor": {
-                                "type": "number",
-                                "minimum": 0
-                              },
-                              "unidade": {
-                                "anyOf": [
-                                  {
-                                    "type": "number",
-                                    "const": 1
-                                  },
-                                  {
-                                    "type": "number",
-                                    "const": 2
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "valor",
-                              "unidade"
-                            ],
-                            "additionalProperties": false
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "codigo_incra": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z0-9]{14}|[A-Za-z0-9]{12}-[A-Za-z0-9]{2}|[A-Za-z0-9]{32}|[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_matricula": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 10
-                      },
-                      "data_matricula": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "situacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "const": 1
-                          },
-                          {
-                            "type": "string",
-                            "const": "1"
-                          },
-                          {
-                            "type": "number",
-                            "const": 2
-                          },
-                          {
-                            "type": "string",
-                            "const": "2"
-                          },
-                          {
-                            "type": "number",
-                            "const": 3
-                          },
-                          {
-                            "type": "string",
-                            "const": "3"
-                          },
-                          {
-                            "type": "number",
-                            "const": 4
-                          },
-                          {
-                            "type": "string",
-                            "const": "4"
-                          },
-                          {
-                            "type": "number",
-                            "const": 5
-                          },
-                          {
-                            "type": "string",
-                            "const": "5"
-                          },
-                          {
-                            "type": "number",
-                            "const": 6
-                          },
-                          {
-                            "type": "string",
-                            "const": "6"
-                          }
-                        ]
-                      },
-                      "cnm": {
-                        "type": "string",
-                        "pattern": "^(?:\\d{6}\\.\\d\\.\\d{7}-\\d{2}|\\d{16})$"
-                      }
-                    },
-                    "required": [
-                      "motivo_envio",
-                      "georreferenciamento",
-                      "certificacao_incra",
-                      "imovel_possui_nome",
-                      "tipo_matricula_transcricao",
-                      "tipo_imovel",
-                      "contexto_rural",
-                      "dados_imovel",
-                      "numero_matricula",
-                      "data_matricula",
-                      "situacao",
-                      "cnm"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "motivo_envio": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "const": 1
-                          },
-                          {
-                            "type": "number",
-                            "const": 2
-                          }
-                        ]
-                      },
-                      "georreferenciamento": {
-                        "type": "boolean"
-                      },
-                      "sistema_coordenadas": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "fuso_zona": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "sistema_referencia": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "coordenadas": {
-                        "anyOf": [
-                          {
-                            "description": "Lista de coordenadas formatada como string (Geo/UTM/GMS) conforme Manual Unificado.",
-                            "type": "string",
-                            "maxLength": 3000
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_poligono": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 1
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "certificacao_incra": {
-                        "type": "boolean"
-                      },
-                      "imovel_possui_nome": {
-                        "type": "boolean"
-                      },
-                      "tipo_matricula_transcricao": {
-                        "type": "number",
-                        "const": 2
-                      },
-                      "protocolo_prenotacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 1
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "data_protocolo_prenotacao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "categoria_poligono": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "ccir": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{11}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "cod_sncr": {
-                        "type": "string",
-                        "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
-                      },
-                      "cib": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z0-9]{8}|[A-Za-z0-9]{7}-[A-Za-z0-9])$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "car": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z]{2}-\\d{7}-[A-Za-z0-9]{32}|[A-Za-z0-9]{41})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "nome_imovel": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 100
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "dados_confrontantes": {
-                        "anyOf": [
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "numero_matricula_confrontante": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                      "maxLength": 800
-                                    },
-                                    {
-                                      "type": "number"
-                                    }
-                                  ]
-                                },
-                                "nome_proprietario_confrontante": {
-                                  "type": "string",
-                                  "maxLength": 800
-                                }
-                              },
-                              "additionalProperties": false
-                            }
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "tipo_ato": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_ato": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "ato": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "data_ato": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "alteracao_titularidade": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              },
-                              {
-                                "type": "number",
-                                "const": 10
-                              },
-                              {
-                                "type": "number",
-                                "const": 11
-                              },
-                              {
-                                "type": "number",
-                                "const": 12
-                              },
-                              {
-                                "type": "number",
-                                "const": 13
-                              },
-                              {
-                                "type": "number",
-                                "const": 14
-                              },
-                              {
-                                "type": "number",
-                                "const": 15
-                              },
-                              {
-                                "type": "number",
-                                "const": 16
-                              },
-                              {
-                                "type": "number",
-                                "const": 17
-                              },
-                              {
-                                "type": "number",
-                                "const": 18
-                              },
-                              {
-                                "type": "number",
-                                "const": 19
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "alteracao_imovel": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              },
-                              {
-                                "type": "number",
-                                "const": 10
-                              },
-                              {
-                                "type": "number",
-                                "const": 11
-                              },
-                              {
-                                "type": "number",
-                                "const": 12
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "valor_imposto": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "valor_transacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "tipo_imovel": {
-                        "type": "number",
-                        "const": 2
-                      },
-                      "contexto_rural": {
-                        "type": "number",
-                        "const": 1
-                      },
-                      "dados_imovel": {
-                        "minItems": 1,
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "logradouro": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "maxLength": 150
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "complemento": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "maxLength": 100
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "cep": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "cod_ibge_municipio": {
-                              "type": "number",
-                              "minimum": 1000000,
-                              "maximum": 9999999
-                            },
-                            "uf": {
-                              "type": "number",
-                              "minimum": 11,
-                              "maximum": 53
-                            }
-                          },
-                          "required": [
-                            "cod_ibge_municipio",
-                            "uf"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "dados_pessoa": {
-                        "anyOf": [
-                          {
-                            "type": "array",
-                            "items": {
-                              "allOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "nome_completo": {
-                                      "type": "string",
-                                      "maxLength": 150
-                                    },
-                                    "estrangeiro": {
-                                      "type": "boolean"
-                                    },
-                                    "cpf_cnpj": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^(?:\\d{11}|\\d{14}|[A-Za-z0-9]{11}|[A-Za-z0-9]{14}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}|\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}-[A-Za-z0-9]{2}|[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\/[A-Za-z0-9]{4}-[A-Za-z0-9]{2})$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "nacionalidade": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "estado_civil": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "regime_bens": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "relacao_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 8
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 9
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 10
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 11
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 12
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 13
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 14
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 15
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 16
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 17
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 18
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_inicio_rel_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_fim_rel_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "percentual": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number",
-                                          "minimum": 0,
-                                          "maximum": 100
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "tipo_logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number",
-                                          "minimum": 1,
-                                          "maximum": 311
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 150
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "numero_logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 10
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "complemento": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 100
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "bairro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 50
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "cep": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "cod_ibge_municipio": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "uf": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "condicao_parte": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 20
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "emissor_rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 50
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "passaporte": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 20
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "genero": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "filhos_brasileiros": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "estrangeiro",
-                                    "estado_civil"
-                                  ],
-                                  "additionalProperties": false
-                                },
-                                {
-                                  "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "relacao_juridica": {
-                                          "type": "null"
-                                        }
-                                      },
-                                      "additionalProperties": {}
-                                    },
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "relacao_juridica": {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 8
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 9
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 10
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 11
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 12
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 13
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 14
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 15
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 16
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 17
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 18
-                                            }
-                                          ]
-                                        },
-                                        "data_inicio_rel_juridica": {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        }
-                                      },
-                                      "required": [
-                                        "relacao_juridica",
-                                        "data_inicio_rel_juridica"
-                                      ],
-                                      "additionalProperties": {}
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "area_terreno_total": {
-                        "anyOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "valor": {
-                                "type": "number",
-                                "minimum": 0
-                              },
-                              "unidade": {
-                                "anyOf": [
-                                  {
-                                    "type": "number",
-                                    "const": 1
-                                  },
-                                  {
-                                    "type": "number",
-                                    "const": 2
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "valor",
-                              "unidade"
-                            ],
-                            "additionalProperties": false
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "codigo_incra": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z0-9]{14}|[A-Za-z0-9]{12}-[A-Za-z0-9]{2}|[A-Za-z0-9]{32}|[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_transcricao": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 10
-                      },
-                      "data_transcricao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "livro_transcricao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 5
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "folha_transcricao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 10
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      }
-                    },
-                    "required": [
-                      "motivo_envio",
-                      "georreferenciamento",
-                      "certificacao_incra",
-                      "imovel_possui_nome",
-                      "tipo_matricula_transcricao",
-                      "tipo_imovel",
-                      "contexto_rural",
-                      "dados_imovel",
-                      "numero_transcricao",
-                      "data_transcricao"
-                    ],
-                    "additionalProperties": false
-                  }
-                ]
-              },
-              {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "motivo_envio": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "const": 1
-                          },
-                          {
-                            "type": "number",
-                            "const": 2
-                          }
-                        ]
-                      },
-                      "georreferenciamento": {
-                        "type": "boolean"
-                      },
-                      "sistema_coordenadas": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "fuso_zona": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "sistema_referencia": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "coordenadas": {
-                        "anyOf": [
-                          {
-                            "description": "Lista de coordenadas formatada como string (Geo/UTM/GMS) conforme Manual Unificado.",
-                            "type": "string",
-                            "maxLength": 3000
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_poligono": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 1
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "certificacao_incra": {
-                        "type": "boolean"
-                      },
-                      "imovel_possui_nome": {
-                        "type": "boolean"
-                      },
-                      "tipo_matricula_transcricao": {
-                        "type": "number",
-                        "const": 1
-                      },
-                      "protocolo_prenotacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 1
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "data_protocolo_prenotacao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "categoria_poligono": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "ccir": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{11}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "cod_sncr": {
-                        "type": "string",
-                        "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
-                      },
-                      "cib": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z0-9]{8}|[A-Za-z0-9]{7}-[A-Za-z0-9])$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "car": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z]{2}-\\d{7}-[A-Za-z0-9]{32}|[A-Za-z0-9]{41})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "nome_imovel": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 100
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "dados_confrontantes": {
-                        "anyOf": [
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "numero_matricula_confrontante": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                      "maxLength": 800
-                                    },
-                                    {
-                                      "type": "number"
-                                    }
-                                  ]
-                                },
-                                "nome_proprietario_confrontante": {
-                                  "type": "string",
-                                  "maxLength": 800
-                                }
-                              },
-                              "additionalProperties": false
-                            }
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "tipo_ato": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_ato": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "ato": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "data_ato": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "alteracao_titularidade": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              },
-                              {
-                                "type": "number",
-                                "const": 10
-                              },
-                              {
-                                "type": "number",
-                                "const": 11
-                              },
-                              {
-                                "type": "number",
-                                "const": 12
-                              },
-                              {
-                                "type": "number",
-                                "const": 13
-                              },
-                              {
-                                "type": "number",
-                                "const": 14
-                              },
-                              {
-                                "type": "number",
-                                "const": 15
-                              },
-                              {
-                                "type": "number",
-                                "const": 16
-                              },
-                              {
-                                "type": "number",
-                                "const": 17
-                              },
-                              {
-                                "type": "number",
-                                "const": 18
-                              },
-                              {
-                                "type": "number",
-                                "const": 19
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "alteracao_imovel": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              },
-                              {
-                                "type": "number",
-                                "const": 10
-                              },
-                              {
-                                "type": "number",
-                                "const": 11
-                              },
-                              {
-                                "type": "number",
-                                "const": 12
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "valor_imposto": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "valor_transacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "tipo_imovel": {
-                        "type": "number",
-                        "const": 2
-                      },
-                      "contexto_rural": {
-                        "type": "number",
-                        "const": 2
-                      },
-                      "dados_imovel": {
-                        "minItems": 1,
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "logradouro": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "maxLength": 150
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "complemento": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "maxLength": 100
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "cep": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "cod_ibge_municipio": {
-                              "type": "number",
-                              "minimum": 1000000,
-                              "maximum": 9999999
-                            },
-                            "uf": {
-                              "type": "number",
-                              "minimum": 11,
-                              "maximum": 53
-                            }
-                          },
-                          "required": [
-                            "cod_ibge_municipio",
-                            "uf"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "dados_pessoa": {
-                        "anyOf": [
-                          {
-                            "type": "array",
-                            "items": {
-                              "allOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "nome_completo": {
-                                      "type": "string",
-                                      "maxLength": 150
-                                    },
-                                    "estrangeiro": {
-                                      "type": "boolean"
-                                    },
-                                    "cpf_cnpj": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^(?:\\d{11}|\\d{14}|[A-Za-z0-9]{11}|[A-Za-z0-9]{14}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}|\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}-[A-Za-z0-9]{2}|[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\/[A-Za-z0-9]{4}-[A-Za-z0-9]{2})$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "nacionalidade": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "estado_civil": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "regime_bens": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "relacao_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 8
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 9
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 10
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 11
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 12
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 13
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 14
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 15
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 16
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 17
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 18
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_inicio_rel_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_fim_rel_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "percentual": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number",
-                                          "minimum": 0,
-                                          "maximum": 100
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "tipo_logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number",
-                                          "minimum": 1,
-                                          "maximum": 311
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 150
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "numero_logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 10
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "complemento": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 100
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "bairro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 50
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "cep": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "cod_ibge_municipio": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "uf": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "condicao_parte": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 20
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "emissor_rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 50
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "passaporte": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 20
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "genero": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "filhos_brasileiros": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "estrangeiro",
-                                    "estado_civil"
-                                  ],
-                                  "additionalProperties": false
-                                },
-                                {
-                                  "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "relacao_juridica": {
-                                          "type": "null"
-                                        }
-                                      },
-                                      "additionalProperties": {}
-                                    },
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "relacao_juridica": {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 8
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 9
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 10
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 11
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 12
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 13
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 14
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 15
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 16
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 17
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 18
-                                            }
-                                          ]
-                                        },
-                                        "data_inicio_rel_juridica": {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        }
-                                      },
-                                      "required": [
-                                        "relacao_juridica",
-                                        "data_inicio_rel_juridica"
-                                      ],
-                                      "additionalProperties": {}
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "onerosa_nao_onerosa": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "regime_utilizacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "const": 1
-                          },
-                          {
-                            "type": "number",
-                            "const": 2
-                          },
-                          {
-                            "type": "number",
-                            "const": 3
-                          },
-                          {
-                            "type": "number",
-                            "const": 4
-                          },
-                          {
-                            "type": "number",
-                            "const": 5
-                          },
-                          {
-                            "type": "number",
-                            "const": 6
-                          },
-                          {
-                            "type": "number",
-                            "const": 7
-                          }
-                        ]
-                      },
-                      "cat": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{1,15}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "base_calculo_itbi": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "fracao": {
-                        "anyOf": [
-                          {
-                            "type": "number"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "rip": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{1,13}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "area_terreno_total": {
-                        "anyOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "valor": {
-                                "type": "number",
-                                "minimum": 0
-                              },
-                              "unidade": {
-                                "anyOf": [
-                                  {
-                                    "type": "number",
-                                    "const": 1
-                                  },
-                                  {
-                                    "type": "number",
-                                    "const": 2
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "valor",
-                              "unidade"
-                            ],
-                            "additionalProperties": false
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "area_terreno_uniao": {
-                        "anyOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "valor": {
-                                "type": "number",
-                                "minimum": 0
-                              },
-                              "unidade": {
-                                "anyOf": [
-                                  {
-                                    "type": "number",
-                                    "const": 1
-                                  },
-                                  {
-                                    "type": "number",
-                                    "const": 2
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "valor",
-                              "unidade"
-                            ],
-                            "additionalProperties": false
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "nome_representante_legal": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 150
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "cpf_representante_legal": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:\\d{11}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "codigo_incra": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z0-9]{14}|[A-Za-z0-9]{12}-[A-Za-z0-9]{2}|[A-Za-z0-9]{32}|[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_matricula": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 10
-                      },
-                      "data_matricula": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "situacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "const": 1
-                          },
-                          {
-                            "type": "string",
-                            "const": "1"
-                          },
-                          {
-                            "type": "number",
-                            "const": 2
-                          },
-                          {
-                            "type": "string",
-                            "const": "2"
-                          },
-                          {
-                            "type": "number",
-                            "const": 3
-                          },
-                          {
-                            "type": "string",
-                            "const": "3"
-                          },
-                          {
-                            "type": "number",
-                            "const": 4
-                          },
-                          {
-                            "type": "string",
-                            "const": "4"
-                          },
-                          {
-                            "type": "number",
-                            "const": 5
-                          },
-                          {
-                            "type": "string",
-                            "const": "5"
-                          },
-                          {
-                            "type": "number",
-                            "const": 6
-                          },
-                          {
-                            "type": "string",
-                            "const": "6"
-                          }
-                        ]
-                      },
-                      "cnm": {
-                        "type": "string",
-                        "pattern": "^(?:\\d{6}\\.\\d\\.\\d{7}-\\d{2}|\\d{16})$"
-                      }
-                    },
-                    "required": [
-                      "motivo_envio",
-                      "georreferenciamento",
-                      "certificacao_incra",
-                      "imovel_possui_nome",
-                      "tipo_matricula_transcricao",
-                      "tipo_imovel",
-                      "contexto_rural",
-                      "dados_imovel",
-                      "regime_utilizacao",
-                      "numero_matricula",
-                      "data_matricula",
-                      "situacao",
-                      "cnm"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "motivo_envio": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "const": 1
-                          },
-                          {
-                            "type": "number",
-                            "const": 2
-                          }
-                        ]
-                      },
-                      "georreferenciamento": {
-                        "type": "boolean"
-                      },
-                      "sistema_coordenadas": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "fuso_zona": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "sistema_referencia": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "coordenadas": {
-                        "anyOf": [
-                          {
-                            "description": "Lista de coordenadas formatada como string (Geo/UTM/GMS) conforme Manual Unificado.",
-                            "type": "string",
-                            "maxLength": 3000
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_poligono": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 1
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "certificacao_incra": {
-                        "type": "boolean"
-                      },
-                      "imovel_possui_nome": {
-                        "type": "boolean"
-                      },
-                      "tipo_matricula_transcricao": {
-                        "type": "number",
-                        "const": 2
-                      },
-                      "protocolo_prenotacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 1
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "data_protocolo_prenotacao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "categoria_poligono": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "ccir": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{11}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "cod_sncr": {
-                        "type": "string",
-                        "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
-                      },
-                      "cib": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z0-9]{8}|[A-Za-z0-9]{7}-[A-Za-z0-9])$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "car": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z]{2}-\\d{7}-[A-Za-z0-9]{32}|[A-Za-z0-9]{41})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "nome_imovel": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 100
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "dados_confrontantes": {
-                        "anyOf": [
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "numero_matricula_confrontante": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                      "maxLength": 800
-                                    },
-                                    {
-                                      "type": "number"
-                                    }
-                                  ]
-                                },
-                                "nome_proprietario_confrontante": {
-                                  "type": "string",
-                                  "maxLength": 800
-                                }
-                              },
-                              "additionalProperties": false
-                            }
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "tipo_ato": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_ato": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "ato": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "data_ato": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "alteracao_titularidade": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              },
-                              {
-                                "type": "number",
-                                "const": 10
-                              },
-                              {
-                                "type": "number",
-                                "const": 11
-                              },
-                              {
-                                "type": "number",
-                                "const": 12
-                              },
-                              {
-                                "type": "number",
-                                "const": 13
-                              },
-                              {
-                                "type": "number",
-                                "const": 14
-                              },
-                              {
-                                "type": "number",
-                                "const": 15
-                              },
-                              {
-                                "type": "number",
-                                "const": 16
-                              },
-                              {
-                                "type": "number",
-                                "const": 17
-                              },
-                              {
-                                "type": "number",
-                                "const": 18
-                              },
-                              {
-                                "type": "number",
-                                "const": 19
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "alteracao_imovel": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              },
-                              {
-                                "type": "number",
-                                "const": 10
-                              },
-                              {
-                                "type": "number",
-                                "const": 11
-                              },
-                              {
-                                "type": "number",
-                                "const": 12
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "valor_imposto": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "valor_transacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "tipo_imovel": {
-                        "type": "number",
-                        "const": 2
-                      },
-                      "contexto_rural": {
-                        "type": "number",
-                        "const": 2
-                      },
-                      "dados_imovel": {
-                        "minItems": 1,
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "logradouro": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "maxLength": 150
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "complemento": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "maxLength": 100
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "cep": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "cod_ibge_municipio": {
-                              "type": "number",
-                              "minimum": 1000000,
-                              "maximum": 9999999
-                            },
-                            "uf": {
-                              "type": "number",
-                              "minimum": 11,
-                              "maximum": 53
-                            }
-                          },
-                          "required": [
-                            "cod_ibge_municipio",
-                            "uf"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "dados_pessoa": {
-                        "anyOf": [
-                          {
-                            "type": "array",
-                            "items": {
-                              "allOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "nome_completo": {
-                                      "type": "string",
-                                      "maxLength": 150
-                                    },
-                                    "estrangeiro": {
-                                      "type": "boolean"
-                                    },
-                                    "cpf_cnpj": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^(?:\\d{11}|\\d{14}|[A-Za-z0-9]{11}|[A-Za-z0-9]{14}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}|\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}-[A-Za-z0-9]{2}|[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\/[A-Za-z0-9]{4}-[A-Za-z0-9]{2})$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "nacionalidade": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "estado_civil": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "regime_bens": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "relacao_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 8
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 9
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 10
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 11
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 12
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 13
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 14
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 15
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 16
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 17
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 18
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_inicio_rel_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_fim_rel_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "percentual": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number",
-                                          "minimum": 0,
-                                          "maximum": 100
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "tipo_logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number",
-                                          "minimum": 1,
-                                          "maximum": 311
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 150
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "numero_logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 10
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "complemento": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 100
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "bairro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 50
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "cep": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "cod_ibge_municipio": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "uf": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "condicao_parte": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 20
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "emissor_rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 50
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "passaporte": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 20
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "genero": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "filhos_brasileiros": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "estrangeiro",
-                                    "estado_civil"
-                                  ],
-                                  "additionalProperties": false
-                                },
-                                {
-                                  "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "relacao_juridica": {
-                                          "type": "null"
-                                        }
-                                      },
-                                      "additionalProperties": {}
-                                    },
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "relacao_juridica": {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 8
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 9
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 10
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 11
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 12
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 13
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 14
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 15
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 16
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 17
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 18
-                                            }
-                                          ]
-                                        },
-                                        "data_inicio_rel_juridica": {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        }
-                                      },
-                                      "required": [
-                                        "relacao_juridica",
-                                        "data_inicio_rel_juridica"
-                                      ],
-                                      "additionalProperties": {}
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "onerosa_nao_onerosa": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "regime_utilizacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "const": 1
-                          },
-                          {
-                            "type": "number",
-                            "const": 2
-                          },
-                          {
-                            "type": "number",
-                            "const": 3
-                          },
-                          {
-                            "type": "number",
-                            "const": 4
-                          },
-                          {
-                            "type": "number",
-                            "const": 5
-                          },
-                          {
-                            "type": "number",
-                            "const": 6
-                          },
-                          {
-                            "type": "number",
-                            "const": 7
-                          }
-                        ]
-                      },
-                      "cat": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{1,15}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "base_calculo_itbi": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "fracao": {
-                        "anyOf": [
-                          {
-                            "type": "number"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "rip": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{1,13}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "area_terreno_total": {
-                        "anyOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "valor": {
-                                "type": "number",
-                                "minimum": 0
-                              },
-                              "unidade": {
-                                "anyOf": [
-                                  {
-                                    "type": "number",
-                                    "const": 1
-                                  },
-                                  {
-                                    "type": "number",
-                                    "const": 2
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "valor",
-                              "unidade"
-                            ],
-                            "additionalProperties": false
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "area_terreno_uniao": {
-                        "anyOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "valor": {
-                                "type": "number",
-                                "minimum": 0
-                              },
-                              "unidade": {
-                                "anyOf": [
-                                  {
-                                    "type": "number",
-                                    "const": 1
-                                  },
-                                  {
-                                    "type": "number",
-                                    "const": 2
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "valor",
-                              "unidade"
-                            ],
-                            "additionalProperties": false
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "nome_representante_legal": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 150
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "cpf_representante_legal": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:\\d{11}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "codigo_incra": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z0-9]{14}|[A-Za-z0-9]{12}-[A-Za-z0-9]{2}|[A-Za-z0-9]{32}|[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_transcricao": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 10
-                      },
-                      "data_transcricao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "livro_transcricao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 5
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "folha_transcricao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 10
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      }
-                    },
-                    "required": [
-                      "motivo_envio",
-                      "georreferenciamento",
-                      "certificacao_incra",
-                      "imovel_possui_nome",
-                      "tipo_matricula_transcricao",
-                      "tipo_imovel",
-                      "contexto_rural",
-                      "dados_imovel",
-                      "regime_utilizacao",
-                      "numero_transcricao",
-                      "data_transcricao"
-                    ],
-                    "additionalProperties": false
-                  }
-                ]
-              },
-              {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "motivo_envio": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "const": 1
-                          },
-                          {
-                            "type": "number",
-                            "const": 2
-                          }
-                        ]
-                      },
-                      "georreferenciamento": {
-                        "type": "boolean"
-                      },
-                      "sistema_coordenadas": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "fuso_zona": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "sistema_referencia": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "coordenadas": {
-                        "anyOf": [
-                          {
-                            "description": "Lista de coordenadas formatada como string (Geo/UTM/GMS) conforme Manual Unificado.",
-                            "type": "string",
-                            "maxLength": 3000
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_poligono": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 1
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "certificacao_incra": {
-                        "type": "boolean"
-                      },
-                      "imovel_possui_nome": {
-                        "type": "boolean"
-                      },
-                      "tipo_matricula_transcricao": {
-                        "type": "number",
-                        "const": 1
-                      },
-                      "protocolo_prenotacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 1
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "data_protocolo_prenotacao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "categoria_poligono": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "ccir": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{11}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "cod_sncr": {
-                        "type": "string",
-                        "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
-                      },
-                      "cib": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z0-9]{8}|[A-Za-z0-9]{7}-[A-Za-z0-9])$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "car": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z]{2}-\\d{7}-[A-Za-z0-9]{32}|[A-Za-z0-9]{41})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "nome_imovel": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 100
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "dados_confrontantes": {
-                        "anyOf": [
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "numero_matricula_confrontante": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                      "maxLength": 800
-                                    },
-                                    {
-                                      "type": "number"
-                                    }
-                                  ]
-                                },
-                                "nome_proprietario_confrontante": {
-                                  "type": "string",
-                                  "maxLength": 800
-                                }
-                              },
-                              "additionalProperties": false
-                            }
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "tipo_ato": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_ato": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "ato": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "data_ato": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "alteracao_titularidade": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              },
-                              {
-                                "type": "number",
-                                "const": 10
-                              },
-                              {
-                                "type": "number",
-                                "const": 11
-                              },
-                              {
-                                "type": "number",
-                                "const": 12
-                              },
-                              {
-                                "type": "number",
-                                "const": 13
-                              },
-                              {
-                                "type": "number",
-                                "const": 14
-                              },
-                              {
-                                "type": "number",
-                                "const": 15
-                              },
-                              {
-                                "type": "number",
-                                "const": 16
-                              },
-                              {
-                                "type": "number",
-                                "const": 17
-                              },
-                              {
-                                "type": "number",
-                                "const": 18
-                              },
-                              {
-                                "type": "number",
-                                "const": 19
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "alteracao_imovel": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              },
-                              {
-                                "type": "number",
-                                "const": 10
-                              },
-                              {
-                                "type": "number",
-                                "const": 11
-                              },
-                              {
-                                "type": "number",
-                                "const": 12
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "valor_imposto": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "valor_transacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "tipo_imovel": {
-                        "type": "number",
-                        "const": 2
-                      },
-                      "contexto_rural": {
-                        "type": "number",
-                        "const": 3
-                      },
-                      "dados_imovel": {
-                        "minItems": 1,
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "logradouro": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "maxLength": 150
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "complemento": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "maxLength": 100
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "cep": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "cod_ibge_municipio": {
-                              "type": "number",
-                              "minimum": 1000000,
-                              "maximum": 9999999
-                            },
-                            "uf": {
-                              "type": "number",
-                              "minimum": 11,
-                              "maximum": 53
-                            }
-                          },
-                          "required": [
-                            "cod_ibge_municipio",
-                            "uf"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "dados_pessoa": {
-                        "anyOf": [
-                          {
-                            "type": "array",
-                            "items": {
-                              "allOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "nome_completo": {
-                                      "type": "string",
-                                      "maxLength": 150
-                                    },
-                                    "estrangeiro": {
-                                      "type": "boolean"
-                                    },
-                                    "cpf_cnpj": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^(?:\\d{11}|\\d{14}|[A-Za-z0-9]{11}|[A-Za-z0-9]{14}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}|\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}-[A-Za-z0-9]{2}|[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\/[A-Za-z0-9]{4}-[A-Za-z0-9]{2})$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "nacionalidade": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "estado_civil": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "regime_bens": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "relacao_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 8
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 9
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 10
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 11
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 12
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 13
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 14
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 15
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 16
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 17
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 18
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_inicio_rel_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_fim_rel_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "percentual": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number",
-                                          "minimum": 0,
-                                          "maximum": 100
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "tipo_logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number",
-                                          "minimum": 1,
-                                          "maximum": 311
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 150
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "numero_logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 10
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "complemento": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 100
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "bairro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 50
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "cep": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "cod_ibge_municipio": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "uf": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "condicao_parte": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 20
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "emissor_rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 50
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "passaporte": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 20
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "genero": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "filhos_brasileiros": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "estrangeiro",
-                                    "estado_civil"
-                                  ],
-                                  "additionalProperties": false
-                                },
-                                {
-                                  "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "relacao_juridica": {
-                                          "type": "null"
-                                        }
-                                      },
-                                      "additionalProperties": {}
-                                    },
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "relacao_juridica": {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 8
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 9
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 10
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 11
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 12
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 13
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 14
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 15
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 16
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 17
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 18
-                                            }
-                                          ]
-                                        },
-                                        "data_inicio_rel_juridica": {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        }
-                                      },
-                                      "required": [
-                                        "relacao_juridica",
-                                        "data_inicio_rel_juridica"
-                                      ],
-                                      "additionalProperties": {}
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "area_terreno_total": {
-                        "anyOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "valor": {
-                                "type": "number",
-                                "minimum": 0
-                              },
-                              "unidade": {
-                                "anyOf": [
-                                  {
-                                    "type": "number",
-                                    "const": 1
-                                  },
-                                  {
-                                    "type": "number",
-                                    "const": 2
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "valor",
-                              "unidade"
-                            ],
-                            "additionalProperties": false
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "autorizacao_incra": {
-                        "type": "boolean"
-                      },
-                      "faixa_fronteira": {
-                        "type": "boolean"
-                      },
-                      "area_sn": {
-                        "type": "boolean"
-                      },
-                      "codigo_incra": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z0-9]{14}|[A-Za-z0-9]{12}-[A-Za-z0-9]{2}|[A-Za-z0-9]{32}|[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_matricula": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 10
-                      },
-                      "data_matricula": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "situacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "const": 1
-                          },
-                          {
-                            "type": "string",
-                            "const": "1"
-                          },
-                          {
-                            "type": "number",
-                            "const": 2
-                          },
-                          {
-                            "type": "string",
-                            "const": "2"
-                          },
-                          {
-                            "type": "number",
-                            "const": 3
-                          },
-                          {
-                            "type": "string",
-                            "const": "3"
-                          },
-                          {
-                            "type": "number",
-                            "const": 4
-                          },
-                          {
-                            "type": "string",
-                            "const": "4"
-                          },
-                          {
-                            "type": "number",
-                            "const": 5
-                          },
-                          {
-                            "type": "string",
-                            "const": "5"
-                          },
-                          {
-                            "type": "number",
-                            "const": 6
-                          },
-                          {
-                            "type": "string",
-                            "const": "6"
-                          }
-                        ]
-                      },
-                      "cnm": {
-                        "type": "string",
-                        "pattern": "^(?:\\d{6}\\.\\d\\.\\d{7}-\\d{2}|\\d{16})$"
-                      }
-                    },
-                    "required": [
-                      "motivo_envio",
-                      "georreferenciamento",
-                      "certificacao_incra",
-                      "imovel_possui_nome",
-                      "tipo_matricula_transcricao",
-                      "tipo_imovel",
-                      "contexto_rural",
-                      "dados_imovel",
-                      "autorizacao_incra",
-                      "faixa_fronteira",
-                      "area_sn",
-                      "numero_matricula",
-                      "data_matricula",
-                      "situacao",
-                      "cnm"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "motivo_envio": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "const": 1
-                          },
-                          {
-                            "type": "number",
-                            "const": 2
-                          }
-                        ]
-                      },
-                      "georreferenciamento": {
-                        "type": "boolean"
-                      },
-                      "sistema_coordenadas": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "fuso_zona": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "sistema_referencia": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "coordenadas": {
-                        "anyOf": [
-                          {
-                            "description": "Lista de coordenadas formatada como string (Geo/UTM/GMS) conforme Manual Unificado.",
-                            "type": "string",
-                            "maxLength": 3000
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_poligono": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 1
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "certificacao_incra": {
-                        "type": "boolean"
-                      },
-                      "imovel_possui_nome": {
-                        "type": "boolean"
-                      },
-                      "tipo_matricula_transcricao": {
-                        "type": "number",
-                        "const": 2
-                      },
-                      "protocolo_prenotacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 1
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "data_protocolo_prenotacao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "categoria_poligono": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "ccir": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{11}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "cod_sncr": {
-                        "type": "string",
-                        "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
-                      },
-                      "cib": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z0-9]{8}|[A-Za-z0-9]{7}-[A-Za-z0-9])$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "car": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z]{2}-\\d{7}-[A-Za-z0-9]{32}|[A-Za-z0-9]{41})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "nome_imovel": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 100
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "dados_confrontantes": {
-                        "anyOf": [
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "numero_matricula_confrontante": {
-                                  "anyOf": [
-                                    {
-                                      "type": "string",
-                                      "maxLength": 800
-                                    },
-                                    {
-                                      "type": "number"
-                                    }
-                                  ]
-                                },
-                                "nome_proprietario_confrontante": {
-                                  "type": "string",
-                                  "maxLength": 800
-                                }
-                              },
-                              "additionalProperties": false
-                            }
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "tipo_ato": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_ato": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "ato": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "data_ato": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "alteracao_titularidade": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              },
-                              {
-                                "type": "number",
-                                "const": 10
-                              },
-                              {
-                                "type": "number",
-                                "const": 11
-                              },
-                              {
-                                "type": "number",
-                                "const": 12
-                              },
-                              {
-                                "type": "number",
-                                "const": 13
-                              },
-                              {
-                                "type": "number",
-                                "const": 14
-                              },
-                              {
-                                "type": "number",
-                                "const": 15
-                              },
-                              {
-                                "type": "number",
-                                "const": 16
-                              },
-                              {
-                                "type": "number",
-                                "const": 17
-                              },
-                              {
-                                "type": "number",
-                                "const": 18
-                              },
-                              {
-                                "type": "number",
-                                "const": 19
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "alteracao_imovel": {
-                        "anyOf": [
-                          {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
-                              },
-                              {
-                                "type": "number",
-                                "const": 3
-                              },
-                              {
-                                "type": "number",
-                                "const": 4
-                              },
-                              {
-                                "type": "number",
-                                "const": 5
-                              },
-                              {
-                                "type": "number",
-                                "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "number",
-                                "const": 8
-                              },
-                              {
-                                "type": "number",
-                                "const": 9
-                              },
-                              {
-                                "type": "number",
-                                "const": 10
-                              },
-                              {
-                                "type": "number",
-                                "const": 11
-                              },
-                              {
-                                "type": "number",
-                                "const": 12
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "valor_imposto": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "valor_transacao": {
-                        "anyOf": [
-                          {
-                            "type": "number",
-                            "minimum": 0
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "tipo_imovel": {
-                        "type": "number",
-                        "const": 2
-                      },
-                      "contexto_rural": {
-                        "type": "number",
-                        "const": 3
-                      },
-                      "dados_imovel": {
-                        "minItems": 1,
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "logradouro": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "maxLength": 150
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "complemento": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "maxLength": 100
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "cep": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "cod_ibge_municipio": {
-                              "type": "number",
-                              "minimum": 1000000,
-                              "maximum": 9999999
-                            },
-                            "uf": {
-                              "type": "number",
-                              "minimum": 11,
-                              "maximum": 53
-                            }
-                          },
-                          "required": [
-                            "cod_ibge_municipio",
-                            "uf"
-                          ],
-                          "additionalProperties": false
-                        }
-                      },
-                      "dados_pessoa": {
-                        "anyOf": [
-                          {
-                            "type": "array",
-                            "items": {
-                              "allOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "nome_completo": {
-                                      "type": "string",
-                                      "maxLength": 150
-                                    },
-                                    "estrangeiro": {
-                                      "type": "boolean"
-                                    },
-                                    "cpf_cnpj": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^(?:\\d{11}|\\d{14}|[A-Za-z0-9]{11}|[A-Za-z0-9]{14}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}|\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}-[A-Za-z0-9]{2}|[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\/[A-Za-z0-9]{4}-[A-Za-z0-9]{2})$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "nacionalidade": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "estado_civil": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "regime_bens": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "relacao_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 8
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 9
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 10
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 11
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 12
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 13
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 14
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 15
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 16
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 17
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 18
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_inicio_rel_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_fim_rel_juridica": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "percentual": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number",
-                                          "minimum": 0,
-                                          "maximum": 100
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "tipo_logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number",
-                                          "minimum": 1,
-                                          "maximum": 311
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 150
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "numero_logradouro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 10
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "complemento": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 100
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "bairro": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 50
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "cep": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^(?:\\d{8}|\\d{2}\\.\\d{3}-\\d{3}|\\d{5}-\\d{3})$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "cod_ibge_municipio": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "uf": {
-                                      "anyOf": [
-                                        {
-                                          "type": "number"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "condicao_parte": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 20
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "data_rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "emissor_rnm": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 50
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "passaporte": {
-                                      "anyOf": [
-                                        {
-                                          "type": "string",
-                                          "maxLength": 20
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "genero": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    },
-                                    "filhos_brasileiros": {
-                                      "anyOf": [
-                                        {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            }
-                                          ]
-                                        },
-                                        {
-                                          "type": "null"
-                                        }
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "estrangeiro",
-                                    "estado_civil"
-                                  ],
-                                  "additionalProperties": false
-                                },
-                                {
-                                  "anyOf": [
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "relacao_juridica": {
-                                          "type": "null"
-                                        }
-                                      },
-                                      "additionalProperties": {}
-                                    },
-                                    {
-                                      "type": "object",
-                                      "properties": {
-                                        "relacao_juridica": {
-                                          "anyOf": [
-                                            {
-                                              "type": "number",
-                                              "const": 1
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 2
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 3
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 4
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 5
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 6
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 7
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 8
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 9
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 10
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 11
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 12
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 13
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 14
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 15
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 16
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 17
-                                            },
-                                            {
-                                              "type": "number",
-                                              "const": 18
-                                            }
-                                          ]
-                                        },
-                                        "data_inicio_rel_juridica": {
-                                          "type": "string",
-                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                        }
-                                      },
-                                      "required": [
-                                        "relacao_juridica",
-                                        "data_inicio_rel_juridica"
-                                      ],
-                                      "additionalProperties": {}
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "area_terreno_total": {
-                        "anyOf": [
-                          {
-                            "type": "object",
-                            "properties": {
-                              "valor": {
-                                "type": "number",
-                                "minimum": 0
-                              },
-                              "unidade": {
-                                "anyOf": [
-                                  {
-                                    "type": "number",
-                                    "const": 1
-                                  },
-                                  {
-                                    "type": "number",
-                                    "const": 2
-                                  }
-                                ]
-                              }
-                            },
-                            "required": [
-                              "valor",
-                              "unidade"
-                            ],
-                            "additionalProperties": false
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "autorizacao_incra": {
-                        "type": "boolean"
-                      },
-                      "faixa_fronteira": {
-                        "type": "boolean"
-                      },
-                      "area_sn": {
-                        "type": "boolean"
-                      },
-                      "codigo_incra": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^(?:[A-Za-z0-9]{14}|[A-Za-z0-9]{12}-[A-Za-z0-9]{2}|[A-Za-z0-9]{32}|[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12})$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "numero_transcricao": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 10
-                      },
-                      "data_transcricao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "livro_transcricao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 5
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "folha_transcricao": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "maxLength": 10
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      }
-                    },
-                    "required": [
-                      "motivo_envio",
-                      "georreferenciamento",
-                      "certificacao_incra",
-                      "imovel_possui_nome",
-                      "tipo_matricula_transcricao",
-                      "tipo_imovel",
-                      "contexto_rural",
-                      "dados_imovel",
-                      "autorizacao_incra",
-                      "faixa_fronteira",
-                      "area_sn",
-                      "numero_transcricao",
-                      "data_transcricao"
-                    ],
-                    "additionalProperties": false
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": {}
-          },
-          {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "ato": {
-                    "type": "number",
-                    "const": 2
-                  },
-                  "data_matricula": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  }
-                },
-                "required": [
-                  "ato"
-                ],
-                "additionalProperties": {}
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "motivo_envio": {},
-                  "georreferenciamento": {},
-                  "dados_imovel": {},
-                  "dados_pessoa": {},
-                  "certificacao_incra": {},
-                  "imovel_possui_nome": {}
-                },
-                "required": [
-                  "motivo_envio",
-                  "georreferenciamento",
-                  "dados_imovel",
-                  "dados_pessoa",
-                  "certificacao_incra",
-                  "imovel_possui_nome"
-                ],
-                "additionalProperties": {}
-              }
-            ]
-          },
-          {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "ato": {
-                    "type": "number",
-                    "const": 2
-                  },
-                  "data_matricula": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  }
-                },
-                "required": [
-                  "ato"
-                ],
-                "additionalProperties": {}
-              },
-              {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "certificacao_incra": {
-                        "type": "boolean",
-                        "const": false
-                      }
-                    },
-                    "required": [
-                      "certificacao_incra"
-                    ],
-                    "additionalProperties": {}
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "certificacao_incra": {
-                        "type": "boolean",
-                        "const": true
-                      },
-                      "codigo_incra": {}
-                    },
-                    "required": [
-                      "certificacao_incra",
-                      "codigo_incra"
-                    ],
-                    "additionalProperties": {}
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "ato": {
-                    "type": "number",
-                    "const": 2
-                  },
-                  "data_matricula": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  }
-                },
-                "required": [
-                  "ato"
-                ],
-                "additionalProperties": {}
-              },
-              {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "imovel_possui_nome": {
-                        "type": "boolean",
-                        "const": false
-                      }
-                    },
-                    "required": [
-                      "imovel_possui_nome"
-                    ],
-                    "additionalProperties": {}
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "imovel_possui_nome": {
-                        "type": "boolean",
-                        "const": true
-                      },
-                      "nome_imovel": {
-                        "type": "string",
-                        "maxLength": 100
-                      }
-                    },
-                    "required": [
-                      "imovel_possui_nome",
-                      "nome_imovel"
-                    ],
-                    "additionalProperties": {}
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "motivo_envio": {
-                    "type": "number",
-                    "const": 2
-                  }
-                },
-                "required": [
+                  "numero_matricula",
                   "motivo_envio"
                 ],
                 "additionalProperties": {}
               },
               {
-                "type": "object",
-                "properties": {
-                  "ato": {
-                    "type": "number",
-                    "const": 2
-                  },
-                  "data_matricula": {
-                    "anyOf": [
-                      {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "motivo_envio": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          }
+                        ]
+                      },
+                      "georreferenciamento": {
+                        "type": "boolean"
+                      },
+                      "sistema_coordenadas": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "fuso_zona": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sistema_referencia": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "coordenadas": {
+                        "anyOf": [
+                          {
+                            "description": "Lista de coordenadas formatada como string (Geo/UTM/GMS) conforme Manual Unificado.",
+                            "type": "string",
+                            "maxLength": 15000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_poligono": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "decisao_jud": {
+                        "type": "boolean"
+                      },
+                      "certificacao_incra": {
+                        "type": "boolean"
+                      },
+                      "imovel_possui_nome": {
+                        "type": "boolean"
+                      },
+                      "tipo_matricula_transcricao": {
+                        "type": "number",
+                        "const": 1
+                      },
+                      "protocolo_prenotacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_protocolo_prenotacao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "categoria_poligono": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ccir": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{11}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "cod_sncr": {
                         "type": "string",
-                        "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                        "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
                       },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  }
-                },
-                "required": [
-                  "ato"
-                ],
-                "additionalProperties": {}
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "motivo_envio": {
-                    "type": "number",
-                    "const": 1
-                  },
-                  "tipo_ato": {
-                    "anyOf": [
-                      {
-                        "type": "number",
-                        "const": 1
-                      },
-                      {
-                        "type": "number",
-                        "const": 2
-                      }
-                    ]
-                  },
-                  "numero_ato": {
-                    "type": "string"
-                  },
-                  "ato": {
-                    "anyOf": [
-                      {
-                        "type": "number",
-                        "const": 1
-                      },
-                      {
-                        "type": "number",
-                        "const": 2
-                      },
-                      {
-                        "type": "number",
-                        "const": 3
-                      },
-                      {
-                        "type": "number",
-                        "const": 4
-                      },
-                      {
-                        "type": "number",
-                        "const": 5
-                      },
-                      {
-                        "type": "number",
-                        "const": 6
-                      }
-                    ]
-                  },
-                  "data_ato": {
-                    "type": "string",
-                    "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                  },
-                  "cib": {},
-                  "cod_sncr": {
-                    "type": "string",
-                    "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
-                  },
-                  "car": {},
-                  "area_terreno_total": {},
-                  "dados_pessoa": {
-                    "minItems": 1,
-                    "type": "array",
-                    "items": {
-                      "allOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "nome_completo": {},
-                            "cpf_cnpj": {},
-                            "estado_civil": {
-                              "anyOf": [
-                                {
-                                  "type": "number",
-                                  "const": 1
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 2
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 3
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 4
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 5
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 6
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 7
-                                }
-                              ]
-                            },
-                            "percentual": {
-                              "type": "number",
-                              "minimum": 0,
-                              "maximum": 100
-                            }
+                      "cib": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z0-9]{8}|[A-Za-z0-9]{7}-[A-Za-z0-9])$"
                           },
-                          "required": [
-                            "nome_completo",
-                            "cpf_cnpj",
-                            "estado_civil",
-                            "percentual"
-                          ],
-                          "additionalProperties": {}
-                        },
-                        {
-                          "anyOf": [
-                            {
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "car": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z]{2}-\\d{7}-[A-Za-z0-9]{32}|[A-Za-z0-9]{41})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "nome_imovel": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "dados_confrontantes": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
                               "type": "object",
                               "properties": {
-                                "relacao_juridica": {
-                                  "type": "null"
-                                }
-                              },
-                              "additionalProperties": {}
-                            },
-                            {
-                              "type": "object",
-                              "properties": {
-                                "relacao_juridica": {
+                                "numero_matricula_confrontante": {
                                   "anyOf": [
                                     {
-                                      "type": "number",
-                                      "const": 1
+                                      "type": "string",
+                                      "maxLength": 800
                                     },
                                     {
-                                      "type": "number",
-                                      "const": 2
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 3
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 4
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 5
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 6
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 7
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 8
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 9
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 10
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 11
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 12
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 13
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 14
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 15
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 16
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 17
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 18
+                                      "type": "number"
                                     }
                                   ]
                                 },
-                                "data_inicio_rel_juridica": {
+                                "nome_proprietario_confrontante": {
                                   "type": "string",
-                                  "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                  "maxLength": 800
                                 }
                               },
-                              "required": [
-                                "relacao_juridica",
-                                "data_inicio_rel_juridica"
-                              ],
-                              "additionalProperties": {}
+                              "additionalProperties": false
                             }
-                          ]
-                        }
-                      ]
-                    }
-                  }
-                },
-                "required": [
-                  "motivo_envio",
-                  "tipo_ato",
-                  "numero_ato",
-                  "ato",
-                  "data_ato",
-                  "cib",
-                  "cod_sncr",
-                  "car",
-                  "area_terreno_total",
-                  "dados_pessoa"
-                ],
-                "additionalProperties": {}
-              }
-            ]
-          },
-          {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "motivo_envio": {
-                    "type": "number",
-                    "const": 1
-                  },
-                  "ato": {
-                    "type": "number",
-                    "const": 4
-                  },
-                  "alteracao_titularidade": {},
-                  "valor_transacao": {},
-                  "valor_imposto": {},
-                  "dados_pessoa": {
-                    "minItems": 1,
-                    "type": "array",
-                    "items": {
-                      "allOf": [
-                        {
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tipo_ato": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_ato": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ato": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_ato": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alteracao_titularidade": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              },
+                              {
+                                "type": "number",
+                                "const": 10
+                              },
+                              {
+                                "type": "number",
+                                "const": 11
+                              },
+                              {
+                                "type": "number",
+                                "const": 12
+                              },
+                              {
+                                "type": "number",
+                                "const": 13
+                              },
+                              {
+                                "type": "number",
+                                "const": 14
+                              },
+                              {
+                                "type": "number",
+                                "const": 15
+                              },
+                              {
+                                "type": "number",
+                                "const": 16
+                              },
+                              {
+                                "type": "number",
+                                "const": 17
+                              },
+                              {
+                                "type": "number",
+                                "const": 18
+                              },
+                              {
+                                "type": "number",
+                                "const": 19
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alteracao_imovel": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              },
+                              {
+                                "type": "number",
+                                "const": 10
+                              },
+                              {
+                                "type": "number",
+                                "const": 11
+                              },
+                              {
+                                "type": "number",
+                                "const": 12
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valor_imposto": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valor_transacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tipo_imovel": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "contexto_rural": {
+                        "type": "number",
+                        "const": 1
+                      },
+                      "dados_imovel": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
                           "type": "object",
                           "properties": {
-                            "nome_completo": {},
-                            "cpf_cnpj": {},
-                            "estado_civil": {
+                            "logradouro": {
                               "anyOf": [
                                 {
-                                  "type": "number",
-                                  "const": 1
+                                  "type": "string",
+                                  "maxLength": 150
                                 },
                                 {
-                                  "type": "number",
-                                  "const": 2
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 3
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 4
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 5
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 6
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 7
+                                  "type": "null"
                                 }
                               ]
                             },
-                            "percentual": {
+                            "complemento": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "cep": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "cod_ibge_municipio": {
                               "type": "number",
-                              "minimum": 0,
-                              "maximum": 100
+                              "minimum": 1000000,
+                              "maximum": 9999999
+                            },
+                            "uf": {
+                              "type": "number",
+                              "minimum": 11,
+                              "maximum": 53
                             }
                           },
                           "required": [
-                            "nome_completo",
-                            "cpf_cnpj",
-                            "estado_civil",
-                            "percentual"
+                            "cod_ibge_municipio",
+                            "uf"
                           ],
-                          "additionalProperties": {}
-                        },
-                        {
-                          "anyOf": [
-                            {
-                              "type": "object",
-                              "properties": {
-                                "relacao_juridica": {
-                                  "type": "null"
-                                }
-                              },
-                              "additionalProperties": {}
-                            },
-                            {
-                              "type": "object",
-                              "properties": {
-                                "relacao_juridica": {
+                          "additionalProperties": false
+                        }
+                      },
+                      "dados_pessoa": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "allOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "nome_completo": {
+                                      "type": "string",
+                                      "maxLength": 150
+                                    },
+                                    "estrangeiro": {
+                                      "type": "boolean"
+                                    },
+                                    "nao_CPF": {
+                                      "type": "boolean"
+                                    },
+                                    "cpf_cnpj": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:\\d{11}|\\d{14}|[A-Za-z0-9]{11}|[A-Za-z0-9]{14}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}|\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}-[A-Za-z0-9]{2}|[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\/[A-Za-z0-9]{4}-[A-Za-z0-9]{2})$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "nacionalidade": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "estado_civil": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "regime_bens": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "relacao_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_inicio_rel_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_fim_rel_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "percentual": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0,
+                                          "maximum": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "tipo_logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 1,
+                                          "maximum": 311
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 150
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "numero_logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 10
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "complemento": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "bairro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 50
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "cep": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "cod_ibge_municipio": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "uf": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "condicao_parte": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "emissor_rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 50
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "passaporte": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "genero": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "filhos_brasileiros": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "estrangeiro",
+                                    "estado_civil"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
                                   "anyOf": [
                                     {
-                                      "type": "number",
-                                      "const": 1
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "type": "null"
+                                        }
+                                      },
+                                      "additionalProperties": {}
                                     },
                                     {
-                                      "type": "number",
-                                      "const": 2
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        "data_inicio_rel_juridica": {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "relacao_juridica",
+                                        "data_inicio_rel_juridica"
+                                      ],
+                                      "additionalProperties": {}
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "area_terreno_total": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "valor": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "unidade": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 2
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "valor",
+                              "unidade"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "codigo_incra": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z0-9]{14}|[A-Za-z0-9]{12}-[A-Za-z0-9]{2}|[A-Za-z0-9]{32}|[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_matricula": {
+                        "type": "string",
+                        "pattern": "^\\d{1,10}$"
+                      },
+                      "data_matricula": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "situacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "string",
+                            "const": "1"
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          },
+                          {
+                            "type": "string",
+                            "const": "2"
+                          },
+                          {
+                            "type": "number",
+                            "const": 3
+                          },
+                          {
+                            "type": "string",
+                            "const": "3"
+                          },
+                          {
+                            "type": "number",
+                            "const": 4
+                          },
+                          {
+                            "type": "string",
+                            "const": "4"
+                          },
+                          {
+                            "type": "number",
+                            "const": 5
+                          },
+                          {
+                            "type": "string",
+                            "const": "5"
+                          },
+                          {
+                            "type": "number",
+                            "const": 6
+                          },
+                          {
+                            "type": "string",
+                            "const": "6"
+                          }
+                        ]
+                      },
+                      "cnm": {
+                        "type": "string",
+                        "pattern": "^(?:\\d{6}\\.\\d\\.\\d{7}-\\d{2}|\\d{16})$"
+                      }
+                    },
+                    "required": [
+                      "motivo_envio",
+                      "georreferenciamento",
+                      "certificacao_incra",
+                      "imovel_possui_nome",
+                      "tipo_matricula_transcricao",
+                      "tipo_imovel",
+                      "contexto_rural",
+                      "dados_imovel",
+                      "numero_matricula",
+                      "data_matricula",
+                      "situacao",
+                      "cnm"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "motivo_envio": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          }
+                        ]
+                      },
+                      "georreferenciamento": {
+                        "type": "boolean"
+                      },
+                      "sistema_coordenadas": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "fuso_zona": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sistema_referencia": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "coordenadas": {
+                        "anyOf": [
+                          {
+                            "description": "Lista de coordenadas formatada como string (Geo/UTM/GMS) conforme Manual Unificado.",
+                            "type": "string",
+                            "maxLength": 15000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_poligono": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "decisao_jud": {
+                        "type": "boolean"
+                      },
+                      "certificacao_incra": {
+                        "type": "boolean"
+                      },
+                      "imovel_possui_nome": {
+                        "type": "boolean"
+                      },
+                      "tipo_matricula_transcricao": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "protocolo_prenotacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_protocolo_prenotacao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "categoria_poligono": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ccir": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{11}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "cod_sncr": {
+                        "type": "string",
+                        "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
+                      },
+                      "cib": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z0-9]{8}|[A-Za-z0-9]{7}-[A-Za-z0-9])$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "car": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z]{2}-\\d{7}-[A-Za-z0-9]{32}|[A-Za-z0-9]{41})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "nome_imovel": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "dados_confrontantes": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "numero_matricula_confrontante": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "maxLength": 800
                                     },
                                     {
-                                      "type": "number",
-                                      "const": 3
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 4
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 5
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 6
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 7
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 8
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 9
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 10
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 11
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 12
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 13
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 14
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 15
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 16
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 17
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 18
+                                      "type": "number"
                                     }
                                   ]
                                 },
-                                "data_inicio_rel_juridica": {
+                                "nome_proprietario_confrontante": {
                                   "type": "string",
-                                  "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                  "maxLength": 800
                                 }
                               },
-                              "required": [
-                                "relacao_juridica",
-                                "data_inicio_rel_juridica"
-                              ],
-                              "additionalProperties": {}
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  }
-                },
-                "required": [
-                  "motivo_envio",
-                  "ato",
-                  "alteracao_titularidade",
-                  "valor_transacao",
-                  "valor_imposto",
-                  "dados_pessoa"
-                ],
-                "additionalProperties": {}
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "motivo_envio": {
-                    "type": "number",
-                    "const": 2
-                  },
-                  "ato": {
-                    "type": "number",
-                    "const": 4
-                  },
-                  "alteracao_titularidade": {},
-                  "valor_transacao": {},
-                  "valor_imposto": {},
-                  "dados_pessoa": {
-                    "minItems": 1,
-                    "type": "array",
-                    "items": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "relacao_juridica": {
-                              "type": "null"
+                              "additionalProperties": false
                             }
                           },
-                          "additionalProperties": {}
-                        },
-                        {
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tipo_ato": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_ato": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ato": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_ato": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alteracao_titularidade": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              },
+                              {
+                                "type": "number",
+                                "const": 10
+                              },
+                              {
+                                "type": "number",
+                                "const": 11
+                              },
+                              {
+                                "type": "number",
+                                "const": 12
+                              },
+                              {
+                                "type": "number",
+                                "const": 13
+                              },
+                              {
+                                "type": "number",
+                                "const": 14
+                              },
+                              {
+                                "type": "number",
+                                "const": 15
+                              },
+                              {
+                                "type": "number",
+                                "const": 16
+                              },
+                              {
+                                "type": "number",
+                                "const": 17
+                              },
+                              {
+                                "type": "number",
+                                "const": 18
+                              },
+                              {
+                                "type": "number",
+                                "const": 19
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alteracao_imovel": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              },
+                              {
+                                "type": "number",
+                                "const": 10
+                              },
+                              {
+                                "type": "number",
+                                "const": 11
+                              },
+                              {
+                                "type": "number",
+                                "const": 12
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valor_imposto": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valor_transacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tipo_imovel": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "contexto_rural": {
+                        "type": "number",
+                        "const": 1
+                      },
+                      "dados_imovel": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
                           "type": "object",
                           "properties": {
-                            "relacao_juridica": {
+                            "logradouro": {
                               "anyOf": [
                                 {
-                                  "type": "number",
-                                  "const": 1
+                                  "type": "string",
+                                  "maxLength": 150
                                 },
                                 {
-                                  "type": "number",
-                                  "const": 2
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 3
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 4
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 5
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 6
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 7
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 8
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 9
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 10
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 11
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 12
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 13
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 14
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 15
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 16
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 17
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 18
+                                  "type": "null"
                                 }
                               ]
                             },
-                            "data_inicio_rel_juridica": {
-                              "type": "string",
-                              "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                            "complemento": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "cep": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "cod_ibge_municipio": {
+                              "type": "number",
+                              "minimum": 1000000,
+                              "maximum": 9999999
+                            },
+                            "uf": {
+                              "type": "number",
+                              "minimum": 11,
+                              "maximum": 53
                             }
                           },
                           "required": [
-                            "relacao_juridica",
-                            "data_inicio_rel_juridica"
+                            "cod_ibge_municipio",
+                            "uf"
                           ],
-                          "additionalProperties": {}
+                          "additionalProperties": false
                         }
-                      ]
-                    }
+                      },
+                      "dados_pessoa": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "allOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "nome_completo": {
+                                      "type": "string",
+                                      "maxLength": 150
+                                    },
+                                    "estrangeiro": {
+                                      "type": "boolean"
+                                    },
+                                    "nao_CPF": {
+                                      "type": "boolean"
+                                    },
+                                    "cpf_cnpj": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:\\d{11}|\\d{14}|[A-Za-z0-9]{11}|[A-Za-z0-9]{14}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}|\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}-[A-Za-z0-9]{2}|[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\/[A-Za-z0-9]{4}-[A-Za-z0-9]{2})$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "nacionalidade": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "estado_civil": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "regime_bens": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "relacao_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_inicio_rel_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_fim_rel_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "percentual": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0,
+                                          "maximum": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "tipo_logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 1,
+                                          "maximum": 311
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 150
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "numero_logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 10
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "complemento": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "bairro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 50
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "cep": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "cod_ibge_municipio": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "uf": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "condicao_parte": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "emissor_rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 50
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "passaporte": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "genero": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "filhos_brasileiros": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "estrangeiro",
+                                    "estado_civil"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "type": "null"
+                                        }
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        "data_inicio_rel_juridica": {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "relacao_juridica",
+                                        "data_inicio_rel_juridica"
+                                      ],
+                                      "additionalProperties": {}
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "area_terreno_total": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "valor": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "unidade": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 2
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "valor",
+                              "unidade"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "codigo_incra": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z0-9]{14}|[A-Za-z0-9]{12}-[A-Za-z0-9]{2}|[A-Za-z0-9]{32}|[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_transcricao": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 10
+                      },
+                      "data_transcricao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "livro_transcricao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 5
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "folha_transcricao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 10
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "motivo_envio",
+                      "georreferenciamento",
+                      "certificacao_incra",
+                      "imovel_possui_nome",
+                      "tipo_matricula_transcricao",
+                      "tipo_imovel",
+                      "contexto_rural",
+                      "dados_imovel",
+                      "numero_transcricao",
+                      "data_transcricao"
+                    ],
+                    "additionalProperties": false
                   }
-                },
-                "required": [
-                  "motivo_envio",
-                  "ato",
-                  "alteracao_titularidade",
-                  "valor_transacao",
-                  "valor_imposto",
-                  "dados_pessoa"
-                ],
-                "additionalProperties": {}
+                ]
               },
               {
-                "type": "object",
-                "properties": {
-                  "ato": {
-                    "type": "number",
-                    "const": 5
-                  },
-                  "alteracao_imovel": {}
-                },
-                "required": [
-                  "ato",
-                  "alteracao_imovel"
-                ],
-                "additionalProperties": {}
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "ato": {
-                    "anyOf": [
-                      {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "motivo_envio": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          }
+                        ]
+                      },
+                      "georreferenciamento": {
+                        "type": "boolean"
+                      },
+                      "sistema_coordenadas": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "fuso_zona": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sistema_referencia": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "coordenadas": {
+                        "anyOf": [
+                          {
+                            "description": "Lista de coordenadas formatada como string (Geo/UTM/GMS) conforme Manual Unificado.",
+                            "type": "string",
+                            "maxLength": 15000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_poligono": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "decisao_jud": {
+                        "type": "boolean"
+                      },
+                      "certificacao_incra": {
+                        "type": "boolean"
+                      },
+                      "imovel_possui_nome": {
+                        "type": "boolean"
+                      },
+                      "tipo_matricula_transcricao": {
+                        "type": "number",
+                        "const": 1
+                      },
+                      "protocolo_prenotacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_protocolo_prenotacao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "categoria_poligono": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ccir": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{11}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "cod_sncr": {
+                        "type": "string",
+                        "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
+                      },
+                      "cib": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z0-9]{8}|[A-Za-z0-9]{7}-[A-Za-z0-9])$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "car": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z]{2}-\\d{7}-[A-Za-z0-9]{32}|[A-Za-z0-9]{41})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "nome_imovel": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "dados_confrontantes": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "numero_matricula_confrontante": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "maxLength": 800
+                                    },
+                                    {
+                                      "type": "number"
+                                    }
+                                  ]
+                                },
+                                "nome_proprietario_confrontante": {
+                                  "type": "string",
+                                  "maxLength": 800
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tipo_ato": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_ato": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ato": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_ato": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alteracao_titularidade": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              },
+                              {
+                                "type": "number",
+                                "const": 10
+                              },
+                              {
+                                "type": "number",
+                                "const": 11
+                              },
+                              {
+                                "type": "number",
+                                "const": 12
+                              },
+                              {
+                                "type": "number",
+                                "const": 13
+                              },
+                              {
+                                "type": "number",
+                                "const": 14
+                              },
+                              {
+                                "type": "number",
+                                "const": 15
+                              },
+                              {
+                                "type": "number",
+                                "const": 16
+                              },
+                              {
+                                "type": "number",
+                                "const": 17
+                              },
+                              {
+                                "type": "number",
+                                "const": 18
+                              },
+                              {
+                                "type": "number",
+                                "const": 19
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alteracao_imovel": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              },
+                              {
+                                "type": "number",
+                                "const": 10
+                              },
+                              {
+                                "type": "number",
+                                "const": 11
+                              },
+                              {
+                                "type": "number",
+                                "const": 12
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valor_imposto": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valor_transacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tipo_imovel": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "contexto_rural": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "dados_imovel": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "logradouro": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 150
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "complemento": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "cep": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "cod_ibge_municipio": {
+                              "type": "number",
+                              "minimum": 1000000,
+                              "maximum": 9999999
+                            },
+                            "uf": {
+                              "type": "number",
+                              "minimum": 11,
+                              "maximum": 53
+                            }
+                          },
+                          "required": [
+                            "cod_ibge_municipio",
+                            "uf"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "dados_pessoa": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "allOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "nome_completo": {
+                                      "type": "string",
+                                      "maxLength": 150
+                                    },
+                                    "estrangeiro": {
+                                      "type": "boolean"
+                                    },
+                                    "nao_CPF": {
+                                      "type": "boolean"
+                                    },
+                                    "cpf_cnpj": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:\\d{11}|\\d{14}|[A-Za-z0-9]{11}|[A-Za-z0-9]{14}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}|\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}-[A-Za-z0-9]{2}|[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\/[A-Za-z0-9]{4}-[A-Za-z0-9]{2})$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "nacionalidade": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "estado_civil": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "regime_bens": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "relacao_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_inicio_rel_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_fim_rel_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "percentual": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0,
+                                          "maximum": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "tipo_logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 1,
+                                          "maximum": 311
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 150
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "numero_logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 10
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "complemento": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "bairro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 50
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "cep": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "cod_ibge_municipio": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "uf": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "condicao_parte": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "emissor_rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 50
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "passaporte": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "genero": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "filhos_brasileiros": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "estrangeiro",
+                                    "estado_civil"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "type": "null"
+                                        }
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        "data_inicio_rel_juridica": {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "relacao_juridica",
+                                        "data_inicio_rel_juridica"
+                                      ],
+                                      "additionalProperties": {}
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "onerosa_nao_onerosa": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "regime_utilizacao": {
                         "anyOf": [
                           {
                             "type": "number",
@@ -9359,17 +4544,4185 @@ window.ONR_SCHEMA_RURAL = {
                           },
                           {
                             "type": "number",
+                            "const": 4
+                          },
+                          {
+                            "type": "number",
+                            "const": 5
+                          },
+                          {
+                            "type": "number",
                             "const": 6
+                          },
+                          {
+                            "type": "number",
+                            "const": 7
                           }
                         ]
                       },
-                      {
-                        "type": "null"
+                      "cat": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{1,15}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "base_calculo_itbi": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "fracao": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "rip": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{1,13}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "area_terreno_total": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "valor": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "unidade": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 2
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "valor",
+                              "unidade"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "area_terreno_uniao": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "valor": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "unidade": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 2
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "valor",
+                              "unidade"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_averbacao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "nome_representante_legal": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 150
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "cpf_representante_legal": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:\\d{11}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "codigo_incra": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z0-9]{14}|[A-Za-z0-9]{12}-[A-Za-z0-9]{2}|[A-Za-z0-9]{32}|[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_matricula": {
+                        "type": "string",
+                        "pattern": "^\\d{1,10}$"
+                      },
+                      "data_matricula": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "situacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "string",
+                            "const": "1"
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          },
+                          {
+                            "type": "string",
+                            "const": "2"
+                          },
+                          {
+                            "type": "number",
+                            "const": 3
+                          },
+                          {
+                            "type": "string",
+                            "const": "3"
+                          },
+                          {
+                            "type": "number",
+                            "const": 4
+                          },
+                          {
+                            "type": "string",
+                            "const": "4"
+                          },
+                          {
+                            "type": "number",
+                            "const": 5
+                          },
+                          {
+                            "type": "string",
+                            "const": "5"
+                          },
+                          {
+                            "type": "number",
+                            "const": 6
+                          },
+                          {
+                            "type": "string",
+                            "const": "6"
+                          }
+                        ]
+                      },
+                      "cnm": {
+                        "type": "string",
+                        "pattern": "^(?:\\d{6}\\.\\d\\.\\d{7}-\\d{2}|\\d{16})$"
                       }
-                    ]
+                    },
+                    "required": [
+                      "motivo_envio",
+                      "georreferenciamento",
+                      "certificacao_incra",
+                      "imovel_possui_nome",
+                      "tipo_matricula_transcricao",
+                      "tipo_imovel",
+                      "contexto_rural",
+                      "dados_imovel",
+                      "regime_utilizacao",
+                      "numero_matricula",
+                      "data_matricula",
+                      "situacao",
+                      "cnm"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "motivo_envio": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          }
+                        ]
+                      },
+                      "georreferenciamento": {
+                        "type": "boolean"
+                      },
+                      "sistema_coordenadas": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "fuso_zona": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sistema_referencia": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "coordenadas": {
+                        "anyOf": [
+                          {
+                            "description": "Lista de coordenadas formatada como string (Geo/UTM/GMS) conforme Manual Unificado.",
+                            "type": "string",
+                            "maxLength": 15000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_poligono": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "decisao_jud": {
+                        "type": "boolean"
+                      },
+                      "certificacao_incra": {
+                        "type": "boolean"
+                      },
+                      "imovel_possui_nome": {
+                        "type": "boolean"
+                      },
+                      "tipo_matricula_transcricao": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "protocolo_prenotacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_protocolo_prenotacao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "categoria_poligono": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ccir": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{11}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "cod_sncr": {
+                        "type": "string",
+                        "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
+                      },
+                      "cib": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z0-9]{8}|[A-Za-z0-9]{7}-[A-Za-z0-9])$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "car": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z]{2}-\\d{7}-[A-Za-z0-9]{32}|[A-Za-z0-9]{41})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "nome_imovel": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "dados_confrontantes": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "numero_matricula_confrontante": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "maxLength": 800
+                                    },
+                                    {
+                                      "type": "number"
+                                    }
+                                  ]
+                                },
+                                "nome_proprietario_confrontante": {
+                                  "type": "string",
+                                  "maxLength": 800
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tipo_ato": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_ato": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ato": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_ato": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alteracao_titularidade": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              },
+                              {
+                                "type": "number",
+                                "const": 10
+                              },
+                              {
+                                "type": "number",
+                                "const": 11
+                              },
+                              {
+                                "type": "number",
+                                "const": 12
+                              },
+                              {
+                                "type": "number",
+                                "const": 13
+                              },
+                              {
+                                "type": "number",
+                                "const": 14
+                              },
+                              {
+                                "type": "number",
+                                "const": 15
+                              },
+                              {
+                                "type": "number",
+                                "const": 16
+                              },
+                              {
+                                "type": "number",
+                                "const": 17
+                              },
+                              {
+                                "type": "number",
+                                "const": 18
+                              },
+                              {
+                                "type": "number",
+                                "const": 19
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alteracao_imovel": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              },
+                              {
+                                "type": "number",
+                                "const": 10
+                              },
+                              {
+                                "type": "number",
+                                "const": 11
+                              },
+                              {
+                                "type": "number",
+                                "const": 12
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valor_imposto": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valor_transacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tipo_imovel": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "contexto_rural": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "dados_imovel": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "logradouro": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 150
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "complemento": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "cep": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "cod_ibge_municipio": {
+                              "type": "number",
+                              "minimum": 1000000,
+                              "maximum": 9999999
+                            },
+                            "uf": {
+                              "type": "number",
+                              "minimum": 11,
+                              "maximum": 53
+                            }
+                          },
+                          "required": [
+                            "cod_ibge_municipio",
+                            "uf"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "dados_pessoa": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "allOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "nome_completo": {
+                                      "type": "string",
+                                      "maxLength": 150
+                                    },
+                                    "estrangeiro": {
+                                      "type": "boolean"
+                                    },
+                                    "nao_CPF": {
+                                      "type": "boolean"
+                                    },
+                                    "cpf_cnpj": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:\\d{11}|\\d{14}|[A-Za-z0-9]{11}|[A-Za-z0-9]{14}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}|\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}-[A-Za-z0-9]{2}|[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\/[A-Za-z0-9]{4}-[A-Za-z0-9]{2})$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "nacionalidade": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "estado_civil": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "regime_bens": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "relacao_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_inicio_rel_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_fim_rel_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "percentual": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0,
+                                          "maximum": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "tipo_logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 1,
+                                          "maximum": 311
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 150
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "numero_logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 10
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "complemento": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "bairro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 50
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "cep": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "cod_ibge_municipio": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "uf": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "condicao_parte": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "emissor_rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 50
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "passaporte": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "genero": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "filhos_brasileiros": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "estrangeiro",
+                                    "estado_civil"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "type": "null"
+                                        }
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        "data_inicio_rel_juridica": {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "relacao_juridica",
+                                        "data_inicio_rel_juridica"
+                                      ],
+                                      "additionalProperties": {}
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "onerosa_nao_onerosa": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "regime_utilizacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          },
+                          {
+                            "type": "number",
+                            "const": 3
+                          },
+                          {
+                            "type": "number",
+                            "const": 4
+                          },
+                          {
+                            "type": "number",
+                            "const": 5
+                          },
+                          {
+                            "type": "number",
+                            "const": 6
+                          },
+                          {
+                            "type": "number",
+                            "const": 7
+                          }
+                        ]
+                      },
+                      "cat": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{1,15}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "base_calculo_itbi": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "fracao": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "rip": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{1,13}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "area_terreno_total": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "valor": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "unidade": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 2
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "valor",
+                              "unidade"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "area_terreno_uniao": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "valor": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "unidade": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 2
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "valor",
+                              "unidade"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_averbacao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "nome_representante_legal": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 150
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "cpf_representante_legal": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:\\d{11}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "codigo_incra": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z0-9]{14}|[A-Za-z0-9]{12}-[A-Za-z0-9]{2}|[A-Za-z0-9]{32}|[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_transcricao": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 10
+                      },
+                      "data_transcricao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "livro_transcricao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 5
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "folha_transcricao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 10
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "motivo_envio",
+                      "georreferenciamento",
+                      "certificacao_incra",
+                      "imovel_possui_nome",
+                      "tipo_matricula_transcricao",
+                      "tipo_imovel",
+                      "contexto_rural",
+                      "dados_imovel",
+                      "regime_utilizacao",
+                      "numero_transcricao",
+                      "data_transcricao"
+                    ],
+                    "additionalProperties": false
                   }
-                },
-                "additionalProperties": {}
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "motivo_envio": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          }
+                        ]
+                      },
+                      "georreferenciamento": {
+                        "type": "boolean"
+                      },
+                      "sistema_coordenadas": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "fuso_zona": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sistema_referencia": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "coordenadas": {
+                        "anyOf": [
+                          {
+                            "description": "Lista de coordenadas formatada como string (Geo/UTM/GMS) conforme Manual Unificado.",
+                            "type": "string",
+                            "maxLength": 15000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_poligono": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "decisao_jud": {
+                        "type": "boolean"
+                      },
+                      "certificacao_incra": {
+                        "type": "boolean"
+                      },
+                      "imovel_possui_nome": {
+                        "type": "boolean"
+                      },
+                      "tipo_matricula_transcricao": {
+                        "type": "number",
+                        "const": 1
+                      },
+                      "protocolo_prenotacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_protocolo_prenotacao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "categoria_poligono": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ccir": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{11}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "cod_sncr": {
+                        "type": "string",
+                        "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
+                      },
+                      "cib": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z0-9]{8}|[A-Za-z0-9]{7}-[A-Za-z0-9])$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "car": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z]{2}-\\d{7}-[A-Za-z0-9]{32}|[A-Za-z0-9]{41})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "nome_imovel": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "dados_confrontantes": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "numero_matricula_confrontante": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "maxLength": 800
+                                    },
+                                    {
+                                      "type": "number"
+                                    }
+                                  ]
+                                },
+                                "nome_proprietario_confrontante": {
+                                  "type": "string",
+                                  "maxLength": 800
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tipo_ato": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_ato": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ato": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_ato": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alteracao_titularidade": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              },
+                              {
+                                "type": "number",
+                                "const": 10
+                              },
+                              {
+                                "type": "number",
+                                "const": 11
+                              },
+                              {
+                                "type": "number",
+                                "const": 12
+                              },
+                              {
+                                "type": "number",
+                                "const": 13
+                              },
+                              {
+                                "type": "number",
+                                "const": 14
+                              },
+                              {
+                                "type": "number",
+                                "const": 15
+                              },
+                              {
+                                "type": "number",
+                                "const": 16
+                              },
+                              {
+                                "type": "number",
+                                "const": 17
+                              },
+                              {
+                                "type": "number",
+                                "const": 18
+                              },
+                              {
+                                "type": "number",
+                                "const": 19
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alteracao_imovel": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              },
+                              {
+                                "type": "number",
+                                "const": 10
+                              },
+                              {
+                                "type": "number",
+                                "const": 11
+                              },
+                              {
+                                "type": "number",
+                                "const": 12
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valor_imposto": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valor_transacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tipo_imovel": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "contexto_rural": {
+                        "type": "number",
+                        "const": 3
+                      },
+                      "dados_imovel": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "logradouro": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 150
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "complemento": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "cep": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "cod_ibge_municipio": {
+                              "type": "number",
+                              "minimum": 1000000,
+                              "maximum": 9999999
+                            },
+                            "uf": {
+                              "type": "number",
+                              "minimum": 11,
+                              "maximum": 53
+                            }
+                          },
+                          "required": [
+                            "cod_ibge_municipio",
+                            "uf"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "dados_pessoa": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "allOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "nome_completo": {
+                                      "type": "string",
+                                      "maxLength": 150
+                                    },
+                                    "estrangeiro": {
+                                      "type": "boolean"
+                                    },
+                                    "nao_CPF": {
+                                      "type": "boolean"
+                                    },
+                                    "cpf_cnpj": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:\\d{11}|\\d{14}|[A-Za-z0-9]{11}|[A-Za-z0-9]{14}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}|\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}-[A-Za-z0-9]{2}|[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\/[A-Za-z0-9]{4}-[A-Za-z0-9]{2})$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "nacionalidade": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "estado_civil": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "regime_bens": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "relacao_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_inicio_rel_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_fim_rel_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "percentual": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0,
+                                          "maximum": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "tipo_logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 1,
+                                          "maximum": 311
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 150
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "numero_logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 10
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "complemento": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "bairro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 50
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "cep": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "cod_ibge_municipio": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "uf": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "condicao_parte": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "emissor_rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 50
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "passaporte": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "genero": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "filhos_brasileiros": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "estrangeiro",
+                                    "estado_civil"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "type": "null"
+                                        }
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        "data_inicio_rel_juridica": {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "relacao_juridica",
+                                        "data_inicio_rel_juridica"
+                                      ],
+                                      "additionalProperties": {}
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "area_terreno_total": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "valor": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "unidade": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 2
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "valor",
+                              "unidade"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "autorizacao_incra": {
+                        "type": "boolean"
+                      },
+                      "faixa_fronteira": {
+                        "type": "boolean"
+                      },
+                      "area_sn": {
+                        "type": "boolean"
+                      },
+                      "codigo_incra": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z0-9]{14}|[A-Za-z0-9]{12}-[A-Za-z0-9]{2}|[A-Za-z0-9]{32}|[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_matricula": {
+                        "type": "string",
+                        "pattern": "^\\d{1,10}$"
+                      },
+                      "data_matricula": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "situacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "string",
+                            "const": "1"
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          },
+                          {
+                            "type": "string",
+                            "const": "2"
+                          },
+                          {
+                            "type": "number",
+                            "const": 3
+                          },
+                          {
+                            "type": "string",
+                            "const": "3"
+                          },
+                          {
+                            "type": "number",
+                            "const": 4
+                          },
+                          {
+                            "type": "string",
+                            "const": "4"
+                          },
+                          {
+                            "type": "number",
+                            "const": 5
+                          },
+                          {
+                            "type": "string",
+                            "const": "5"
+                          },
+                          {
+                            "type": "number",
+                            "const": 6
+                          },
+                          {
+                            "type": "string",
+                            "const": "6"
+                          }
+                        ]
+                      },
+                      "cnm": {
+                        "type": "string",
+                        "pattern": "^(?:\\d{6}\\.\\d\\.\\d{7}-\\d{2}|\\d{16})$"
+                      }
+                    },
+                    "required": [
+                      "motivo_envio",
+                      "georreferenciamento",
+                      "certificacao_incra",
+                      "imovel_possui_nome",
+                      "tipo_matricula_transcricao",
+                      "tipo_imovel",
+                      "contexto_rural",
+                      "dados_imovel",
+                      "autorizacao_incra",
+                      "faixa_fronteira",
+                      "area_sn",
+                      "numero_matricula",
+                      "data_matricula",
+                      "situacao",
+                      "cnm"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "motivo_envio": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "const": 1
+                          },
+                          {
+                            "type": "number",
+                            "const": 2
+                          }
+                        ]
+                      },
+                      "georreferenciamento": {
+                        "type": "boolean"
+                      },
+                      "sistema_coordenadas": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "fuso_zona": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sistema_referencia": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "coordenadas": {
+                        "anyOf": [
+                          {
+                            "description": "Lista de coordenadas formatada como string (Geo/UTM/GMS) conforme Manual Unificado.",
+                            "type": "string",
+                            "maxLength": 15000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_poligono": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "decisao_jud": {
+                        "type": "boolean"
+                      },
+                      "certificacao_incra": {
+                        "type": "boolean"
+                      },
+                      "imovel_possui_nome": {
+                        "type": "boolean"
+                      },
+                      "tipo_matricula_transcricao": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "protocolo_prenotacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 1
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_protocolo_prenotacao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "categoria_poligono": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ccir": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{11}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "cod_sncr": {
+                        "type": "string",
+                        "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
+                      },
+                      "cib": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z0-9]{8}|[A-Za-z0-9]{7}-[A-Za-z0-9])$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "car": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z]{2}-\\d{7}-[A-Za-z0-9]{32}|[A-Za-z0-9]{41})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "nome_imovel": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "dados_confrontantes": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "numero_matricula_confrontante": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "maxLength": 800
+                                    },
+                                    {
+                                      "type": "number"
+                                    }
+                                  ]
+                                },
+                                "nome_proprietario_confrontante": {
+                                  "type": "string",
+                                  "maxLength": 800
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tipo_ato": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_ato": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "ato": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "data_ato": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alteracao_titularidade": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              },
+                              {
+                                "type": "number",
+                                "const": 10
+                              },
+                              {
+                                "type": "number",
+                                "const": 11
+                              },
+                              {
+                                "type": "number",
+                                "const": 12
+                              },
+                              {
+                                "type": "number",
+                                "const": 13
+                              },
+                              {
+                                "type": "number",
+                                "const": 14
+                              },
+                              {
+                                "type": "number",
+                                "const": 15
+                              },
+                              {
+                                "type": "number",
+                                "const": 16
+                              },
+                              {
+                                "type": "number",
+                                "const": 17
+                              },
+                              {
+                                "type": "number",
+                                "const": 18
+                              },
+                              {
+                                "type": "number",
+                                "const": 19
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alteracao_imovel": {
+                        "anyOf": [
+                          {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              },
+                              {
+                                "type": "number",
+                                "const": 4
+                              },
+                              {
+                                "type": "number",
+                                "const": 5
+                              },
+                              {
+                                "type": "number",
+                                "const": 6
+                              },
+                              {
+                                "type": "number",
+                                "const": 7
+                              },
+                              {
+                                "type": "number",
+                                "const": 8
+                              },
+                              {
+                                "type": "number",
+                                "const": 9
+                              },
+                              {
+                                "type": "number",
+                                "const": 10
+                              },
+                              {
+                                "type": "number",
+                                "const": 11
+                              },
+                              {
+                                "type": "number",
+                                "const": 12
+                              }
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valor_imposto": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "valor_transacao": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tipo_imovel": {
+                        "type": "number",
+                        "const": 2
+                      },
+                      "contexto_rural": {
+                        "type": "number",
+                        "const": 3
+                      },
+                      "dados_imovel": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "logradouro": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 150
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "complemento": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "cep": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "cod_ibge_municipio": {
+                              "type": "number",
+                              "minimum": 1000000,
+                              "maximum": 9999999
+                            },
+                            "uf": {
+                              "type": "number",
+                              "minimum": 11,
+                              "maximum": 53
+                            }
+                          },
+                          "required": [
+                            "cod_ibge_municipio",
+                            "uf"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "dados_pessoa": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "allOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "nome_completo": {
+                                      "type": "string",
+                                      "maxLength": 150
+                                    },
+                                    "estrangeiro": {
+                                      "type": "boolean"
+                                    },
+                                    "nao_CPF": {
+                                      "type": "boolean"
+                                    },
+                                    "cpf_cnpj": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:\\d{11}|\\d{14}|[A-Za-z0-9]{11}|[A-Za-z0-9]{14}|\\d{3}\\.\\d{3}\\.\\d{3}-\\d{2}|\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}|[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}-[A-Za-z0-9]{2}|[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}\\/[A-Za-z0-9]{4}-[A-Za-z0-9]{2})$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "nacionalidade": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "estado_civil": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "regime_bens": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "relacao_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_inicio_rel_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_fim_rel_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "percentual": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 0,
+                                          "maximum": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "tipo_logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "minimum": 1,
+                                          "maximum": 311
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 150
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "numero_logradouro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 10
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "complemento": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "bairro": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 50
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "cep": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:\\d{8}|\\d{5}-\\d{3})?$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "cod_ibge_municipio": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "uf": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "condicao_parte": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "data_rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "emissor_rnm": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 50
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "passaporte": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "maxLength": 20
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "genero": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "filhos_brasileiros": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "estrangeiro",
+                                    "estado_civil"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "type": "null"
+                                        }
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        "data_inicio_rel_juridica": {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "relacao_juridica",
+                                        "data_inicio_rel_juridica"
+                                      ],
+                                      "additionalProperties": {}
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "area_terreno_total": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "valor": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "unidade": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 2
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "valor",
+                              "unidade"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "autorizacao_incra": {
+                        "type": "boolean"
+                      },
+                      "faixa_fronteira": {
+                        "type": "boolean"
+                      },
+                      "area_sn": {
+                        "type": "boolean"
+                      },
+                      "codigo_incra": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[A-Za-z0-9]{14}|[A-Za-z0-9]{12}-[A-Za-z0-9]{2}|[A-Za-z0-9]{32}|[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "numero_transcricao": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 10
+                      },
+                      "data_transcricao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "livro_transcricao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 5
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "folha_transcricao": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 10
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "motivo_envio",
+                      "georreferenciamento",
+                      "certificacao_incra",
+                      "imovel_possui_nome",
+                      "tipo_matricula_transcricao",
+                      "tipo_imovel",
+                      "contexto_rural",
+                      "dados_imovel",
+                      "autorizacao_incra",
+                      "faixa_fronteira",
+                      "area_sn",
+                      "numero_transcricao",
+                      "data_transcricao"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
               }
             ]
           },
@@ -9378,21 +8731,13 @@ window.ONR_SCHEMA_RURAL = {
               {
                 "type": "object",
                 "properties": {
-                  "contexto_rural": {
-                    "anyOf": [
-                      {
-                        "type": "number",
-                        "const": 1
-                      },
-                      {
-                        "type": "number",
-                        "const": 3
-                      }
-                    ]
+                  "decisao_jud": {
+                    "type": "boolean",
+                    "const": true
                   }
                 },
                 "required": [
-                  "contexto_rural"
+                  "decisao_jud"
                 ],
                 "additionalProperties": {}
               },
@@ -9400,16 +8745,179 @@ window.ONR_SCHEMA_RURAL = {
                 "allOf": [
                   {
                     "type": "object",
-                    "properties": {
-                      "contexto_rural": {
-                        "type": "number",
-                        "const": 2
-                      }
-                    },
-                    "required": [
-                      "contexto_rural"
-                    ],
+                    "properties": {},
                     "additionalProperties": {}
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "ato": {
+                            "type": "number",
+                            "const": 2
+                          },
+                          "data_matricula": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "ato"
+                        ],
+                        "additionalProperties": {}
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "motivo_envio": {},
+                          "georreferenciamento": {},
+                          "dados_imovel": {},
+                          "dados_pessoa": {},
+                          "certificacao_incra": {},
+                          "imovel_possui_nome": {}
+                        },
+                        "required": [
+                          "motivo_envio",
+                          "georreferenciamento",
+                          "dados_imovel",
+                          "dados_pessoa",
+                          "certificacao_incra",
+                          "imovel_possui_nome"
+                        ],
+                        "additionalProperties": {}
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "ato": {
+                            "type": "number",
+                            "const": 2
+                          },
+                          "data_matricula": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "ato"
+                        ],
+                        "additionalProperties": {}
+                      },
+                      {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "certificacao_incra": {
+                                "type": "boolean",
+                                "const": false
+                              }
+                            },
+                            "required": [
+                              "certificacao_incra"
+                            ],
+                            "additionalProperties": {}
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "certificacao_incra": {
+                                "type": "boolean",
+                                "const": true
+                              },
+                              "codigo_incra": {}
+                            },
+                            "required": [
+                              "certificacao_incra",
+                              "codigo_incra"
+                            ],
+                            "additionalProperties": {}
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "ato": {
+                            "type": "number",
+                            "const": 2
+                          },
+                          "data_matricula": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "ato"
+                        ],
+                        "additionalProperties": {}
+                      },
+                      {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "imovel_possui_nome": {
+                                "type": "boolean",
+                                "const": false
+                              }
+                            },
+                            "required": [
+                              "imovel_possui_nome"
+                            ],
+                            "additionalProperties": {}
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "imovel_possui_nome": {
+                                "type": "boolean",
+                                "const": true
+                              },
+                              "nome_imovel": {
+                                "type": "string",
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "imovel_possui_nome",
+                              "nome_imovel"
+                            ],
+                            "additionalProperties": {}
+                          }
+                        ]
+                      }
+                    ]
                   },
                   {
                     "anyOf": [
@@ -9457,23 +8965,31 @@ window.ONR_SCHEMA_RURAL = {
                             "type": "number",
                             "const": 1
                           },
-                          "area_terreno_uniao": {}
-                        },
-                        "required": [
-                          "motivo_envio",
-                          "area_terreno_uniao"
-                        ],
-                        "additionalProperties": {}
-                      }
-                    ]
-                  },
-                  {
-                    "anyOf": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "regime_utilizacao": {
+                          "tipo_ato": {
                             "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              }
+                            ]
+                          },
+                          "numero_ato": {
+                            "type": "string"
+                          },
+                          "ato": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 2
+                              },
                               {
                                 "type": "number",
                                 "const": 3
@@ -9489,45 +9005,219 @@ window.ONR_SCHEMA_RURAL = {
                               {
                                 "type": "number",
                                 "const": 6
-                              },
-                              {
-                                "type": "number",
-                                "const": 7
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "regime_utilizacao"
-                        ],
-                        "additionalProperties": {}
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "regime_utilizacao": {
-                            "anyOf": [
-                              {
-                                "type": "number",
-                                "const": 1
-                              },
-                              {
-                                "type": "number",
-                                "const": 2
                               }
                             ]
                           },
-                          "cat": {
+                          "data_ato": {
                             "type": "string",
-                            "pattern": "^\\d{1,15}$"
+                            "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                          },
+                          "cib": {},
+                          "cod_sncr": {
+                            "type": "string",
+                            "pattern": "^(?:\\d{12}|\\d{13}|\\d{3}\\.\\d{3}\\.\\d{3}\\.\\d{3}-\\d)$"
+                          },
+                          "car": {},
+                          "area_terreno_total": {},
+                          "dados_pessoa": {
+                            "minItems": 1,
+                            "type": "array",
+                            "items": {
+                              "allOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "nome_completo": {},
+                                    "estado_civil": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "const": 1
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 2
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 3
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 4
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 5
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 6
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 7
+                                        }
+                                      ]
+                                    },
+                                    "percentual": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 100
+                                    }
+                                  },
+                                  "required": [
+                                    "nome_completo",
+                                    "estado_civil",
+                                    "percentual"
+                                  ],
+                                  "additionalProperties": {}
+                                },
+                                {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "type": "null"
+                                        }
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        "data_inicio_rel_juridica": {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "relacao_juridica",
+                                        "data_inicio_rel_juridica"
+                                      ],
+                                      "additionalProperties": {}
+                                    }
+                                  ]
+                                },
+                                {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "nao_CPF": {
+                                          "type": "boolean",
+                                          "const": true
+                                        }
+                                      },
+                                      "required": [
+                                        "nao_CPF"
+                                      ],
+                                      "additionalProperties": {}
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "cpf_cnpj": {}
+                                      },
+                                      "required": [
+                                        "cpf_cnpj"
+                                      ],
+                                      "additionalProperties": {}
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
                           }
                         },
                         "required": [
-                          "regime_utilizacao",
-                          "cat"
+                          "motivo_envio",
+                          "tipo_ato",
+                          "numero_ato",
+                          "ato",
+                          "data_ato",
+                          "cib",
+                          "cod_sncr",
+                          "car",
+                          "area_terreno_total",
+                          "dados_pessoa"
                         ],
                         "additionalProperties": {}
                       }
@@ -9538,21 +9228,786 @@ window.ONR_SCHEMA_RURAL = {
                       {
                         "type": "object",
                         "properties": {
-                          "valor_imposto": {
-                            "type": "null"
+                          "motivo_envio": {
+                            "type": "number",
+                            "const": 1
+                          },
+                          "ato": {
+                            "type": "number",
+                            "const": 4
+                          },
+                          "alteracao_titularidade": {},
+                          "valor_transacao": {},
+                          "valor_imposto": {},
+                          "dados_pessoa": {
+                            "minItems": 1,
+                            "type": "array",
+                            "items": {
+                              "allOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "nome_completo": {},
+                                    "estado_civil": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "const": 1
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 2
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 3
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 4
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 5
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 6
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 7
+                                        }
+                                      ]
+                                    },
+                                    "percentual": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 100
+                                    }
+                                  },
+                                  "required": [
+                                    "nome_completo",
+                                    "estado_civil",
+                                    "percentual"
+                                  ],
+                                  "additionalProperties": {}
+                                },
+                                {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "type": "null"
+                                        }
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        "data_inicio_rel_juridica": {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "relacao_juridica",
+                                        "data_inicio_rel_juridica"
+                                      ],
+                                      "additionalProperties": {}
+                                    }
+                                  ]
+                                },
+                                {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "nao_CPF": {
+                                          "type": "boolean",
+                                          "const": true
+                                        }
+                                      },
+                                      "required": [
+                                        "nao_CPF"
+                                      ],
+                                      "additionalProperties": {}
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "cpf_cnpj": {}
+                                      },
+                                      "required": [
+                                        "cpf_cnpj"
+                                      ],
+                                      "additionalProperties": {}
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
                           }
                         },
+                        "required": [
+                          "motivo_envio",
+                          "ato",
+                          "alteracao_titularidade",
+                          "valor_transacao",
+                          "valor_imposto",
+                          "dados_pessoa"
+                        ],
                         "additionalProperties": {}
                       },
                       {
                         "type": "object",
                         "properties": {
+                          "motivo_envio": {
+                            "type": "number",
+                            "const": 2
+                          },
+                          "ato": {
+                            "type": "number",
+                            "const": 4
+                          },
+                          "alteracao_titularidade": {},
+                          "valor_transacao": {},
                           "valor_imposto": {},
-                          "base_calculo_itbi": {}
+                          "dados_pessoa": {
+                            "minItems": 1,
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "relacao_juridica": {
+                                      "type": "null"
+                                    }
+                                  },
+                                  "additionalProperties": {}
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "relacao_juridica": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "const": 1
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 2
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 3
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 4
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 5
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 6
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 7
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 8
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 9
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 10
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 11
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 12
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 13
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 14
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 15
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 16
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 17
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 18
+                                        }
+                                      ]
+                                    },
+                                    "data_inicio_rel_juridica": {
+                                      "type": "string",
+                                      "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                    }
+                                  },
+                                  "required": [
+                                    "relacao_juridica",
+                                    "data_inicio_rel_juridica"
+                                  ],
+                                  "additionalProperties": {}
+                                }
+                              ]
+                            }
+                          }
                         },
                         "required": [
+                          "motivo_envio",
+                          "ato",
+                          "alteracao_titularidade",
+                          "valor_transacao",
                           "valor_imposto",
-                          "base_calculo_itbi"
+                          "dados_pessoa"
+                        ],
+                        "additionalProperties": {}
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "ato": {
+                            "type": "number",
+                            "const": 5
+                          },
+                          "alteracao_imovel": {}
+                        },
+                        "required": [
+                          "ato",
+                          "alteracao_imovel"
+                        ],
+                        "additionalProperties": {}
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "ato": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 2
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 3
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 6
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "additionalProperties": {}
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "contexto_rural": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                                "const": 1
+                              },
+                              {
+                                "type": "number",
+                                "const": 3
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "contexto_rural"
+                        ],
+                        "additionalProperties": {}
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "contexto_rural": {
+                                "type": "number",
+                                "const": 2
+                              }
+                            },
+                            "required": [
+                              "contexto_rural"
+                            ],
+                            "additionalProperties": {}
+                          },
+                          {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "motivo_envio": {
+                                    "type": "number",
+                                    "const": 2
+                                  }
+                                },
+                                "required": [
+                                  "motivo_envio"
+                                ],
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "ato": {
+                                    "type": "number",
+                                    "const": 2
+                                  },
+                                  "data_matricula": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "ato"
+                                ],
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "motivo_envio": {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  "area_terreno_uniao": {}
+                                },
+                                "required": [
+                                  "motivo_envio",
+                                  "area_terreno_uniao"
+                                ],
+                                "additionalProperties": {}
+                              }
+                            ]
+                          },
+                          {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "regime_utilizacao": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                        "const": 3
+                                      },
+                                      {
+                                        "type": "number",
+                                        "const": 4
+                                      },
+                                      {
+                                        "type": "number",
+                                        "const": 5
+                                      },
+                                      {
+                                        "type": "number",
+                                        "const": 6
+                                      },
+                                      {
+                                        "type": "number",
+                                        "const": 7
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "regime_utilizacao"
+                                ],
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "regime_utilizacao": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                        "const": 1
+                                      },
+                                      {
+                                        "type": "number",
+                                        "const": 2
+                                      }
+                                    ]
+                                  },
+                                  "cat": {
+                                    "type": "string",
+                                    "pattern": "^\\d{1,15}$"
+                                  }
+                                },
+                                "required": [
+                                  "regime_utilizacao",
+                                  "cat"
+                                ],
+                                "additionalProperties": {}
+                              }
+                            ]
+                          },
+                          {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "valor_imposto": {
+                                    "type": "null"
+                                  }
+                                },
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "valor_imposto": {},
+                                  "base_calculo_itbi": {}
+                                },
+                                "required": [
+                                  "valor_imposto",
+                                  "base_calculo_itbi"
+                                ],
+                                "additionalProperties": {}
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "ato": {
+                            "type": "number",
+                            "const": 2
+                          },
+                          "data_matricula": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "ato"
+                        ],
+                        "additionalProperties": {}
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "dados_pessoa": {
+                            "type": "null"
+                          }
+                        },
+                        "required": [
+                          "dados_pessoa"
+                        ],
+                        "additionalProperties": {}
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "dados_pessoa": {
+                            "type": "array",
+                            "items": {
+                              "allOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {},
+                                  "additionalProperties": {}
+                                },
+                                {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "type": "null"
+                                        }
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "relacao_juridica": {
+                                          "anyOf": [
+                                            {
+                                              "type": "number",
+                                              "const": 1
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 2
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 3
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 4
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 5
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 6
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 7
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 8
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 9
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 10
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 11
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 12
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 13
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 14
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 15
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 16
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 17
+                                            },
+                                            {
+                                              "type": "number",
+                                              "const": 18
+                                            }
+                                          ]
+                                        },
+                                        "data_inicio_rel_juridica": {
+                                          "type": "string",
+                                          "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "relacao_juridica",
+                                        "data_inicio_rel_juridica"
+                                      ],
+                                      "additionalProperties": {}
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "estado_civil": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "const": 1
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 2
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 3
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 4
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 5
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 6
+                                        },
+                                        {
+                                          "type": "number",
+                                          "const": 7
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "estado_civil"
+                                  ],
+                                  "additionalProperties": {}
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "dados_pessoa"
                         ],
                         "additionalProperties": {}
                       }
@@ -9563,7 +10018,41 @@ window.ONR_SCHEMA_RURAL = {
             ]
           },
           {
+            "type": "object",
+            "properties": {
+              "motivo_envio": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "const": 1
+                  },
+                  {
+                    "type": "number",
+                    "const": 2
+                  }
+                ]
+              }
+            },
+            "required": [
+              "motivo_envio"
+            ],
+            "additionalProperties": {}
+          },
+          {
             "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "decisao_jud": {
+                    "type": "boolean",
+                    "const": true
+                  }
+                },
+                "required": [
+                  "decisao_jud"
+                ],
+                "additionalProperties": {}
+              },
               {
                 "type": "object",
                 "properties": {
@@ -9591,181 +10080,33 @@ window.ONR_SCHEMA_RURAL = {
               {
                 "type": "object",
                 "properties": {
-                  "dados_pessoa": {
-                    "type": "null"
+                  "georreferenciamento": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
-                  "dados_pessoa"
-                ],
-                "additionalProperties": {}
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "dados_pessoa": {
-                    "type": "array",
-                    "items": {
-                      "allOf": [
-                        {
-                          "type": "object",
-                          "properties": {},
-                          "additionalProperties": {}
-                        },
-                        {
-                          "anyOf": [
-                            {
-                              "type": "object",
-                              "properties": {
-                                "relacao_juridica": {
-                                  "type": "null"
-                                }
-                              },
-                              "additionalProperties": {}
-                            },
-                            {
-                              "type": "object",
-                              "properties": {
-                                "relacao_juridica": {
-                                  "anyOf": [
-                                    {
-                                      "type": "number",
-                                      "const": 1
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 2
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 3
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 4
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 5
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 6
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 7
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 8
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 9
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 10
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 11
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 12
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 13
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 14
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 15
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 16
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 17
-                                    },
-                                    {
-                                      "type": "number",
-                                      "const": 18
-                                    }
-                                  ]
-                                },
-                                "data_inicio_rel_juridica": {
-                                  "type": "string",
-                                  "pattern": "^\\d{2}\\/\\d{2}\\/\\d{4}$"
-                                }
-                              },
-                              "required": [
-                                "relacao_juridica",
-                                "data_inicio_rel_juridica"
-                              ],
-                              "additionalProperties": {}
-                            }
-                          ]
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "estado_civil": {
-                              "anyOf": [
-                                {
-                                  "type": "number",
-                                  "const": 1
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 2
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 3
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 4
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 5
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 6
-                                },
-                                {
-                                  "type": "number",
-                                  "const": 7
-                                }
-                              ]
-                            }
-                          },
-                          "required": [
-                            "estado_civil"
-                          ],
-                          "additionalProperties": {}
-                        }
-                      ]
-                    }
-                  }
-                },
-                "required": [
-                  "dados_pessoa"
+                  "georreferenciamento"
                 ],
                 "additionalProperties": {}
               }
             ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "coordenadas": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 15000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": {}
           }
         ]
       }
@@ -9777,6 +10118,6 @@ window.ONR_SCHEMA_RURAL = {
     "imoveis"
   ],
   "additionalProperties": false,
-  "$id": "https://onr.org.br/schemas/v1.2.0/imoveis-rurais-onr.schema.json",
+  "$id": "https://onr.org.br/schemas/v1.3.0/imoveis-rurais-onr.schema.json",
   "title": "Schema de Importação de Imóveis Rurais ONR"
 };

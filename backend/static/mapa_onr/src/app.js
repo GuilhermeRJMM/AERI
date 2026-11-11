@@ -76,18 +76,36 @@
     const original=String(texto || '').normalize('NFC').replace(/([a-zà-ÿ])-\s*\n\s*([a-zà-ÿ])/gi,'$1$2').replace(/\s+/g,' ').trim();
     const t=normalizaQualificacao(original);
     const achados=[];
+    // Um cabeçalho de histórico vale entre frases até a retomada expressa do
+    // ato atual. A pontuação, sozinha, não torna atual um título anterior.
+    const marcos=[...t.matchAll(/\b(?:(historico|referencia historica|titulo anterior|ato anterior|registro anterior|descricao historica)(?: da matricula)?\s*[:.]|(ato atual|titulo atual|origem atual)\s*(?:[:.]|e\b))/g)];
     function coletar(re,valor,peso){
       for(const m of t.matchAll(new RegExp(re.source,'g'))){
         const inicio=Math.max(t.lastIndexOf(';',m.index),t.lastIndexOf('. ',m.index),t.lastIndexOf('ato atual:',m.index))+1;
         const antes=t.slice(Math.max(inicio,m.index-180),m.index),depois=t.slice(m.index+m[0].length).split(/[.;]/)[0].slice(0,110);
-        const historico=/\b(?:historico|historica|ato anterior|titulo anterior|registro anterior|referencia historica|mera mencao|simples referencia|apenas menciona)\b/.test(antes)
+        const depoisDecisao=depois.replace(/^\s*(?:de justica|regional federal|federal|de direito)\b/,'');
+        const marco=marcos.filter(p=>p.index<=m.index).at(-1);
+        const historico=Boolean(marco && marco[1]) || /\b(?:historico|historica|ato anterior|titulo anterior|registro anterior|referencia historica|mera mencao|simples referencia|apenas menciona)\b/.test(antes)
           || /\b(?:referencia (?:ao|a)|consta no|menciona o|cita o) (?:r|av)\./.test(antes)
           || /\b(?:no|do|ao|referente ao) (?:ato|registro|titulo) anterior\b/.test(depois);
         const negado=/\bnao(?:\s+[a-z]+){0,6}\s*$/.test(antes)
           || /\b(?:revogad[oa]|cancelad[oa]|indeferid[oa]|sem efeito)\b/.test(antes.slice(-60))
           || /\b(?:nao (?:foi )?(?:expedid[oa]|emitid[oa]|julgad[oa]|homologad[oa])|revogad[oa]|cancelad[oa]|sem efeito)\b/.test(m[0])
-          || /^\s*(?:[,:(]\s*)?(?:revogad[oa]|cancelad[oa]|tornad[oa] sem efeito|sem efeito|indeferid[oa])\b/.test(depois);
-        if(historico || negado || /\b(?:ato anterior|titulo anterior|registro anterior|referencia historica)\b/.test(m[0]))continue;
+          || /^\s*(?:[,:(]\s*)?(?:revogad[oa]|cancelad[oa]|tornad[oa] sem efeito|sem efeito|indeferid[oa])\b/.test(depoisDecisao)
+          || /^\s*(?:judicial\s+)?(?:arbitral\b|nao (?:foi )?(?:expedid[oa]|emitid[oa]|deferid[oa]))/.test(depois);
+        const caudaDecisao=depoisDecisao.split(/\b(?:registra|averba|cancela|procede|determina|ordena|solicita|requer)(?:-se)?\b/)[0];
+        const revogacaoPosterior=/\b(?:revogad[oa]|tornad[oa] sem efeito|sem efeito|indeferid[oa])\b/.test(caudaDecisao);
+        // Sentença arbitral e autorização para lavrar escritura não demonstram,
+        // por si, cumprimento judicial deste ato registral. Não herdar do histórico.
+        const semBaseEstatal=valor && /\bsentenca arbitral\b/.test(m[0]+' '+depois.slice(0,25));
+        const baseNegada=valor && /\bextrajudicial\b|\bsem (?:homologacao|ordem|decisao|mandado)\b/.test(m[0]);
+        const expedienteInformativo=valor && /\b(?:carta precatoria|carta rogatoria|mandado)\b/.test(m[0])
+          && /\bsem (?:ordem|decisao|mandado) (?:de |para )?(?:registro|averbacao)|\b(?:prestar|solicitar|requisitar|obter) informacoes\b/.test(caudaDecisao);
+        const autorizacaoNotarial=valor && /\balvara\b/.test(m[0])
+          && /\bescritura publica\b/.test(antes+' '+m[0]+' '+depois)
+          && /\bautoriz/.test(antes+' '+m[0]+' '+depois);
+        if(historico || negado || revogacaoPosterior || semBaseEstatal || baseNegada || expedienteInformativo || autorizacaoNotarial
+          || /\b(?:ato anterior|titulo anterior|registro anterior|referencia historica|historico(?=:)|ato atual(?=:))\b/.test(m[0]))continue;
         achados.push({valor,peso,inicio:m.index,trecho:original.slice(m.index,m.index+m[0].length)});
         if(achados.length>=40)break;
       }
@@ -96,10 +114,16 @@
     coletar(/\bdecisao judicial\s*[:=—-]\s*nao(?: se aplica)?(?=\s*(?:[.;,]|$))/,false,3);
     coletar(/\borigem(?: do ato| do titulo| atual)?\s*[:=—-]\s*judicial\b/,true,3);
     coletar(/\borigem(?: do ato| do titulo| atual)?\s*[:=—-]\s*extrajudicial\b/,false,3);
-    coletar(/\b(?:em cumprimento|por forca|em obediencia|nos termos|em atendimento|em virtude|em razao|conforme) (?:a |ao |de |da |do |o )?(?:uma |um )?(?:decisao judicial|ordem judicial|sentenca(?: judicial)?|mandado judicial)\b/,true,2);
+    coletar(/\b(?:em cumprimento|por forca|em obediencia|nos termos|em atendimento|em virtude|em razao|conforme) (?:a |ao |de |da |do |o )?(?:uma |um )?(?:decisao judicial|ordem judicial|sentenca(?: judicial| homologatoria| condenatoria)?|mandado judicial|alvara judicial|acordao d[oa] (?:tribunal|superior tribunal|supremo tribunal)|decisao (?:interlocutoria )?(?:proferida pel[oa] |d[oa] )(?:juizo|juiz|vara|tribunal)|ordem d[oa] (?:mm\.?\s*)?(?:juiz|juizo|vara|tribunal)|tutela (?:provisoria|antecipada|de urgencia|de evidencia) (?:deferida|concedida) pel[oa] (?:juizo|juiz|vara|tribunal))\b/,true,2);
     coletar(/\b(?:por ordem|por determinacao|em cumprimento a determinacao) d[oa] (?:mm\.?\s*)?(?:juiz[ao]?|juizo|vara|tribunal)\b/,true,2);
     coletar(/\b(?:mandado|carta de sentenca|formal de partilha|carta de adjudicacao|carta de arrematacao)\b.{0,800}?\b(?:expedid[oa]|extraid[oa]|emitid[oa])\b.{0,250}?\b(?:juiz|juizo|vara|tribunal|autos)\b/,true,2);
     coletar(/\b(?:formal de partilha|carta de sentenca|carta de adjudicacao|carta de arrematacao)\b.{0,800}?\b(?:julgad[oa]|homologad[oa]) por sentenca\b/,true,2);
+    coletar(/\b(?:carta de alienacao por iniciativa particular|carta precatoria|auto de arrematacao|auto de adjudicacao|termo de penhora|termo de arresto|termo de sequestro)\b.{0,500}?\b(?:expedid[oa]|extraid[oa]|emitid[oa]|lavrad[oa])\b.{0,250}?\b(?:juizo|juiz|vara|tribunal)\b/,true,2);
+    coletar(/\bformal de partilha\b.{0,350}?\b(?:juizo|vara|juiz|tribunal)\b.{0,250}?\bsentenca de homologacao\b/,true,2);
+    coletar(/\bformal de partilha homologado judicialmente pel[oa] (?:juizo|juiz|vara|tribunal)\b/,true,2);
+    coletar(/\bcarta rogatoria\b.{0,200}?\bexequatur concedido pel[oa] (?:superior tribunal de justica|stj|supremo tribunal federal|stf)\b/,true,2);
+    coletar(/\bhipoteca judiciaria\b.{0,200}?\b(?:com base na|por forca da|decorrente da) sentenca condenatoria\b.{0,180}?\b(?:juizo|juiz|vara|tribunal)\b/,true,2);
+    coletar(/\bcertidao de sentenca condenatoria\b.{0,180}?\b(?:juizo|juiz|vara|tribunal)\b.{0,180}?\bregistro da hipoteca judiciaria\b/,true,2);
     coletar(/\b(?:titulo|documento)\s*:\s*(?:sentenca judicial|decisao judicial|mandado judicial|carta de sentenca|carta de arrematacao judicial)\b/,true,2);
     coletar(/\b(?:pela |por |na )?via extrajudicial\b/,false,2);
     coletar(/\bsem (?:necessidade de )?decisao judicial\b/,false,2);
@@ -1452,7 +1476,7 @@
     }
 
     const arquivo = B.montaArquivo(cns, imoveis, versao);
-    const schema = tipoAtual() === 'urbano' ? global.ONR_SCHEMA_URBANO : global.ONR_SCHEMA_RURAL;
+    const schema = esquemaDaVersao(tipoAtual(), versao);
     const v = V.valida(schema, arquivo);
     const resultado = { arquivo, relatorio, validacao: v, validacaoBackend: null, versao,
       assinatura, ignoradas: new Set() };
@@ -1816,6 +1840,13 @@
 
   // ------------------------------------------- aba: validar um JSON existente
 
+  function esquemaDaVersao(tipo, versao) {
+    const nome = tipo === 'urbano' ? 'ONR_SCHEMA_URBANO' : 'ONR_SCHEMA_RURAL';
+    if (versao === '1.2.0') return global[nome + '_LEGADO'] || false;
+    if (versao === '1.3.0') return global[nome] || false;
+    return false; // Versão desconhecida nunca cai silenciosamente em outro esquema.
+  }
+
   function validarArquivoExterno(texto) {
     const alvo = $('#saida-validador');
     alvo.textContent = '';
@@ -1826,8 +1857,12 @@
       alvo.appendChild(el('div', { className: 'status bad', textContent: 'JSON invalido: ' + e.message }));
       return;
     }
-    const urbano = (dados.imoveis || []).some((i) => i.tipo_imovel === 1 || i.contexto_urbano !== undefined);
-    const schema = urbano ? global.ONR_SCHEMA_URBANO : global.ONR_SCHEMA_RURAL;
+    if (!dados || typeof dados !== 'object' || !Array.isArray(dados.imoveis)) {
+      alvo.appendChild(el('div', { className: 'status bad', textContent: 'Arquivo inválido: informe um objeto com a lista imoveis.' }));
+      return;
+    }
+    const urbano = dados.imoveis.some((i) => i && (i.tipo_imovel === 1 || i.contexto_urbano !== undefined));
+    const schema = esquemaDaVersao(urbano ? 'urbano' : 'rural', dados.version);
     const v = V.valida(schema, dados);
 
     const resumo = {};
